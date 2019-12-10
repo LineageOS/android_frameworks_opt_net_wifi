@@ -796,7 +796,8 @@ public class WificondControlTest extends WifiBaseTest {
     @Test
     public void testStartPnoScan() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(true);
-        assertTrue(mWificondControl.startPnoScan(TEST_INTERFACE_NAME, TEST_PNO_SETTINGS));
+        assertTrue(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
+                TEST_PNO_SETTINGS.toNativePnoSettings()));
         verify(mWifiScannerImpl).startPnoScan(argThat(new PnoScanMatcher(TEST_PNO_SETTINGS)));
     }
 
@@ -889,7 +890,8 @@ public class WificondControlTest extends WifiBaseTest {
     @Test
     public void testStartPnoScanForMetrics() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(false);
-        assertFalse(mWificondControl.startPnoScan(TEST_INTERFACE_NAME, TEST_PNO_SETTINGS));
+        assertFalse(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
+                TEST_PNO_SETTINGS.toNativePnoSettings()));
         verify(mWifiMetrics).incrementPnoScanStartAttempCount();
         verify(mWifiMetrics).incrementPnoScanFailedCount();
     }
@@ -939,13 +941,12 @@ public class WificondControlTest extends WifiBaseTest {
      */
     @Test
     public void testRegisterDeathHandler() throws Exception {
-        WifiNative.WificondDeathEventHandler handler =
-                mock(WifiNative.WificondDeathEventHandler.class);
-        assertTrue(mWificondControl.initialize(handler));
+        Runnable deathHandler = mock(Runnable.class);
+        assertTrue(mWificondControl.initialize(deathHandler));
         verify(mWificond).tearDownInterfaces();
         mWificondControl.binderDied();
         mLooper.dispatchAll();
-        verify(handler).onDeath();
+        verify(deathHandler).run();
     }
 
     /**
@@ -954,15 +955,14 @@ public class WificondControlTest extends WifiBaseTest {
      */
     @Test
     public void testDeathHandling() throws Exception {
-        WifiNative.WificondDeathEventHandler handler =
-                mock(WifiNative.WificondDeathEventHandler.class);
-        assertTrue(mWificondControl.initialize(handler));
+        Runnable deathHandler = mock(Runnable.class);
+        assertTrue(mWificondControl.initialize(deathHandler));
 
         testSetupInterfaceForClientMode();
 
         mWificondControl.binderDied();
         mLooper.dispatchAll();
-        verify(handler).onDeath();
+        verify(deathHandler).run();
 
         // The handles should be cleared after death.
         assertNull(mWificondControl.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ));

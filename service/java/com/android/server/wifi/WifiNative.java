@@ -602,9 +602,9 @@ public class WifiNative {
     /**
      * Death handler for the wificond daemon.
      */
-    private class WificondDeathHandlerInternal implements WificondDeathEventHandler {
+    private class WificondDeathHandlerInternal implements Runnable {
         @Override
-        public void onDeath() {
+        public void run() {
             synchronized (mLock) {
                 Log.i(TAG, "wificond died. Cleaning up internal state.");
                 onNativeDaemonDeath();
@@ -1318,16 +1318,6 @@ public class WifiNative {
      ********************************************************/
 
     /**
-     * Callback to notify wificond death.
-     */
-    public interface WificondDeathEventHandler {
-        /**
-         * Invoked when the wificond dies.
-         */
-        void onDeath();
-    }
-
-    /**
      * Request signal polling to wificond.
      *
      * @param ifaceName Name of the interface.
@@ -1408,7 +1398,7 @@ public class WifiNative {
      * @return true on success.
      */
     public boolean startPnoScan(@NonNull String ifaceName, PnoSettings pnoSettings) {
-        return mWificondControl.startPnoScan(ifaceName, pnoSettings);
+        return mWificondControl.startPnoScan(ifaceName, pnoSettings.toNativePnoSettings());
     }
 
     /**
@@ -2480,6 +2470,22 @@ public class WifiNative {
         public int hashCode() {
             return Objects.hash(ssid, flags, auth_bit_field, frequencies);
         }
+
+        com.android.server.wifi.wificond.PnoNetwork toNativePnoNetwork() {
+            com.android.server.wifi.wificond.PnoNetwork nativePnoNetwork =
+                    new com.android.server.wifi.wificond.PnoNetwork();
+            nativePnoNetwork.isHidden =
+                    (flags & WifiScanner.PnoSettings.PnoNetwork.FLAG_DIRECTED_SCAN) != 0;
+            try {
+                nativePnoNetwork.ssid =
+                        NativeUtil.byteArrayFromArrayList(NativeUtil.decodeSsid(ssid));
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "Illegal argument " + ssid, e);
+                return null;
+            }
+            nativePnoNetwork.frequencies = frequencies;
+            return nativePnoNetwork;
+        }
     }
 
     /**
@@ -2499,6 +2505,27 @@ public class WifiNative {
         public int periodInMs;
         public boolean isConnected;
         public PnoNetwork[] networkList;
+
+        com.android.server.wifi.wificond.PnoSettings toNativePnoSettings() {
+            com.android.server.wifi.wificond.PnoSettings nativePnoSettings =
+                    new com.android.server.wifi.wificond.PnoSettings();
+            nativePnoSettings.intervalMs = periodInMs;
+            nativePnoSettings.min2gRssi = min24GHzRssi;
+            nativePnoSettings.min5gRssi = min5GHzRssi;
+            nativePnoSettings.min6gRssi = min6GHzRssi;
+
+            nativePnoSettings.pnoNetworks  = new ArrayList<>();
+            if (networkList != null) {
+                for (PnoNetwork network : networkList) {
+                    com.android.server.wifi.wificond.PnoNetwork nativeNetwork =
+                            network.toNativePnoNetwork();
+                    if (nativeNetwork != null) {
+                        nativePnoSettings.pnoNetworks.add(nativeNetwork);
+                    }
+                }
+            }
+            return nativePnoSettings;
+        }
     }
 
     public static interface ScanEventHandler {

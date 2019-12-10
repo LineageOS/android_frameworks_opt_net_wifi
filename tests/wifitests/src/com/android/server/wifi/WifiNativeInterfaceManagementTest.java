@@ -52,7 +52,6 @@ import com.android.server.net.BaseNetworkObserver;
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
 import com.android.server.wifi.WifiNative.SupplicantDeathEventHandler;
 import com.android.server.wifi.WifiNative.VendorHalDeathEventHandler;
-import com.android.server.wifi.WifiNative.WificondDeathEventHandler;
 
 import org.junit.After;
 import org.junit.Before;
@@ -91,8 +90,8 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
 
     private ArgumentCaptor<VendorHalDeathEventHandler> mWifiVendorHalDeathHandlerCaptor =
             ArgumentCaptor.forClass(VendorHalDeathEventHandler.class);
-    private ArgumentCaptor<WificondDeathEventHandler> mWificondDeathHandlerCaptor =
-            ArgumentCaptor.forClass(WificondDeathEventHandler.class);
+    private ArgumentCaptor<Runnable> mWificondDeathHandlerCaptor =
+            ArgumentCaptor.forClass(Runnable.class);
     private ArgumentCaptor<WifiNative.VendorHalRadioModeChangeEventHandler>
             mWifiVendorHalRadioModeChangeHandlerCaptor =
             ArgumentCaptor.forClass(WifiNative.VendorHalRadioModeChangeEventHandler.class);
@@ -742,7 +741,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
                 false, false, IFACE_NAME_0, mIfaceCallback0, mIfaceDestroyedListenerCaptor0,
                 mNetworkObserverCaptor0);
         // Trigger wificond death
-        mWificondDeathHandlerCaptor.getValue().onDeath();
+        mWificondDeathHandlerCaptor.getValue().run();
 
         mInOrder.verify(mWifiMetrics).incrementNumWificondCrashes();
 

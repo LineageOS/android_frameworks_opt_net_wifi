@@ -558,7 +558,7 @@ public class WifiNativeTest extends WifiBaseTest {
     public void testStartPnoScan() throws Exception {
         mWifiNative.startPnoScan(WIFI_IFACE_NAME, TEST_PNO_SETTINGS);
         verify(mWificondControl).startPnoScan(
-                WIFI_IFACE_NAME, TEST_PNO_SETTINGS);
+                WIFI_IFACE_NAME, TEST_PNO_SETTINGS.toNativePnoSettings());
     }
 
     /**
