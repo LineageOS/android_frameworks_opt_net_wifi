@@ -50,7 +50,6 @@ import android.net.wifi.SoftApConfiguration.Builder;
 import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
-import android.os.BatteryStats;
 import android.os.BatteryStatsManager;
 import android.os.test.TestLooper;
 import android.util.Log;
@@ -253,7 +252,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         if (fromState.equals(DISABLED_STATE_STRING)) {
             verify(mBatteryStats).noteWifiOn();
         }
-        verify(mBatteryStats).noteWifiState(BatteryStats.WIFI_STATE_OFF_SCANNING, null);
+        verify(mBatteryStats).noteWifiState(BatteryStatsManager.WIFI_STATE_OFF_SCANNING, null);
     }
 
     private void enterSoftApActiveMode() throws Exception {
