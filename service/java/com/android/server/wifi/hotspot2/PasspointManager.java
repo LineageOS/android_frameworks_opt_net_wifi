@@ -509,47 +509,52 @@ public class PasspointManager {
     }
 
     /**
-     * Find the best provider that can provide service through the given AP, which means the
-     * provider contained credential to authenticate with the given AP.
+     * Find all providers that can provide service through the given AP, which means the
+     * providers contained credential to authenticate with the given AP.
      *
-     * Here is the current precedence of the matching rule in descending order:
-     * 1. Home Provider
-     * 2. Roaming Provider
+     * If there is any home provider available, will return a list of matched home providers.
+     * Otherwise will return a list of matched roaming providers.
      *
-     * A {code null} will be returned if no matching is found.
+     * A empty list will be returned if no matching is found.
      *
      * @param scanResult The scan result associated with the AP
-     * @return A pair of {@link PasspointProvider} and match status.
+     * @return a list of pairs of {@link PasspointProvider} and match status.
      */
-    public Pair<PasspointProvider, PasspointMatch> matchProvider(ScanResult scanResult) {
+    public @NonNull List<Pair<PasspointProvider, PasspointMatch>> matchProvider(
+            ScanResult scanResult) {
         List<Pair<PasspointProvider, PasspointMatch>> allMatches = getAllMatchedProviders(
                 scanResult);
-        if (allMatches == null) {
-            return null;
+        if (allMatches.isEmpty()) {
+            return allMatches;
         }
-        Pair<PasspointProvider, PasspointMatch> bestMatch = null;
+        List<Pair<PasspointProvider, PasspointMatch>> homeProviders = new ArrayList<>();
+        List<Pair<PasspointProvider, PasspointMatch>> roamingProviders = new ArrayList<>();
         for (Pair<PasspointProvider, PasspointMatch> match : allMatches) {
-            if (!isExpired(match.first.getConfig())) {
-                if (match.second == PasspointMatch.HomeProvider) {
-                    bestMatch = match;
-                    break;
-                }
-                if (match.second == PasspointMatch.RoamingProvider && bestMatch == null) {
-                    bestMatch = match;
-                }
+            if (isExpired(match.first.getConfig())) {
+                continue;
+            }
+            if (match.second == PasspointMatch.HomeProvider) {
+                homeProviders.add(match);
+            } else {
+                roamingProviders.add(match);
             }
         }
-        if (bestMatch != null) {
-            Log.d(TAG, String.format("Matched %s to %s as %s", scanResult.SSID,
-                    bestMatch.first.getConfig().getHomeSp().getFqdn(),
-                    bestMatch.second == PasspointMatch.HomeProvider ? "Home Provider"
-                            : "Roaming Provider"));
-        } else {
-            if (mVerboseLoggingEnabled) {
-                Log.d(TAG, "No service provider found for " + scanResult.SSID);
-            }
+
+        if (!homeProviders.isEmpty()) {
+            Log.d(TAG, String.format("Matched %s to %s providers as %s", scanResult.SSID,
+                    homeProviders.size(), "Home Provider"));
+            return homeProviders;
         }
-        return bestMatch;
+        if (!roamingProviders.isEmpty()) {
+            Log.d(TAG, String.format("Matched %s to %s providers as %s", scanResult.SSID,
+                    allMatches.size(), "Roaming Provider"));
+            return roamingProviders;
+        }
+
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, "No service provider found for " + scanResult.SSID);
+        }
+        return new ArrayList<>();
     }
 
     /**
@@ -558,7 +563,7 @@ public class PasspointManager {
      * @param scanResult The scan result associated with the AP
      * @return a list of pairs of {@link PasspointProvider} and match status.
      */
-    public List<Pair<PasspointProvider, PasspointMatch>> getAllMatchedProviders(
+    public @NonNull List<Pair<PasspointProvider, PasspointMatch>> getAllMatchedProviders(
             ScanResult scanResult) {
         List<Pair<PasspointProvider, PasspointMatch>> allMatches = new ArrayList<>();
 
@@ -1001,7 +1006,6 @@ public class PasspointManager {
                 return true;
             }
         }
-
         return false;
     }
 }

@@ -59,8 +59,8 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
         mIsEphemeral = candidate.isEphemeral();
         mIsTrusted = candidate.isTrusted();
         mIsMetered = candidate.isMetered();
-        mEvaluatorId = candidate.getEvaluatorId();
-        mEvaluatorScore = candidate.getEvaluatorScore();
+        mEvaluatorId = candidate.getNominatorId();
+        mEvaluatorScore = candidate.getNominatorScore();
         mLastSelectionWeight = candidate.getLastSelectionWeight();
         mScanRssi = candidate.getScanRssi();
         mFrequency = candidate.getFrequency();
@@ -159,7 +159,7 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     }
 
     @Override
-    public int getEvaluatorId() {
+    public int getNominatorId() {
         return mEvaluatorId;
     }
 
@@ -169,7 +169,7 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     }
 
     @Override
-    public int getEvaluatorScore() {
+    public int getNominatorScore() {
         return mEvaluatorScore;
     }
 

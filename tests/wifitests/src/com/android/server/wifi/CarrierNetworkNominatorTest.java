@@ -17,7 +17,6 @@
 package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -58,7 +57,7 @@ import java.util.Map;
  * Unit tests for CarrierNeteworkEvaluator
  */
 @SmallTest
-public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
+public class CarrierNetworkNominatorTest extends WifiBaseTest {
     private static final String CARRIER1_SSID = "\"carrier1\"";
     private static final String CARRIER2_SSID = "\"carrier2\"";
     private static final String CARRIER_SAVED_SSID = "\"carrier3-saved\"";
@@ -72,13 +71,13 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
     private static final int CARRIER_SAVED_EPH_NET_ID = 4;
     private static final int NON_CARRIER_NET_ID = 5;
 
-    private CarrierNetworkEvaluator mDut;
+    private CarrierNetworkNominator mDut;
 
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private LocalLog mLocalLog;
     @Mock private Clock mClock;
-    @Mock private WifiNetworkSelector.NetworkEvaluator.OnConnectableListener mConnectableListener;
+    @Mock private WifiNetworkSelector.NetworkNominator.OnConnectableListener mConnectableListener;
     @Mock private WifiInjector mWifiInjector;
     @Mock private TelephonyManager mTelephonyManager;
     @Mock private TelephonyManager mDataTelephonyManager;
@@ -156,7 +155,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        mDut = new CarrierNetworkEvaluator(mWifiConfigManager, mCarrierNetworkConfig, mLocalLog,
+        mDut = new CarrierNetworkNominator(mWifiConfigManager, mCarrierNetworkConfig, mLocalLog,
                 mWifiInjector);
 
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
@@ -199,13 +198,8 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Baseline positive test case: carrier Wi-Fi enabled (have cert), present >1 Carrier networks
-     * of varying RSSI, include some none carrier networks with even better RSSI and some saved
-     * carrier networks (one of which is ephemeral).
-     *
      * Desired behavior:
      * - all Carrier Wi-Fi (including all saved networks) as connectable
-     * - best Carrier Wi-Fi (highest RSSI) as return value
      */
     @Test
     public void testSelectOneFromMultiple() {
@@ -226,11 +220,11 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         configureNewSsid(CARRIER_SAVED_EPH_NET_ID, scanDetails.get(3), true, false);
         configureNewSsid(NON_CARRIER_NET_ID, scanDetails.get(4), false, true);
 
-        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
         verify(mConnectableListener, times(4)).onConnectable(mScanDetailCaptor.capture(),
-                mWifiConfigCaptor.capture(), anyInt());
+                mWifiConfigCaptor.capture());
 
         assertEquals(4, mScanDetailCaptor.getAllValues().size());
         assertEquals(CARRIER1_SSID.replace("\"", ""),
@@ -260,16 +254,12 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         assertEquals(CARRIER_SAVED_EPH_SSID, config4.SSID);
         assertTrue(config4.isEphemeral());
         assertTrue(config4.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
-
-        assertEquals(config2.getKey(), selected.getKey()); // SSID2 has the highest RSSI
-        assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
-        assertTrue(TelephonyUtil.isSimEapMethod(selected.enterpriseConfig.getEapMethod()));
     }
 
     /**
      * Cert installed and no Carrier Wi-Fi visible
      *
-     * Desired behavior: no networks connectable or selected
+     * Desired behavior: no networks connectable.
      */
     @Test
     public void testSelectFromNoneAvailable() {
@@ -283,17 +273,16 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
                 freqs, caps, levels, mClock);
         configureNewSsid(NON_CARRIER_NET_ID, scanDetails.get(0), false, true);
 
-        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
-        verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
-        assertNull(selected);
+        verify(mConnectableListener, never()).onConnectable(any(), any());
     }
 
     /**
      * Multiple carrier Wi-Fi networks visible but no cert installed.
      *
-     * Desired behavior: no networks connectable or selected
+     * Desired behavior: no networks connectable.
      */
     @Test
     public void testNoCarrierCert() {
@@ -316,18 +305,17 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         configureNewSsid(CARRIER_SAVED_EPH_NET_ID, scanDetails.get(3), true, false);
         configureNewSsid(NON_CARRIER_NET_ID, scanDetails.get(4), false, true);
 
-        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
-        verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
-        assertNull(selected);
+        verify(mConnectableListener, never()).onConnectable(any(), any());
     }
 
     /**
      * One carrier Wi-Fi networks visible and cert installed but user has previously forgotten the
      * network.
      *
-     * Desired behavior: no networks connectable or selected
+     * Desired behavior: no networks connectable.
      */
     @Test
     public void testAvailableButPreviouslyUserDeleted() {
@@ -345,17 +333,16 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
                 freqs, caps, levels, mClock);
         configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0), true, false);
 
-        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
-        verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
-        assertNull(selected);
+        verify(mConnectableListener, never()).onConnectable(any(), any());
     }
 
     /**
      * One carrier Wi-Fi networks visible and cert installed but ssid is blacklisted.
      *
-     * Desired behavior: no networks connectable or selected
+     * Desired behavior: no networks connectable.
      */
     @Test
     public void testAvailableButBlacklisted() {
@@ -380,18 +367,17 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         when(mWifiConfigManager.tryEnableNetwork(CARRIER1_NET_ID))
                 .thenReturn(false);
 
-        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
         verify(mWifiConfigManager).getConfiguredNetwork(eq(blacklisted.getKey()));
 
-        verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
-        assertNull(selected);
+        verify(mConnectableListener, never()).onConnectable(any(), any());
     }
 
     /**
      * One carrier Wi-Fi network that is visible and supports encrypted IMSI.
      *
-     * Desired behavior: selected network supports encrypted IMSI by using EAP-SIM/AKA/AKA'
+     * Desired behavior: nominated network supports encrypted IMSI by using EAP-SIM/AKA/AKA'
      * and has an empty anonymous identity. The anonymous identity will be populated with
      * {@code anonymous@<realm>} by ClientModeImpl's handling of the
      * {@link ClientModeImpl#CMD_START_CONNECT} event.
@@ -409,11 +395,13 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         WifiConfiguration carrierConfig = configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0),
                 true, false);
 
-        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
-        assertEquals(carrierConfig.getKey(), selected.getKey());
-        assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
-        assertTrue(TelephonyUtil.isSimEapMethod(selected.enterpriseConfig.getEapMethod()));
+        verify(mConnectableListener).onConnectable(any(), mWifiConfigCaptor.capture());
+        assertEquals(carrierConfig.getKey(), mWifiConfigCaptor.getValue().getKey());
+        assertEquals("", mWifiConfigCaptor.getValue().enterpriseConfig.getAnonymousIdentity());
+        assertTrue(TelephonyUtil
+                .isSimEapMethod(mWifiConfigCaptor.getValue().enterpriseConfig.getEapMethod()));
     }
 }

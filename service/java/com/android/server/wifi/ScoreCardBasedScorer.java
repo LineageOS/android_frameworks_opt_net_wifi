@@ -106,7 +106,7 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
 
         // To simulate the old strict priority rule, subtract a penalty based on
         // which evaluator added the candidate.
-        score -= 1000 * candidate.getEvaluatorId();
+        score -= 1000 * candidate.getNominatorId();
 
         return new ScoredCandidate(score, 10,
                                    USE_USER_CONNECT_CHOICE, candidate);

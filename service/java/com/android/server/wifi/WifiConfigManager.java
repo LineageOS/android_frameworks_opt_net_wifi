@@ -53,6 +53,7 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.hotspot2.PasspointManager;
+import com.android.server.wifi.hotspot2.PasspointNetworkNominator;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
@@ -939,7 +940,7 @@ public class WifiConfigManager {
         }
 
         // Passpoint configurations are generated and managed by PasspointManager. They can be
-        // added by either PasspointNetworkEvaluator (for auto connection) or Settings app
+        // added by either PasspointNetworkNominator (for auto connection) or Settings app
         // (for manual connection), and need to be removed once the connection is completed.
         // Since it is "owned" by us, so always allow us to modify them.
         if (config.isPasspoint() && uid == Process.WIFI_UID) {
@@ -2461,7 +2462,7 @@ public class WifiConfigManager {
 
     /**
      * Save the ScanDetail to the ScanDetailCache of the given network.  This is used
-     * by {@link com.android.server.wifi.hotspot2.PasspointNetworkEvaluator} for caching
+     * by {@link PasspointNetworkNominator} for caching
      * ScanDetail for newly created {@link WifiConfiguration} for Passpoint network.
      *
      * @param networkId The ID of the network to save ScanDetail to
