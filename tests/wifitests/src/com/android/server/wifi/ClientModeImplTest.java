@@ -568,9 +568,8 @@ public class ClientModeImplTest extends WifiBaseTest {
                 mConfigUpdateListenerCaptor.capture());
         assertNotNull(mConfigUpdateListenerCaptor.getValue());
 
-        mLooper.startAutoDispatch();
-        mCmi.syncInitialize(mCmiAsyncChannel);
-        mLooper.stopAutoDispatch();
+        mCmi.initialize();
+        mLooper.dispatchAll();
     }
 
     @After

@@ -3103,8 +3103,7 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_INITIALIZE:
-                    ok = mWifiNative.initialize();
-                    replyToMessage(message, message.what, ok ? SUCCESS : FAILURE);
+                    mWifiNative.initialize();
                     break;
                 case CMD_BOOT_COMPLETED:
                     // get other services that we need to manage
@@ -5560,14 +5559,9 @@ public class ClientModeImpl extends StateMachine {
 
     /**
      * Sends a message to initialize the ClientModeImpl.
-     *
-     * @return true if succeeded, false otherwise.
      */
-    public boolean syncInitialize(AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_INITIALIZE);
-        boolean result = (resultMsg.arg1 != FAILURE);
-        resultMsg.recycle();
-        return result;
+    public void initialize() {
+        sendMessage(CMD_INITIALIZE);
     }
 
     /**

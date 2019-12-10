@@ -153,6 +153,7 @@ public class WifiAwareServiceImplTest extends WifiBaseTest {
                 mAwareMetricsMock, mWifiPermissionsUtil, mPermissionsWrapperMock, mFrameworkFacade,
                 mock(WifiAwareNativeManager.class), mock(WifiAwareNativeApi.class),
                 mock(WifiAwareNativeCallback.class));
+        mMockLooper.dispatchAll();
         verify(mAwareStateManagerMock).start(eq(mContextMock), any(), eq(mAwareMetricsMock),
                 eq(mWifiPermissionsUtil), eq(mPermissionsWrapperMock), any());
     }
