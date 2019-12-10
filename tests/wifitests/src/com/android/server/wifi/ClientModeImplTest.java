@@ -384,7 +384,7 @@ public class ClientModeImplTest {
     @Mock AsyncChannel mNullAsyncChannel;
     @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock Handler mNetworkAgentHandler;
-
+    @Mock ConnectionFailureNotifier mConnectionFailureNotifier;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -441,6 +441,8 @@ public class ClientModeImplTest {
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiInjector.getWifiLockManager()).thenReturn(mWifiLockManager);
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
+        when(mWifiInjector.makeConnectionFailureNotifier(any()))
+                .thenReturn(mConnectionFailureNotifier);
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
         when(mWifiNative.initialize()).thenReturn(true);
@@ -2813,6 +2815,44 @@ public class ClientModeImplTest {
 
         connect();
         verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
+    }
+
+    /**
+     * Verifies that a notification is posted when a connection failure happens on a network
+     * in the hotlist. Then verify that tapping on the notification launches an dialog, which
+     * could be used to set the randomization setting for a network to "Trusted".
+     */
+    @Test
+    public void testConnectionFailureSendRandomizationSettingsNotification() throws Exception {
+        when(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(anyInt())).thenReturn(true);
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, FRAMEWORK_NETWORK_ID, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_TIMEOUT);
+        mLooper.dispatchAll();
+
+        WifiConfiguration config = mCmi.getCurrentWifiConfiguration();
+        verify(mConnectionFailureNotifier)
+                .showFailedToConnectDueToNoRandomizedMacSupportNotification(FRAMEWORK_NETWORK_ID);
+    }
+
+    /**
+     * Verifies that a notification is not posted when a wrong password failure happens on a
+     * network in the hotlist.
+     */
+    @Test
+    public void testNotCallingIsInFlakyRandomizationSsidHotlistOnWrongPassword() throws Exception {
+        when(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(anyInt())).thenReturn(true);
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, FRAMEWORK_NETWORK_ID, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
+        mLooper.dispatchAll();
+
+        verify(mConnectionFailureNotifier, never())
+                .showFailedToConnectDueToNoRandomizedMacSupportNotification(anyInt());
     }
 
     /**
