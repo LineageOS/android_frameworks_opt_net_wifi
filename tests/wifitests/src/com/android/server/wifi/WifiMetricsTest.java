@@ -793,7 +793,7 @@ public class WifiMetricsTest extends WifiBaseTest {
 
         // increment pno scan metrics
         for (int i = 0; i < NUM_PNO_SCAN_ATTEMPTS; i++) {
-            mWifiMetrics.incrementPnoScanStartAttempCount();
+            mWifiMetrics.incrementPnoScanStartAttemptCount();
         }
         for (int i = 0; i < NUM_PNO_SCAN_FAILED; i++) {
             mWifiMetrics.incrementPnoScanFailedCount();

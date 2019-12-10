@@ -21,6 +21,7 @@ import android.os.Parcelable;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 
 /**
  * ScanResult from wificond
@@ -38,7 +39,7 @@ public class NativeScanResult implements Parcelable {
     public long tsf;
     public BitSet capability;
     public boolean associated;
-    public ArrayList<RadioChainInfo> radioChainInfos;
+    public List<RadioChainInfo> radioChainInfos;
 
     /** public constructor */
     public NativeScanResult() { }
