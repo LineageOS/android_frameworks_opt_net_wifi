@@ -20,7 +20,8 @@
         <policy type="product|system|vendor">
 
           <!-- Params from config.xml that can be overlayed -->
-          <item type="bool" name="config_wifi_dual_band_support" />
+          <item type="bool" name="config_wifi5ghzSupport" />
+          <item type="bool" name="config_wifi6ghzSupport" />
           <item type="integer" name="config_wifi_max_ap_interfaces" />
           <item type="bool" name="config_wifi_convert_apband_5ghz_to_any" />
           <item type="bool" name="config_wifi_fast_bss_transition_enabled" />

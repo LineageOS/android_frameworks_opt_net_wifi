@@ -32,7 +32,6 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
-import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 
 import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
@@ -1864,9 +1863,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mResources.getBoolean(
                 eq(R.bool.config_wifi_local_only_hotspot_5ghz)))
                 .thenReturn(true);
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifi5ghzSupport)))
+                .thenReturn(true);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)).thenReturn(true);
-        when(mClientModeImpl.syncGetSupportedFeatures(any(AsyncChannel.class)))
-                .thenReturn((long) WIFI_FEATURE_INFRA_5G);
 
         verify(mAsyncChannel).connect(any(), mHandlerCaptor.capture(), any(Handler.class));
         final Handler handler = mHandlerCaptor.getValue();
