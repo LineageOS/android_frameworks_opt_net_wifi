@@ -2720,12 +2720,12 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         break;
                     case IPC_DHCP_RESULTS:
                         mDhcpResults = (DhcpResults) message.obj;
-                        break;
-                    case IPC_PROVISIONING_SUCCESS:
-                        if (mVerboseLoggingEnabled) logd("mDhcpResults: " + mDhcpResults);
-                        if (mDhcpResults != null) {
-                            setWifiP2pInfoOnGroupFormation(mDhcpResults.serverAddress);
+                        if (mDhcpResults == null) {
+                            break;
                         }
+
+                        if (mVerboseLoggingEnabled) logd("mDhcpResults: " + mDhcpResults);
+                        setWifiP2pInfoOnGroupFormation(mDhcpResults.serverAddress);
                         sendP2pConnectionChangedBroadcast();
                         try {
                             final String ifname = mGroup.getInterface();
@@ -2736,6 +2736,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         } catch (Exception e) {
                             loge("Failed to add iface to local network " + e);
                         }
+                        break;
+                    case IPC_PROVISIONING_SUCCESS:
                         break;
                     case IPC_PROVISIONING_FAILURE:
                         loge("IP provisioning failed");
