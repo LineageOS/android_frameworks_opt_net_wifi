@@ -952,7 +952,7 @@ public class WifiConfigManager {
         // Since it is "owned" by us, so always allow us to modify them.
         if (config.enterpriseConfig != null
                 && uid == Process.WIFI_UID
-                && TelephonyUtil.isSimEapMethod(config.enterpriseConfig.getEapMethod())) {
+                && config.enterpriseConfig.requireSimCredential()) {
             return true;
         }
 
@@ -3445,6 +3445,7 @@ public class WifiConfigManager {
         pw.println("WifiConfigManager - PNO scan recency sorting enabled = "
                 + mPnoRecencySortingEnabled);
         mWifiConfigStore.dump(fd, pw, args);
+        mTelephonyUtil.dump(fd, pw, args);
     }
 
     /**

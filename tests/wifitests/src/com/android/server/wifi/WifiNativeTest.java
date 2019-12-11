@@ -28,14 +28,12 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 
@@ -53,7 +51,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -245,7 +242,6 @@ public class WifiNativeTest extends WifiBaseTest {
     @Mock private WifiMonitor mWifiMonitor;
     @Mock private PropertyService mPropertyService;
     @Mock private WifiMetrics mWifiMetrics;
-    @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private Handler mHandler;
     @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;
     @Mock private Random mRandom;
@@ -281,7 +277,7 @@ public class WifiNativeTest extends WifiBaseTest {
 
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mPropertyService, mWifiMetrics, mCarrierNetworkConfig,
+                mWifiMonitor, mPropertyService, mWifiMetrics,
                 mHandler, mRandom, mWifiInjector);
         mWifiNative.initialize();
     }
@@ -807,10 +803,6 @@ public class WifiNativeTest extends WifiBaseTest {
         when(mWificondControl.getScanResults(anyString(), anyInt())).thenReturn(mockScanResults);
 
         ArrayList<ScanDetail> returnedScanResults = mWifiNative.getScanResults(WIFI_IFACE_NAME);
-        // The test IEs {@link #TEST_INFO_ELEMENT} doesn't contained RSN IE, which means non-EAP
-        // AP. So verify carrier network is not checked, since EAP is currently required for a
-        // carrier network.
-        verify(mCarrierNetworkConfig, never()).isCarrierNetwork(anyString());
         assertEquals(mockScanResults.size(), returnedScanResults.size());
         // Since NativeScanResult is organized differently from ScanResult, this only checks
         // a few fields.
@@ -822,56 +814,6 @@ public class WifiNativeTest extends WifiBaseTest {
             assertEquals(mockScanResults.get(i).tsf,
                     returnedScanResults.get(i).getScanResult().timestamp);
         }
-    }
-
-    /**
-     * Verifies that scan result's carrier network info {@link ScanResult#isCarrierAp} and
-     * {@link ScanResult#carrierApEapType} is set appropriated based on the carrier network
-     * config.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testGetScanResultsForCarrierAp() throws Exception {
-        // Include RSN IE to indicate EAP key management.
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.write(TEST_INFO_ELEMENT_SSID);
-        out.write(TEST_INFO_ELEMENT_RSN);
-        NativeScanResult nativeScanResult = createMockNativeScanResult();
-        nativeScanResult.infoElement = out.toByteArray();
-        when(mWificondControl.getScanResults(anyString(), anyInt())).thenReturn(
-                Arrays.asList(nativeScanResult));
-
-        // AP associated with a carrier network.
-        int eapType = WifiEnterpriseConfig.Eap.SIM;
-        String carrierName = "Test Carrier";
-        when(mCarrierNetworkConfig.isCarrierNetwork(new String(nativeScanResult.ssid)))
-                .thenReturn(true);
-        when(mCarrierNetworkConfig.getNetworkEapType(new String(nativeScanResult.ssid)))
-                .thenReturn(eapType);
-        when(mCarrierNetworkConfig.getCarrierName(new String(nativeScanResult.ssid)))
-                .thenReturn(carrierName);
-        ArrayList<ScanDetail> returnedScanResults = mWifiNative.getScanResults(WIFI_IFACE_NAME);
-        assertEquals(1, returnedScanResults.size());
-        // Verify returned scan result.
-        ScanResult scanResult = returnedScanResults.get(0).getScanResult();
-        assertArrayEquals(nativeScanResult.ssid, scanResult.SSID.getBytes());
-        assertTrue(scanResult.isCarrierAp);
-        assertEquals(eapType, scanResult.carrierApEapType);
-        assertEquals(carrierName, scanResult.carrierName);
-        reset(mCarrierNetworkConfig);
-
-        // AP not associated with a carrier network.
-        when(mCarrierNetworkConfig.isCarrierNetwork(new String(nativeScanResult.ssid)))
-                .thenReturn(false);
-        returnedScanResults = mWifiNative.getScanResults(WIFI_IFACE_NAME);
-        assertEquals(1, returnedScanResults.size());
-        // Verify returned scan result.
-        scanResult = returnedScanResults.get(0).getScanResult();
-        assertArrayEquals(nativeScanResult.ssid, scanResult.SSID.getBytes());
-        assertFalse(scanResult.isCarrierAp);
-        assertEquals(ScanResult.UNSPECIFIED, scanResult.carrierApEapType);
-        assertEquals(null, scanResult.carrierName);
     }
 
     /**
@@ -891,10 +833,6 @@ public class WifiNativeTest extends WifiBaseTest {
         when(mWificondControl.getScanResults(anyString(), anyInt())).thenReturn(mockScanResults);
 
         ArrayList<ScanDetail> returnedScanResults = mWifiNative.getScanResults(WIFI_IFACE_NAME);
-        // The test IEs {@link #TEST_INFO_ELEMENT} doesn't contained RSN IE, which means non-EAP
-        // AP. So verify carrier network is not checked, since EAP is currently required for a
-        // carrier network.
-        verify(mCarrierNetworkConfig, never()).isCarrierNetwork(anyString());
         assertEquals(mockScanResults.size(), returnedScanResults.size());
         // Since NativeScanResult is organized differently from ScanResult, this only checks
         // a few fields.

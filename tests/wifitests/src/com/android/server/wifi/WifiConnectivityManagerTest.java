@@ -109,7 +109,6 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 R.integer.config_wifi_framework_max_tx_rate_for_full_scan);
         mFullScanMaxRxPacketRate = mResource.getInteger(
                 R.integer.config_wifi_framework_max_rx_rate_for_full_scan);
-        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         when(mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(anyString())).thenReturn(false);
     }
 
@@ -140,7 +139,6 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     @Mock private Clock mClock;
     @Mock private WifiLastResortWatchdog mWifiLastResortWatchdog;
     @Mock private OpenNetworkNotifier mOpenNetworkNotifier;
-    @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private WifiMetrics mWifiMetrics;
     @Mock private WifiNetworkScoreCache mScoreCache;
     @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
@@ -343,7 +341,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 mClientModeImpl, mWifiInjector,
                 mWifiConfigManager, mWifiInfo, mWifiNS, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier,
-                mCarrierNetworkConfig, mWifiMetrics, new Handler(mLooper.getLooper()), mClock,
+                mWifiMetrics, new Handler(mLooper.getLooper()), mClock,
                 mLocalLog);
     }
 

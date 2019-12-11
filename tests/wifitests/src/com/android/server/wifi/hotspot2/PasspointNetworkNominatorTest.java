@@ -43,7 +43,6 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.CarrierNetworkConfig;
 import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
@@ -54,7 +53,6 @@ import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType;
 import com.android.server.wifi.hotspot2.anqp.HSWanMetricsElement;
 import com.android.server.wifi.util.ScanResultUtil;
-import com.android.server.wifi.util.TelephonyUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -94,7 +92,6 @@ public class PasspointNetworkNominatorTest {
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock OnConnectableListener mOnConnectableListener;
     @Mock SubscriptionManager mSubscriptionManager;
-    @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock WifiInjector mWifiInjector;
     LocalLog mLocalLog;
     PasspointNetworkNominator mEvaluator;
@@ -346,7 +343,6 @@ public class PasspointNetworkNominatorTest {
         // SIM is present
         when(mSubscriptionManager.getActiveSubscriptionInfoList())
                 .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
-        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(config);
@@ -356,11 +352,10 @@ public class PasspointNetworkNominatorTest {
         verify(mOnConnectableListener).onConnectable(any(),
                 mWifiConfigurationArgumentCaptor.capture());
 
-
         assertEquals("", mWifiConfigurationArgumentCaptor.getValue()
                 .enterpriseConfig.getAnonymousIdentity());
-        assertTrue(TelephonyUtil.isSimEapMethod(
-                mWifiConfigurationArgumentCaptor.getValue().enterpriseConfig.getEapMethod()));
+        assertTrue(mWifiConfigurationArgumentCaptor.getValue()
+                .enterpriseConfig.requireSimCredential());
     }
 
     /**

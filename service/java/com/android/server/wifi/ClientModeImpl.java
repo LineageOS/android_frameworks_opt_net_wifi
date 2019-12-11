@@ -3740,8 +3740,8 @@ public class ClientModeImpl extends StateMachine {
 
                     if (config.enterpriseConfig != null
                             && config.enterpriseConfig.requireSimCredential()
-                            && mWifiInjector.getCarrierNetworkConfig()
-                                    .isCarrierEncryptionInfoAvailable()
+                            && mTelephonyUtil.isImsiEncryptionInfoAvailable(
+                                    mTelephonyUtil.getBestMatchSubscriptionId(config))
                             && TextUtils.isEmpty(config.enterpriseConfig.getAnonymousIdentity())) {
                         String anonAtRealm = mTelephonyUtil
                                 .getAnonymousIdentityWith3GppRealm(config);
