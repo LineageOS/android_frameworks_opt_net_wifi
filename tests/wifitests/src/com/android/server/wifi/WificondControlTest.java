@@ -743,9 +743,9 @@ public class WificondControlTest extends WifiBaseTest {
                 TEST_INTERFACE_NAME, mSoftApListener));
         verify(mApInterface).registerCallback(apInterfaceCallbackCaptor.capture());
 
-        final NativeWifiClient[] testClients = new NativeWifiClient[]{};
-        apInterfaceCallbackCaptor.getValue().onConnectedClientsChanged(testClients);
-        verify(mSoftApListener).onConnectedClientsChanged(Arrays.asList(testClients));
+        final NativeWifiClient testClient = new NativeWifiClient();
+        apInterfaceCallbackCaptor.getValue().onConnectedClientsChanged(testClient, true);
+        verify(mSoftApListener).onConnectedClientsChanged(eq(testClient), eq(true));
 
         int channelFrequency = 2437;
         int channelBandwidth = IApInterfaceEventCallback.BANDWIDTH_20;

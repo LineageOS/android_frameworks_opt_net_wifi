@@ -45,7 +45,6 @@ import com.android.server.wifi.wificond.SingleScanSettings;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -188,7 +187,7 @@ public class WificondControl implements IBinder.DeathRecipient {
         /**
          * Invoked when the associated stations changes.
          */
-        void onConnectedClientsChanged(List<NativeWifiClient> clients);
+        void onConnectedClientsChanged(NativeWifiClient client, boolean isConnected);
 
         /**
          * Invoked when the channel switch event happens.
@@ -303,15 +302,13 @@ public class WificondControl implements IBinder.DeathRecipient {
         }
 
         @Override
-        public void onConnectedClientsChanged(NativeWifiClient[] clients) {
+        public void onConnectedClientsChanged(NativeWifiClient client, boolean isConnected) {
             if (mVerboseLoggingEnabled) {
-                Log.d(TAG, "onConnectedClientsChanged called with " + clients.length + " clients");
-                for (int i = 0; i < clients.length; i++) {
-                    Log.d(TAG, " mac " + clients[i].macAddress);
-                }
+                Log.d(TAG, "onConnectedClientsChanged called with "
+                        + client.macAddress + " isConnected: " + isConnected);
             }
 
-            mSoftApListener.onConnectedClientsChanged(Arrays.asList(clients));
+            mSoftApListener.onConnectedClientsChanged(client, isConnected);
         }
 
         @Override
