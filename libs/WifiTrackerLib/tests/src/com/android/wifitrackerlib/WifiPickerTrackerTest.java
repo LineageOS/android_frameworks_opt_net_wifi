@@ -29,9 +29,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -71,6 +73,10 @@ public class WifiPickerTrackerTest {
     private Clock mMockClock;
     @Mock
     private WifiPickerTracker.WifiPickerTrackerCallback mMockCallback;
+    @Mock
+    private WifiInfo mMockWifiInfo;
+    @Mock
+    private NetworkInfo mMockNetworkInfo;
 
     private TestLooper mTestLooper;
 
@@ -99,7 +105,13 @@ public class WifiPickerTrackerTest {
         mTestLooper = new TestLooper();
 
         when(mMockWifiManager.getScanResults()).thenReturn(new ArrayList<>());
+        when(mMockWifiManager.getConnectionInfo()).thenReturn(mMockWifiInfo);
+        when(mMockConnectivityManager.getActiveNetworkInfo()).thenReturn(mMockNetworkInfo);
         when(mMockClock.millis()).thenReturn(START_MILLIS);
+        when(mMockWifiInfo.getNetworkId()).thenReturn(WifiConfiguration.INVALID_NETWORK_ID);
+        when(mMockWifiInfo.getRssi()).thenReturn(WifiInfo.INVALID_RSSI);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(
+                NetworkInfo.DetailedState.DISCONNECTED);
     }
 
     /**
@@ -395,5 +407,90 @@ public class WifiPickerTrackerTest {
                                 WifiManager.CHANGE_REASON_REMOVED));
 
         assertThat(entry.isSaved()).isFalse();
+    }
+
+    /**
+     * Tests that getConnectedEntry() returns the connected WifiEntry if we start already connected
+     * to a network.
+     */
+    @Test
+    public void testGetConnectedEntry_alreadyConnectedOnStart_returnsConnectedEntry() {
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        when(mMockWifiManager.getConfiguredNetworks())
+                .thenReturn(Collections.singletonList(config));
+        when(mMockWifiInfo.getNetworkId()).thenReturn(1);
+        when(mMockWifiInfo.getRssi()).thenReturn(-50);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
+
+        wifiPickerTracker.onStart();
+        mTestLooper.dispatchAll();
+
+        assertThat(wifiPickerTracker.getConnectedWifiEntry()).isNotNull();
+    }
+
+    /**
+     * Tests that connecting to a network will update getConnectedEntry() to return the connected
+     * WifiEntry and remove that entry from getWifiEntries().
+     */
+    @Test
+    public void testGetConnectedEntry_connectToNetwork_returnsConnectedEntry() {
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        when(mMockWifiManager.getConfiguredNetworks())
+                .thenReturn(Collections.singletonList(config));
+        when(mMockWifiManager.getScanResults()).thenReturn(Arrays.asList(
+                buildScanResult("ssid", "bssid", START_MILLIS)));
+        wifiPickerTracker.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+        mTestLooper.dispatchAll();
+        final WifiEntry entry = wifiPickerTracker.getWifiEntries().get(0);
+
+        when(mMockWifiInfo.getNetworkId()).thenReturn(1);
+        when(mMockWifiInfo.getRssi()).thenReturn(-50);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+                        .putExtra(WifiManager.EXTRA_NETWORK_INFO, mMockNetworkInfo));
+
+        verify(mMockCallback, atLeastOnce()).onWifiEntriesChanged();
+        assertThat(wifiPickerTracker.getWifiEntries()).isEmpty();
+        assertThat(wifiPickerTracker.getConnectedWifiEntry()).isEqualTo(entry);
+    }
+
+    /**
+     * Tests that disconnecting from a network will update getConnectedEntry() to return null.
+     */
+    @Test
+    public void testGetConnectedEntry_disconnectFromNetwork_returnsNull() {
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        when(mMockWifiManager.getConfiguredNetworks())
+                .thenReturn(Collections.singletonList(config));
+        when(mMockWifiManager.getScanResults()).thenReturn(Arrays.asList(
+                buildScanResult("ssid", "bssid", START_MILLIS)));
+        when(mMockWifiInfo.getNetworkId()).thenReturn(1);
+        when(mMockWifiInfo.getRssi()).thenReturn(-50);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
+        wifiPickerTracker.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+        mTestLooper.dispatchAll();
+
+        when(mMockNetworkInfo.getDetailedState())
+                .thenReturn(NetworkInfo.DetailedState.DISCONNECTED);
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+                        .putExtra(WifiManager.EXTRA_NETWORK_INFO, mMockNetworkInfo));
+
+        verify(mMockCallback, atLeastOnce()).onWifiEntriesChanged();
+        assertThat(wifiPickerTracker.getConnectedWifiEntry()).isNull();
     }
 }

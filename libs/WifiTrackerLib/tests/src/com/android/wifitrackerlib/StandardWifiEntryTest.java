@@ -17,14 +17,21 @@
 package com.android.wifitrackerlib;
 
 import static com.android.wifitrackerlib.TestUtils.buildScanResult;
+import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_CONNECTED;
+import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_DISCONNECTED;
+import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_MAX;
+import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_UNREACHABLE;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -44,6 +51,8 @@ public class StandardWifiEntryTest {
 
     @Mock private WifiEntry.WifiEntryCallback mMockListener;
     @Mock private WifiManager mMockWifiManager;
+    @Mock private WifiInfo mMockWifiInfo;
+    @Mock private NetworkInfo mMockNetworkInfo;
 
     private TestLooper mTestLooper;
     private Handler mTestHandler;
@@ -54,6 +63,11 @@ public class StandardWifiEntryTest {
 
         mTestLooper = new TestLooper();
         mTestHandler = new Handler(mTestLooper.getLooper());
+
+        when(mMockWifiInfo.getNetworkId()).thenReturn(WifiConfiguration.INVALID_NETWORK_ID);
+        when(mMockWifiInfo.getRssi()).thenReturn(WifiInfo.INVALID_RSSI);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(
+                NetworkInfo.DetailedState.DISCONNECTED);
     }
 
     /**
@@ -281,5 +295,41 @@ public class StandardWifiEntryTest {
         entry.updateConfig(null);
 
         assertThat(entry.isSaved()).isFalse();
+    }
+
+    @Test
+    public void testUpdateConnectionInfo_matchingNetId_updatesConnectionInfo() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config,
+                mMockWifiManager);
+        when(mMockWifiInfo.getNetworkId()).thenReturn(1);
+        when(mMockWifiInfo.getRssi()).thenReturn(-50);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
+
+        entry.updateConnectionInfo(mMockWifiInfo, mMockNetworkInfo);
+
+        assertThat(entry.getLevel()).isEqualTo(WIFI_LEVEL_MAX);
+        assertThat(entry.getConnectedState()).isEqualTo(CONNECTED_STATE_CONNECTED);
+    }
+
+    @Test
+    public void testUpdateConnectionInfo_nonMatchingNetId_doesNotUpdateConnectionInfo() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config,
+                mMockWifiManager);
+        when(mMockWifiInfo.getNetworkId()).thenReturn(2);
+        when(mMockWifiInfo.getRssi()).thenReturn(-50);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
+
+        entry.updateConnectionInfo(mMockWifiInfo, mMockNetworkInfo);
+
+        assertThat(entry.getLevel()).isEqualTo(WIFI_LEVEL_UNREACHABLE);
+        assertThat(entry.getConnectedState()).isEqualTo(CONNECTED_STATE_DISCONNECTED);
     }
 }
