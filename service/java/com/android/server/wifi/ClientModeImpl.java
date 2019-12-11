@@ -92,7 +92,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
-import android.util.StatsLog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -107,6 +106,7 @@ import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.WnmData;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
+import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
@@ -2364,7 +2364,7 @@ public class ClientModeImpl extends StateMachine {
 
     private void sendRssiChangeBroadcast(final int newRssi) {
         mBatteryStatsManager.noteWifiRssiChanged(newRssi);
-        StatsLog.write(StatsLog.WIFI_SIGNAL_STRENGTH_CHANGED,
+        WifiStatsLog.write(WifiStatsLog.WIFI_SIGNAL_STRENGTH_CHANGED,
                 RssiUtil.calculateSignalLevel(mContext, newRssi));
 
         Intent intent = new Intent(WifiManager.RSSI_CHANGED_ACTION);
