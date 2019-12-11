@@ -100,7 +100,12 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         mScoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
         mThroughputScorer = new ThroughputScorer(mScoringParams);
         when(mWifiNative.getClientInterfaceName()).thenReturn("wlan0");
-        mWifiNetworkSelector.registerCandidateScorer(mCompatibilityScorer);
+        if (WifiNetworkSelector.PRESET_CANDIDATE_SCORER_NAME.equals(
+                mThroughputScorer.getIdentifier())) {
+            mWifiNetworkSelector.registerCandidateScorer(mThroughputScorer);
+        } else {
+            mWifiNetworkSelector.registerCandidateScorer(mCompatibilityScorer);
+        }
     }
 
     /** Cleans up test. */
@@ -1452,7 +1457,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     }
 
     /**
-     * Tests that metrics are recorded for 3 scorers (legacy, compat, and null scorer).
+     * Tests that metrics are recorded for 3 scorers.
      */
     @Test
     public void testCandidateScorerMetrics_threeScorers() {
@@ -1481,11 +1486,16 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     }
 
     /**
-     * Tests that metrics are recorded for legacy scorer and throughput scorer.
+     * Tests that metrics are recorded for two scorers.
      */
     @Test
-    public void testCandidateScorerMetricsThrougputScorer() {
-        mWifiNetworkSelector.registerCandidateScorer(mThroughputScorer);
+    public void testCandidateScorerMetricsThroughputScorer() {
+        if (WifiNetworkSelector.PRESET_CANDIDATE_SCORER_NAME.equals(
+                mThroughputScorer.getIdentifier())) {
+            mWifiNetworkSelector.registerCandidateScorer(mCompatibilityScorer);
+        } else {
+            mWifiNetworkSelector.registerCandidateScorer(mThroughputScorer);
+        }
 
         // add a second NetworkEvaluator that returns the second network in the scan list
         mWifiNetworkSelector.registerNetworkNominator(
@@ -1498,8 +1508,14 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
 
         // Wanted 2 times since test2GhzHighQuality5GhzAvailable() calls
         // WifiNetworkSelector.selectNetwork() twice
-        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(throughputExpId,
-                compatibilityExpId, true, 2);
+        if (WifiNetworkSelector.PRESET_CANDIDATE_SCORER_NAME.equals(
+                mThroughputScorer.getIdentifier())) {
+            verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(
+                    compatibilityExpId, throughputExpId, true, 2);
+        } else {
+            verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(throughputExpId,
+                    compatibilityExpId, true, 2);
+        }
     }
 
     /**
