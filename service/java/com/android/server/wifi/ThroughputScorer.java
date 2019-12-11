@@ -97,7 +97,7 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
 
         // To simulate the old strict priority rule, subtract a penalty based on
         // which evaluator added the candidate.
-        int evaluatorGroupScore = -1000 * candidate.getEvaluatorId();
+        int evaluatorGroupScore = -1000 * candidate.getNominatorId();
 
         int score = rssiBaseScore + throughputBonusScore + lastSelectionBonusScore
                 + currentNetworkBoost + securityAward + evaluatorGroupScore;

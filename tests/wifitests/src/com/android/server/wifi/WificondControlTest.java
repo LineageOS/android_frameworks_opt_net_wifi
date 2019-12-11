@@ -16,7 +16,6 @@
 
 package com.android.server.wifi;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -27,12 +26,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -47,9 +44,7 @@ import android.net.wifi.IScanEvent;
 import android.net.wifi.ISendMgmtFrameEvent;
 import android.net.wifi.IWifiScannerImpl;
 import android.net.wifi.IWificond;
-import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.IBinder;
@@ -62,10 +57,8 @@ import com.android.server.wifi.WificondControl.SendMgmtFrameCallback;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
-import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.server.wifi.wificond.PnoSettings;
-import com.android.server.wifi.wificond.RadioChainInfo;
 import com.android.server.wifi.wificond.SingleScanSettings;
 
 import org.junit.Before;
@@ -76,11 +69,9 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -90,78 +81,42 @@ import java.util.Set;
  */
 @SmallTest
 public class WificondControlTest extends WifiBaseTest {
-    @Mock private WifiInjector mWifiInjector;
-    @Mock private WifiMonitor mWifiMonitor;
-    @Mock private WifiMetrics mWifiMetrics;
-    @Mock private IWificond mWificond;
-    @Mock private IBinder mWifiCondBinder;
-    @Mock private IClientInterface mClientInterface;
-    @Mock private IWifiScannerImpl mWifiScannerImpl;
-    @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
-    @Mock private IApInterface mApInterface;
-    @Mock private WificondControl.SoftApListener mSoftApListener;
-    @Mock private AlarmManager mAlarmManager;
-    @Mock private Clock mClock;
-    @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;
+    @Mock
+    private WifiInjector mWifiInjector;
+    @Mock
+    private IWificond mWificond;
+    @Mock
+    private IBinder mWifiCondBinder;
+    @Mock
+    private IClientInterface mClientInterface;
+    @Mock
+    private IWifiScannerImpl mWifiScannerImpl;
+    @Mock
+    private IApInterface mApInterface;
+    @Mock
+    private WificondControl.SoftApListener mSoftApListener;
+    @Mock
+    private AlarmManager mAlarmManager;
+    @Mock
+    private Clock mClock;
+    @Mock
+    private SendMgmtFrameCallback mSendMgmtFrameCallback;
+    @Mock
+    private WificondControl.ScanEventCallback mNormalScanCallback;
+    @Mock
+    private WificondControl.ScanEventCallback mPnoScanCallback;
+    @Mock
+    private WificondControl.PnoScanRequestCallback mPnoScanRequestCallback;
     private TestLooper mLooper;
     private WificondControl mWificondControl;
     private static final String TEST_INTERFACE_NAME = "test_wlan_if";
     private static final String TEST_INTERFACE_NAME1 = "test_wlan_if1";
     private static final String TEST_INVALID_INTERFACE_NAME = "asdf";
     private static final byte[] TEST_SSID =
-            new byte[] {'G', 'o', 'o', 'g', 'l', 'e', 'G', 'u', 'e', 's', 't'};
+            new byte[]{'G', 'o', 'o', 'g', 'l', 'e', 'G', 'u', 'e', 's', 't'};
     private static final byte[] TEST_PSK =
-            new byte[] {'T', 'e', 's', 't'};
-    private static final byte[] TEST_BSSID =
-            new byte[] {(byte) 0x12, (byte) 0xef, (byte) 0xa1,
-                        (byte) 0x2c, (byte) 0x97, (byte) 0x8b};
-    // This the IE buffer which is consistent with TEST_SSID.
-    private static final byte[] TEST_INFO_ELEMENT_SSID =
-            new byte[] {
-                    // Element ID for SSID.
-                    (byte) 0x00,
-                    // Length of the SSID: 0x0b or 11.
-                    (byte) 0x0b,
-                    // This is string "GoogleGuest"
-                    'G', 'o', 'o', 'g', 'l', 'e', 'G', 'u', 'e', 's', 't'};
-    // RSN IE data indicating EAP key management.
-    private static final byte[] TEST_INFO_ELEMENT_RSN =
-            new byte[] {
-                    // Element ID for RSN.
-                    (byte) 0x30,
-                    // Length of the element data.
-                    (byte) 0x18,
-                    (byte) 0x01, (byte) 0x00, (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x02,
-                    (byte) 0x02, (byte) 0x00, (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
-                    (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x02, (byte) 0x01, (byte) 0x00,
-                    (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x01, (byte) 0x00, (byte) 0x00 };
+            new byte[]{'T', 'e', 's', 't'};
 
-    private static final int TEST_FREQUENCY = 2456;
-    private static final int TEST_SIGNAL_MBM = -4500;
-    private static final long TEST_TSF = 34455441;
-    private static final BitSet TEST_CAPABILITY = new BitSet(16) {{ set(2); set(5); }};
-    private static final boolean TEST_ASSOCIATED = true;
-    private static final NativeScanResult MOCK_NATIVE_SCAN_RESULT =
-            new NativeScanResult() {{
-                ssid = TEST_SSID;
-                bssid = TEST_BSSID;
-                infoElement = TEST_INFO_ELEMENT_SSID;
-                frequency = TEST_FREQUENCY;
-                signalMbm = TEST_SIGNAL_MBM;
-                capability = TEST_CAPABILITY;
-                associated = TEST_ASSOCIATED;
-                radioChainInfos = new ArrayList<>();
-            }};
-    private static final RadioChainInfo MOCK_NATIVE_RADIO_CHAIN_INFO_1 =
-            new RadioChainInfo() {{
-                chainId = 1;
-                level = -89;
-            }};
-    private static final RadioChainInfo MOCK_NATIVE_RADIO_CHAIN_INFO_2 =
-            new RadioChainInfo() {{
-                chainId = 0;
-                level = -78;
-            }};
     private static final Set<Integer> SCAN_FREQ_SET =
             new HashSet<Integer>() {{
                 add(2410);
@@ -219,12 +174,11 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.tearDownApInterface(any())).thenReturn(true);
         when(mClientInterface.getWifiScannerImpl()).thenReturn(mWifiScannerImpl);
         when(mClientInterface.getInterfaceName()).thenReturn(TEST_INTERFACE_NAME);
-        when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         mLooper = new TestLooper();
-        mWificondControl = new WificondControl(mWifiInjector, mWifiMonitor, mCarrierNetworkConfig,
+        mWificondControl = new WificondControl(mWifiInjector,
                 mAlarmManager, new Handler(mLooper.getLooper()), mClock);
-        assertEquals(mClientInterface, mWificondControl.setupInterfaceForClientMode(
-                TEST_INTERFACE_NAME));
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
         verify(mWifiInjector).makeWificond();
         verify(mWifiCondBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
     }
@@ -257,9 +211,8 @@ public class WificondControlTest extends WifiBaseTest {
         mWificondControl.binderDied();
         mLooper.dispatchAll();
         when(mWifiInjector.makeWificond()).thenReturn(null);
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(null, returnedClientInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
         verify(mWifiInjector, times(2)).makeWificond();
     }
 
@@ -273,9 +226,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(null);
 
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(null, returnedClientInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
     }
 
     /**
@@ -317,6 +269,7 @@ public class WificondControlTest extends WifiBaseTest {
         verify(mWifiScannerImpl, never()).unsubscribePnoScanEvents();
         verify(mWificond, never()).tearDownClientInterface(TEST_INTERFACE_NAME);
     }
+
     /**
      * Verifies that tearDownClientInterface(TEST_INTERFACE_NAME) calls Wificond.
      */
@@ -354,9 +307,7 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createApInterface(TEST_INTERFACE_NAME)).thenReturn(mApInterface);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME);
-        assertEquals(mApInterface, returnedApInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME));
         verify(mWifiInjector).makeWificond();
         verify(mWifiCondBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
         verify(mWificond).createApInterface(TEST_INTERFACE_NAME);
@@ -372,10 +323,7 @@ public class WificondControlTest extends WifiBaseTest {
         mLooper.dispatchAll();
         when(mWifiInjector.makeWificond()).thenReturn(null);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME);
-
-        assertEquals(null, returnedApInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME));
         verify(mWifiInjector, times(2)).makeWificond();
     }
 
@@ -389,9 +337,7 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createApInterface(TEST_INTERFACE_NAME)).thenReturn(null);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME);
-        assertEquals(null, returnedApInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME));
     }
 
     /**
@@ -449,9 +395,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testSetupMulitpleInterfaces() throws Exception {
         when(mWificond.createApInterface(TEST_INTERFACE_NAME1)).thenReturn(mApInterface);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME1);
-        assertEquals(mApInterface, returnedApInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME1));
         verify(mWifiInjector).makeWificond();
         verify(mWifiCondBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
 
@@ -513,7 +457,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
-        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
+        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME, mNormalScanCallback,
+                mPnoScanCallback);
         mWificondControl.signalPoll(TEST_INTERFACE_NAME);
         verify(mClientInterface).signalPoll();
     }
@@ -527,9 +472,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
         // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
 
         // Tear down interfaces.
         assertTrue(mWificondControl.tearDownInterfaces());
@@ -546,7 +490,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
-        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
+        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME, mNormalScanCallback,
+                mPnoScanCallback);
         mWificondControl.getTxPacketCounters(TEST_INTERFACE_NAME);
         verify(mClientInterface).getPacketCounters();
     }
@@ -561,9 +506,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
         // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
 
         // Tear down interfaces.
         assertTrue(mWificondControl.tearDownInterfaces());
@@ -582,9 +526,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
         // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
 
         // Tear down interfaces.
         assertTrue(mWificondControl.tearDownInterfaces());
@@ -593,131 +536,6 @@ public class WificondControlTest extends WifiBaseTest {
         assertEquals(0,
                 mWificondControl.getScanResults(TEST_INTERFACE_NAME,
                         WificondControl.SCAN_TYPE_SINGLE_SCAN).size());
-    }
-
-    /**
-     * Verifies that getScanResults() can parse NativeScanResult from wificond correctly,
-     */
-    @Test
-    public void testGetScanResults() throws Exception {
-        assertNotNull(mWifiScannerImpl);
-
-        // Mock the returned array of NativeScanResult.
-        NativeScanResult[] mockScanResults = {MOCK_NATIVE_SCAN_RESULT};
-        when(mWifiScannerImpl.getScanResults()).thenReturn(mockScanResults);
-
-        ArrayList<ScanDetail> returnedScanResults = mWificondControl.getScanResults(
-                TEST_INTERFACE_NAME, WificondControl.SCAN_TYPE_SINGLE_SCAN);
-        // The test IEs {@link #TEST_INFO_ELEMENT} doesn't contained RSN IE, which means non-EAP
-        // AP. So verify carrier network is not checked, since EAP is currently required for a
-        // carrier network.
-        verify(mCarrierNetworkConfig, never()).isCarrierNetwork(anyString());
-        assertEquals(mockScanResults.length, returnedScanResults.size());
-        // Since NativeScanResult is organized differently from ScanResult, this only checks
-        // a few fields.
-        for (int i = 0; i < mockScanResults.length; i++) {
-            assertArrayEquals(mockScanResults[i].ssid,
-                              returnedScanResults.get(i).getScanResult().SSID.getBytes());
-            assertEquals(mockScanResults[i].frequency,
-                         returnedScanResults.get(i).getScanResult().frequency);
-            assertEquals(mockScanResults[i].tsf,
-                         returnedScanResults.get(i).getScanResult().timestamp);
-        }
-    }
-
-    /**
-     * Verifies that scan result's carrier network info {@link ScanResult#isCarrierAp} and
-     * {@link ScanResult#carrierApEapType} is set appropriated based on the carrier network
-     * config.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testGetScanResultsForCarrierAp() throws Exception {
-        assertNotNull(mWifiScannerImpl);
-
-        // Include RSN IE to indicate EAP key management.
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.write(TEST_INFO_ELEMENT_SSID);
-        out.write(TEST_INFO_ELEMENT_RSN);
-        NativeScanResult nativeScanResult = new NativeScanResult(MOCK_NATIVE_SCAN_RESULT);
-        nativeScanResult.infoElement = out.toByteArray();
-        when(mWifiScannerImpl.getScanResults()).thenReturn(
-                new NativeScanResult[] {nativeScanResult});
-
-        // AP associated with a carrier network.
-        int eapType = WifiEnterpriseConfig.Eap.SIM;
-        String carrierName = "Test Carrier";
-        when(mCarrierNetworkConfig.isCarrierNetwork(new String(nativeScanResult.ssid)))
-                .thenReturn(true);
-        when(mCarrierNetworkConfig.getNetworkEapType(new String(nativeScanResult.ssid)))
-                .thenReturn(eapType);
-        when(mCarrierNetworkConfig.getCarrierName(new String(nativeScanResult.ssid)))
-                .thenReturn(carrierName);
-        ArrayList<ScanDetail> returnedScanResults = mWificondControl.getScanResults(
-                TEST_INTERFACE_NAME, WificondControl.SCAN_TYPE_SINGLE_SCAN);
-        assertEquals(1, returnedScanResults.size());
-        // Verify returned scan result.
-        ScanResult scanResult = returnedScanResults.get(0).getScanResult();
-        assertArrayEquals(nativeScanResult.ssid, scanResult.SSID.getBytes());
-        assertTrue(scanResult.isCarrierAp);
-        assertEquals(eapType, scanResult.carrierApEapType);
-        assertEquals(carrierName, scanResult.carrierName);
-        reset(mCarrierNetworkConfig);
-
-        // AP not associated with a carrier network.
-        when(mCarrierNetworkConfig.isCarrierNetwork(new String(nativeScanResult.ssid)))
-                .thenReturn(false);
-        returnedScanResults = mWificondControl.getScanResults(
-                TEST_INTERFACE_NAME, WificondControl.SCAN_TYPE_SINGLE_SCAN);
-        assertEquals(1, returnedScanResults.size());
-        // Verify returned scan result.
-        scanResult = returnedScanResults.get(0).getScanResult();
-        assertArrayEquals(nativeScanResult.ssid, scanResult.SSID.getBytes());
-        assertFalse(scanResult.isCarrierAp);
-        assertEquals(ScanResult.UNSPECIFIED, scanResult.carrierApEapType);
-        assertEquals(null, scanResult.carrierName);
-    }
-
-    /**
-     * Verifies that getScanResults() can parse NativeScanResult from wificond correctly,
-     * when there is radio chain info.
-     */
-    @Test
-    public void testGetScanResultsWithRadioChainInfo() throws Exception {
-        assertNotNull(mWifiScannerImpl);
-
-        // Mock the returned array of NativeScanResult.
-        NativeScanResult nativeScanResult = new NativeScanResult(MOCK_NATIVE_SCAN_RESULT);
-        // Add radio chain info
-        ArrayList<RadioChainInfo> nativeRadioChainInfos = new ArrayList<RadioChainInfo>() {{
-                add(MOCK_NATIVE_RADIO_CHAIN_INFO_1);
-                add(MOCK_NATIVE_RADIO_CHAIN_INFO_2);
-            }};
-        nativeScanResult.radioChainInfos = nativeRadioChainInfos;
-        NativeScanResult[] mockScanResults = { nativeScanResult };
-
-        when(mWifiScannerImpl.getScanResults()).thenReturn(mockScanResults);
-
-        ArrayList<ScanDetail> returnedScanResults = mWificondControl.getScanResults(
-                TEST_INTERFACE_NAME, WificondControl.SCAN_TYPE_SINGLE_SCAN);
-        // The test IEs {@link #TEST_INFO_ELEMENT} doesn't contained RSN IE, which means non-EAP
-        // AP. So verify carrier network is not checked, since EAP is currently required for a
-        // carrier network.
-        verify(mCarrierNetworkConfig, never()).isCarrierNetwork(anyString());
-        assertEquals(mockScanResults.length, returnedScanResults.size());
-        // Since NativeScanResult is organized differently from ScanResult, this only checks
-        // a few fields.
-        for (int i = 0; i < mockScanResults.length; i++) {
-            assertArrayEquals(mockScanResults[i].ssid,
-                    returnedScanResults.get(i).getScanResult().SSID.getBytes());
-            assertEquals(mockScanResults[i].frequency,
-                    returnedScanResults.get(i).getScanResult().frequency);
-            assertEquals(mockScanResults[i].tsf,
-                    returnedScanResults.get(i).getScanResult().timestamp);
-            assertRadioChainInfosEqual(nativeRadioChainInfos,
-                    returnedScanResults.get(i).getScanResult().radioChainInfos);
-        }
     }
 
     /**
@@ -796,8 +614,10 @@ public class WificondControlTest extends WifiBaseTest {
     @Test
     public void testStartPnoScan() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(true);
-        assertTrue(mWificondControl.startPnoScan(TEST_INTERFACE_NAME, TEST_PNO_SETTINGS));
+        assertTrue(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
+                TEST_PNO_SETTINGS.toNativePnoSettings(), mPnoScanRequestCallback));
         verify(mWifiScannerImpl).startPnoScan(argThat(new PnoScanMatcher(TEST_PNO_SETTINGS)));
+        verify(mPnoScanRequestCallback).onPnoRequestSucceeded();
     }
 
     /**
@@ -833,7 +653,7 @@ public class WificondControlTest extends WifiBaseTest {
         assertNotNull(scanEvent);
         scanEvent.OnScanResultReady();
 
-        verify(mWifiMonitor).broadcastScanResultEvent(any(String.class));
+        verify(mNormalScanCallback).onScanResultReady();
     }
 
     /**
@@ -842,14 +662,13 @@ public class WificondControlTest extends WifiBaseTest {
      */
     @Test
     public void testScanFailedEvent() throws Exception {
-
         ArgumentCaptor<IScanEvent> messageCaptor = ArgumentCaptor.forClass(IScanEvent.class);
         verify(mWifiScannerImpl).subscribeScanEvents(messageCaptor.capture());
         IScanEvent scanEvent = messageCaptor.getValue();
         assertNotNull(scanEvent);
         scanEvent.OnScanFailed();
 
-        verify(mWifiMonitor).broadcastScanFailedEvent(any(String.class));
+        verify(mNormalScanCallback).onScanFailed();
     }
 
     /**
@@ -863,7 +682,7 @@ public class WificondControlTest extends WifiBaseTest {
         IPnoScanEvent pnoScanEvent = messageCaptor.getValue();
         assertNotNull(pnoScanEvent);
         pnoScanEvent.OnPnoNetworkFound();
-        verify(mWifiMonitor).broadcastPnoScanResultEvent(any(String.class));
+        verify(mPnoScanCallback).onScanResultReady();
     }
 
     /**
@@ -877,10 +696,10 @@ public class WificondControlTest extends WifiBaseTest {
         assertNotNull(pnoScanEvent);
 
         pnoScanEvent.OnPnoNetworkFound();
-        verify(mWifiMetrics).incrementPnoFoundNetworkEventCount();
+        verify(mPnoScanCallback).onScanResultReady();
 
         pnoScanEvent.OnPnoScanFailed();
-        verify(mWifiMetrics).incrementPnoScanFailedCount();
+        verify(mPnoScanCallback).onScanFailed();
     }
 
     /**
@@ -889,9 +708,10 @@ public class WificondControlTest extends WifiBaseTest {
     @Test
     public void testStartPnoScanForMetrics() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(false);
-        assertFalse(mWificondControl.startPnoScan(TEST_INTERFACE_NAME, TEST_PNO_SETTINGS));
-        verify(mWifiMetrics).incrementPnoScanStartAttempCount();
-        verify(mWifiMetrics).incrementPnoScanFailedCount();
+
+        assertFalse(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
+                TEST_PNO_SETTINGS.toNativePnoSettings(), mPnoScanRequestCallback));
+        verify(mPnoScanRequestCallback).onPnoRequestFailed();
     }
 
     /**
@@ -939,13 +759,12 @@ public class WificondControlTest extends WifiBaseTest {
      */
     @Test
     public void testRegisterDeathHandler() throws Exception {
-        WifiNative.WificondDeathEventHandler handler =
-                mock(WifiNative.WificondDeathEventHandler.class);
-        assertTrue(mWificondControl.initialize(handler));
+        Runnable deathHandler = mock(Runnable.class);
+        assertTrue(mWificondControl.initialize(deathHandler));
         verify(mWificond).tearDownInterfaces();
         mWificondControl.binderDied();
         mLooper.dispatchAll();
-        verify(handler).onDeath();
+        verify(deathHandler).run();
     }
 
     /**
@@ -954,15 +773,14 @@ public class WificondControlTest extends WifiBaseTest {
      */
     @Test
     public void testDeathHandling() throws Exception {
-        WifiNative.WificondDeathEventHandler handler =
-                mock(WifiNative.WificondDeathEventHandler.class);
-        assertTrue(mWificondControl.initialize(handler));
+        Runnable deathHandler = mock(Runnable.class);
+        assertTrue(mWificondControl.initialize(deathHandler));
 
         testSetupInterfaceForClientMode();
 
         mWificondControl.binderDied();
         mLooper.dispatchAll();
-        verify(handler).onDeath();
+        verify(deathHandler).run();
 
         // The handles should be cleared after death.
         assertNull(mWificondControl.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ));
@@ -1248,22 +1066,13 @@ public class WificondControlTest extends WifiBaseTest {
         verify(mSendMgmtFrameCallback).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT);
     }
 
-    private void assertRadioChainInfosEqual(
-            List<RadioChainInfo> expected, android.net.wifi.ScanResult.RadioChainInfo[] actual) {
-        assertEquals(expected.size(), actual.length);
-        for (int i = 0; i < actual.length; i++) {
-            RadioChainInfo nativeRadioChainInfo =
-                    new RadioChainInfo(actual[i].id, actual[i].level);
-            assertTrue(expected.contains(nativeRadioChainInfo));
-        }
-    }
-
     // Create a ArgumentMatcher which captures a SingleScanSettings parameter and checks if it
     // matches the provided frequency set and ssid set.
     private class ScanMatcher implements ArgumentMatcher<SingleScanSettings> {
         int mExpectedScanType;
         private final Set<Integer> mExpectedFreqs;
         private final List<String> mExpectedSsids;
+
         ScanMatcher(int expectedScanType, Set<Integer> expectedFreqs, List<String> expectedSsids) {
             this.mExpectedScanType = expectedScanType;
             this.mExpectedFreqs = expectedFreqs;
@@ -1320,9 +1129,11 @@ public class WificondControlTest extends WifiBaseTest {
     // matches the WifiNative.PnoSettings;
     private class PnoScanMatcher implements ArgumentMatcher<PnoSettings> {
         private final WifiNative.PnoSettings mExpectedPnoSettings;
+
         PnoScanMatcher(WifiNative.PnoSettings expectedPnoSettings) {
             this.mExpectedPnoSettings = expectedPnoSettings;
         }
+
         @Override
         public boolean matches(PnoSettings settings) {
             if (mExpectedPnoSettings == null) {

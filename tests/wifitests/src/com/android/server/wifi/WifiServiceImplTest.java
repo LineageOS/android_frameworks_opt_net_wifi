@@ -303,7 +303,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiCountryCode()).thenReturn(mWifiCountryCode);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
-        when(mClientModeImpl.syncInitialize(any())).thenReturn(true);
         when(mClientModeImpl.getHandler()).thenReturn(new Handler());
         when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
         when(mWifiInjector.getAsyncChannelHandlerThread()).thenReturn(mHandlerThread);
@@ -758,6 +757,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testSetWifiEnabledFromNetworkSettingsHolderWhenApEnabled() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
@@ -782,6 +782,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
@@ -1166,6 +1167,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testWifiControllerStartsWhenDeviceBootsWithWifiDisabled() {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verify(mActiveModeWarden).start();
         verify(mActiveModeWarden, never()).wifiToggled();
     }
@@ -1182,6 +1184,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verify(mActiveModeWarden).start();
     }
 
@@ -2376,6 +2379,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testRegisteredCallbacksTriggeredOnSoftApFailureGeneric() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
 
@@ -2394,6 +2398,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testRegisteredCallbacksTriggeredOnSoftApFailureNoChannel() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
 
@@ -2412,6 +2417,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private void setupLocalOnlyHotspot() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
 
@@ -2460,6 +2466,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testRegisteredCallbacksNotTriggeredOnSoftApStart() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
 
@@ -2510,6 +2517,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testAllRegisteredCallbacksTriggeredWhenSoftApFails() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
 
@@ -2535,6 +2543,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testAllRegisteredCallbacksTriggeredWhenSoftApStops() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
 
@@ -2567,6 +2576,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testAllRegisteredCallbacksTriggeredWhenSoftApStopsLOHSNotActive() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
 
         verifyApRegistration();
 
@@ -2719,6 +2729,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
             throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verifyApRegistration();
 
         // register a request so we don't drop the LOHS interface ip update
@@ -3252,7 +3263,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getPasspointProvisionerHandlerThread())
                 .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         mWifiServiceImpl.handleBootCompleted();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat(new IdleModeIntentMatcher()));
 
@@ -3336,6 +3349,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testPackageRemovedBroadcastHandling() {
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)));
@@ -3364,6 +3378,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testPackageRemovedBroadcastHandlingWithNoUid() {
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)));
@@ -3387,6 +3402,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testPackageRemovedBroadcastHandlingWithNoPackageName() {
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)));
@@ -3412,7 +3428,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getPasspointProvisionerHandlerThread())
                 .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         mWifiServiceImpl.handleBootCompleted();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
@@ -3432,7 +3450,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getPasspointProvisionerHandlerThread())
                 .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         mWifiServiceImpl.handleBootCompleted();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
@@ -3542,6 +3562,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testSimStateChangeDoesNotResetCountryCode() {
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat((IntentFilter filter) ->
                         filter.hasAction(TelephonyIntents.ACTION_SIM_STATE_CHANGED)));
@@ -3560,6 +3581,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testEnterAirplaneModeNotResetCountryCode() {
         mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)));

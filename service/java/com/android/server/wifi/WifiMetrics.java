@@ -883,7 +883,7 @@ public class WifiMetrics {
     /**
      * Increment total number of attempts to start a pno scan
      */
-    public void incrementPnoScanStartAttempCount() {
+    public void incrementPnoScanStartAttemptCount() {
         synchronized (mLock) {
             mPnoScanMetrics.numPnoScanAttempts++;
         }
@@ -2139,13 +2139,9 @@ public class WifiMetrics {
                 }
 
                 ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromScanResult(scanResult);
-                Pair<PasspointProvider, PasspointMatch> providerMatch = null;
-                PasspointProvider passpointProvider = null;
+                List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = null;
                 if (networkDetail.isInterworking()) {
-                    providerMatch =
-                            mPasspointManager.matchProvider(scanResult);
-                    passpointProvider = providerMatch != null ? providerMatch.first : null;
-
+                    matchedProviders = mPasspointManager.matchProvider(scanResult);
                     if (networkDetail.getHSRelease() == NetworkDetail.HSRelease.R1) {
                         passpointR1Aps++;
                     } else if (networkDetail.getHSRelease() == NetworkDetail.HSRelease.R2) {
@@ -2190,7 +2186,6 @@ public class WifiMetrics {
                         mWifiConfigManager.getConfiguredNetworkForScanDetail(scanDetail);
                 boolean isSaved = (config != null) && !config.isEphemeral()
                         && !config.isPasspoint();
-                boolean isSavedPasspoint = passpointProvider != null;
                 if (isOpen) {
                     openSsids.add(matchInfo);
                     openBssids++;
@@ -2203,8 +2198,11 @@ public class WifiMetrics {
                     openOrSavedBssids++;
                     // Calculate openOrSavedSsids union later
                 }
-                if (isSavedPasspoint) {
-                    savedPasspointProviderProfiles.add(passpointProvider);
+                if (matchedProviders != null && !matchedProviders.isEmpty()) {
+                    for (Pair<PasspointProvider, PasspointMatch> passpointProvider :
+                            matchedProviders) {
+                        savedPasspointProviderProfiles.add(passpointProvider.first);
+                    }
                     savedPasspointProviderBssids++;
                 }
             }

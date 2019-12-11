@@ -46,6 +46,7 @@ import android.util.SparseIntArray;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -69,6 +70,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
     private WifiPermissionsUtil mWifiPermissionsUtil;
     private WifiAwareStateManager mStateManager;
     private WifiAwareShellCommand mShellCommand;
+    private Handler mHandler;
 
     private final Object mLock = new Object();
     private final SparseArray<IBinder.DeathRecipient> mDeathRecipientsByClientId =
@@ -98,29 +100,34 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
             WifiPermissionsUtil wifiPermissionsUtil, WifiPermissionsWrapper permissionsWrapper,
             FrameworkFacade frameworkFacade, WifiAwareNativeManager wifiAwareNativeManager,
             WifiAwareNativeApi wifiAwareNativeApi,
-            WifiAwareNativeCallback wifiAwareNativeCallback) {
+            WifiAwareNativeCallback wifiAwareNativeCallback, NetdWrapper netdWrapper) {
         Log.i(TAG, "Starting Wi-Fi Aware service");
 
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mStateManager = awareStateManager;
         mShellCommand = awareShellCommand;
-        mStateManager.start(mContext, handlerThread.getLooper(), awareMetrics, wifiPermissionsUtil,
-                permissionsWrapper, new Clock());
+        mHandler = new Handler(handlerThread.getLooper());
 
-        frameworkFacade.registerContentObserver(mContext,
-                Settings.Global.getUriFor(Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED), true,
-                new ContentObserver(new Handler(handlerThread.getLooper())) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
-                                Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0), awareStateManager,
-                                wifiAwareNativeManager, wifiAwareNativeApi,
-                                wifiAwareNativeCallback);
-                    }
-                });
-        enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0), awareStateManager,
-                wifiAwareNativeManager, wifiAwareNativeApi, wifiAwareNativeCallback);
+        mHandler.post(() -> {
+            mStateManager.start(mContext, handlerThread.getLooper(), awareMetrics,
+                    wifiPermissionsUtil, permissionsWrapper, new Clock(), netdWrapper);
+
+            frameworkFacade.registerContentObserver(mContext,
+                    Settings.Global.getUriFor(Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED), true,
+                    new ContentObserver(new Handler(handlerThread.getLooper())) {
+                        @Override
+                        public void onChange(boolean selfChange) {
+                            enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
+                                    Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0),
+                                    awareStateManager,
+                                    wifiAwareNativeManager, wifiAwareNativeApi,
+                                    wifiAwareNativeCallback);
+                        }
+                    });
+            enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
+                    Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0), awareStateManager,
+                    wifiAwareNativeManager, wifiAwareNativeApi, wifiAwareNativeCallback);
+        });
     }
 
     private void enableVerboseLogging(int verbose, WifiAwareStateManager awareStateManager,
@@ -154,7 +161,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
     public void startLate() {
         Log.i(TAG, "Late initialization of Wi-Fi Aware service");
 
-        mStateManager.startLate();
+        mHandler.post(() -> mStateManager.startLate());
     }
 
     @Override

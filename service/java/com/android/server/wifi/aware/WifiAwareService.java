@@ -72,7 +72,8 @@ public final class WifiAwareService extends SystemService {
                     wifiInjector.getWifiMetrics().getWifiAwareMetrics(),
                     wifiInjector.getWifiPermissionsUtil(),
                     wifiInjector.getWifiPermissionsWrapper(), wifiInjector.getFrameworkFacade(),
-                    wifiAwareNativeManager, wifiAwareNativeApi, wifiAwareNativeCallback);
+                    wifiAwareNativeManager, wifiAwareNativeApi, wifiAwareNativeCallback,
+                    wifiInjector.makeNetdWrapper());
         } else if (phase == SystemService.PHASE_BOOT_COMPLETED) {
             mImpl.startLate();
         }

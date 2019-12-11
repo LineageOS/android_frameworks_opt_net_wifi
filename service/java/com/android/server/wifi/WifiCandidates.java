@@ -84,14 +84,15 @@ public class WifiCandidates {
         /**
          * Returns the ID of the evaluator that provided the candidate.
          */
-        @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int getEvaluatorId();
+        @WifiNetworkSelector.NetworkNominator.NominatorId
+        int getNominatorId();
         /**
          * Gets the score that was provided by the evaluator.
          *
          * Not all evaluators provide a useful score. Scores from different evaluators
          * are not directly comparable.
          */
-        int getEvaluatorScore();
+        int getNominatorScore();
         /**
          * Returns true if the candidate is in the same network as the
          * current connection.
@@ -134,7 +135,7 @@ public class WifiCandidates {
         public final ScanDetail scanDetail;
         public final WifiConfiguration config;
         // First evaluator to nominate this config
-        public final @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId;
+        public final @WifiNetworkSelector.NetworkNominator.NominatorId int evaluatorId;
         public final int evaluatorScore;        // Score provided by first nominating evaluator
         public final double lastSelectionWeight; // Value between 0 and 1
 
@@ -147,7 +148,7 @@ public class WifiCandidates {
         CandidateImpl(Key key,
                 ScanDetail scanDetail,
                 WifiConfiguration config,
-                @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
+                @WifiNetworkSelector.NetworkNominator.NominatorId int evaluatorId,
                 int evaluatorScore,
                 WifiScoreCard.PerBssid perBssid,
                 double lastSelectionWeight,
@@ -210,12 +211,12 @@ public class WifiCandidates {
         }
 
         @Override
-        public @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int getEvaluatorId() {
+        public @WifiNetworkSelector.NetworkNominator.NominatorId int getNominatorId() {
             return evaluatorId;
         }
 
         @Override
-        public int getEvaluatorScore() {
+        public int getNominatorScore() {
             return evaluatorScore;
         }
 
@@ -368,7 +369,7 @@ public class WifiCandidates {
      */
     public boolean add(ScanDetail scanDetail,
                     WifiConfiguration config,
-                    @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
+                    @WifiNetworkSelector.NetworkNominator.NominatorId int evaluatorId,
                     int evaluatorScore,
                     double lastSelectionWeightBetweenZeroAndOne,
                     boolean isMetered,
@@ -383,9 +384,13 @@ public class WifiCandidates {
         } catch (RuntimeException e) {
             return failWithException(e);
         }
-        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromWifiConfiguration(config);
-        ScanResultMatchInfo key2 = ScanResultMatchInfo.fromScanResult(scanResult);
-        if (!key1.equals(key2)) return failure(key1, key2);
+        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromScanResult(scanResult);
+        if (!config.isPasspoint()) {
+            ScanResultMatchInfo key2 = ScanResultMatchInfo.fromWifiConfiguration(config);
+            if (!key1.equals(key2)) {
+                return failure(key1, key2);
+            }
+        }
         Key key = new Key(key1, bssid, config.networkId);
         CandidateImpl old = mCandidates.get(key);
         if (old != null) {

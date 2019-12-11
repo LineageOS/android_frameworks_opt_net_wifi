@@ -32,7 +32,6 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.DhcpResults;
 import android.net.InetAddresses;
-import android.net.InterfaceConfiguration;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.NetworkInfo;
@@ -61,13 +60,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.Process;
 import android.os.RemoteException;
-import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
@@ -91,6 +88,7 @@ import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.P2pConnectionEvent;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -123,7 +121,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
     private Context mContext;
 
-    INetworkManagementService mNwService;
+    NetdWrapper mNetdWrapper;
     private IIpClient mIpClient;
     private int mIpClientStartIndex = 0;
     private DhcpResults mDhcpResults;
@@ -481,8 +479,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
      * Obtains the service interface for Managements services
      */
     public void connectivityServiceReady() {
-        IBinder b = ServiceManager.getService(Context.NETWORKMANAGEMENT_SERVICE);
-        mNwService = INetworkManagementService.Stub.asInterface(b);
+        mNetdWrapper = mWifiInjector.makeNetdWrapper();
     }
 
     private void enforceAccessPermission() {
@@ -1412,9 +1409,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         setupInterfaceFeatures(mInterfaceName);
                         try {
-                            mNwService.setInterfaceUp(mInterfaceName);
-                        } catch (RemoteException re) {
-                            loge("Unable to change interface settings: " + re);
+                            mNetdWrapper.setInterfaceUp(mInterfaceName);
                         } catch (IllegalStateException ie) {
                             loge("Unable to change interface settings: " + ie);
                         }
@@ -2735,7 +2730,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         try {
                             final String ifname = mGroup.getInterface();
                             if (mDhcpResults != null) {
-                                mNwService.addInterfaceToLocalNetwork(
+                                mNetdWrapper.addInterfaceToLocalNetwork(
                                         ifname, mDhcpResults.getRoutes(ifname));
                             }
                         } catch (Exception e) {
@@ -3093,23 +3088,20 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         private void startDhcpServer(String intf) {
             if (!isDhcpServerHostedByDnsmasq()) return;
 
-            InterfaceConfiguration ifcg = null;
             try {
-                ifcg = mNwService.getInterfaceConfig(intf);
-                ifcg.setLinkAddress(new LinkAddress(InetAddresses.parseNumericAddress(
-                            SERVER_ADDRESS), 24));
-                ifcg.setInterfaceUp();
-                mNwService.setInterfaceConfig(intf, ifcg);
+                mNetdWrapper.setInterfaceLinkAddress(
+                        intf,
+                        new LinkAddress(InetAddresses.parseNumericAddress(SERVER_ADDRESS), 24));
                 // This starts the dnsmasq server
                 ConnectivityManager cm = (ConnectivityManager) mContext.getSystemService(
                         Context.CONNECTIVITY_SERVICE);
                 String[] tetheringDhcpRanges = cm.getTetheredDhcpRanges();
-                if (mNwService.isTetheringStarted()) {
+                if (mNetdWrapper.isTetheringStarted()) {
                     if (mVerboseLoggingEnabled) logd("Stop existing tethering and restart it");
-                    mNwService.stopTethering();
+                    mNetdWrapper.stopTethering();
                 }
-                mNwService.tetherInterface(intf);
-                mNwService.startTethering(tetheringDhcpRanges);
+                mNetdWrapper.tetherInterface(intf);
+                mNetdWrapper.startTethering(tetheringDhcpRanges);
             } catch (Exception e) {
                 loge("Error configuring interface " + intf + ", :" + e);
                 return;
@@ -3122,15 +3114,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             if (!isDhcpServerHostedByDnsmasq()) return;
 
             try {
-                mNwService.untetherInterface(intf);
-                for (String temp : mNwService.listTetheredInterfaces()) {
+                mNetdWrapper.untetherInterface(intf);
+                for (String temp : mNetdWrapper.listTetheredInterfaces()) {
                     logd("List all interfaces " + temp);
                     if (temp.compareTo(intf) != 0) {
                         logd("Found other tethering interfaces, so keep tethering alive");
                         return;
                     }
                 }
-                mNwService.stopTethering();
+                mNetdWrapper.stopTethering();
             } catch (Exception e) {
                 loge("Error stopping Dhcp server" + e);
                 return;
@@ -3770,14 +3762,14 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 if (mVerboseLoggingEnabled) logd("stop IpClient");
                 stopIpClient();
                 try {
-                    mNwService.removeInterfaceFromLocalNetwork(mGroup.getInterface());
-                } catch (RemoteException e) {
+                    mNetdWrapper.removeInterfaceFromLocalNetwork(mGroup.getInterface());
+                } catch (IllegalStateException e) {
                     loge("Failed to remove iface from local network " + e);
                 }
             }
 
             try {
-                mNwService.clearInterfaceAddresses(mGroup.getInterface());
+                mNetdWrapper.clearInterfaceAddresses(mGroup.getInterface());
             } catch (Exception e) {
                 loge("Failed to clear addresses " + e);
             }

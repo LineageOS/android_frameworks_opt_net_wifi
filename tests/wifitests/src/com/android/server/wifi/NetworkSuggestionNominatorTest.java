@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiConfiguration.INVALID_NETWORK_ID;
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus
         .NETWORK_SELECTION_TEMPORARY_DISABLED;
 
@@ -50,10 +51,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Unit tests for {@link com.android.server.wifi.NetworkSuggestionEvaluator}.
+ * Unit tests for {@link NetworkSuggestionNominator}.
  */
 @SmallTest
-public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
+public class NetworkSuggestionNominatorTest extends WifiBaseTest {
     private static final int TEST_UID = 3555;
     private static final int TEST_UID_OTHER = 3545;
     private static final int TEST_NETWORK_ID = 55;
@@ -63,20 +64,19 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private @Mock Clock mClock;
-    private NetworkSuggestionEvaluator mNetworkSuggestionEvaluator;
+    private NetworkSuggestionNominator mNetworkSuggestionNominator;
 
     /** Sets up test. */
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(
+        mNetworkSuggestionNominator = new NetworkSuggestionNominator(
                 mWifiNetworkSuggestionsManager, mWifiConfigManager, new LocalLog(100));
     }
 
     /**
      * Ensure that we ignore all scan results not matching the network suggestion.
-     * Expected candidate: null
      * Expected connectable Networks: {}
      */
     @Test
@@ -102,19 +102,17 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
 
-        assertNull(candidate);
         assertTrue(connectableNetworks.isEmpty());
     }
 
     /**
-     * Ensure that we select the only matching network suggestion.
-     * Expected candidate: suggestionSsids[0]
+     * Ensure that we nominate the only matching network suggestion.
      * Expected connectable Networks: {suggestionSsids[0]}
      */
     @Test
@@ -142,14 +140,12 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         setupAddToWifiConfigManager(suggestions[0].wns.wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
 
-        assertNotNull(candidate);
-        assertEquals(suggestionSsids[0] , candidate.SSID);
 
         validateConnectableNetworks(connectableNetworks, scanSsids[0]);
 
@@ -157,9 +153,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we select the network suggestion corresponding to the scan result with
-     * highest RSSI.
-     * Expected candidate: suggestionSsids[1]
+     * Ensure that we nominate the all network suggestion corresponding to the scan results
      * Expected connectable Networks: {suggestionSsids[0], suggestionSsids[1]}
      */
     @Test
@@ -188,14 +182,11 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 suggestions[1].wns.wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
-
-        assertNotNull(candidate);
-        assertEquals(suggestionSsids[1] , candidate.SSID);
 
         validateConnectableNetworks(connectableNetworks, scanSsids[0], scanSsids[1]);
 
@@ -204,10 +195,9 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we select the network suggestion corresponding to the scan result with
+     * Ensure that we nominate the network suggestion corresponding to the scan result with
      * higest priority.
-     * Expected candidate: suggestionSsids[0]
-     * Expected connectable Networks: {suggestionSsids[0], suggestionSsids[1]}
+     * Expected connectable Networks: {suggestionSsids[0]}
      */
     @Test
     public void testSelectNetworkSuggestionForMultipleMatchHighPriorityWins() {
@@ -235,14 +225,11 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 suggestions[1].wns.wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
-
-        assertNotNull(candidate);
-        assertEquals(suggestionSsids[0] , candidate.SSID);
 
         validateConnectableNetworks(connectableNetworks, scanSsids[0]);
 
@@ -250,11 +237,8 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we select the network suggestion corresponding to the scan result with
-     * highest RSSI. The lower RSSI scan result has multiple matching suggestions
-     * (should pick any one in the connectable networks).
+     * Ensure that we nominate one network when multiple suggestor suggested same network.
      *
-     * Expected candidate: suggestionSsids[0]
      * Expected connectable Networks: {suggestionSsids[0],
      *                                 (suggestionSsids[1] || suggestionSsids[2]}
      */
@@ -285,14 +269,11 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 suggestions[1].wns.wifiConfiguration, suggestions[2].wns.wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
-
-        assertNotNull(candidate);
-        assertEquals(suggestionSsids[0] , candidate.SSID);
 
         validateConnectableNetworks(connectableNetworks, scanSsids);
 
@@ -301,14 +282,12 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we select the network suggestion with the higest priority among network
-     * suggestions from the same package. Among different packages, pick the suggestion
-     * corresponding to the scan result with highest RSSI.
+     * Ensure that we nominate the network suggestion with the higest priority among network
+     * suggestions from the same package. Among different packages, nominate all the suggestion
+     * corresponding to the scan result.
      *
-     * The suggestion[1] has higher priority than suggestion[0] even though it has lower RSSI than
-     * suggestion[0].
+     * The suggestion[1] has higher priority than suggestion[0].
      *
-     * Expected candidate: suggestionSsids[1]
      * Expected connectable Networks: {suggestionSsids[1],
      *                                 (suggestionSsids[2],
      *                                  suggestionSsids[3]}
@@ -345,14 +324,11 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 suggestions[3].wns.wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
-
-        assertNotNull(candidate);
-        assertEquals(suggestionSsids[1] , candidate.SSID);
 
         validateConnectableNetworks(connectableNetworks, scanSsids[1], scanSsids[2], scanSsids[3]);
 
@@ -361,10 +337,10 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we select the only matching network suggestion, but return null because
-     * we failed the {@link WifiConfigManager} interactions.
-     * Expected candidate: null.
-     * Expected connectable Networks: {suggestionSsids[0], suggestionSsids[1]}
+     * Ensure that we nominate no candidate if the only matching network suggestion, but we failed
+     * the {@link WifiConfigManager} interactions.
+     *
+     * Expected connectable Networks: {}
      */
     @Test
     public void testSelectNetworkSuggestionForOneMatchButFailToAddToWifiConfigManager() {
@@ -389,16 +365,15 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // Fail add to WifiConfigManager
         when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt(), anyString()))
-                .thenReturn(new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID));
+                .thenReturn(new NetworkUpdateResult(INVALID_NETWORK_ID));
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
 
-        assertNull(candidate);
         assertTrue(connectableNetworks.isEmpty());
 
         verify(mWifiConfigManager, times(scanSsids.length))
@@ -412,9 +387,9 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we select the only matching network suggestion, but that matches an existing
+     * Ensure that we nominate the only matching network suggestion, but that matches an existing
      * saved network (maybe saved or maybe it exists from a previous connection attempt) .
-     * Expected candidate: suggestionSsids[0]
+     *
      * Expected connectable Networks: {suggestionSsids[0]}
      */
     @Test
@@ -447,21 +422,19 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 .thenReturn(suggestions[0].wns.wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
-
-        assertNotNull(candidate);
-        assertEquals(suggestionSsids[0] , candidate.SSID);
 
         validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
 
         // check for any saved networks.
         verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
-        verify(mWifiConfigManager).getConfiguredNetwork(candidate.getKey());
+        verify(mWifiConfigManager)
+                .getConfiguredNetwork(suggestions[0].wns.wifiConfiguration.getKey());
         verify(mWifiConfigManager).addOrUpdateNetwork(eq(suggestions[0].wns.wifiConfiguration),
                 eq(suggestions[0].perAppInfo.uid), eq(suggestions[0].perAppInfo.packageName));
         verify(mWifiConfigManager).getConfiguredNetwork(
@@ -472,9 +445,9 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we don't select the only matching network suggestion if it was previously
+     * Ensure that we don't nominate the only matching network suggestion if it was previously
      * disabled by the user.
-     * Expected candidate: null
+     *
      * Expected connectable Networks: {}
      */
     @Test
@@ -504,27 +477,24 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         when(mWifiConfigManager.wasEphemeralNetworkDeleted(suggestionSsids[0])).thenReturn(true);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
-                    connectableNetworks.add(Pair.create(scanDetail, configuration));
-                });
+                (ScanDetail scanDetail, WifiConfiguration configuration) ->
+                        connectableNetworks.add(Pair.create(scanDetail, configuration)));
 
-        assertNull(candidate);
         assertTrue(connectableNetworks.isEmpty());
 
-        verify(mWifiConfigManager, times(scanSsids.length))
-                .wasEphemeralNetworkDeleted(anyString());
+        verify(mWifiConfigManager, times(scanSsids.length)).wasEphemeralNetworkDeleted(anyString());
         // Verify we did not try to add any new networks or other interactions with
         // WifiConfigManager.
         verifyNoMoreInteractions(mWifiConfigManager);
     }
 
     /**
-     * Ensure that we don't select the only matching network suggestion if the network configuration
-     * already exists (maybe saved or maybe it exists from a previous connection attempt) and
-     * blacklisted.
-     * Expected candidate: null
+     * Ensure that we don't nominate the only matching network suggestion if the network
+     * configuration already exists (maybe saved or maybe it exists from a previous connection
+     * attempt) and blacklisted.
+     *
      * Expected connectable Networks: {}
      */
     @Test
@@ -560,13 +530,12 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 .thenReturn(suggestions[0].wns.wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
 
-        assertNull(candidate);
         assertTrue(connectableNetworks.isEmpty());
 
         verify(mWifiConfigManager, times(scanSsids.length))
@@ -585,10 +554,10 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     }
 
     /**
-     * Ensure that we do select the only matching network suggestion if the network configuration
+     * Ensure that we do nominate the only matching network suggestion if the network configuration
      * already exists (maybe saved or maybe it exists from a previous connection attempt) and a
      * temporary blacklist expired.
-     * Expected candidate: suggestionSsids[0]
+     *
      * Expected connectable Networks: {suggestionSsids[0]}
      */
     @Test
@@ -626,14 +595,11 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 .thenReturn(true);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
-        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+        mNetworkSuggestionNominator.nominateNetworks(
                 Arrays.asList(scanDetails), null, null, true, false,
-                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
                     connectableNetworks.add(Pair.create(scanDetail, configuration));
                 });
-
-        assertNotNull(candidate);
-        assertEquals(suggestionSsids[0] , candidate.SSID);
 
         validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
 

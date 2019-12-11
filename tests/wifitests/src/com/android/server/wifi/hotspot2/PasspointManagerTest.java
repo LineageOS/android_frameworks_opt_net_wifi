@@ -863,13 +863,13 @@ public class PasspointManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that a {code null} will be returned when no providers are installed.
+     * Verify that a empty list will be returned when no providers are installed.
      *
      * @throws Exception
      */
     @Test
     public void matchProviderWithNoProvidersInstalled() throws Exception {
-        assertNull(mManager.matchProvider(createTestScanResult()));
+        assertTrue(mManager.matchProvider(createTestScanResult()).isEmpty());
     }
 
     /**
@@ -882,7 +882,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME, TEST_PACKAGE);
 
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(null);
-        assertNull(mManager.matchProvider(createTestScanResult()));
+        assertTrue(mManager.matchProvider(createTestScanResult()).isEmpty());
         // Verify that a request for ANQP elements is initiated.
         verify(mAnqpRequestManager).requestANQPElements(eq(TEST_BSSID), any(ANQPNetworkKey.class),
                 anyBoolean(), anyBoolean());
@@ -901,8 +901,9 @@ public class PasspointManagerTest extends WifiBaseTest {
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
         when(provider.match(anyMap(), any(RoamingConsortium.class)))
             .thenReturn(PasspointMatch.HomeProvider);
-        Pair<PasspointProvider, PasspointMatch> result =
+        List<Pair<PasspointProvider, PasspointMatch>> results =
                 mManager.matchProvider(createTestScanResult());
+        Pair<PasspointProvider, PasspointMatch> result = results.get(0);
         assertEquals(PasspointMatch.HomeProvider, result.second);
         assertEquals(TEST_FQDN, result.first.getConfig().getHomeSp().getFqdn());
     }
@@ -920,10 +921,52 @@ public class PasspointManagerTest extends WifiBaseTest {
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
         when(provider.match(anyMap(), any(RoamingConsortium.class)))
             .thenReturn(PasspointMatch.RoamingProvider);
-        Pair<PasspointProvider, PasspointMatch> result =
+        List<Pair<PasspointProvider, PasspointMatch>> results =
                 mManager.matchProvider(createTestScanResult());
+        Pair<PasspointProvider, PasspointMatch> result = results.get(0);
         assertEquals(PasspointMatch.RoamingProvider, result.second);
         assertEquals(TEST_FQDN, result.first.getConfig().getHomeSp().getFqdn());
+    }
+
+    /**
+     * When multiple providers matched for a single scanResult, when there is any home provider
+     * available, return all matched home provider. Otherwise return all roaming provider.
+     */
+    @Test
+    public void matchScanResultWithMultipleProviderAsHomeAndRoaming() {
+        // Only add roaming providers.
+        PasspointProvider roamingProvider1 =
+                addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME, TEST_PACKAGE);
+        PasspointProvider roamingProvider2 =
+                addTestProvider(TEST_FQDN2, TEST_FRIENDLY_NAME2, TEST_PACKAGE1);
+        ANQPData entry = new ANQPData(mClock, null);
+        when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
+        when(roamingProvider1.match(anyMap(), any(RoamingConsortium.class)))
+                .thenReturn(PasspointMatch.RoamingProvider);
+        when(roamingProvider2.match(anyMap(), any(RoamingConsortium.class)))
+                .thenReturn(PasspointMatch.RoamingProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> results =
+                mManager.matchProvider(createTestScanResult());
+        // Return all matched roaming providers.
+        assertEquals(2, results.size());
+        for (Pair<PasspointProvider, PasspointMatch> result : results) {
+            assertEquals(PasspointMatch.RoamingProvider, result.second);
+        }
+        // Add home providers.
+        PasspointProvider homeProvider1 =
+                addTestProvider(TEST_FQDN + "home", TEST_FRIENDLY_NAME, TEST_PACKAGE);
+        PasspointProvider homeProvider2 =
+                addTestProvider(TEST_FQDN2 + "home", TEST_FRIENDLY_NAME2, TEST_PACKAGE1);
+        when(homeProvider1.match(anyMap(), any(RoamingConsortium.class)))
+                .thenReturn(PasspointMatch.HomeProvider);
+        when(homeProvider2.match(anyMap(), any(RoamingConsortium.class)))
+                .thenReturn(PasspointMatch.HomeProvider);
+        results = mManager.matchProvider(createTestScanResult());
+        // When home providers are available, should return all home providers.
+        assertEquals(2, results.size());
+        for (Pair<PasspointProvider, PasspointMatch> result : results) {
+            assertEquals(PasspointMatch.HomeProvider, result.second);
+        }
     }
 
     /**
@@ -939,7 +982,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
         when(provider.match(anyMap(), any(RoamingConsortium.class)))
             .thenReturn(PasspointMatch.None);
-        assertNull(mManager.matchProvider(createTestScanResult()));
+        assertTrue(mManager.matchProvider(createTestScanResult()).isEmpty());
     }
 
     /**
@@ -2066,8 +2109,9 @@ public class PasspointManagerTest extends WifiBaseTest {
             when(providerNone.match(anyMap(), isNull()))
                     .thenReturn(PasspointMatch.None);
 
-            Pair<PasspointProvider, PasspointMatch> result =
+            List<Pair<PasspointProvider, PasspointMatch>> results =
                     mManager.matchProvider(createTestScanResult());
+            Pair<PasspointProvider, PasspointMatch> result = results.get(0);
 
             assertEquals(PasspointMatch.HomeProvider, result.second);
             assertEquals(TEST_FQDN, result.first.getConfig().getHomeSp().getFqdn());
@@ -2112,8 +2156,9 @@ public class PasspointManagerTest extends WifiBaseTest {
             when(providerNone.match(anyMap(), isNull()))
                     .thenReturn(PasspointMatch.None);
 
-            Pair<PasspointProvider, PasspointMatch> result =
-                        mManager.matchProvider(createTestScanResult());
+            List<Pair<PasspointProvider, PasspointMatch>> results =
+                    mManager.matchProvider(createTestScanResult());
+            Pair<PasspointProvider, PasspointMatch> result = results.get(0);
 
             assertEquals(PasspointMatch.RoamingProvider, result.second);
             assertEquals(TEST_FQDN2, result.first.getConfig().getHomeSp().getFqdn());
@@ -2160,8 +2205,9 @@ public class PasspointManagerTest extends WifiBaseTest {
             when(providerNone.match(anyMap(), isNull()))
                     .thenReturn(PasspointMatch.None);
 
-            Pair<PasspointProvider, PasspointMatch> result =
+            List<Pair<PasspointProvider, PasspointMatch>> results =
                     mManager.matchProvider(createTestScanResult());
+            Pair<PasspointProvider, PasspointMatch> result = results.get(0);
 
             assertEquals(PasspointMatch.RoamingProvider, result.second);
             assertEquals(TEST_FQDN2, result.first.getConfig().getHomeSp().getFqdn());

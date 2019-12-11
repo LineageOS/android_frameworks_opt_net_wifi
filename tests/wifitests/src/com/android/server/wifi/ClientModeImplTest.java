@@ -66,7 +66,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.INetworkManagementService;
 import android.os.IPowerManager;
 import android.os.Looper;
 import android.os.Message;
@@ -178,9 +177,6 @@ public class ClientModeImplTest extends WifiBaseTest {
 
     private FrameworkFacade getFrameworkFacade() throws Exception {
         FrameworkFacade facade = mock(FrameworkFacade.class);
-
-        when(facade.getService(Context.NETWORKMANAGEMENT_SERVICE)).thenReturn(
-                mockWithInterfaces(IBinder.class, INetworkManagementService.class));
 
         doAnswer(new AnswerWithArguments() {
             public void answer(
@@ -568,9 +564,8 @@ public class ClientModeImplTest extends WifiBaseTest {
                 mConfigUpdateListenerCaptor.capture());
         assertNotNull(mConfigUpdateListenerCaptor.getValue());
 
-        mLooper.startAutoDispatch();
-        mCmi.syncInitialize(mCmiAsyncChannel);
-        mLooper.stopAutoDispatch();
+        mCmi.initialize();
+        mLooper.dispatchAll();
     }
 
     @After

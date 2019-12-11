@@ -34,6 +34,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
+import androidx.annotation.WorkerThread;
 import androidx.lifecycle.Lifecycle;
 
 import java.time.Clock;
@@ -78,11 +79,13 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
         conditionallyUpdateConfig();
     }
 
+    @WorkerThread
     @Override
     protected void handleWifiStateChangedAction() {
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
     }
 
+    @WorkerThread
     @Override
     protected void handleScanResultsAvailableAction(@NonNull Intent intent) {
         checkNotNull(intent, "Intent cannot be null!");
@@ -90,6 +93,7 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
                 intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, true));
     }
 
+    @WorkerThread
     @Override
     protected void handleConfiguredNetworksChangedAction(@NonNull Intent intent) {
         checkNotNull(intent, "Intent cannot be null!");
@@ -108,6 +112,13 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
         } else {
             conditionallyUpdateConfig();
         }
+    }
+
+    @WorkerThread
+    @Override
+    protected void handleNetworkStateChangedAction(@NonNull Intent intent) {
+        // Do nothing.
+        return;
     }
 
     /**

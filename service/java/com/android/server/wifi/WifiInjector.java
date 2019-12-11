@@ -35,7 +35,6 @@ import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.Process;
 import android.os.SystemProperties;
@@ -49,13 +48,14 @@ import android.util.Log;
 
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.hotspot2.PasspointManager;
-import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
+import com.android.server.wifi.hotspot2.PasspointNetworkNominator;
 import com.android.server.wifi.hotspot2.PasspointObjectFactory;
 import com.android.server.wifi.p2p.SupplicantP2pIfaceHal;
 import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.p2p.WifiP2pMonitor;
 import com.android.server.wifi.p2p.WifiP2pNative;
 import com.android.server.wifi.rtt.RttMetrics;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
@@ -124,11 +124,11 @@ public class WifiInjector {
     private final WifiConnectivityHelper mWifiConnectivityHelper;
     private final LocalLog mConnectivityLocalLog;
     private final WifiNetworkSelector mWifiNetworkSelector;
-    private final SavedNetworkEvaluator mSavedNetworkEvaluator;
-    private final NetworkSuggestionEvaluator mNetworkSuggestionEvaluator;
-    private final PasspointNetworkEvaluator mPasspointNetworkEvaluator;
-    private final ScoredNetworkEvaluator mScoredNetworkEvaluator;
-    private final CarrierNetworkEvaluator mCarrierNetworkEvaluator;
+    private final SavedNetworkNominator mSavedNetworkNominator;
+    private final NetworkSuggestionNominator mNetworkSuggestionNominator;
+    private final PasspointNetworkNominator mPasspointNetworkNominator;
+    private final ScoredNetworkNominator mScoredNetworkNominator;
+    private final CarrierNetworkNominator mCarrierNetworkNominator;
     private final WifiNetworkScoreCache mWifiNetworkScoreCache;
     private final NetworkScoreManager mNetworkScoreManager;
     private WifiScanner mWifiScanner;
@@ -141,7 +141,6 @@ public class WifiInjector {
     private final WifiStateTracker mWifiStateTracker;
     private final SelfRecovery mSelfRecovery;
     private final WakeupController mWakeupController;
-    private final INetworkManagementService mNwManagementService;
     private final ScanRequestProxy mScanRequestProxy;
     private final SarManager mSarManager;
     private final BaseWifiDiagnostics mWifiDiagnostics;
@@ -161,6 +160,7 @@ public class WifiInjector {
     private final KeyStore mKeyStore;
     private final ConnectionFailureNotificationBuilder mConnectionFailureNotificationBuilder;
     private final ThroughputPredictor mThroughputPredictor;
+    private NetdWrapper mNetdWrapper;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -226,15 +226,13 @@ public class WifiInjector {
         mSupplicantStaIfaceHal = new SupplicantStaIfaceHal(
                 mContext, mWifiMonitor, mFrameworkFacade, wifiHandler, mClock);
         mHostapdHal = new HostapdHal(mContext, wifiHandler);
-        mWificondControl = new WificondControl(this, mWifiMonitor, mCarrierNetworkConfig,
+        mWificondControl = new WificondControl(this,
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 wifiHandler, mClock);
-        mNwManagementService = INetworkManagementService.Stub.asInterface(
-                mFrameworkFacade.getService(Context.NETWORKMANAGEMENT_SERVICE));
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
-                wifiHandler, new Random());
+                mWifiMonitor, mPropertyService, mWifiMetrics,
+                mCarrierNetworkConfig, wifiHandler, new Random(), this);
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);
         mWifiP2pNative = new WifiP2pNative(
@@ -292,25 +290,23 @@ public class WifiInjector {
         ThroughputScorer throughputScorer = new ThroughputScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(throughputScorer);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
-        mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
-                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper,
-                mTelephonyUtil);
+        mSavedNetworkNominator = new SavedNetworkNominator(
+                mWifiConfigManager, mConnectivityLocalLog, mTelephonyUtil);
         mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext, wifiHandler,
                 this, mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore, mWifiMetrics,
                 mTelephonyUtil);
-        mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
+        mNetworkSuggestionNominator = new NetworkSuggestionNominator(mWifiNetworkSuggestionsManager,
                 mWifiConfigManager, mConnectivityLocalLog);
-        mScoredNetworkEvaluator = new ScoredNetworkEvaluator(mContext, wifiHandler,
+        mScoredNetworkNominator = new ScoredNetworkNominator(mContext, wifiHandler,
                 mFrameworkFacade, mNetworkScoreManager, mContext.getPackageManager(),
                 mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
-        mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,
+        mCarrierNetworkNominator = new CarrierNetworkNominator(mWifiConfigManager,
                 mCarrierNetworkConfig, mConnectivityLocalLog, this);
         mPasspointManager = new PasspointManager(mContext, this,
-                wifiHandler, mWifiNative, mWifiKeyStore, mClock,
-                new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
-                mWifiMetrics, mTelephonyUtil);
-        mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
+                wifiHandler, mWifiNative, mWifiKeyStore, mClock, new PasspointObjectFactory(),
+                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyUtil);
+        mPasspointNetworkNominator = new PasspointNetworkNominator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
                 this, subscriptionManager);
         mWifiMetrics.setPasspointManager(mPasspointManager);
@@ -358,12 +354,12 @@ public class WifiInjector {
         mDppManager = new DppManager(wifiHandler, mWifiNative,
                 mWifiConfigManager, mContext, mDppMetrics);
 
-        // Register the various network evaluators with the network selector.
-        mWifiNetworkSelector.registerNetworkEvaluator(mSavedNetworkEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mNetworkSuggestionEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mPasspointNetworkEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mCarrierNetworkEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mScoredNetworkEvaluator);
+        // Register the various network Nominators with the network selector.
+        mWifiNetworkSelector.registerNetworkNominator(mSavedNetworkNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mNetworkSuggestionNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mPasspointNetworkNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mCarrierNetworkNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mScoredNetworkNominator);
 
         mClientModeImpl.start();
     }
@@ -801,5 +797,12 @@ public class WifiInjector {
 
     public WifiNetworkScoreCache getWifiNetworkScoreCache() {
         return mWifiNetworkScoreCache;
+    }
+
+    public NetdWrapper makeNetdWrapper() {
+        if (mNetdWrapper == null) {
+            mNetdWrapper = new NetdWrapper(mContext, new Handler(mWifiHandlerThread.getLooper()));
+        }
+        return mNetdWrapper;
     }
 }

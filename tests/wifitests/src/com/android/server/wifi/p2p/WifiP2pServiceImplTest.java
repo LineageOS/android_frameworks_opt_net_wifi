@@ -65,7 +65,6 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.INetworkManagementService;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.UserHandle;
@@ -81,6 +80,7 @@ import com.android.server.wifi.HalDeviceManager;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.P2pConnectionEvent;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 import com.android.wifi.resources.R;
@@ -135,7 +135,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     @Mock Context mContext;
     @Mock FrameworkFacade mFrameworkFacade;
     @Mock HandlerThread mHandlerThread;
-    @Mock INetworkManagementService mNwService;
+    @Mock NetdWrapper mNetdWrapper;
     @Mock PackageManager mPackageManager;
     @Mock Resources mResources;
     @Mock WifiInjector mWifiInjector;
@@ -608,11 +608,11 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         if (expectInit) {
             verify(mWifiNative).setupInterface(any(), any());
-            verify(mNwService).setInterfaceUp(anyString());
+            verify(mNetdWrapper).setInterfaceUp(anyString());
             verify(mWifiMonitor, atLeastOnce()).registerHandler(anyString(), anyInt(), any());
         } else {
             verify(mWifiNative, never()).setupInterface(any(), any());
-            verify(mNwService, never()).setInterfaceUp(anyString());
+            verify(mNetdWrapper, never()).setInterfaceUp(anyString());
             verify(mWifiMonitor, never()).registerHandler(anyString(), anyInt(), any());
         }
     }
@@ -761,7 +761,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
             mAvailListenerCaptor.getValue().onAvailabilityChanged(true);
         }
 
-        mWifiP2pServiceImpl.mNwService = mNwService;
+        mWifiP2pServiceImpl.mNetdWrapper = mNetdWrapper;
         mP2pStateMachineMessenger = mWifiP2pServiceImpl.getP2pStateMachineMessenger();
         mWifiP2pServiceImpl.setWifiHandlerLogForTest(mLog);
         mWifiP2pServiceImpl.setWifiLogForReplyChannel(mLog);
@@ -851,7 +851,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         simulateWifiStateChange(true);
         mLooper.dispatchAll();
         verify(mWifiNative, times(2)).setupInterface(any(), any());
-        verify(mNwService, times(2)).setInterfaceUp(anyString());
+        verify(mNetdWrapper, times(2)).setInterfaceUp(anyString());
         verify(mWifiMonitor, atLeastOnce()).registerHandler(anyString(), anyInt(), any());
     }
 
