@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import android.app.ActivityManagerInternal;
+import android.app.AlertDialog;
 import android.app.AppGlobals;
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -35,6 +36,7 @@ import android.os.ServiceManager;
 import android.os.storage.StorageManager;
 import android.provider.Settings;
 import android.telephony.CarrierConfigManager;
+import android.widget.Toast;
 
 import com.android.internal.app.IBatteryStats;
 import com.android.server.LocalServices;
@@ -226,5 +228,24 @@ public class FrameworkFacade {
      */
     public Notification.Builder makeNotificationBuilder(Context context, String channelId) {
         return new Notification.Builder(context, channelId);
+    }
+
+    /**
+     * Create a new instance of {@link AlertDialog.Builder}.
+     * @param context reference to a Context
+     * @return an instance of AlertDialog.Builder
+     */
+    public AlertDialog.Builder makeAlertDialogBuilder(Context context) {
+        return new AlertDialog.Builder(context);
+    }
+
+    /**
+     * Show a toast message
+     * @param context reference to a Context
+     * @param text the message to display
+     */
+    public void showToast(Context context, String text) {
+        Toast toast = Toast.makeText(context, text, Toast.LENGTH_SHORT);
+        toast.show();
     }
 }
