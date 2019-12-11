@@ -33,7 +33,6 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -51,7 +50,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -2016,64 +2014,6 @@ public class PasspointManagerTest extends WifiBaseTest {
         assertEquals(1, newProviders.size());
         assertEquals(origConfig, newProviders.get(0).getConfig());
         assertEquals(2, mSharedDataSource.getProviderIndex());
-    }
-
-    /**
-     * Verify that an expected map of FQDN and a list of ScanResult will be returned when provided
-     * scanResults are matched to installed Passpoint profiles. If matched Passpoint profiles is
-     * from suggestion, will check if it is approved. If it is not approved, send the user approved
-     * notification, and not to add into the matched list.
-     */
-    @Test
-    public void getAllMatchingFqdnsForScanResultsWithSuggestionProvider() {
-        // static mocking
-        MockitoSession session =
-                com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
-                        InformationElementUtil.class).startMocking();
-        try {
-            PasspointProvider providerApproved = addTestProvider(TEST_FQDN + 0, TEST_FRIENDLY_NAME,
-                    TEST_PACKAGE);
-            providerApproved.getWifiConfig().isHomeProviderNetwork = true;
-            PasspointProvider providerNeedApprove = addTestProvider(TEST_FQDN + 1,
-                    TEST_FRIENDLY_NAME, TEST_PACKAGE1);
-            providerNeedApprove.getWifiConfig().isHomeProviderNetwork = true;
-
-            ANQPData entry = new ANQPData(mClock, null);
-            InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
-            vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID2;
-
-            when(mAnqpCache.getEntry(TEST_ANQP_KEY2)).thenReturn(entry);
-            when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
-            when(providerApproved.match(anyMap(), isNull()))
-                    .thenReturn(PasspointMatch.HomeProvider);
-            when(providerNeedApprove.match(anyMap(), isNull()))
-                    .thenReturn(PasspointMatch.HomeProvider);
-            when(providerApproved.isFromSuggestion()).thenReturn(true);
-            when(providerNeedApprove.isFromSuggestion()).thenReturn(true);
-            when(mWifiNetworkSuggestionsManager
-                    .sendUserApprovalNotificationIfNotApproved(eq(TEST_PACKAGE), anyInt()))
-                    .thenReturn(false);
-            when(mWifiNetworkSuggestionsManager
-                    .sendUserApprovalNotificationIfNotApproved(eq(TEST_PACKAGE1), anyInt()))
-                    .thenReturn(true);
-            Map<String, Map<Integer, List<ScanResult>>> configs =
-                    mManager.getAllMatchingFqdnsForScanResults(
-                            createTestScanResults());
-            verify(mWifiNetworkSuggestionsManager, times(2))
-                    .sendUserApprovalNotificationIfNotApproved(eq(TEST_PACKAGE), anyInt());
-            verify(mWifiNetworkSuggestionsManager, times(2))
-                    .sendUserApprovalNotificationIfNotApproved(eq(TEST_PACKAGE1), anyInt());
-            // Expects to be matched with home Provider for each AP (two APs).
-            assertEquals(2, configs.get(TEST_FQDN + 0).get(
-                    WifiManager.PASSPOINT_HOME_NETWORK).size());
-            assertFalse(
-                    configs.get(TEST_FQDN + 0).containsKey(WifiManager.PASSPOINT_ROAMING_NETWORK));
-
-            // Expects there is no matched AP.
-            assertNull(configs.get(TEST_FQDN + 1));
-        } finally {
-            session.finishMocking();
-        }
     }
 
     /**

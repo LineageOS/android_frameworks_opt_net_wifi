@@ -17,12 +17,13 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
-import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.util.LocalLog;
 import android.util.Log;
+import android.util.Pair;
 
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
+import com.android.server.wifi.hotspot2.PasspointNetworkNominateHelper;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.util.ArrayList;
@@ -50,12 +51,15 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
 
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final WifiConfigManager mWifiConfigManager;
+    private final PasspointNetworkNominateHelper mPasspointNetworkNominateHelper;
     private final LocalLog mLocalLog;
 
     NetworkSuggestionNominator(WifiNetworkSuggestionsManager networkSuggestionsManager,
-            WifiConfigManager wifiConfigManager, LocalLog localLog) {
+            WifiConfigManager wifiConfigManager, PasspointNetworkNominateHelper nominateHelper,
+            LocalLog localLog) {
         mWifiNetworkSuggestionsManager = networkSuggestionsManager;
         mWifiConfigManager = wifiConfigManager;
+        mPasspointNetworkNominateHelper = nominateHelper;
         mLocalLog = localLog;
     }
 
@@ -70,16 +74,43 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
             boolean untrustedNetworkAllowed,
             @NonNull OnConnectableListener onConnectableListener) {
         MatchMetaInfo matchMetaInfo = new MatchMetaInfo();
-        for (int i = 0; i < scanDetails.size(); i++) {
-            ScanDetail scanDetail = scanDetails.get(i);
-            ScanResult scanResult = scanDetail.getScanResult();
-            // If the user previously forgot this network, don't select it.
-            if (mWifiConfigManager.wasEphemeralNetworkDeleted(
-                    ScanResultUtil.createQuotedSSID(scanResult.SSID))) {
-                mLocalLog.log("Ignoring disabled ephemeral SSID: "
-                        + WifiNetworkSelector.toScanId(scanResult));
+        List<ScanDetail> filteredScanDetails = scanDetails.stream().filter(scanDetail ->
+                !mWifiConfigManager.wasEphemeralNetworkDeleted(
+                        ScanResultUtil.createQuotedSSID(scanDetail.getScanResult().SSID)))
+                .collect(Collectors.toList());
+        if (filteredScanDetails.isEmpty()) {
+            return;
+        }
+        findMatchedPasspointSuggestionNetworks(filteredScanDetails, matchMetaInfo);
+        findMatchedSuggestionNetworks(filteredScanDetails, matchMetaInfo);
+        // Return early on no match.
+        if (matchMetaInfo.isEmpty()) {
+            mLocalLog.log("did not see any matching network suggestions.");
+            return;
+        }
+        matchMetaInfo.findConnectableNetworksAndHighestPriority(onConnectableListener);
+    }
+
+    private void findMatchedPasspointSuggestionNetworks(List<ScanDetail> scanDetails,
+            MatchMetaInfo matchMetaInfo) {
+        List<Pair<ScanDetail, WifiConfiguration>> candidates =
+                mPasspointNetworkNominateHelper.getPasspointNetworkCandidates(scanDetails, true);
+        for (Pair<ScanDetail, WifiConfiguration> candidate : candidates) {
+            Set<ExtendedWifiNetworkSuggestion> matchingPasspointExtSuggestions =
+                    mWifiNetworkSuggestionsManager
+                            .getNetworkSuggestionsForFqfn(candidate.second.FQDN);
+            if (matchingPasspointExtSuggestions == null
+                    || matchingPasspointExtSuggestions.isEmpty()) {
                 continue;
             }
+            matchMetaInfo.putAll(matchingPasspointExtSuggestions,
+                    candidate.second, candidate.first);
+        }
+    }
+
+    private void findMatchedSuggestionNetworks(List<ScanDetail> scanDetails,
+            MatchMetaInfo matchMetaInfo) {
+        for (ScanDetail scanDetail : scanDetails) {
             Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
                     mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
             if (matchingExtNetworkSuggestions == null || matchingExtNetworkSuggestions.isEmpty()) {
@@ -103,9 +134,9 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
                 }
                 // Update the WifiConfigManager with the latest WifiConfig
                 NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(
-                                matchingExtNetworkSuggestion.wns.wifiConfiguration,
-                                matchingExtNetworkSuggestion.perAppInfo.uid,
-                                matchingExtNetworkSuggestion.perAppInfo.packageName);
+                        matchingExtNetworkSuggestion.wns.wifiConfiguration,
+                        matchingExtNetworkSuggestion.perAppInfo.uid,
+                        matchingExtNetworkSuggestion.perAppInfo.packageName);
                 if (result.isSuccess()) {
                     wCmConfiguredNetwork = mWifiConfigManager.getConfiguredNetwork(
                             result.getNetworkId());
@@ -120,12 +151,6 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
             }
             matchMetaInfo.putAll(matchingExtNetworkSuggestions, wCmConfiguredNetwork, scanDetail);
         }
-        // Return early on no match.
-        if (matchMetaInfo.isEmpty()) {
-            mLocalLog.log("did not see any matching network suggestions.");
-            return;
-        }
-        matchMetaInfo.findConnectableNetworksAndHighestPriority(onConnectableListener);
     }
 
     // Add and enable this network to the central database (i.e WifiConfigManager).

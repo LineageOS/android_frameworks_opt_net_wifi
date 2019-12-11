@@ -36,6 +36,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
+import com.android.server.wifi.hotspot2.PasspointNetworkNominateHelper;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -60,9 +61,11 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
     private static final int TEST_NETWORK_ID = 55;
     private static final String TEST_PACKAGE = "com.test";
     private static final String TEST_PACKAGE_OTHER = "com.test.other";
+    private static final String TEST_FQDN = "fqdn";
 
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    private @Mock PasspointNetworkNominateHelper mPasspointNetworkNominateHelper;
     private @Mock Clock mClock;
     private NetworkSuggestionNominator mNetworkSuggestionNominator;
 
@@ -70,9 +73,9 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-
         mNetworkSuggestionNominator = new NetworkSuggestionNominator(
-                mWifiNetworkSuggestionsManager, mWifiConfigManager, new LocalLog(100));
+                mWifiNetworkSuggestionsManager, mWifiConfigManager, mPasspointNetworkNominateHelper,
+                new LocalLog(100));
     }
 
     /**
@@ -616,6 +619,48 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
         // Verify we did not try to add any new networks or other interactions with
         // WifiConfigManager.
         verifyNoMoreInteractions(mWifiConfigManager);
+    }
+
+    /**
+     * Ensure that we do nominate the only matching passponit network suggestion.
+     * Expected connectable Networks: {suggestionSsids[0]}
+     */
+    @Test
+    public void testSuggestionPasspointNetworkCandidatesMatches() {
+        String[] scanSsids = {"test1", "test2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2470, 2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-67, -76};
+        String[] suggestionSsids = {"\"" + scanSsids[0] + "\""};
+        int[] securities = {SECURITY_PSK};
+        boolean[] appInteractions = {true};
+        boolean[] meteredness = {true};
+        int[] priorities = {-1};
+        int[] uids = {TEST_UID};
+        String[] packageNames = {TEST_PACKAGE};
+        ScanDetail[] scanDetails =
+                buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
+        ExtendedWifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids,
+                securities, appInteractions, meteredness, priorities, uids, packageNames);
+        HashSet<ExtendedWifiNetworkSuggestion> matchedExtSuggestions = new HashSet<>();
+        matchedExtSuggestions.add(suggestions[0]);
+        List<Pair<ScanDetail, WifiConfiguration>> passpointCandidates = new ArrayList<>();
+        suggestions[0].wns.wifiConfiguration.FQDN = TEST_FQDN;
+        passpointCandidates.add(Pair.create(scanDetails[0], suggestions[0].wns.wifiConfiguration));
+        when(mPasspointNetworkNominateHelper
+                .getPasspointNetworkCandidates(Arrays.asList(scanDetails), true))
+                .thenReturn(passpointCandidates);
+        when(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForFqfn(TEST_FQDN))
+                .thenReturn(matchedExtSuggestions);
+        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
+        mNetworkSuggestionNominator.nominateNetworks(
+                Arrays.asList(scanDetails), null, null, true, false,
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
+                    connectableNetworks.add(Pair.create(scanDetail, configuration));
+                });
+        assertEquals(1, connectableNetworks.size());
+        validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
     }
 
     private void setupAddToWifiConfigManager(WifiConfiguration...candidates) {

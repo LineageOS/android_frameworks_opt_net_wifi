@@ -602,15 +602,6 @@ public class PasspointManager {
                     roamingConsortium);
             if (matchStatus == PasspointMatch.HomeProvider
                     || matchStatus == PasspointMatch.RoamingProvider) {
-                // If provider is from network suggestion, check user approval.
-                // Send user approval notification if need.
-                // If not approved, will be ignored in this matching.
-                if (provider.isFromSuggestion()
-                        && mWifiInjector.getWifiNetworkSuggestionsManager()
-                                .sendUserApprovalNotificationIfNotApproved(
-                                        provider.getPackageName(), provider.getCreatorUid())) {
-                    continue;
-                }
                 allMatches.add(Pair.create(provider, matchStatus));
             }
         }
