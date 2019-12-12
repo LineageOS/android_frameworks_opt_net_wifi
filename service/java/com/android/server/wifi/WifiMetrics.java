@@ -690,6 +690,7 @@ public class WifiMetrics {
                 sb.append(mRouterFingerPrint.toString());
                 sb.append(", useRandomizedMac=");
                 sb.append(mConnectionEvent.useRandomizedMac);
+                sb.append(", useAggressiveMac=" + mConnectionEvent.useAggressiveMac);
                 sb.append(", connectionNominator=");
                 switch (mConnectionEvent.connectionNominator) {
                     case WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN:
@@ -1037,6 +1038,8 @@ public class WifiMetrics {
                 mCurrentConnectionEvent.mConnectionEvent.useRandomizedMac =
                         config.macRandomizationSetting
                         == WifiConfiguration.RANDOMIZATION_PERSISTENT;
+                mCurrentConnectionEvent.mConnectionEvent.useAggressiveMac =
+                        mWifiConfigManager.shouldUseAggressiveRandomization(config);
                 mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
                         mNetworkIdToNominatorId.get(config.networkId,
                                 WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN);

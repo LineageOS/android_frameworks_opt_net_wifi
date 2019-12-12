@@ -798,6 +798,9 @@ message ConnectionEvent {
   // Breakdown of level_2_failure_code with more detailed reason.
   optional Level2FailureReason level_2_failure_reason = 13
           [default = FAILURE_REASON_UNKNOWN];
+
+  // Connection is using an aggressively generated random MAC address.
+  optional bool use_aggressive_mac = 14;
 }
 
 // Number of occurrences of a specific RSSI poll rssi value
