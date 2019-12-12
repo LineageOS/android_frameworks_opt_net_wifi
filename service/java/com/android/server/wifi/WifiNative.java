@@ -42,7 +42,6 @@ import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.NetdWrapper.NetdEventObserver;
-import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.RadioChainInfo;
 
@@ -87,7 +86,6 @@ public class WifiNative {
     private final WifiMonitor mWifiMonitor;
     private final PropertyService mPropertyService;
     private final WifiMetrics mWifiMetrics;
-    private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final Handler mHandler;
     private final Random mRandom;
     private final WifiInjector mWifiInjector;
@@ -98,7 +96,7 @@ public class WifiNative {
                       SupplicantStaIfaceHal staIfaceHal, HostapdHal hostapdHal,
                       WificondControl condControl, WifiMonitor wifiMonitor,
                       PropertyService propertyService, WifiMetrics wifiMetrics,
-                      CarrierNetworkConfig carrierNetworkConfig, Handler handler, Random random,
+                      Handler handler, Random random,
                       WifiInjector wifiInjector) {
         mWifiVendorHal = vendorHal;
         mSupplicantStaIfaceHal = staIfaceHal;
@@ -107,7 +105,6 @@ public class WifiNative {
         mWifiMonitor = wifiMonitor;
         mPropertyService = propertyService;
         mWifiMetrics = wifiMetrics;
-        mCarrierNetworkConfig = carrierNetworkConfig;
         mHandler = handler;
         mRandom = random;
         mWifiInjector = wifiInjector;
@@ -1473,16 +1470,6 @@ public class WifiNative {
             ScanResult scanResult = scanDetail.getScanResult();
             scanResult.setWifiStandard(networkDetail.getWifiMode());
 
-            // Update carrier network info if this AP's SSID is associated with a carrier Wi-Fi
-            // network and it uses EAP.
-            if (ScanResultUtil.isScanResultForEapNetwork(scanDetail.getScanResult())
-                    && mCarrierNetworkConfig.isCarrierNetwork(wifiSsid.toString())) {
-                scanResult.isCarrierAp = true;
-                scanResult.carrierApEapType =
-                        mCarrierNetworkConfig.getNetworkEapType(wifiSsid.toString());
-                scanResult.carrierName =
-                        mCarrierNetworkConfig.getCarrierName(wifiSsid.toString());
-            }
             // Fill up the radio chain info.
             if (result.radioChainInfos != null) {
                 scanResult.radioChainInfos =

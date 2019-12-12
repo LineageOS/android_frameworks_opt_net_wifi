@@ -47,7 +47,6 @@ import android.util.ArraySet;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
-import android.util.StatsLog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.AsyncChannel;
@@ -61,12 +60,14 @@ import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.ArrayUtils;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
+import com.android.server.wifi.util.WorkSourceUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -963,16 +964,22 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public void enter() {
                 mScanWorkSource = mActiveScans.createMergedWorkSource();
                 mBatteryStats.noteWifiScanStartedFromSource(mScanWorkSource);
-                StatsLog.write(StatsLog.WIFI_SCAN_STATE_CHANGED, mScanWorkSource,
-                        StatsLog.WIFI_SCAN_STATE_CHANGED__STATE__ON);
+                Pair<int[], String[]> uidsAndTags =
+                        WorkSourceUtil.getUidsAndTagsForWs(mScanWorkSource);
+                WifiStatsLog.write(WifiStatsLog.WIFI_SCAN_STATE_CHANGED,
+                        uidsAndTags.first, uidsAndTags.second,
+                        WifiStatsLog.WIFI_SCAN_STATE_CHANGED__STATE__ON);
             }
 
             @Override
             public void exit() {
                 mActiveScanSettings = null;
                 mBatteryStats.noteWifiScanStoppedFromSource(mScanWorkSource);
-                StatsLog.write(StatsLog.WIFI_SCAN_STATE_CHANGED, mScanWorkSource,
-                        StatsLog.WIFI_SCAN_STATE_CHANGED__STATE__OFF);
+                Pair<int[], String[]> uidsAndTags =
+                        WorkSourceUtil.getUidsAndTagsForWs(mScanWorkSource);
+                WifiStatsLog.write(WifiStatsLog.WIFI_SCAN_STATE_CHANGED,
+                        uidsAndTags.first, uidsAndTags.second,
+                        WifiStatsLog.WIFI_SCAN_STATE_CHANGED__STATE__OFF);
 
                 // if any scans are still active (never got results available then indicate failure)
                 mWifiMetrics.incrementScanReturnEntry(

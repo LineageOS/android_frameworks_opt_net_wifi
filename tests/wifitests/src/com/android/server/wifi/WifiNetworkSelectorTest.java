@@ -95,7 +95,6 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         mWifiNetworkSelector.registerNetworkNominator(mDummyEvaluator);
         mDummyEvaluator.setEvaluatorToSelectCandidate(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
-        when(mCarrierNetworkConfig.isCarrierNetwork(any())).thenReturn(true);
         when(mWifiScoreCard.lookupBssid(any(), any())).thenReturn(mPerBssid);
         mCompatibilityScorer = new CompatibilityScorer(mScoringParams);
         mScoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
@@ -192,7 +191,6 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     private DummyNetworkNominator mDummyEvaluator = new DummyNetworkNominator();
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private Context mContext;
-    @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private WifiScoreCard mWifiScoreCard;
     @Mock private WifiScoreCard.PerBssid mPerBssid;
     @Mock private WifiCandidates.CandidateScorer mCandidateScorer;

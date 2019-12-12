@@ -31,6 +31,7 @@ import android.util.Pair;
 import android.util.SparseArray;
 
 import com.android.server.wifi.proto.WifiStatsLog;
+import com.android.server.wifi.util.WorkSourceUtil;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -708,45 +709,22 @@ public class WifiLockManager {
         return uidCount;
     }
 
-    private Pair<List<Integer>, List<String>> getUidsAndTagsForWs(WorkSource ws) {
-        List<Integer> uids = new ArrayList<>();
-        List<String> tags = new ArrayList<>();
-
-        for (int i = 0; i < ws.size(); i++) {
-            uids.add(ws.getUid(i));
-            tags.add(ws.getPackageName(i));
-        }
-
-        final List<WorkChain> workChains = ws.getWorkChains();
-        if (workChains != null) {
-            for (int i = 0; i < workChains.size(); ++i) {
-                final WorkChain workChain = workChains.get(i);
-                uids.add(workChain.getAttributionUid());
-                tags.add(workChain.getAttributionTag());
-            }
-        }
-        return Pair.create(uids, tags);
-    }
-
-
     private void setBlameHiPerfWs(WorkSource ws, boolean shouldBlame) {
         long ident = Binder.clearCallingIdentity();
-        Pair<List<Integer>, List<String>> uidsAndTags = getUidsAndTagsForWs(ws);
+        Pair<int[], String[]> uidsAndTags = WorkSourceUtil.getUidsAndTagsForWs(ws);
         try {
             if (shouldBlame) {
                 mBatteryStats.noteFullWifiLockAcquiredFromSource(ws);
                 WifiStatsLog.write(WifiStatsLog.WIFI_LOCK_STATE_CHANGED,
-                        uidsAndTags.first.stream().mapToInt(Integer::intValue).toArray(),
-                        uidsAndTags.second.toArray(new String[0]),
+                        uidsAndTags.first, uidsAndTags.second,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__ON,
-                        WifiManager.WIFI_MODE_FULL_HIGH_PERF);
+                        WifiStatsLog.WIFI_LOCK_STATE_CHANGED__MODE__WIFI_MODE_FULL_HIGH_PERF);
             } else {
                 mBatteryStats.noteFullWifiLockReleasedFromSource(ws);
                 WifiStatsLog.write(WifiStatsLog.WIFI_LOCK_STATE_CHANGED,
-                        uidsAndTags.first.stream().mapToInt(Integer::intValue).toArray(),
-                        uidsAndTags.second.toArray(new String[0]),
+                        uidsAndTags.first, uidsAndTags.second,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
-                        WifiManager.WIFI_MODE_FULL_HIGH_PERF);
+                        WifiStatsLog.WIFI_LOCK_STATE_CHANGED__MODE__WIFI_MODE_FULL_HIGH_PERF);
             }
         } finally {
             Binder.restoreCallingIdentity(ident);
@@ -760,12 +738,12 @@ public class WifiLockManager {
                 mBatteryStats.noteFullWifiLockAcquiredFromSource(new WorkSource(uid));
                 WifiStatsLog.write_non_chained(WifiStatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__ON,
-                        WifiManager.WIFI_MODE_FULL_LOW_LATENCY);
+                        WifiStatsLog.WIFI_LOCK_STATE_CHANGED__MODE__WIFI_MODE_FULL_LOW_LATENCY);
             } else {
                 mBatteryStats.noteFullWifiLockReleasedFromSource(new WorkSource(uid));
                 WifiStatsLog.write_non_chained(WifiStatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
-                        WifiManager.WIFI_MODE_FULL_LOW_LATENCY);
+                        WifiStatsLog.WIFI_LOCK_STATE_CHANGED__MODE__WIFI_MODE_FULL_LOW_LATENCY);
             }
         } finally {
             Binder.restoreCallingIdentity(ident);

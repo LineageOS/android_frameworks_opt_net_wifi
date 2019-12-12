@@ -128,7 +128,6 @@ public class WifiConnectivityManager {
     private final WifiNetworkSelector mNetworkSelector;
     private final WifiLastResortWatchdog mWifiLastResortWatchdog;
     private final OpenNetworkNotifier mOpenNetworkNotifier;
-    private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiMetrics mWifiMetrics;
     private final AlarmManager mAlarmManager;
     private final Handler mEventHandler;
@@ -552,7 +551,7 @@ public class WifiConnectivityManager {
             WifiInjector injector, WifiConfigManager configManager, WifiInfo wifiInfo,
             WifiNetworkSelector networkSelector, WifiConnectivityHelper connectivityHelper,
             WifiLastResortWatchdog wifiLastResortWatchdog, OpenNetworkNotifier openNetworkNotifier,
-            CarrierNetworkConfig carrierNetworkConfig, WifiMetrics wifiMetrics, Handler handler,
+            WifiMetrics wifiMetrics, Handler handler,
             Clock clock, LocalLog localLog) {
         mContext = context;
         mStateMachine = stateMachine;
@@ -564,7 +563,6 @@ public class WifiConnectivityManager {
         mLocalLog = localLog;
         mWifiLastResortWatchdog = wifiLastResortWatchdog;
         mOpenNetworkNotifier = openNetworkNotifier;
-        mCarrierNetworkConfig = carrierNetworkConfig;
         mWifiMetrics = wifiMetrics;
         mAlarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         mEventHandler = handler;
@@ -1392,7 +1390,6 @@ public class WifiConnectivityManager {
         mLocalLog.dump(fd, pw, args);
         pw.println("WifiConnectivityManager - Log End ----");
         mOpenNetworkNotifier.dump(fd, pw, args);
-        mCarrierNetworkConfig.dump(fd, pw, args);
         mBssidBlocklistMonitor.dump(fd, pw, args);
     }
 }

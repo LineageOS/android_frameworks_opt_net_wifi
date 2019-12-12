@@ -74,7 +74,7 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
 
     @Override
     protected void handleOnStart() {
-        mScanResultUpdater.update(mWifiManager.getScanResults());
+        cacheNewScanResults();
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
         conditionallyUpdateConfig();
     }
@@ -133,11 +133,7 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
 
         long scanAgeWindow = mMaxScanAgeMillis;
         if (lastScanSucceeded) {
-            // Scan succeeded, cache new scans
-            mScanResultUpdater.update(mWifiManager.getScanResults().stream().filter(
-                    scan -> TextUtils.equals(
-                            scanResultToStandardWifiEntryKey(scan), mChosenEntry.getKey()))
-                    .collect(toList()));
+            cacheNewScanResults();
         } else {
             // Scan failed, increase scan age window to prevent WifiEntry list from
             // clearing prematurely.
@@ -156,5 +152,15 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
                         wifiConfigToStandardWifiEntryKey(config), mChosenEntry.getKey()))
                 .findAny();
         mChosenEntry.updateConfig(optionalConfig.orElse(null));
+    }
+
+    /**
+     * Updates ScanResultUpdater with new ScanResults matching mChosenEntry.
+     */
+    private void cacheNewScanResults() {
+        mScanResultUpdater.update(mWifiManager.getScanResults().stream()
+                .filter(scan -> TextUtils.equals(
+                        scanResultToStandardWifiEntryKey(scan), mChosenEntry.getKey()))
+                .collect(toList()));
     }
 }

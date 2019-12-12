@@ -17,10 +17,18 @@
 package com.android.server.wifi.util;
 
 import android.annotation.NonNull;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.ContentObserver;
+import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.Credential;
+import android.os.Handler;
+import android.telephony.CarrierConfigManager;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -29,11 +37,15 @@ import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
+import android.util.SparseBooleanArray;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.WifiNative;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -82,8 +94,14 @@ public class TelephonyUtil {
     private static final int START_KC_POS = START_SRES_POS + SRES_LEN;
     private static final int KC_LEN = 8;
 
+    private static final Uri CONTENT_URI = Uri.parse("content://carrier_information/carrier");
+
     private final TelephonyManager mTelephonyManager;
     private final SubscriptionManager mSubscriptionManager;
+
+    private boolean mVerboseLogEnabled = false;
+    private SparseBooleanArray mImsiEncryptionRequired = new SparseBooleanArray();
+    private SparseBooleanArray mImsiEncryptionInfoAvailable = new SparseBooleanArray();
 
     /**
      * Gets the instance of TelephonyUtil.
@@ -92,9 +110,101 @@ public class TelephonyUtil {
      * @return The instance of TelephonyUtil
      */
     public TelephonyUtil(@NonNull TelephonyManager telephonyManager,
-            @NonNull SubscriptionManager subscriptionManager) {
+            @NonNull SubscriptionManager subscriptionManager,
+            @NonNull FrameworkFacade frameworkFacade,
+            @NonNull Context context,
+            @NonNull Handler handler) {
         mTelephonyManager = telephonyManager;
         mSubscriptionManager = subscriptionManager;
+
+        updateImsiEncryptionInfo(context);
+
+        // Monitor for carrier config changes.
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED);
+        context.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED
+                        .equals(intent.getAction())) {
+                    updateImsiEncryptionInfo(context);
+                }
+            }
+        }, filter);
+
+        frameworkFacade.registerContentObserver(context, CONTENT_URI, false,
+                new ContentObserver(handler) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        updateImsiEncryptionInfo(context);
+                    }
+                });
+    }
+
+    /**
+     * Enable/disable verbose logging.
+     */
+    public void enableVerboseLogging(int verbose) {
+        mVerboseLogEnabled = verbose > 0;
+    }
+
+    /**
+     * Updates the IMSI encryption information.
+     */
+    private void updateImsiEncryptionInfo(Context context) {
+        CarrierConfigManager carrierConfigManager =
+                (CarrierConfigManager) context.getSystemService(Context.CARRIER_CONFIG_SERVICE);
+        if (carrierConfigManager == null) {
+            return;
+        }
+
+        mImsiEncryptionRequired.clear();
+        mImsiEncryptionInfoAvailable.clear();
+        List<SubscriptionInfo> activeSubInfos =
+                mSubscriptionManager.getActiveSubscriptionInfoList();
+        if (activeSubInfos == null) {
+            return;
+        }
+        for (SubscriptionInfo subInfo : activeSubInfos) {
+            int subId = subInfo.getSubscriptionId();
+            if ((carrierConfigManager.getConfigForSubId(subId)
+                            .getInt(CarrierConfigManager.IMSI_KEY_AVAILABILITY_INT)
+                                    & TelephonyManager.KEY_TYPE_WLAN) != 0) {
+                vlogd("IMSI encryption is required for " + subId);
+                mImsiEncryptionRequired.put(subId, true);
+            }
+
+            try {
+                if (mImsiEncryptionRequired.get(subId)
+                        && mTelephonyManager.createForSubscriptionId(subId)
+                        .getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN) != null) {
+                    vlogd("IMSI encryption info is available for " + subId);
+                    mImsiEncryptionInfoAvailable.put(subId, true);
+                }
+            } catch (IllegalArgumentException e) {
+                vlogd("IMSI encryption info is not available.");
+            }
+        }
+    }
+
+    /**
+     * Check if the IMSI encryption is required for the SIM card.
+     *
+     * @param subId The subscription ID of SIM card.
+     * @return true if the IMSI encryption is required, otherwise false.
+     */
+    public boolean requiresImsiEncryption(int subId) {
+        return mImsiEncryptionRequired.get(subId);
+    }
+
+    /**
+     * Check if the IMSI encryption is downloaded(available) for the SIM card.
+     *
+     * @param subId The subscription ID of SIM card.
+     * @return true if the IMSI encryption is available, otherwise false.
+     */
+    public boolean isImsiEncryptionInfoAvailable(int subId) {
+        return mImsiEncryptionInfoAvailable.get(subId);
     }
 
     /**
@@ -127,7 +237,7 @@ public class TelephonyUtil {
                 }
             }
         }
-        Log.d(TAG, "matching subId is " + matchSubId);
+        vlogd("matching subId is " + matchSubId);
         return matchSubId;
     }
 
@@ -143,10 +253,10 @@ public class TelephonyUtil {
         }
         int dataSubId = SubscriptionManager.getDefaultDataSubscriptionId();
         if (isSimPresent(dataSubId)) {
-            Log.d(TAG, "carrierId is not assigned, using the default data sub.");
+            vlogd("carrierId is not assigned, using the default data sub.");
             return dataSubId;
         }
-        Log.d(TAG, "data sim is not present.");
+        vlogd("data sim is not present.");
         return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     }
 
@@ -375,7 +485,8 @@ public class TelephonyUtil {
      * @return the outer EAP method associated with this SIM configuration.
      */
     private static int getSimMethodForConfig(WifiConfiguration config) {
-        if (config == null || config.enterpriseConfig == null) {
+        if (config == null || config.enterpriseConfig == null
+                || !config.enterpriseConfig.requireSimCredential()) {
             return WifiEnterpriseConfig.Eap.NONE;
         }
         int eapMethod = config.enterpriseConfig.getEapMethod();
@@ -394,7 +505,7 @@ public class TelephonyUtil {
             }
         }
 
-        return isSimEapMethod(eapMethod) ? eapMethod : WifiEnterpriseConfig.Eap.NONE;
+        return eapMethod;
     }
 
     /**
@@ -403,18 +514,6 @@ public class TelephonyUtil {
     public static boolean isAnonymousAtRealmIdentity(String identity) {
         if (identity == null) return false;
         return identity.startsWith(TelephonyUtil.ANONYMOUS_IDENTITY + "@");
-    }
-
-    /**
-     * Checks if the EAP outer method is SIM related.
-     *
-     * @param eapMethod WifiEnterpriseConfig Eap method.
-     * @return true if this EAP outer method is SIM-related, false otherwise.
-     */
-    public static boolean isSimEapMethod(int eapMethod) {
-        return eapMethod == WifiEnterpriseConfig.Eap.SIM
-                || eapMethod == WifiEnterpriseConfig.Eap.AKA
-                || eapMethod == WifiEnterpriseConfig.Eap.AKA_PRIME;
     }
 
     // TODO replace some of this code with Byte.parseByte
@@ -869,7 +968,7 @@ public class TelephonyUtil {
         // If the IMSI is not full, the carrier ID can not be matched for sure, so it should
         // be ignored.
         if (imsiParameter == null || !imsiParameter.isFullImsi()) {
-            Log.d(TAG, "IMSI is not available or not full");
+            vlogd("IMSI is not available or not full");
             return false;
         }
         List<SubscriptionInfo> infos = mSubscriptionManager.getActiveSubscriptionInfoList();
@@ -899,10 +998,13 @@ public class TelephonyUtil {
     public @Nullable String getMatchingImsi(int carrierId) {
         int subId = getMatchingSubId(carrierId);
         if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            if (requiresImsiEncryption(subId) && !isImsiEncryptionInfoAvailable(subId)) {
+                vlogd("required IMSI encryption information is not available.");
+                return null;
+            }
             return mTelephonyManager.createForSubscriptionId(subId).getSubscriberId();
         }
-
-        Log.d(TAG, "no active SIM card to match the carrier ID.");
+        vlogd("no active SIM card to match the carrier ID.");
         return null;
     }
 
@@ -935,8 +1037,12 @@ public class TelephonyUtil {
         // Find the active matched SIM card with the priority order of Data MNO SIM,
         // Nondata MNO SIM, Data MVNO SIM, Nondata MVNO SIM.
         for (SubscriptionInfo subInfo : infos) {
-            TelephonyManager specifiedTm = mTelephonyManager.createForSubscriptionId(
-                    subInfo.getSubscriptionId());
+            int subId = subInfo.getSubscriptionId();
+            if (requiresImsiEncryption(subId) && !isImsiEncryptionInfoAvailable(subId)) {
+                vlogd("required IMSI encryption information is not available.");
+                continue;
+            }
+            TelephonyManager specifiedTm = mTelephonyManager.createForSubscriptionId(subId);
             String operatorNumeric = specifiedTm.getSimOperator();
             if (operatorNumeric != null && imsiParameter.matchesMccMnc(operatorNumeric)) {
                 String curImsi = specifiedTm.getSubscriberId();
@@ -944,29 +1050,44 @@ public class TelephonyUtil {
                     continue;
                 }
                 matchedPair = new Pair<>(curImsi, subInfo.getCarrierId());
-                if (subInfo.getSubscriptionId() == dataSubId) {
+                if (subId == dataSubId) {
                     matchedDataPair = matchedPair;
-                    if (getCarrierType(subInfo.getSubscriptionId()) == CARRIER_MNO_TYPE) {
-                        Log.d(TAG, "MNO data is matched via IMSI.");
+                    if (getCarrierType(subId) == CARRIER_MNO_TYPE) {
+                        vlogd("MNO data is matched via IMSI.");
                         return matchedDataPair;
                     }
                 }
-                if (getCarrierType(subInfo.getSubscriptionId()) == CARRIER_MNO_TYPE) {
+                if (getCarrierType(subId) == CARRIER_MNO_TYPE) {
                     matchedMnoPair = matchedPair;
                 }
             }
         }
 
         if (matchedMnoPair != null) {
-            Log.d(TAG, "MNO sub is matched via IMSI.");
+            vlogd("MNO sub is matched via IMSI.");
             return matchedMnoPair;
         }
 
         if (matchedDataPair != null) {
-            Log.d(TAG, "MVNO data sub is matched via IMSI.");
+            vlogd("MVNO data sub is matched via IMSI.");
             return matchedDataPair;
         }
 
         return matchedPair;
+    }
+
+    private void vlogd(String msg) {
+        if (!mVerboseLogEnabled) {
+            return;
+        }
+
+        Log.d(TAG, msg);
+    }
+
+    /** Dump state. */
+    public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
+        pw.println(TAG + ": ");
+        pw.println("mImsiEncryptionRequired=" + mImsiEncryptionRequired);
+        pw.println("mImsiEncryptionInfoAvailable=" + mImsiEncryptionInfoAvailable);
     }
 }

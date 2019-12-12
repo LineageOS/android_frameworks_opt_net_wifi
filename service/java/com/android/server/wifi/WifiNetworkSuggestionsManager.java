@@ -1034,27 +1034,28 @@ public class WifiNetworkSuggestionsManager {
         if (extNetworkSuggestions == null) {
             return null;
         }
-        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions =
-                extNetworkSuggestions
-                        .stream()
-                        .filter(n -> {
-                            if (!n.perAppInfo.hasUserApproved) {
-                                return false;
+        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions = extNetworkSuggestions
+                .stream()
+                .filter(n -> {
+                    if (!n.perAppInfo.hasUserApproved) {
+                        return false;
+                    }
+                    WifiConfiguration config = n.wns.wifiConfiguration;
+                    if (config != null && config.enterpriseConfig != null
+                            && config.enterpriseConfig.requireSimCredential()) {
+                        int subId = mTelephonyUtil.getBestMatchSubscriptionId(config);
+                        if (!mTelephonyUtil.isSimPresent(subId)
+                                || (mTelephonyUtil.requiresImsiEncryption(subId)
+                                        && !mTelephonyUtil.isImsiEncryptionInfoAvailable(subId))) {
+                            if (mVerboseLoggingEnabled) {
+                                Log.v(TAG, "No SIM is matched or IMSI encryption "
+                                        + "info is required, ignore the config.");
                             }
-                            WifiConfiguration config = n.wns.wifiConfiguration;
-                            if (config != null && config.enterpriseConfig != null
-                                    && config.enterpriseConfig.requireSimCredential()) {
-                                int subId = mTelephonyUtil.getBestMatchSubscriptionId(config);
-                                if (!mTelephonyUtil.isSimPresent(subId)) {
-                                    if (mVerboseLoggingEnabled) {
-                                        Log.v(TAG, "No SIM is matched, ignore the config.");
-                                    }
-                                    return false;
-                                }
-                            }
-                            return true;
-                        })
-                        .collect(Collectors.toSet());
+                            return false;
+                        }
+                    }
+                    return true;
+                }).collect(Collectors.toSet());
         // If there is no active notification, check if we need to get approval for any of the apps
         // & send a notification for one of them. If there are multiple packages awaiting approval,
         // we end up picking the first one. The others will be reconsidered in the next iteration.
