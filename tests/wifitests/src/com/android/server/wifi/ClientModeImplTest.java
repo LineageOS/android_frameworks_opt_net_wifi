@@ -32,6 +32,7 @@ import static org.mockito.Mockito.*;
 import android.app.ActivityManager;
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.app.test.TestAlarmManager;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -3974,5 +3975,40 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
         verify(mMboOceController).disable();
+    }
+
+    /**
+     * Verify that Bluetooth active is set correctly with BT state/connection state changes
+     */
+    @Test
+    public void verifyBluetoothStateAndConnectionStateChanges() throws Exception {
+        startSupplicantAndDispatchMessages();
+        mCmi.sendBluetoothAdapterStateChange(BluetoothAdapter.STATE_ON);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(1)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_CONNECTED);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(1)).setBluetoothConnected(true);
+
+        mCmi.sendBluetoothAdapterStateChange(BluetoothAdapter.STATE_OFF);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(2)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterStateChange(BluetoothAdapter.STATE_ON);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(3)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_CONNECTING);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(2)).setBluetoothConnected(true);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_DISCONNECTED);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(4)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_CONNECTED);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(3)).setBluetoothConnected(true);
     }
 }
