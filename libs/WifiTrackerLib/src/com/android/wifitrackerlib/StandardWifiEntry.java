@@ -161,6 +161,12 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
+    public String getMacAddress() {
+        // TODO(b/70983952): Fill this method in
+        return null;
+    }
+
+    @Override
     public boolean isMetered() {
         // TODO(b/70983952): Fill this method in
         return false;
@@ -235,6 +241,34 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     public void forget() {
         // TODO(b/70983952): Fill this method in
+    }
+
+    public boolean canSignIn() {
+        // TODO(b/70983952): Fill this method in
+        return false;
+    }
+
+    @Override
+    public void signIn() {
+        // TODO(b/70983952): Fill this method in
+    }
+
+    @Override
+    public boolean canShare() {
+        // TODO(b/70983952): Fill this method in
+        return false;
+    }
+
+    @Override
+    public boolean canEasyConnect() {
+        // TODO(b/70983952): Fill this method in
+        return false;
+    }
+
+    @Override
+    public String getQrCodeString() {
+        // TODO(b/70983952): Fill this method in
+        return null;
     }
 
     @Override
