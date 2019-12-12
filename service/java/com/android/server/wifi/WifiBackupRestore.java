@@ -25,7 +25,7 @@ import android.util.SparseArray;
 import android.util.Xml;
 
 import com.android.internal.util.FastXmlSerializer;
-import com.android.server.net.IpConfigStore;
+import com.android.server.wifi.util.IpConfigStore;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.XmlUtil;
