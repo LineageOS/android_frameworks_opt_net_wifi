@@ -38,10 +38,17 @@ public class ApConfigUtil {
     public static final int DEFAULT_AP_BAND = SoftApConfiguration.BAND_2GHZ;
     public static final int DEFAULT_AP_CHANNEL = 6;
     public static final int HIGHEST_2G_AP_CHANNEL = 14;
+
     /* Return code for updateConfiguration. */
     public static final int SUCCESS = 0;
     public static final int ERROR_NO_CHANNEL = 1;
     public static final int ERROR_GENERIC = 2;
+    public static final int ERROR_UNSUPPORTED_CONFIGURATION = 3;
+
+    /* Reason code in IEEE Std 802.11-2016, 9.4.1.7, Table 9-45. */
+    public static final int DISCONNECT_REASON_CODE_UNSPECIFIED_REASON = 1;
+    public static final int DISCONNECT_REASON_CODE_INVALID_AUTHENTICATION = 2;
+    public static final int DISCONNECT_REASON_CODE_NO_MORE_STAS = 5;
 
     /* Random number generator used for AP channel selection. */
     private static final Random sRandom = new Random();

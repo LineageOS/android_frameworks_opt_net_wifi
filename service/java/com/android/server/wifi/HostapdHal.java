@@ -21,8 +21,10 @@ import android.content.Context;
 import android.hardware.wifi.hostapd.V1_0.HostapdStatus;
 import android.hardware.wifi.hostapd.V1_0.HostapdStatusCode;
 import android.hardware.wifi.hostapd.V1_0.IHostapd;
+import android.hardware.wifi.hostapd.V1_2.Ieee80211ReasonCode;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
+import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.os.Handler;
 import android.os.HwRemoteBinder;
@@ -457,6 +459,51 @@ public class HostapdHal {
                 return false;
             }
         }
+    }
+
+    /**
+     * Remove a previously connected client.
+     *
+     * @param ifaceName Name of the interface.
+     * @param client Mac Address of the client.
+     * @param reasonCode One of disconnect reason code which defined in {@link ApConfigUtil}.
+     * @return true on success, false otherwise.
+     */
+    public boolean forceClientDisconnect(@NonNull String ifaceName,
+            @NonNull MacAddress client, int reasonCode) {
+        final String methodStr = "forceClientDisconnect";
+        if (isV1_2()) {
+            try {
+                android.hardware.wifi.hostapd.V1_2.IHostapd iHostapdV1_2 =
+                        getHostapdMockableV1_2();
+                if (iHostapdV1_2 == null) return false;
+                byte[] clientMacByteArray = client.toByteArray();
+                short disconnectReason;
+                switch (reasonCode) {
+                    case ApConfigUtil.DISCONNECT_REASON_CODE_INVALID_AUTHENTICATION:
+                        disconnectReason = Ieee80211ReasonCode.WLAN_REASON_PREV_AUTH_NOT_VALID;
+                        break;
+                    case ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS:
+                        disconnectReason = Ieee80211ReasonCode.WLAN_REASON_DISASSOC_AP_BUSY;
+                        break;
+                    default:
+                        disconnectReason = Ieee80211ReasonCode.WLAN_REASON_UNSPECIFIED;
+                        break;
+                }
+                android.hardware.wifi.hostapd.V1_2.HostapdStatus status =
+                        iHostapdV1_2.forceClientDisconnect(ifaceName,
+                        clientMacByteArray, disconnectReason);
+                if (status.code == HostapdStatusCode.SUCCESS) {
+                    return true;
+                }
+                Log.d(TAG, "Error when call forceClientDisconnect, status.code = " + status.code);
+            } catch (RemoteException e) {
+                handleRemoteException(e, methodStr);
+            }
+        } else {
+            Log.d(TAG, "HIDL doesn't support forceClientDisconnect");
+        }
+        return false;
     }
 
     /**

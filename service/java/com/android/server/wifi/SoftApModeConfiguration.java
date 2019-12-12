@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.net.wifi.SoftApCapability;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiManager;
 
@@ -32,19 +33,22 @@ class SoftApModeConfiguration {
      * or {@link android.net.wifi.WifiManager#IFACE_IP_MODE_LOCAL_ONLY}.
      */
     private final int mTargetMode;
+    private final SoftApCapability mCapability;
 
     /**
      * SoftApConfiguration for internal use, or null if it hasn't been generated yet.
      */
     private final @Nullable SoftApConfiguration mSoftApConfig;
 
-    SoftApModeConfiguration(int targetMode, @Nullable SoftApConfiguration config) {
+    SoftApModeConfiguration(int targetMode, @Nullable SoftApConfiguration config,
+            SoftApCapability capability) {
         Preconditions.checkArgument(
                 targetMode == WifiManager.IFACE_IP_MODE_TETHERED
                         || targetMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
 
         mTargetMode = targetMode;
         mSoftApConfig = config;
+        mCapability = capability;
     }
 
     public int getTargetMode() {
@@ -53,5 +57,9 @@ class SoftApModeConfiguration {
 
     public SoftApConfiguration getSoftApConfiguration() {
         return mSoftApConfig;
+    }
+
+    public SoftApCapability getCapability() {
+        return mCapability;
     }
 }

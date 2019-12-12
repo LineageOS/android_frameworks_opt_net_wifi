@@ -90,6 +90,7 @@
           <item type="array" name="config_wifiDisconnectedScanIntervalScheduleSec" />
           <item type="array" name="config_wifiConnectedScanIntervalScheduleSec" />
           <item type="bool" name="config_wifiScanHiddenNetworksScanOnlyMode" />
+          <item type="integer" name="config_wifi_hardware_soft_ap_max_client_count" />
           <!-- Params from config.xml that can be overlayed -->
 
           <!-- Params from strings.xml that can be overlayed -->

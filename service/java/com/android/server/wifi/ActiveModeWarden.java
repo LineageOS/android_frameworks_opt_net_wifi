@@ -25,6 +25,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
+import android.net.wifi.SoftApCapability;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
@@ -170,6 +171,11 @@ public class ActiveModeWarden {
         mWifiController.sendMessage(WifiController.CMD_SET_AP, 0, mode);
     }
 
+    /** Update SoftAp Capability. */
+    public void updateSoftApCapability(SoftApCapability capability) {
+        mWifiController.sendMessage(WifiController.CMD_UPDATE_AP_CAPABILITY, capability);
+    }
+
     /** Emergency Callback Mode has changed. */
     public void emergencyCallbackModeChanged(boolean isInEmergencyCallbackMode) {
         mWifiController.sendMessage(
@@ -291,6 +297,14 @@ public class ActiveModeWarden {
                     || getRoleForSoftApIpMode(ipMode) == softApManager.getRole()) {
                 softApManager.stop();
             }
+        }
+    }
+
+    private void updateCapabilityToSoftApModeManager(SoftApCapability capability) {
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (!(manager instanceof SoftApManager)) continue;
+            SoftApManager softApManager = (SoftApManager) manager;
+            softApManager.updateCapability(capability);
         }
     }
 
@@ -535,6 +549,7 @@ public class ActiveModeWarden {
         static final int CMD_STA_STOPPED                            = BASE + 20;
         static final int CMD_DEFERRED_RECOVERY_RESTART_WIFI         = BASE + 22;
         static final int CMD_AP_START_FAILURE                       = BASE + 23;
+        static final int CMD_UPDATE_AP_CAPABILITY                   = BASE + 24;
 
         private final EnabledState mEnabledState = new EnabledState();
         private final DisabledState mDisabledState = new DisabledState();
@@ -690,6 +705,9 @@ public class ActiveModeWarden {
                             }
                             // wifi should remain disabled, do not need to transition
                         }
+                        break;
+                    case CMD_UPDATE_AP_CAPABILITY:
+                        updateCapabilityToSoftApModeManager((SoftApCapability) msg.obj);
                         break;
                     default:
                         throw new RuntimeException("WifiController.handleMessage " + msg.what);
