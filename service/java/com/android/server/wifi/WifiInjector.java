@@ -600,6 +600,7 @@ public class WifiInjector {
                 mWifiThreadRunner);
         mBssidBlocklistMonitor = new BssidBlocklistMonitor(mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mClock, mConnectivityLocalLog, mWifiScoreCard);
+        mWifiMetrics.setBssidBlocklistMonitor(mBssidBlocklistMonitor);
         mWifiChannelUtilization = new WifiChannelUtilization(mClock);
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,
