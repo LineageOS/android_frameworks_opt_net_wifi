@@ -19,11 +19,11 @@ package com.android.server.wifi.util;
 import android.content.Context;
 import android.net.INetd;
 import android.net.INetdUnsolicitedEventListener;
+import android.net.InetAddresses;
 import android.net.InterfaceConfiguration;
 import android.net.InterfaceConfigurationParcel;
 import android.net.IpPrefix;
 import android.net.LinkAddress;
-import android.net.NetworkUtils;
 import android.net.RouteInfo;
 import android.os.Handler;
 import android.os.IBinder;
@@ -217,7 +217,7 @@ public class NetdWrapper {
 
         // IPv6 link local should be activated always.
         modifyRoute(MODIFY_OPERATION_ADD, INetd.LOCAL_NET_ID,
-                new RouteInfo(new IpPrefix("fe80::/64"), null, iface));
+                new RouteInfo(new IpPrefix("fe80::/64"), null, iface, RouteInfo.RTN_UNICAST));
     }
 
     /**
@@ -291,12 +291,11 @@ public class NetdWrapper {
         InterfaceConfiguration cfg = new InterfaceConfiguration();
         cfg.setHardwareAddress(p.hwAddr);
 
-        final InetAddress addr = NetworkUtils.numericToInetAddress(p.ipv4Addr);
+        final InetAddress addr = InetAddresses.parseNumericAddress(p.ipv4Addr);
         cfg.setLinkAddress(new LinkAddress(addr, p.prefixLength));
         for (String flag : p.flags) {
             cfg.setFlag(flag);
         }
-
         return cfg;
     }
 
@@ -437,7 +436,11 @@ public class NetdWrapper {
         List<RouteInfo> routes = new ArrayList<>();
         // The RouteInfo constructor truncates the LinkAddress to a network prefix, thus making it
         // suitable to use as a route destination.
-        routes.add(new RouteInfo(getInterfaceConfig(iface).getLinkAddress(), null, iface));
+        LinkAddress dest = getInterfaceConfig(iface).getLinkAddress();
+        RouteInfo route = new RouteInfo(
+                new IpPrefix(dest.getAddress(), dest.getPrefixLength()),
+                null, null, RouteInfo.RTN_UNICAST);
+        routes.add(route);
         addInterfaceToLocalNetwork(iface, routes);
     }
 
