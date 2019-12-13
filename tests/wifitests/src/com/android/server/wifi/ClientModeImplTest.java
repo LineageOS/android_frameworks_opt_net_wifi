@@ -41,6 +41,7 @@ import android.net.ConnectivityManager;
 import android.net.DhcpResults;
 import android.net.LinkProperties;
 import android.net.MacAddress;
+import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
@@ -496,6 +497,8 @@ public class ClientModeImplTest {
             mIpClientCallback.onQuit();
             return null;
         }).when(mIpClient).shutdown();
+        when(mConnectivityManager.registerNetworkAgent(any(), any(), any(), any(), anyInt(), any(),
+                anyInt())).thenReturn(mock(Network.class));
         initializeCmi();
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
