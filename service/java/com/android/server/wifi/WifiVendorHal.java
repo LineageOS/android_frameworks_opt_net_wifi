@@ -1142,9 +1142,6 @@ public class WifiVendorHal {
      * Translation table used by getSupportedFeatureSet for translating IWifiStaIface caps
      */
     private static final long[][] sStaFeatureCapabilityTranslation = {
-            {WifiManager.WIFI_FEATURE_INFRA_5G,
-                    IWifiStaIface.StaIfaceCapabilityMask.STA_5G
-            },
             {WifiManager.WIFI_FEATURE_PASSPOINT,
                     IWifiStaIface.StaIfaceCapabilityMask.HOTSPOT
             },
@@ -1180,9 +1177,6 @@ public class WifiVendorHal {
             },
             {WifiManager.WIFI_FEATURE_SCAN_RAND,
                     IWifiStaIface.StaIfaceCapabilityMask.SCAN_RAND
-            },
-            {WifiManager.WIFI_FEATURE_INFRA_6G,
-                    android.hardware.wifi.V1_4.IWifiStaIface.StaIfaceCapabilityMask.STA_6G
             }
     };
 
@@ -1232,21 +1226,12 @@ public class WifiVendorHal {
                     });
                 }
 
-                android.hardware.wifi.V1_4.IWifiStaIface ifaceV14 =
-                        getWifiStaIfaceForV1_4Mockable(ifaceName);
-                if (ifaceV14 != null) {
-                    ifaceV14.getCapabilities_1_4((status, capabilities) -> {
+                IWifiStaIface iface = getStaIface(ifaceName);
+                if (iface != null) {
+                    iface.getCapabilities((status, capabilities) -> {
                         if (!ok(status)) return;
                         feat.value |= wifiFeatureMaskFromStaCapabilities(capabilities);
                     });
-                } else {
-                    IWifiStaIface iface = getStaIface(ifaceName);
-                    if (iface != null) {
-                        iface.getCapabilities((status, capabilities) -> {
-                            if (!ok(status)) return;
-                            feat.value |= wifiFeatureMaskFromStaCapabilities(capabilities);
-                        });
-                    }
                 }
             }
             featureSet = feat.value;
@@ -2354,20 +2339,6 @@ public class WifiVendorHal {
         IWifiStaIface iface = getStaIface(ifaceName);
         if (iface == null) return null;
         return android.hardware.wifi.V1_3.IWifiStaIface.castFrom(iface);
-    }
-
-    /**
-     * Method to mock out the V1_4 IWifiStaIface retrieval in unit tests.
-     *
-     * @param ifaceName Name of the interface
-     * @return 1.4 IWifiStaIface object if the device is running the 1.4 wifi hal service, null
-     * otherwise.
-     */
-    protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
-            @NonNull String ifaceName) {
-        IWifiStaIface iface = getStaIface(ifaceName);
-        if (iface == null) return null;
-        return android.hardware.wifi.V1_4.IWifiStaIface.castFrom(iface);
     }
 
     protected android.hardware.wifi.V1_4.IWifiApIface getWifiApIfaceForV1_4Mockable(
