@@ -3022,7 +3022,7 @@ public class WifiServiceImpl extends BaseWifiService {
         Log.d(TAG, "Restored backup data");
     }
 
-    /*
+    /**
      * Retrieve the soft ap config data to be backed to save current config data.
      *
      * @return  Raw byte stream of the data to be backed up.
@@ -3043,9 +3043,10 @@ public class WifiServiceImpl extends BaseWifiService {
      * Restore soft ap config from the backed up data.
      *
      * @param data Raw byte stream of the backed up data.
+     * @return restored SoftApConfiguration or Null if data is invalid.
      */
     @Override
-    public void restoreSoftApBackupData(byte[] data) {
+    public SoftApConfiguration restoreSoftApBackupData(byte[] data) {
         enforceNetworkSettingsPermission();
         mLog.info("restoreSoftApBackupData uid=%").c(Binder.getCallingUid()).flush();
         SoftApConfiguration softApConfig =
@@ -3054,6 +3055,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(softApConfig));
             Log.d(TAG, "Restored soft ap backup data");
         }
+        return softApConfig;
     }
 
 
