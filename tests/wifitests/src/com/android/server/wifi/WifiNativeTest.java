@@ -1033,4 +1033,33 @@ public class WifiNativeTest extends WifiBaseTest {
                 WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         verify(mWificondControl, never()).sendMgmtFrame(any(), any(), anyInt(), any(), any());
     }
+
+    /**
+     * Tests that WifiNative#addHlpReq() calls
+     * SupplicantStaIfaceHal#addHlpReq()
+     */
+    @Test
+    public void testaddHlpReq() {
+        byte[] hlpPacket = {
+                0x40, 0x00, 0x3c, 0x00, (byte) 0xa8, (byte) 0xbd, 0x27, 0x5b,
+                0x33, 0x72, (byte) 0xf4, (byte) 0xf5, (byte) 0xe8, 0x51, (byte) 0x9e, 0x09,
+                (byte) 0xa8, (byte) 0xbd, 0x27, 0x5b, 0x33, 0x72, (byte) 0xb0, 0x66,
+                0x00, 0x00
+        };
+        mWifiNative.addHlpReq(WIFI_IFACE_NAME, TEST_MAC_ADDRESS, hlpPacket);
+
+        verify(mStaIfaceHal).addHlpReq(eq(WIFI_IFACE_NAME),
+                eq(TEST_MAC_ADDRESS.toByteArray()), eq(hlpPacket));
+    }
+
+    /**
+     * Tests that WifiNative#flushAllHlp() calls
+     * SupplicantStaIfaceHal#flushAllHlp()
+     */
+    @Test
+    public void testflushAllHlp() {
+        mWifiNative.flushAllHlp(WIFI_IFACE_NAME);
+
+        verify(mStaIfaceHal).flushAllHlp(eq(WIFI_IFACE_NAME));
+    }
 }

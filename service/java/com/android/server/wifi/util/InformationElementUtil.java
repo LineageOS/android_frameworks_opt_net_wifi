@@ -914,6 +914,8 @@ public class InformationElementUtil {
         private static final int RSN_AKM_OWE = 0x12ac0f00;
         private static final int RSN_AKM_EAP_SUITE_B_192 = 0x0cac0f00;
         private static final int RSN_OSEN = 0x019a6f50;
+        private static final int RSN_AKM_FILS_SHA256 = 0x0eac0f00;
+        private static final int RSN_AKM_FILS_SHA384 = 0x0fac0f00;
 
         private static final int WPA_CIPHER_NONE = 0x00f25000;
         private static final int WPA_CIPHER_TKIP = 0x02f25000;
@@ -1015,6 +1017,12 @@ public class InformationElementUtil {
                             break;
                         case RSN_OSEN:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_OSEN);
+                            break;
+                        case RSN_AKM_FILS_SHA256:
+                            rsnKeyManagement.add(ScanResult.KEY_MGMT_FILS_SHA256);
+                            break;
+                        case RSN_AKM_FILS_SHA384:
+                            rsnKeyManagement.add(ScanResult.KEY_MGMT_FILS_SHA384);
                             break;
                         default:
                             // do nothing
@@ -1294,6 +1302,10 @@ public class InformationElementUtil {
                     return "WAPI-PSK";
                 case ScanResult.KEY_MGMT_WAPI_CERT:
                     return "WAPI-CERT";
+                case ScanResult.KEY_MGMT_FILS_SHA256:
+                    return "FILS-SHA256";
+                case ScanResult.KEY_MGMT_FILS_SHA384:
+                    return "FILS-SHA384";
                 default:
                     return "?";
             }
