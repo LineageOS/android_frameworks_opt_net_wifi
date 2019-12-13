@@ -36,7 +36,6 @@ APK_NAME="$(ls -t $(find $OUT -name FrameworksWifiTests.apk) | head -n 1)"
 
 set -x # print commands
 
-adb root
 adb wait-for-device
 
 adb install -r -g "$APK_NAME"
