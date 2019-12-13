@@ -27,7 +27,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
 import android.net.wifi.IWifiScanner;
-import android.net.wifi.IWificond;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.os.BatteryStatsManager;
@@ -76,7 +76,6 @@ import java.util.Random;
 public class WifiInjector {
     private static final String TAG = "WifiInjector";
     private static final String BOOT_DEFAULT_WIFI_COUNTRY_CODE = "ro.boot.wificountrycode";
-    private static final String WIFICOND_SERVICE_NAME = "wificond";
 
     static WifiInjector sWifiInjector = null;
 
@@ -107,7 +106,7 @@ public class WifiInjector {
     private final WifiSettingsStore mSettingsStore;
     private OpenNetworkNotifier mOpenNetworkNotifier;
     private final WifiLockManager mLockManager;
-    private final WificondControl mWificondControl;
+    private final WifiCondManager mWifiCondManager;
     private final Clock mClock = new Clock();
     private final WifiMetrics mWifiMetrics;
     private final WifiP2pMetrics mWifiP2pMetrics;
@@ -223,11 +222,9 @@ public class WifiInjector {
         mSupplicantStaIfaceHal = new SupplicantStaIfaceHal(
                 mContext, mWifiMonitor, mFrameworkFacade, wifiHandler, mClock);
         mHostapdHal = new HostapdHal(mContext, wifiHandler);
-        mWificondControl = new WificondControl(this,
-                (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
-                wifiHandler, mClock);
+        mWifiCondManager = (WifiCondManager) mContext.getSystemService(Context.WIFI_COND_SERVICE);
         mWifiNative = new WifiNative(
-                mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
+                mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWifiCondManager,
                 mWifiMonitor, mPropertyService, mWifiMetrics,
                 wifiHandler, new Random(), this);
         mWifiP2pMonitor = new WifiP2pMonitor(this);
@@ -523,13 +520,6 @@ public class WifiInjector {
 
     public DppManager getDppManager() {
         return mDppManager;
-    }
-
-    /** Gets IWificond without caching. */
-    public IWificond makeWificond() {
-        // We depend on being able to refresh our binder in ClientModeImpl, so don't cache it.
-        IBinder binder = mFrameworkFacade.getService(WIFICOND_SERVICE_NAME);
-        return IWificond.Stub.asInterface(binder);
     }
 
     /**

@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import android.content.Context;
 import android.net.wifi.IWifiManager;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
 import android.os.ServiceManager;
@@ -306,7 +307,7 @@ public class WifiShellCommand extends ShellCommand {
 
     private int sendLinkProbe(PrintWriter pw) throws InterruptedException {
         ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(1);
-        mClientModeImpl.probeLink(new WificondControl.SendMgmtFrameCallback() {
+        mClientModeImpl.probeLink(new WifiCondManager.SendMgmtFrameCallback() {
             @Override
             public void onAck(int elapsedTimeMs) {
                 queue.offer("Link probe succeeded after " + elapsedTimeMs + " ms");
@@ -319,7 +320,7 @@ public class WifiShellCommand extends ShellCommand {
         }, -1);
 
         // block until msg is received, or timed out
-        String msg = queue.poll(WificondControl.SEND_MGMT_FRAME_TIMEOUT_MS + 1000,
+        String msg = queue.poll(WifiCondManager.SEND_MGMT_FRAME_TIMEOUT_MS + 1000,
                 TimeUnit.MILLISECONDS);
         if (msg == null) {
             pw.println("Link probe timed out");

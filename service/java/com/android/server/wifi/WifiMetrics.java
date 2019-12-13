@@ -25,6 +25,7 @@ import android.net.wifi.EAPConstants;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -3391,15 +3392,15 @@ public class WifiMetrics {
     }
 
     private static int linkProbeFailureReasonToProto(
-            @WificondControl.SendMgmtFrameError int reason) {
+            @WifiCondManager.SendMgmtFrameError int reason) {
         switch (reason) {
-            case WificondControl.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
+            case WifiCondManager.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_MCS_UNSUPPORTED;
-            case WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK:
+            case WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_NO_ACK;
-            case WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT:
+            case WifiCondManager.SEND_MGMT_FRAME_ERROR_TIMEOUT:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_TIMEOUT;
-            case WificondControl.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED:
+            case WifiCondManager.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_ALREADY_STARTED;
             default:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_UNKNOWN;
@@ -4732,10 +4733,10 @@ public class WifiMetrics {
      *                                 {@link WifiInfo#txSuccess}).
      * @param rssi The Rx RSSI at {@code startTimestampMs}.
      * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
-     * @param reason The error code for the failure. See {@link WificondControl.SendMgmtFrameError}.
+     * @param reason The error code for the failure. See {@link WifiCondManager.SendMgmtFrameError}.
      */
     public void logLinkProbeFailure(long timeSinceLastTxSuccessMs,
-            int rssi, int linkSpeed, @WificondControl.SendMgmtFrameError int reason) {
+            int rssi, int linkSpeed, @WifiCondManager.SendMgmtFrameError int reason) {
         synchronized (mLock) {
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;

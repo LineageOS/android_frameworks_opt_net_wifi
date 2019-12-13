@@ -50,6 +50,7 @@ import android.net.ip.IpClientCallbacks;
 import android.net.wifi.IActionListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
@@ -2558,7 +2559,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         WifiLinkLayerStats llStats = new WifiLinkLayerStats();
         llStats.txmpdu_be = 1000;
         llStats.rxmpdu_bk = 2000;
-        WificondControl.SignalPollResult signalPollResult = new WificondControl.SignalPollResult();
+        WifiCondManager.SignalPollResult signalPollResult = new WifiCondManager.SignalPollResult();
         signalPollResult.currentRssi = -42;
         signalPollResult.txBitrate = 65;
         signalPollResult.associationFrequency = sFreq;
@@ -3897,7 +3898,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that we trigger a disconnect when the {@link WifiConfigManager.
+     * Verifies that we trigger a disconnect when the {@link WifiConfigManager}.
      * OnNetworkUpdateListener#onNetworkRemoved(WifiConfiguration)} is invoked.
      */
     @Test

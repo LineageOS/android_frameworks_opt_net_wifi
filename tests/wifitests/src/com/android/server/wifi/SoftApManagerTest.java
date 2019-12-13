@@ -29,7 +29,6 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 
-
 import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
 import static com.android.server.wifi.util.ApConfigUtil.DEFAULT_AP_CHANNEL;
 
@@ -63,6 +62,7 @@ import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
+import android.net.wifi.wificond.NativeWifiClient;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.provider.Settings;
@@ -70,7 +70,6 @@ import android.provider.Settings;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.WakeupMessage;
-import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.wifi.resources.R;
 
 import org.junit.Before;
