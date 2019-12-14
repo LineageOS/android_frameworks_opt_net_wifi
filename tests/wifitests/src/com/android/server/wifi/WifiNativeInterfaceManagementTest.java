@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 
 import android.app.test.MockAnswerUtil;
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -69,7 +70,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
     private static final String IFACE_NAME_1 = "mockWlan1";
 
     @Mock private WifiVendorHal mWifiVendorHal;
-    @Mock private WificondControl mWificondControl;
+    @Mock private WifiCondManager mWificondControl;
     @Mock private SupplicantStaIfaceHal mSupplicantStaIfaceHal;
     @Mock private HostapdHal mHostapdHal;
     @Mock private WifiMonitor mWifiMonitor;

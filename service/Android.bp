@@ -72,9 +72,7 @@ filegroup {
 filegroup {
     name: "wifi-service-srcs",
     srcs: [
-        ":libwificond_ipc_aidl",
         "java/**/*.java",
-        "java/**/I*.aidl",
         "java/**/*.logtags",
         ":framework-wifi-service-shared-srcs",
         ":statslog-wifi-java-gen",
@@ -87,10 +85,6 @@ java_library {
     name: "wifi-service",
     installable: true,
     defaults: ["wifi-service-common"],
-    aidl: {
-        include_dirs: ["system/connectivity/wificond/aidl"],
-        local_include_dirs: ["java"],
-    },
     srcs: [ ":wifi-service-srcs" ],
 
     libs: [

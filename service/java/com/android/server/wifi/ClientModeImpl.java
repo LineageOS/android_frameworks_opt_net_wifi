@@ -63,6 +63,7 @@ import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
@@ -2247,7 +2248,7 @@ public class ClientModeImpl extends StateMachine {
      * Fetch RSSI, linkspeed, and frequency on current connection
      */
     private void fetchRssiLinkSpeedAndFrequencyNative() {
-        WificondControl.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
+        WifiCondManager.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
         if (pollResult == null) {
             return;
         }
@@ -4503,7 +4504,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_PKT_CNT_FETCH:
                     callbackIdentifier = message.arg2;
-                    WificondControl.TxPacketCounters counters =
+                    WifiCondManager.TxPacketCounters counters =
                             mWifiNative.getTxPacketCounters(mInterfaceName);
                     if (counters != null) {
                         sendTxPacketCountListenerSuccess(
@@ -5664,7 +5665,7 @@ public class ClientModeImpl extends StateMachine {
      * Sends a link probe.
      */
     @VisibleForTesting
-    public void probeLink(WificondControl.SendMgmtFrameCallback callback, int mcs) {
+    public void probeLink(WifiCondManager.SendMgmtFrameCallback callback, int mcs) {
         mWifiNative.probeLink(mInterfaceName, MacAddress.fromString(mWifiInfo.getBSSID()),
                 callback, mcs);
     }
