@@ -26,7 +26,6 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
-import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 
 import android.annotation.CheckResult;
 import android.annotation.NonNull;
@@ -1186,7 +1185,7 @@ public class WifiServiceImpl extends BaseWifiService {
             boolean is5Ghz = hasAutomotiveFeature(mContext)
                     && mContext.getResources().getBoolean(
                     R.bool.config_wifi_local_only_hotspot_5ghz)
-                    && is5GhzSupported();
+                    && is5GhzBandSupportedInternal();
 
             int band = is5Ghz ? WifiConfiguration.AP_BAND_5GHZ
                     : WifiConfiguration.AP_BAND_2GHZ;
@@ -2390,14 +2389,25 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     @Override
-    public boolean isDualBandSupported() {
-        //TODO (b/123227116): pull it from the HAL
+    public boolean is5GHzBandSupported() {
         if (mVerboseLoggingEnabled) {
-            mLog.info("isDualBandSupported uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("is5GHzBandSupported uid=%").c(Binder.getCallingUid()).flush();
         }
 
-        return mContext.getResources().getBoolean(
-                R.bool.config_wifi_dual_band_support);
+        return is5GhzBandSupportedInternal();
+    }
+
+    private boolean is5GhzBandSupportedInternal() {
+        return mContext.getResources().getBoolean(R.bool.config_wifi5ghzSupport);
+    }
+
+    @Override
+    public boolean is6GHzBandSupported() {
+        if (mVerboseLoggingEnabled) {
+            mLog.info("is6GHzBandSupported uid=%").c(Binder.getCallingUid()).flush();
+        }
+
+        return mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport);
     }
 
     private int getMaxApInterfacesCount() {
@@ -3022,7 +3032,7 @@ public class WifiServiceImpl extends BaseWifiService {
         Log.d(TAG, "Restored backup data");
     }
 
-    /*
+    /**
      * Retrieve the soft ap config data to be backed to save current config data.
      *
      * @return  Raw byte stream of the data to be backed up.
@@ -3043,9 +3053,10 @@ public class WifiServiceImpl extends BaseWifiService {
      * Restore soft ap config from the backed up data.
      *
      * @param data Raw byte stream of the backed up data.
+     * @return restored SoftApConfiguration or Null if data is invalid.
      */
     @Override
-    public void restoreSoftApBackupData(byte[] data) {
+    public SoftApConfiguration restoreSoftApBackupData(byte[] data) {
         enforceNetworkSettingsPermission();
         mLog.info("restoreSoftApBackupData uid=%").c(Binder.getCallingUid()).flush();
         SoftApConfiguration softApConfig =
@@ -3054,6 +3065,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(softApConfig));
             Log.d(TAG, "Restored soft ap backup data");
         }
+        return softApConfig;
     }
 
 
@@ -3156,10 +3168,6 @@ public class WifiServiceImpl extends BaseWifiService {
         // Post operation to handler thread
         mWifiThreadRunner.post(() ->
                 mWifiTrafficPoller.removeCallback(callbackIdentifier));
-    }
-
-    private boolean is5GhzSupported() {
-        return (getSupportedFeaturesInternal() & WIFI_FEATURE_INFRA_5G) == WIFI_FEATURE_INFRA_5G;
     }
 
     private long getSupportedFeaturesInternal() {

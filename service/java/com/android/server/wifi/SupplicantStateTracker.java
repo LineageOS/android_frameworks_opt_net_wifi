@@ -21,7 +21,6 @@ import android.content.Intent;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
-import android.os.BatteryStats;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.Message;
@@ -47,7 +46,7 @@ public class SupplicantStateTracker extends StateMachine {
     private static boolean DBG = false;
     private final WifiConfigManager mWifiConfigManager;
     private FrameworkFacade mFacade;
-    private final BatteryStatsManager mBatteryStats;
+    private final BatteryStatsManager mBatteryStatsManager;
     /* Indicates authentication failure in supplicant broadcast.
      * TODO: enhance auth failure reporting to include notification
      * for all type of failures: EAP, WPS & WPA networks */
@@ -92,12 +91,12 @@ public class SupplicantStateTracker extends StateMachine {
     }
 
     public SupplicantStateTracker(Context c, WifiConfigManager wcs,
-            BatteryStatsManager batteryStats, Handler t) {
+            BatteryStatsManager batteryStatsManager, Handler t) {
         super(TAG, t.getLooper());
 
         mContext = c;
         mWifiConfigManager = wcs;
-        mBatteryStats = batteryStats;
+        mBatteryStatsManager = batteryStatsManager;
         // CHECKSTYLE:OFF IndentationCheck
         addState(mDefaultState);
             addState(mUninitializedState, mDefaultState);
@@ -176,27 +175,51 @@ public class SupplicantStateTracker extends StateMachine {
             int reasonCode) {
         int supplState;
         switch (state) {
-            case DISCONNECTED: supplState = BatteryStats.WIFI_SUPPL_STATE_DISCONNECTED; break;
+            case DISCONNECTED:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_DISCONNECTED;
+                break;
             case INTERFACE_DISABLED:
-                supplState = BatteryStats.WIFI_SUPPL_STATE_INTERFACE_DISABLED; break;
-            case INACTIVE: supplState = BatteryStats.WIFI_SUPPL_STATE_INACTIVE; break;
-            case SCANNING: supplState = BatteryStats.WIFI_SUPPL_STATE_SCANNING; break;
-            case AUTHENTICATING: supplState = BatteryStats.WIFI_SUPPL_STATE_AUTHENTICATING; break;
-            case ASSOCIATING: supplState = BatteryStats.WIFI_SUPPL_STATE_ASSOCIATING; break;
-            case ASSOCIATED: supplState = BatteryStats.WIFI_SUPPL_STATE_ASSOCIATED; break;
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_INTERFACE_DISABLED;
+                break;
+            case INACTIVE:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_INACTIVE;
+                break;
+            case SCANNING:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_SCANNING;
+                break;
+            case AUTHENTICATING:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_AUTHENTICATING;
+                break;
+            case ASSOCIATING:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_ASSOCIATING;
+                break;
+            case ASSOCIATED:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_ASSOCIATED;
+                break;
             case FOUR_WAY_HANDSHAKE:
-                supplState = BatteryStats.WIFI_SUPPL_STATE_FOUR_WAY_HANDSHAKE; break;
-            case GROUP_HANDSHAKE: supplState = BatteryStats.WIFI_SUPPL_STATE_GROUP_HANDSHAKE; break;
-            case COMPLETED: supplState = BatteryStats.WIFI_SUPPL_STATE_COMPLETED; break;
-            case DORMANT: supplState = BatteryStats.WIFI_SUPPL_STATE_DORMANT; break;
-            case UNINITIALIZED: supplState = BatteryStats.WIFI_SUPPL_STATE_UNINITIALIZED; break;
-            case INVALID: supplState = BatteryStats.WIFI_SUPPL_STATE_INVALID; break;
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_FOUR_WAY_HANDSHAKE;
+                break;
+            case GROUP_HANDSHAKE:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_GROUP_HANDSHAKE;
+                break;
+            case COMPLETED:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_COMPLETED;
+                break;
+            case DORMANT:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_DORMANT;
+                break;
+            case UNINITIALIZED:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_UNINITIALIZED;
+                break;
+            case INVALID:
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_INVALID;
+                break;
             default:
                 Log.w(TAG, "Unknown supplicant state " + state);
-                supplState = BatteryStats.WIFI_SUPPL_STATE_INVALID;
+                supplState = BatteryStatsManager.WIFI_SUPPL_STATE_INVALID;
                 break;
         }
-        mBatteryStats.noteWifiSupplicantStateChanged(supplState, failedAuth);
+        mBatteryStatsManager.noteWifiSupplicantStateChanged(supplState, failedAuth);
         Intent intent = new Intent(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                 | Intent.FLAG_RECEIVER_REPLACE_PENDING);

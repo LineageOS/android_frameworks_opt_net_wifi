@@ -14,23 +14,27 @@
 // limitations under the License.
 //
 
+apex_defaults {
+    name: "com.android.wifi-defaults",
+    androidManifest: ":com.android.wifi-androidManifest",
+    native_shared_libs: ["libwifi-jni"],
+    java_libs: ["wifi-service"],
+    init_rc: ["../wifi.rc"],
+    key: "com.android.wifi.key",
+    certificate: ":com.android.wifi.certificate",
+}
+
+filegroup {
+    name: "com.android.wifi-androidManifest",
+    srcs: ["AndroidManifest.xml"],
+}
+
 // Mainline wifi apex module.
 apex {
     name: "com.android.wifi",
+    defaults: ["com.android.wifi-defaults"],
     manifest: "apex_manifest.json",
-    native_shared_libs: ["libwifi-jni"],
-    java_libs: ["wifi-service"],
     apps: ["wifi-service-resources"],
-
-    required: [
-        "cacerts_wfa",
-        "services",
-    ],
-
-    init_rc: ["../wifi.rc"],
-
-    key: "com.android.wifi.key",
-    certificate: ":com.android.wifi.certificate",
 }
 
 apex_key {

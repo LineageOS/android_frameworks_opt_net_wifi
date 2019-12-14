@@ -157,8 +157,6 @@ public class WifiVendorHalTest extends WifiBaseTest {
     private android.hardware.wifi.V1_2.IWifiStaIface mIWifiStaIfaceV12;
     @Mock
     private android.hardware.wifi.V1_3.IWifiStaIface mIWifiStaIfaceV13;
-    @Mock
-    private android.hardware.wifi.V1_4.IWifiStaIface mIWifiStaIfaceV14;
     private IWifiStaIfaceEventCallback mIWifiStaIfaceEventCallback;
     private IWifiChipEventCallback mIWifiChipEventCallback;
     private android.hardware.wifi.V1_2.IWifiChipEventCallback mIWifiChipEventCallbackV12;
@@ -208,12 +206,6 @@ public class WifiVendorHalTest extends WifiBaseTest {
                 String ifaceName) {
             return null;
         }
-
-        @Override
-        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
-                String ifaceName) {
-            return null;
-        }
     }
 
     /**
@@ -253,12 +245,6 @@ public class WifiVendorHalTest extends WifiBaseTest {
 
         @Override
         protected android.hardware.wifi.V1_3.IWifiStaIface getWifiStaIfaceForV1_3Mockable(
-                String ifaceName) {
-            return null;
-        }
-
-        @Override
-        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
                 String ifaceName) {
             return null;
         }
@@ -304,12 +290,6 @@ public class WifiVendorHalTest extends WifiBaseTest {
                 String ifaceName) {
             return mIWifiStaIfaceV13;
         }
-
-        @Override
-        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
-                String ifaceName) {
-            return null;
-        }
     }
 
     /**
@@ -351,12 +331,6 @@ public class WifiVendorHalTest extends WifiBaseTest {
         protected android.hardware.wifi.V1_3.IWifiStaIface getWifiStaIfaceForV1_3Mockable(
                 String ifaceName) {
             return mIWifiStaIfaceV13;
-        }
-
-        @Override
-        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
-                String ifaceName) {
-            return mIWifiStaIfaceV14;
         }
     }
 
@@ -908,60 +882,6 @@ public class WifiVendorHalTest extends WifiBaseTest {
                 cb.onValues(mWifiStatusSuccess, chipHidlCaps);
             }
         }).when(mIWifiChip).getCapabilities(any(IWifiChip.getCapabilitiesCallback.class));
-        when(mHalDeviceManager.getSupportedIfaceTypes())
-                .thenReturn(halDeviceManagerSupportedIfaces);
-
-        assertEquals(expectedFeatureSet, mWifiVendorHal.getSupportedFeatureSet(TEST_IFACE_NAME));
-    }
-
-    /**
-     * Test get supported features on HAL V1_4.
-     * Tests whether we coalesce information from different sources
-     * (IWifiStaIface, IWifiChip and HalDeviceManager) into the bitmask of supported features
-     * correctly.
-     */
-    @Test
-    public void testGetSupportedFeaturesV1_4() throws Exception {
-        mWifiVendorHal = new WifiVendorHalSpyV1_4(mHalDeviceManager, mHandler);
-        assertTrue(mWifiVendorHal.startVendorHalSta());
-
-        int staIfaceHidlCaps = (
-                IWifiStaIface.StaIfaceCapabilityMask.BACKGROUND_SCAN
-                        | IWifiStaIface.StaIfaceCapabilityMask.LINK_LAYER_STATS
-                        | android.hardware.wifi.V1_4.IWifiStaIface.StaIfaceCapabilityMask.STA_6G
-        );
-        int chipHidlCaps =
-                android.hardware.wifi.V1_1.IWifiChip.ChipCapabilityMask.SET_TX_POWER_LIMIT;
-        Set<Integer>  halDeviceManagerSupportedIfaces = new HashSet<Integer>() {{
-                add(IfaceType.STA);
-                add(IfaceType.P2P);
-            }};
-        long expectedFeatureSet = (
-                WifiManager.WIFI_FEATURE_SCANNER
-                        | WifiManager.WIFI_FEATURE_LINK_LAYER_STATS
-                        | WifiManager.WIFI_FEATURE_TX_POWER_LIMIT
-                        | WifiManager.WIFI_FEATURE_INFRA
-                        | WifiManager.WIFI_FEATURE_P2P
-                        | WifiManager.WIFI_FEATURE_INFRA_6G
-        );
-
-        doAnswer(new AnswerWithArguments() {
-            public void answer(
-                    android.hardware.wifi.V1_4.IWifiStaIface.getCapabilities_1_4Callback cb)
-                    throws RemoteException {
-                cb.onValues(mWifiStatusSuccess, staIfaceHidlCaps);
-            }
-        }).when(mIWifiStaIfaceV14).getCapabilities_1_4(
-                any(android.hardware.wifi.V1_4.IWifiStaIface.getCapabilities_1_4Callback.class));
-
-        doAnswer(new AnswerWithArguments() {
-            public void answer(android.hardware.wifi.V1_3.IWifiChip.getCapabilities_1_3Callback cb)
-                    throws RemoteException {
-                cb.onValues(mWifiStatusSuccess, chipHidlCaps);
-            }
-        }).when(mIWifiChipV13).getCapabilities_1_3(
-                any(android.hardware.wifi.V1_3.IWifiChip.getCapabilities_1_3Callback.class));
-
         when(mHalDeviceManager.getSupportedIfaceTypes())
                 .thenReturn(halDeviceManagerSupportedIfaces);
 

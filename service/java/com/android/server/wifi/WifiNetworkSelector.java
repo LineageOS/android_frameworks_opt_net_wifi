@@ -93,7 +93,7 @@ public class WifiNetworkSelector {
     /**
      * The identifier string of the CandidateScorer to use (in the absence of overrides).
      */
-    public static final String PRESET_CANDIDATE_SCORER_NAME = "CompatibilityScorer";
+    public static final String PRESET_CANDIDATE_SCORER_NAME = "ThroughputScorer";
 
     /**
      * Experiment ID for the legacy scorer.

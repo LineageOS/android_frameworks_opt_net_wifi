@@ -26,7 +26,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
-import android.os.BatteryStats;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -498,7 +497,7 @@ public class ActiveModeWarden {
     }
 
     private void updateBatteryStatsScanModeActive() {
-        mBatteryStatsManager.noteWifiState(BatteryStats.WIFI_STATE_OFF_SCANNING, null);
+        mBatteryStatsManager.noteWifiState(BatteryStatsManager.WIFI_STATE_OFF_SCANNING, null);
     }
 
     private boolean checkScanOnlyModeAvailable() {

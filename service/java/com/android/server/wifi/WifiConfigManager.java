@@ -485,7 +485,11 @@ public class WifiConfigManager {
      * @param config
      * @return
      */
-    private boolean shouldUseAggressiveRandomization(WifiConfiguration config) {
+    public boolean shouldUseAggressiveRandomization(WifiConfiguration config) {
+        if (!isMacRandomizationSupported()
+                || config.macRandomizationSetting != WifiConfiguration.RANDOMIZATION_PERSISTENT) {
+            return false;
+        }
         if (config.getIpConfiguration().getIpAssignment() == IpConfiguration.IpAssignment.STATIC) {
             return false;
         }
@@ -702,11 +706,20 @@ public class WifiConfigManager {
                 && targetUid != configuration.creatorUid) {
             maskRandomizedMacAddressInWifiConfiguration(network);
         }
-        if (!mContext.getResources().getBoolean(
-                R.bool.config_wifi_connected_mac_randomization_supported)) {
+        if (!isMacRandomizationSupported()) {
             network.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         }
         return network;
+    }
+
+    /**
+     * Returns whether MAC randomization is supported on this device.
+     * @param config
+     * @return
+     */
+    private boolean isMacRandomizationSupported() {
+        return mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported);
     }
 
     /**
