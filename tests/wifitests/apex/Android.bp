@@ -21,6 +21,8 @@ apex {
         "//system/apex/tests",
     ],
     defaults: ["com.android.wifi-defaults"],
+    // TODO(b/146217017): move this to "com.android.wifi-defaults"
+    apps: ["wifi-service-resources"],
     manifest: "test_apex_manifest.json",
     file_contexts: ":com.android.wifi-file_contexts",
     // Test APEX, should never be installed
