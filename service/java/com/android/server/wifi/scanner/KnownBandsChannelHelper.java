@@ -28,8 +28,8 @@ import static android.net.wifi.WifiScanner.WIFI_BAND_INDEX_6_GHZ;
 import static android.net.wifi.WifiScanner.WIFI_BAND_MAX;
 import static android.net.wifi.WifiScanner.WIFI_BAND_UNSPECIFIED;
 
+import android.net.wifi.WifiAnnotations.WifiBandBasic;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.WifiScanner.WifiBandBasic;
 import android.net.wifi.WifiScanner.WifiBandIndex;
 import android.util.ArraySet;
 

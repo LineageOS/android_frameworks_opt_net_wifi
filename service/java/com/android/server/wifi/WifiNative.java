@@ -25,6 +25,7 @@ import android.net.TrafficStats;
 import android.net.apf.ApfCapabilities;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.WifiAnnotations;
 import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
@@ -1395,7 +1396,7 @@ public class WifiNative {
      * @return frequencies vector of valid frequencies (MHz), or null for error.
      * @throws IllegalArgumentException if band is not recognized.
      */
-    public int [] getChannelsForBand(@WifiScanner.WifiBandBasic int band) {
+    public int [] getChannelsForBand(@WifiAnnotations.WifiBandBasic int band) {
         return mWifiCondManager.getChannelsForBand(band);
     }
 
@@ -1409,7 +1410,7 @@ public class WifiNative {
      * @return Returns true on success.
      */
     public boolean scan(
-            @NonNull String ifaceName, @WifiScanner.ScanType int scanType, Set<Integer> freqs,
+            @NonNull String ifaceName, @WifiAnnotations.ScanType int scanType, Set<Integer> freqs,
             List<String> hiddenNetworkSSIDs) {
         List<byte[]> hiddenNetworkSsidsArrays = new ArrayList<>();
         for (String hiddenNetworkSsid : hiddenNetworkSSIDs) {
@@ -2581,7 +2582,8 @@ public class WifiNative {
          * Type of scan to perform. One of {@link WifiScanner#SCAN_TYPE_LOW_LATENCY},
          * {@link WifiScanner#SCAN_TYPE_LOW_POWER} or {@link WifiScanner#SCAN_TYPE_HIGH_ACCURACY}.
          */
-        public @WifiScanner.ScanType int scanType;
+        @WifiAnnotations.ScanType
+        public int scanType;
         public int base_period_ms;
         public int max_ap_per_scan;
         public int report_threshold_percent;
