@@ -55,7 +55,6 @@ import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.net.MacAddress;
 import android.net.Uri;
-import android.net.wifi.IApInterfaceEventCallback;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.Builder;
 import android.net.wifi.SoftApInfo;
@@ -96,17 +95,14 @@ public class SoftApManagerTest extends WifiBaseTest {
     private static final String TEST_COUNTRY_CODE = "TestCountry";
     private static final String TEST_INTERFACE_NAME = "testif0";
     private static final String OTHER_INTERFACE_NAME = "otherif";
-    private static final int TEST_NUM_CONNECTED_CLIENTS = 4;
     private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("22:33:44:55:66:77");
     private static final WifiClient TEST_CONNECTED_CLIENT = new WifiClient(TEST_MAC_ADDRESS);
-    private static final NativeWifiClient TEST_NATIVE_CLIENT = new NativeWifiClient() {{
-            macAddress = TEST_MAC_ADDRESS.toByteArray();
-        }
-    };
+    private static final NativeWifiClient TEST_NATIVE_CLIENT = new NativeWifiClient(
+            TEST_MAC_ADDRESS.toByteArray());
     private static final int TEST_AP_FREQUENCY = 2412;
     private static final int TEST_AP_BANDWIDTH_FROM_IFACE_CALLBACK =
-            IApInterfaceEventCallback.BANDWIDTH_20;
-    private static final int TEST_AP_BANDWIDTH_IN_SOFTAPINFO = SoftApInfo.CHANNEL_WIDTH_20MHZ;
+            SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
+    private static final int TEST_AP_BANDWIDTH_IN_SOFTAPINFO = SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
 
     private final SoftApConfiguration mDefaultApConfig = createDefaultApConfig();
 
@@ -819,7 +815,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         startSoftApAndVerifyEnabled(apConfig);
 
         final int channelFrequency = 2437;
-        final int channelBandwidth = IApInterfaceEventCallback.BANDWIDTH_20;
+        final int channelBandwidth = SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
         mSoftApListenerCaptor.getValue().onSoftApChannelSwitched(channelFrequency,
                 channelBandwidth);
         mLooper.dispatchAll();
@@ -840,7 +836,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         startSoftApAndVerifyEnabled(apConfig);
 
         final int channelFrequency = 5180;
-        final int channelBandwidth = IApInterfaceEventCallback.BANDWIDTH_20;
+        final int channelBandwidth = SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
         mSoftApListenerCaptor.getValue().onSoftApChannelSwitched(channelFrequency,
                 channelBandwidth);
         mLooper.dispatchAll();
@@ -862,7 +858,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         startSoftApAndVerifyEnabled(apConfig);
 
         final int channelFrequency = 2437;
-        final int channelBandwidth = IApInterfaceEventCallback.BANDWIDTH_20;
+        final int channelBandwidth = SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
         mSoftApListenerCaptor.getValue().onSoftApChannelSwitched(channelFrequency,
                 channelBandwidth);
         mLooper.dispatchAll();
@@ -884,7 +880,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         startSoftApAndVerifyEnabled(apConfig);
 
         final int channelFrequency = 5220;
-        final int channelBandwidth = IApInterfaceEventCallback.BANDWIDTH_20;
+        final int channelBandwidth = SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
         mSoftApListenerCaptor.getValue().onSoftApChannelSwitched(channelFrequency,
                 channelBandwidth);
         mLooper.dispatchAll();

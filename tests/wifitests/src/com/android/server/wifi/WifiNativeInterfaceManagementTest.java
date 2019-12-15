@@ -36,8 +36,8 @@ import static org.mockito.Mockito.when;
 
 import android.app.test.MockAnswerUtil;
 import android.net.wifi.SoftApConfiguration;
-import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiScanner;
+import android.net.wifi.wificond.WifiCondManager;
 import android.os.Handler;
 import android.os.test.TestLooper;
 
@@ -127,12 +127,13 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
 
         when(mWificondControl.initialize(mWificondDeathHandlerCaptor.capture()))
             .thenReturn(true);
-        when(mWificondControl.setupInterfaceForClientMode(any(), any(), any())).thenReturn(true);
+        when(mWificondControl.setupInterfaceForClientMode(any(), any(), any(), any())).thenReturn(
+                true);
         when(mWificondControl.setupInterfaceForSoftApMode(any())).thenReturn(true);
         when(mWificondControl.tearDownClientInterface(any())).thenReturn(true);
         when(mWificondControl.tearDownSoftApInterface(any())).thenReturn(true);
         when(mWificondControl.tearDownInterfaces()).thenReturn(true);
-        when(mWificondControl.registerApListener(any(), any())).thenReturn(true);
+        when(mWificondControl.registerApCallback(any(), any(), any())).thenReturn(true);
 
         when(mSupplicantStaIfaceHal.registerDeathHandler(mSupplicantDeathHandlerCaptor.capture()))
             .thenReturn(true);
@@ -488,7 +489,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
                 true, false, IFACE_NAME_0, mIfaceCallback0, mNetworkObserverCaptor0.getValue());
         // Now continue with rest of STA interface setup.
         mInOrder.verify(mWificondControl).setupInterfaceForClientMode(eq(IFACE_NAME_0), any(),
-                any());
+                any(), any());
         mInOrder.verify(mSupplicantStaIfaceHal).setupIface(IFACE_NAME_0);
         mInOrder.verify(mNetdWrapper).registerObserver(mNetworkObserverCaptor1.capture());
         mInOrder.verify(mWifiMonitor).startMonitoring(IFACE_NAME_0);
@@ -791,7 +792,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         assertTrue(mWifiNative.startSoftAp(IFACE_NAME_0, new SoftApConfiguration.Builder().build(),
                 mock(WifiNative.SoftApListener.class)));
 
-        mInOrder.verify(mWificondControl).registerApListener(any(), any());
+        mInOrder.verify(mWificondControl).registerApCallback(any(), any(), any());
         mInOrder.verify(mHostapdHal).addAccessPoint(any(), any(), any());
 
         // Trigger vendor HAL death
@@ -873,7 +874,8 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
     @Test
     public void testSetupClientInterfaceFailureInWificondSetupInterfaceForClientMode()
             throws Exception {
-        when(mWificondControl.setupInterfaceForClientMode(any(), any(), any())).thenReturn(false);
+        when(mWificondControl.setupInterfaceForClientMode(any(), any(), any(), any())).thenReturn(
+                false);
         assertNull(mWifiNative.setupInterfaceForClientInConnectivityMode(mIfaceCallback0));
 
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
@@ -886,7 +888,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
         mInOrder.verify(mWifiVendorHal).createStaIface(eq(false),
                 mIfaceDestroyedListenerCaptor0.capture());
-        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(any(), any(), any());
+        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(any(), any(), any(), any());
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
         mInOrder.verify(mWifiVendorHal).removeStaIface(any());
         mInOrder.verify(mWifiMetrics).incrementNumSetupClientInterfaceFailureDueToWificond();
@@ -920,7 +922,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
         mInOrder.verify(mWifiVendorHal).createStaIface(eq(false),
                 mIfaceDestroyedListenerCaptor0.capture());
-        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(any(), any(), any());
+        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(any(), any(), any(), any());
         mInOrder.verify(mSupplicantStaIfaceHal).setupIface(any());
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
         mInOrder.verify(mWifiVendorHal).removeStaIface(any());
@@ -1123,7 +1125,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).registerDeathHandler(any());
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
         mInOrder.verify(mWificondControl).setupInterfaceForClientMode(eq(IFACE_NAME_0), any(),
-                any());
+                any(), any());
         mInOrder.verify(mSupplicantStaIfaceHal).setupIface(IFACE_NAME_0);
         mInOrder.verify(mNetdWrapper).registerObserver(mNetworkObserverCaptor0.capture());
         mInOrder.verify(mWifiMonitor).startMonitoring(IFACE_NAME_0);
@@ -1210,7 +1212,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mIfaceCallback0).onDestroyed(IFACE_NAME_0);
         // Now continue with rest of STA interface setup.
         mInOrder.verify(mWificondControl).setupInterfaceForClientMode(eq(IFACE_NAME_0), any(),
-                any());
+                any(), any());
         mInOrder.verify(mSupplicantStaIfaceHal).setupIface(IFACE_NAME_0);
         mInOrder.verify(mNetdWrapper).registerObserver(mNetworkObserverCaptor1.capture());
         mInOrder.verify(mWifiMonitor).startMonitoring(IFACE_NAME_0);
@@ -1356,7 +1358,8 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
         mInOrder.verify(mWifiVendorHal).createStaIface(eq(false),
                 destroyedListenerCaptor.capture());
-        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(eq(ifaceName), any(), any());
+        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(eq(ifaceName), any(), any(),
+                any());
         mInOrder.verify(mSupplicantStaIfaceHal).setupIface(ifaceName);
         mInOrder.verify(mNetdWrapper).registerObserver(networkObserverCaptor.capture());
         mInOrder.verify(mWifiMonitor).startMonitoring(ifaceName);
@@ -1433,7 +1436,8 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
         mInOrder.verify(mWifiVendorHal).createStaIface(eq(false),
                 destroyedListenerCaptor.capture());
-        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(eq(ifaceName), any(), any());
+        mInOrder.verify(mWificondControl).setupInterfaceForClientMode(eq(ifaceName), any(), any(),
+                any());
         mInOrder.verify(mNetdWrapper).registerObserver(networkObserverCaptor.capture());
         mInOrder.verify(mWifiMonitor).startMonitoring(ifaceName);
         mInOrder.verify(mNetdWrapper).isInterfaceUp(ifaceName);
