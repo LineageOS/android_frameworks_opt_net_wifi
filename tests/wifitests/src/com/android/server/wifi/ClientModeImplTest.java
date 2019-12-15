@@ -32,6 +32,7 @@ import static org.mockito.Mockito.*;
 import android.app.ActivityManager;
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.app.test.TestAlarmManager;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -50,6 +51,7 @@ import android.net.ip.IpClientCallbacks;
 import android.net.wifi.IActionListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
@@ -2558,7 +2560,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         WifiLinkLayerStats llStats = new WifiLinkLayerStats();
         llStats.txmpdu_be = 1000;
         llStats.rxmpdu_bk = 2000;
-        WificondControl.SignalPollResult signalPollResult = new WificondControl.SignalPollResult();
+        WifiCondManager.SignalPollResult signalPollResult = new WifiCondManager.SignalPollResult();
         signalPollResult.currentRssi = -42;
         signalPollResult.txBitrate = 65;
         signalPollResult.associationFrequency = sFreq;
@@ -3897,7 +3899,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that we trigger a disconnect when the {@link WifiConfigManager.
+     * Verifies that we trigger a disconnect when the {@link WifiConfigManager}.
      * OnNetworkUpdateListener#onNetworkRemoved(WifiConfiguration)} is invoked.
      */
     @Test
@@ -3974,5 +3976,40 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
         verify(mMboOceController).disable();
+    }
+
+    /**
+     * Verify that Bluetooth active is set correctly with BT state/connection state changes
+     */
+    @Test
+    public void verifyBluetoothStateAndConnectionStateChanges() throws Exception {
+        startSupplicantAndDispatchMessages();
+        mCmi.sendBluetoothAdapterStateChange(BluetoothAdapter.STATE_ON);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(1)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_CONNECTED);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(1)).setBluetoothConnected(true);
+
+        mCmi.sendBluetoothAdapterStateChange(BluetoothAdapter.STATE_OFF);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(2)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterStateChange(BluetoothAdapter.STATE_ON);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(3)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_CONNECTING);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(2)).setBluetoothConnected(true);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_DISCONNECTED);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(4)).setBluetoothConnected(false);
+
+        mCmi.sendBluetoothAdapterConnectionStateChange(BluetoothAdapter.STATE_CONNECTED);
+        mLooper.dispatchAll();
+        verify(mWifiConnectivityManager, times(3)).setBluetoothConnected(true);
     }
 }

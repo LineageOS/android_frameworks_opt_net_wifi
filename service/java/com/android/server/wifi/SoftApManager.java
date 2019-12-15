@@ -31,6 +31,7 @@ import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
+import android.net.wifi.wificond.NativeWifiClient;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -49,7 +50,6 @@ import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.WifiNative.InterfaceCallback;
 import com.android.server.wifi.WifiNative.SoftApListener;
 import com.android.server.wifi.util.ApConfigUtil;
-import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;

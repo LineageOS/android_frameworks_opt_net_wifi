@@ -57,6 +57,7 @@ import android.net.wifi.EAPConstants;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -3412,13 +3413,13 @@ public class WifiMetricsTest extends WifiBaseTest {
     public void testLogLinkProbeMetrics() throws Exception {
         mWifiMetrics.logLinkProbeSuccess(10000, -75, 50, 5);
         mWifiMetrics.logLinkProbeFailure(30000, -80, 10,
-                WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK);
         mWifiMetrics.logLinkProbeSuccess(3000, -71, 160, 12);
         mWifiMetrics.logLinkProbeFailure(40000, -80, 6,
-                WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK);
         mWifiMetrics.logLinkProbeSuccess(5000, -73, 160, 10);
         mWifiMetrics.logLinkProbeFailure(2000, -78, 6,
-                WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT);
+                WifiCondManager.SEND_MGMT_FRAME_ERROR_TIMEOUT);
 
         dumpProtoAndDeserialize();
 

@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.database.ContentObserver;
+import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiInfo;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -134,8 +135,8 @@ public class LinkProbeManagerTest extends WifiBaseTest {
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-        ArgumentCaptor<WificondControl.SendMgmtFrameCallback> callbackCaptor =
-                ArgumentCaptor.forClass(WificondControl.SendMgmtFrameCallback.class);
+        ArgumentCaptor<WifiCondManager.SendMgmtFrameCallback> callbackCaptor =
+                ArgumentCaptor.forClass(WifiCondManager.SendMgmtFrameCallback.class);
         verify(mWifiNative).probeLink(eq(TEST_IFACE_NAME), any(), callbackCaptor.capture(),
                 anyInt());
         ArgumentCaptor<String> experimentIdCaptor = ArgumentCaptor.forClass(String.class);
@@ -177,14 +178,14 @@ public class LinkProbeManagerTest extends WifiBaseTest {
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-        ArgumentCaptor<WificondControl.SendMgmtFrameCallback> callbackCaptor =
-                ArgumentCaptor.forClass(WificondControl.SendMgmtFrameCallback.class);
+        ArgumentCaptor<WifiCondManager.SendMgmtFrameCallback> callbackCaptor =
+                ArgumentCaptor.forClass(WifiCondManager.SendMgmtFrameCallback.class);
         verify(mWifiNative).probeLink(eq(TEST_IFACE_NAME), any(), callbackCaptor.capture(),
                 anyInt());
 
-        callbackCaptor.getValue().onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
+        callbackCaptor.getValue().onFailure(WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK);
         verify(mWifiMetrics).logLinkProbeFailure(timeDelta, rssi, linkSpeed,
-                WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK);
     }
 
     /**
