@@ -248,8 +248,14 @@ public class WifiPickerTracker extends BaseWifiTracker {
     private void updateStandardWifiEntryScans(@NonNull List<ScanResult> scanResults) {
         checkNotNull(scanResults, "Scan Result list should not be null!");
 
+        // Filter out scan results with unsupported capabilities
+        final List<ScanResult> filteredScans = Utils.filterScanResultsByCapabilities(scanResults,
+                mWifiManager.isWpa3SaeSupported(),
+                mWifiManager.isWpa3SuiteBSupported(),
+                mWifiManager.isEnhancedOpenSupported());
+
         // Group scans by StandardWifiEntry key
-        final Map<String, List<ScanResult>> scanResultsByKey = scanResults.stream()
+        final Map<String, List<ScanResult>> scanResultsByKey = filteredScans.stream()
                 .filter(scanResult -> !TextUtils.isEmpty(scanResult.SSID))
                 .collect(groupingBy(StandardWifiEntry::scanResultToStandardWifiEntryKey));
 

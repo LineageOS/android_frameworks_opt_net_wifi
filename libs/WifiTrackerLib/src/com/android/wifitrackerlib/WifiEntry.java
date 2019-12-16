@@ -344,8 +344,8 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
 
         @Retention(RetentionPolicy.SOURCE)
         @IntDef(value = {
-                CONNECT_STATUS_SUCCESS,
-                CONNECT_STATUS_FAILURE_UNKNOWN
+                DISCONNECT_STATUS_SUCCESS,
+                DISCONNECT_STATUS_FAILURE_UNKNOWN
         })
 
         public @interface DisconnectStatus {}
@@ -455,6 +455,18 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     protected void notifyOnForgetResult(int status) {
         if (mListener != null) {
             mCallbackHandler.post(() -> mListener.onForgetResult(status));
+        }
+    }
+
+    class ConnectListener implements WifiManager.ActionListener {
+        @Override
+        public void onSuccess() {
+            notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_SUCCESS);
+        }
+
+        @Override
+        public void onFailure(int i) {
+            notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
         }
     }
 }
