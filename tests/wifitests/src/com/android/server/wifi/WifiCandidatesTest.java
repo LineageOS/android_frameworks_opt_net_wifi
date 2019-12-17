@@ -22,6 +22,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import android.net.MacAddress;
+import android.net.util.MacAddressUtils;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 
@@ -136,8 +137,8 @@ public class WifiCandidatesTest extends WifiBaseTest {
         ScanResultMatchInfo matchInfo1Prime = ScanResultMatchInfo.fromWifiConfiguration(mConfig1);
         ScanResultMatchInfo matchInfo2 = ScanResultMatchInfo.fromWifiConfiguration(mConfig2);
         assertFalse(matchInfo1 == matchInfo1Prime); // Checking assumption
-        MacAddress mac1 = MacAddress.createRandomUnicastAddress();
-        MacAddress mac2 = MacAddress.createRandomUnicastAddress();
+        MacAddress mac1 = MacAddressUtils.createRandomUnicastAddress();
+        MacAddress mac2 = MacAddressUtils.createRandomUnicastAddress();
         assertNotEquals(mac1, mac2); // really tiny probability of failing here
 
         WifiCandidates.Key key1 = new WifiCandidates.Key(matchInfo1, mac1, 1);

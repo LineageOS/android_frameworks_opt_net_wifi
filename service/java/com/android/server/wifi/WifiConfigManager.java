@@ -31,6 +31,7 @@ import android.net.IpConfiguration;
 import android.net.MacAddress;
 import android.net.ProxyInfo;
 import android.net.StaticIpConfiguration;
+import android.net.util.MacAddressUtils;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
@@ -585,7 +586,7 @@ public class WifiConfigManager {
             return config.getRandomizedMacAddress();
         }
         WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
-        internalConfig.setRandomizedMacAddress(MacAddress.createRandomUnicastAddress());
+        internalConfig.setRandomizedMacAddress(MacAddressUtils.createRandomUnicastAddress());
         return internalConfig.getRandomizedMacAddress();
     }
 
@@ -3208,7 +3209,7 @@ public class WifiConfigManager {
      */
     private void initRandomizedMacForInternalConfig(WifiConfiguration internalConfig) {
         MacAddress randomizedMac = shouldUseAggressiveRandomization(internalConfig)
-                ? MacAddress.createRandomUnicastAddress()
+                ? MacAddressUtils.createRandomUnicastAddress()
                 : getPersistentMacAddress(internalConfig);
         if (randomizedMac != null) {
             internalConfig.setRandomizedMacAddress(randomizedMac);
