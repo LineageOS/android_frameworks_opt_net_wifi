@@ -22,7 +22,6 @@ import android.provider.DeviceConfig;
 import android.util.ArraySet;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.wifi.resources.R;
 
 import java.util.Collections;
 import java.util.Set;
@@ -56,13 +55,14 @@ public class DeviceConfigFacade {
     // Cached values of fields updated via updateDeviceConfigFlags()
     private boolean mIsAbnormalConnectionBugreportEnabled;
     private int mAbnormalConnectionDurationMs;
-    private boolean mIsAggressiveMacRandomizationSsidWhitelistEnabled;
     private int mDataStallDurationMs;
     private int mDataStallTxTputThrKbps;
     private int mDataStallRxTputThrKbps;
     private int mDataStallTxPerThr;
     private int mDataStallCcaLevelThr;
     private Set<String> mRandomizationFlakySsidHotlist;
+    private Set<String> mAggressiveMacRandomizationSsidAllowlist;
+    private Set<String> mAggressiveMacRandomizationSsidBlocklist;
 
     public DeviceConfigFacade(Context context, Handler handler, WifiMetrics wifiMetrics) {
         mContext = context;
@@ -100,24 +100,25 @@ public class DeviceConfigFacade {
         mWifiMetrics.setDataStallTxPerThr(mDataStallTxPerThr);
         mWifiMetrics.setDataStallCcaLevelThr(mDataStallCcaLevelThr);
 
-        createUnmodifiableRandomizationFlakySsidHotlist();
+        mRandomizationFlakySsidHotlist =
+                getUnmodifiableSetQuoted("randomization_flaky_ssid_hotlist");
+        mAggressiveMacRandomizationSsidAllowlist =
+                getUnmodifiableSetQuoted("aggressive_randomization_ssid_allowlist");
+        mAggressiveMacRandomizationSsidBlocklist =
+                getUnmodifiableSetQuoted("aggressive_randomization_ssid_blocklist");
     }
 
-    private void createUnmodifiableRandomizationFlakySsidHotlist() {
-        String ssidHotlist = DeviceConfig.getString(NAMESPACE,
-                "randomization_flaky_ssid_hotlist", "");
-        mRandomizationFlakySsidHotlist = new ArraySet<String>();
-        String[] ssidHotlistArray = ssidHotlist.split(",");
-        for (int i = 0; i < ssidHotlistArray.length; i++) {
-            String cur = ssidHotlistArray[i];
+    private Set<String> getUnmodifiableSetQuoted(String key) {
+        String rawList = DeviceConfig.getString(NAMESPACE, key, "");
+        Set<String> result = new ArraySet<>();
+        String[] list = rawList.split(",");
+        for (String cur : list) {
             if (cur.length() == 0) {
                 continue;
             }
-            // Make sure the SSIDs are quoted. Server side should not quote ssids.
-            mRandomizationFlakySsidHotlist.add("\"" + cur + "\"");
+            result.add("\"" + cur + "\"");
         }
-        mRandomizationFlakySsidHotlist =
-                Collections.unmodifiableSet(mRandomizationFlakySsidHotlist);
+        return Collections.unmodifiableSet(result);
     }
 
     /**
@@ -132,16 +133,6 @@ public class DeviceConfigFacade {
      */
     public int getAbnormalConnectionDurationMs() {
         return mAbnormalConnectionDurationMs;
-    }
-
-    /**
-     * Gets the feature flag for aggressive MAC randomization per-SSID opt-in.
-     */
-    public boolean isAggressiveMacRandomizationSsidWhitelistEnabled() {
-        return DeviceConfig.getBoolean(NAMESPACE,
-                "aggressive_randomization_ssid_whitelist_enabled",
-                mContext.getResources().getBoolean(
-                        R.bool.config_wifi_aggressive_randomization_ssid_whitelist_enabled));
     }
 
     /**
@@ -184,5 +175,19 @@ public class DeviceConfigFacade {
      */
     public Set<String> getRandomizationFlakySsidHotlist() {
         return mRandomizationFlakySsidHotlist;
+    }
+
+    /**
+     * Gets the list of SSIDs for aggressive MAC randomization.
+     */
+    public Set<String> getAggressiveMacRandomizationSsidAllowlist() {
+        return mAggressiveMacRandomizationSsidAllowlist;
+    }
+
+    /**
+     * Gets the list of SSIDs that aggressive MAC randomization should not be used for.
+     */
+    public Set<String> getAggressiveMacRandomizationSsidBlocklist() {
+        return mAggressiveMacRandomizationSsidBlocklist;
     }
 }

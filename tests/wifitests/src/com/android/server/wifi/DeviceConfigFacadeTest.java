@@ -33,7 +33,6 @@ import android.util.ArraySet;
 import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
-import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -60,7 +59,6 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
 
     private DeviceConfigFacade mDeviceConfigFacade;
     private TestLooper mLooper = new TestLooper();
-    private MockResources mResources;
     private MockitoSession mSession;
 
     /**
@@ -69,12 +67,6 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-
-        mResources = new MockResources();
-        mResources.setBoolean(
-                R.bool.config_wifi_aggressive_randomization_ssid_whitelist_enabled, false);
-        when(mContext.getResources()).thenReturn(mResources);
-
         // static mocking
         mSession = ExtendedMockito.mockitoSession()
                 .mockStatic(DeviceConfig.class, withSettings().lenient())
@@ -123,8 +115,6 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
         assertEquals(false, mDeviceConfigFacade.isAbnormalConnectionBugreportEnabled());
         assertEquals(DeviceConfigFacade.DEFAULT_ABNORMAL_CONNECTION_DURATION_MS,
                 mDeviceConfigFacade.getAbnormalConnectionDurationMs());
-        assertEquals(false,
-                mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled());
         assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_DURATION_MS,
                 mDeviceConfigFacade.getDataStallDurationMs());
         assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_TX_TPUT_THR_KBPS,
@@ -137,15 +127,16 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 mDeviceConfigFacade.getDataStallCcaLevelThr());
         assertEquals(Collections.emptySet(),
                 mDeviceConfigFacade.getRandomizationFlakySsidHotlist());
+        assertEquals(Collections.emptySet(),
+                mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist());
+        assertEquals(Collections.emptySet(),
+                mDeviceConfigFacade.getAggressiveMacRandomizationSsidBlocklist());
 
         // Simulate updating the fields
         when(DeviceConfig.getBoolean(anyString(), eq("abnormal_connection_bugreport_enabled"),
                 anyBoolean())).thenReturn(true);
         when(DeviceConfig.getInt(anyString(), eq("abnormal_connection_duration_ms"),
                 anyInt())).thenReturn(100);
-        when(DeviceConfig.getBoolean(anyString(),
-                eq("aggressive_randomization_ssid_whitelist_enabled"),
-                anyBoolean())).thenReturn(true);
         when(DeviceConfig.getInt(anyString(), eq("data_stall_duration_ms"),
                 anyInt())).thenReturn(0);
         when(DeviceConfig.getInt(anyString(), eq("data_stall_tx_tput_thr_kbps"),
@@ -156,23 +147,30 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 anyInt())).thenReturn(95);
         when(DeviceConfig.getInt(anyString(), eq("data_stall_cca_level_thr"),
                 anyInt())).thenReturn(80);
+        String testSsidList = "ssid_1,ssid_2";
         when(DeviceConfig.getString(anyString(), eq("randomization_flaky_ssid_hotlist"),
-                anyString())).thenReturn("ssid_1,ssid_2");
+                anyString())).thenReturn(testSsidList);
+        when(DeviceConfig.getString(anyString(), eq("aggressive_randomization_ssid_allowlist"),
+                anyString())).thenReturn(testSsidList);
+        when(DeviceConfig.getString(anyString(), eq("aggressive_randomization_ssid_blocklist"),
+                anyString())).thenReturn(testSsidList);
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
 
         // Verifying fields are updated to the new values
-        Set<String> randomizationFlakySsidSet = new ArraySet<>();
-        randomizationFlakySsidSet.add("\"ssid_1\"");
-        randomizationFlakySsidSet.add("\"ssid_2\"");
+        Set<String> testSsidSet = new ArraySet<>();
+        testSsidSet.add("\"ssid_1\"");
+        testSsidSet.add("\"ssid_2\"");
         assertEquals(true, mDeviceConfigFacade.isAbnormalConnectionBugreportEnabled());
         assertEquals(100, mDeviceConfigFacade.getAbnormalConnectionDurationMs());
-        assertEquals(true, mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled());
         assertEquals(0, mDeviceConfigFacade.getDataStallDurationMs());
         assertEquals(1000, mDeviceConfigFacade.getDataStallTxTputThrKbps());
         assertEquals(1500, mDeviceConfigFacade.getDataStallRxTputThrKbps());
         assertEquals(95, mDeviceConfigFacade.getDataStallTxPerThr());
         assertEquals(80, mDeviceConfigFacade.getDataStallCcaLevelThr());
-        assertEquals(randomizationFlakySsidSet,
-                mDeviceConfigFacade.getRandomizationFlakySsidHotlist());
+        assertEquals(testSsidSet, mDeviceConfigFacade.getRandomizationFlakySsidHotlist());
+        assertEquals(testSsidSet,
+                mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist());
+        assertEquals(testSsidSet,
+                mDeviceConfigFacade.getAggressiveMacRandomizationSsidBlocklist());
     }
 }

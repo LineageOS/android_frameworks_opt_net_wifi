@@ -161,8 +161,22 @@
     <!-- Indicates that AP mode MAC randomization is supported on this device -->
     <bool translatable="false" name="config_wifi_ap_mac_randomization_supported">true</bool>
 
-    <!-- flag for activating paranoid MAC randomization on a limited set of SSIDs -->
-    <bool translatable="false" name="config_wifi_aggressive_randomization_ssid_whitelist_enabled">false</bool>
+    <!-- list of SSIDs to enable aggressive MAC randomization on -->
+    <string-array translatable="false" name="config_wifi_aggressive_randomization_ssid_allowlist">
+        <!-- SSIDs are expected in quoted format:
+        <item>\"SSID_1\"</item>
+        <item>\"SSID_2\"</item>
+        -->
+    </string-array>
+
+    <!-- list of SSIDs to disable aggressive MAC randomization on. If a SSID is in both the
+    allowlist and blocklist, then aggressive MAC randomization will still be disabled. -->
+    <string-array translatable="false" name="config_wifi_aggressive_randomization_ssid_blocklist">
+        <!-- SSIDs are expected in quoted format:
+        <item>\"SSID_1\"</item>
+        <item>\"SSID_2\"</item>
+        -->
+    </string-array>
 
     <!-- Indicates that wifi link probing is supported on this device -->
     <bool translatable="false" name="config_wifi_link_probing_supported">false</bool>
