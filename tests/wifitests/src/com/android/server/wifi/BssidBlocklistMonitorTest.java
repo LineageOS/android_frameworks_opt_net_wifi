@@ -547,4 +547,26 @@ public class BssidBlocklistMonitorTest {
         assertTrue(bssidList.contains(TEST_BSSID_3));
         verify(mWifiScoreCard).resetBssidBlocklistStreakForSsid(TEST_SSID_1);
     }
+
+    /**
+     * Verify that |blockBssidForDurationMs| adds a BSSID to blocklist for the specified duration.
+     */
+    @Test
+    public void testBlockBssidForDurationMs() {
+        when(mClock.getWallClockMillis()).thenReturn(0L);
+        long testDuration = 5500L;
+        mBssidBlocklistMonitor.blockBssidForDurationMs(TEST_BSSID_1, TEST_SSID_1, testDuration);
+
+        // Verify that the BSSID is not removed from blocklist dispite of regular "clear" calls.
+        when(mClock.getWallClockMillis()).thenReturn(testDuration);
+        mBssidBlocklistMonitor.clearBssidBlocklist();
+        mBssidBlocklistMonitor.clearBssidBlocklistForSsid(TEST_SSID_1);
+        Set<String> bssidList = mBssidBlocklistMonitor.updateAndGetBssidBlocklist();
+        assertEquals(1, bssidList.size());
+        assertTrue(bssidList.contains(TEST_BSSID_1));
+
+        // Verify that the BSSID is removed from blocklist once the specified duration is over.
+        when(mClock.getWallClockMillis()).thenReturn(testDuration + 1);
+        assertEquals(0, mBssidBlocklistMonitor.updateAndGetBssidBlocklist().size());
+    }
 }
