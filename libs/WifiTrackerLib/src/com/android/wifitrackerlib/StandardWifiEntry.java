@@ -161,6 +161,12 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
+    public String getMacAddress() {
+        // TODO(b/70983952): Fill this method in
+        return null;
+    }
+
+    @Override
     public boolean isMetered() {
         // TODO(b/70983952): Fill this method in
         return false;
@@ -191,8 +197,19 @@ class StandardWifiEntry extends WifiEntry {
                     || mSecurity == SECURITY_OWE
                     || mSecurity == SECURITY_OWE_TRANSITION) {
                 // Open network
-                // TODO(b/70983952): Add support for unsaved open networks
-                // Generate open config and connect with it.
+                final WifiConfiguration connectConfig = new WifiConfiguration();
+                connectConfig.SSID = "\"" + mSsid + "\"";
+
+                if (mSecurity == SECURITY_OWE
+                        || (mSecurity == SECURITY_OWE_TRANSITION
+                        && mWifiManager.isEnhancedOpenSupported())) {
+                    // Use OWE if possible
+                    connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.OWE);
+                    connectConfig.requirePMF = true;
+                } else {
+                    connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+                }
+                mWifiManager.connect(connectConfig, new ConnectListener());
             } else {
                 // Secure network
                 // TODO(b/70983952): Add support for unsaved secure networks
@@ -200,7 +217,7 @@ class StandardWifiEntry extends WifiEntry {
             }
         } else {
             // Saved network
-            mWifiManager.connect(mWifiConfig.networkId, null);
+            mWifiManager.connect(mWifiConfig.networkId, new ConnectListener());
         }
     }
 
@@ -224,6 +241,34 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     public void forget() {
         // TODO(b/70983952): Fill this method in
+    }
+
+    public boolean canSignIn() {
+        // TODO(b/70983952): Fill this method in
+        return false;
+    }
+
+    @Override
+    public void signIn() {
+        // TODO(b/70983952): Fill this method in
+    }
+
+    @Override
+    public boolean canShare() {
+        // TODO(b/70983952): Fill this method in
+        return false;
+    }
+
+    @Override
+    public boolean canEasyConnect() {
+        // TODO(b/70983952): Fill this method in
+        return false;
+    }
+
+    @Override
+    public String getQrCodeString() {
+        // TODO(b/70983952): Fill this method in
+        return null;
     }
 
     @Override

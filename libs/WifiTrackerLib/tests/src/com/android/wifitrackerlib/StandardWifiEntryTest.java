@@ -25,6 +25,9 @@ import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_UNREACHABLE;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +52,10 @@ public class StandardWifiEntryTest {
     public static final int OKAY_RSSI = -60;
     public static final int BAD_RSSI = -70;
 
+    public static final int GOOD_LEVEL = 5;
+    public static final int OKAY_LEVEL = 3;
+    public static final int BAD_LEVEL = 1;
+
     @Mock private WifiEntry.WifiEntryCallback mMockListener;
     @Mock private WifiManager mMockWifiManager;
     @Mock private WifiInfo mMockWifiInfo;
@@ -68,6 +75,12 @@ public class StandardWifiEntryTest {
         when(mMockWifiInfo.getRssi()).thenReturn(WifiInfo.INVALID_RSSI);
         when(mMockNetworkInfo.getDetailedState()).thenReturn(
                 NetworkInfo.DetailedState.DISCONNECTED);
+        when(mMockWifiManager.calculateSignalLevel(GOOD_RSSI))
+                .thenReturn(GOOD_LEVEL);
+        when(mMockWifiManager.calculateSignalLevel(OKAY_RSSI))
+                .thenReturn(OKAY_LEVEL);
+        when(mMockWifiManager.calculateSignalLevel(BAD_RSSI))
+                .thenReturn(BAD_LEVEL);
     }
 
     /**
@@ -110,8 +123,7 @@ public class StandardWifiEntryTest {
                 buildScanResult("ssid", "bssid2", 0, BAD_RSSI)),
                 mMockWifiManager);
 
-        assertThat(entry.getLevel()).isEqualTo(
-                WifiManager.calculateSignalLevel(GOOD_RSSI, WifiManager.RSSI_LEVELS));
+        assertThat(entry.getLevel()).isEqualTo(GOOD_LEVEL);
     }
 
     /**
@@ -195,13 +207,11 @@ public class StandardWifiEntryTest {
                 buildScanResult("ssid", "bssid", 0, BAD_RSSI)),
                 mMockWifiManager);
 
-        assertThat(entry.getLevel()).isEqualTo(
-                WifiManager.calculateSignalLevel(BAD_RSSI, WifiManager.RSSI_LEVELS));
+        assertThat(entry.getLevel()).isEqualTo(BAD_LEVEL);
 
         entry.updateScanResultInfo(Arrays.asList(buildScanResult("ssid", "bssid", 0, GOOD_RSSI)));
 
-        assertThat(entry.getLevel()).isEqualTo(
-                WifiManager.calculateSignalLevel(GOOD_RSSI, WifiManager.RSSI_LEVELS));
+        assertThat(entry.getLevel()).isEqualTo(GOOD_LEVEL);
     }
 
     @Test
@@ -331,5 +341,31 @@ public class StandardWifiEntryTest {
 
         assertThat(entry.getLevel()).isEqualTo(WIFI_LEVEL_UNREACHABLE);
         assertThat(entry.getConnectedState()).isEqualTo(CONNECTED_STATE_DISCONNECTED);
+    }
+
+    public void testConnect_savedNetwork_usesSavedConfig() {
+        final ScanResult scan = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler,
+                Arrays.asList(scan),
+                mMockWifiManager);
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        entry.updateConfig(config);
+
+        entry.connect();
+
+        verify(mMockWifiManager, times(1)).connect(eq(1), any());
+    }
+
+    @Test
+    public void testConnect_openNetwork_callsConnect() {
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, Arrays.asList(
+                buildScanResult("ssid", "bssid0", 0, GOOD_RSSI)),
+                mMockWifiManager);
+
+        entry.connect();
+
+        verify(mMockWifiManager, times(1)).connect(any(), any());
     }
 }

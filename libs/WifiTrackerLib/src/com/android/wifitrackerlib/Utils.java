@@ -34,6 +34,7 @@ import android.net.wifi.WifiConfiguration;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -95,5 +96,31 @@ class Utils {
             return SECURITY_OWE;
         }
         return (config.wepKeys[0] != null) ? SECURITY_WEP : SECURITY_NONE;
+    }
+
+    // Returns a list of scan results filtering out unsupported capabilities
+    static List<ScanResult> filterScanResultsByCapabilities(@NonNull List<ScanResult> scanResults,
+            boolean isWpa3SaeSupported,
+            boolean isWpa3SuiteBSupported,
+            boolean isEnhancedOpenSupported) {
+        List<ScanResult> filteredScanResultList = new ArrayList<>();
+        for (ScanResult scanResult : scanResults) {
+            // Add capabilities that are always supported
+            if (scanResult.capabilities == null
+                    || scanResult.capabilities.contains("PSK")
+                    || scanResult.capabilities.contains("OWE_TRANSITION")) {
+                filteredScanResultList.add(scanResult);
+                continue;
+            }
+            // Skip unsupported capabilities
+            if ((scanResult.capabilities.contains("EAP_SUITE_B_192") && !isWpa3SuiteBSupported)
+                    || (scanResult.capabilities.contains("SAE") && !isWpa3SaeSupported)
+                    || (scanResult.capabilities.contains("OWE") && !isEnhancedOpenSupported)) {
+                continue;
+            }
+            // Safe to add
+            filteredScanResultList.add(scanResult);
+        }
+        return filteredScanResultList;
     }
 }
