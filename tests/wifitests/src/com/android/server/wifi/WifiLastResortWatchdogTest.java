@@ -58,8 +58,8 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     private WifiLastResortWatchdog mLastResortWatchdog;
     private MockResources mResources;
     private String[] mSsids = {"\"test1\"", "\"test2\"", "\"test3\"", "\"test4\""};
-    private String[] mBssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55",
-            "c0:ff:ee:ee:e3:ee"};
+    private String[] mBssids = {"aa:bb:cc:dd:ee:ff", "00:11:22:33:44:55", "a0:b0:c0:d0:e0:f0",
+            "01:23:45:67:89:ab"};
     private int[] mFrequencies = {2437, 5180, 5180, 2437};
     private String[] mCaps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]",
             "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
@@ -445,7 +445,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
      */
     @Test
     public void testFailureCounting_countFailuresForNonexistentBssid() throws Exception {
-        String badBssid = "de:ad:be:ee:e3:ef";
+        String badBssid = "a0:b0:c0:d0:ee:ff";
         int associationRejections = 5;
         int authenticationFailures = 9;
         int dhcpFailures = 11;
@@ -861,9 +861,9 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     public void testFailureCounting_countFailuresAcrossSsids() throws Exception {
         String[] ssids = {"\"test1\"", "\"test2\"", "\"test3\"", "\"test4\"",
                 "\"test1\"", "\"test2\"", "\"test3\"", "\"test4\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55",
-                "c0:ff:ee:ee:e3:ee", "6c:f3:7f:ae:3c:f3", "6c:f3:7f:ae:3c:f4", "d3:ad:ba:b1:35:55",
-                "c0:ff:ee:ee:33:ee"};
+        String[] bssids = {"00:11:22:33:44:55", "01:23:45:67:89:ab", "aa:bb:cc:dd:ee:ff",
+                "ff:ee:dd:cc:bb:aa", "66:77:88:99:aa:bb", "cc:dd:ee:ff:00:01", "02:03:04:05:06:07",
+                "08:09:aa:bb:cc:dd"};
         int[] frequencies = {2437, 5180, 5180, 2437, 2437, 5180, 5180, 2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]",
                 "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]",
@@ -1473,8 +1473,8 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testMetricsCollection() {
         String[] ssids = {"\"test1\"", "\"test2\"", "\"test3\"", "\"test4\"", "\"test5\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55",
-                "c0:ff:ee:ee:e3:ee", "6c:f3:7f:ae:3c:f3"};
+        String[] bssids = {"aa:bb:cc:dd:ee:ff", "00:11:22:33:44:55", "a0:b0:c0:d0:e0:f0",
+                "01:23:45:67:89:ab", "00:01:02:03:04:05"};
         int[] frequencies = {2437, 5180, 5180, 2437, 2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]",
                 "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
@@ -1782,7 +1782,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testIncrementingWatchdogConnectionFailuresAfterTrigger() {
         String[] ssids = {"\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        String[] bssids = {"04:03:02:01:00:0f"};
         int[] frequencies = {2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60};
@@ -1827,7 +1827,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testWatchdogAssumesSuccessOnlyIfFirstConnectionAfterRestartSucceeds() {
         String[] ssids = {"\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        String[] bssids = {"04:03:02:01:00:0f"};
         int[] frequencies = {2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60};
@@ -1900,7 +1900,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testWatchdogVerifiesAtLeastOneNetworkIsConnectedBeforeTriggeringBugreport() {
         String[] ssids = {"\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        String[] bssids = {"04:03:02:01:00:0f"};
         int[] frequencies = {2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60};
@@ -2004,7 +2004,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testMetricsCollectionWithMixtureReason() {
         String[] ssids = {"\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        String[] bssids = {"04:03:02:01:00:0f"};
         int[] frequencies = {2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60};
@@ -2056,7 +2056,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testWatchdogWithTimeBasedLogic() {
         String[] ssids = {"\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        String[] bssids = {"04:03:02:01:00:0f"};
         int[] frequencies = {2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60};
@@ -2119,7 +2119,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testWatchdogAssumesSuccessOnlyIfConnectedOnSameSsid() {
         String[] ssids = {"\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        String[] bssids = {"04:03:02:01:00:0f"};
         int[] frequencies = {2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60};
@@ -2269,7 +2269,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
         int associationRejections = 4;
         int authenticationFailures = 3;
         String[] ssids = {"\"test1\"", "\"test1\"", "\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55"};
+        String[] bssids =  {"aa:bb:cc:dd:ee:ff", "00:11:22:33:44:55", "a0:b0:c0:d0:e0:f0"};
         int[] frequencies = {2437, 5180, 5180};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60, -86, -50};
@@ -2321,7 +2321,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Test
     public void testWatchdogFeatureNotEnabled() {
         String[] ssids = {"\"test1\""};
-        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        String[] bssids = {"04:03:02:01:00:0f"};
         int[] frequencies = {2437};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {-60};
