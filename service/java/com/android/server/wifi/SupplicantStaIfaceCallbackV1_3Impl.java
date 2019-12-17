@@ -18,6 +18,7 @@ package com.android.server.wifi;
 import android.annotation.NonNull;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.hardware.wifi.supplicant.V1_3.ISupplicantStaIfaceCallback.BssTmData;
+import android.net.wifi.WifiManager;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -112,6 +113,12 @@ abstract class SupplicantStaIfaceCallbackV1_3Impl extends
     @Override
     public void onEapFailure_1_1(int code) {
         mCallbackV12.onEapFailure_1_1(code);
+    }
+
+    @Override
+    public void onEapFailure_1_3(int code) {
+        mWifiMonitor.broadcastAuthenticationFailureEvent(
+                mIfaceName, WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE, code);
     }
 
     @Override
