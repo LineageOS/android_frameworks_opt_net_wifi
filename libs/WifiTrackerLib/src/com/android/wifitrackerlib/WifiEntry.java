@@ -18,6 +18,7 @@ package com.android.wifitrackerlib;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 
@@ -183,6 +184,13 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public abstract boolean isSaved();
 
     /**
+     * Returns the WifiConfiguration of an entry or null if unavailable. This should be used when
+     * information on the WifiConfiguration needs to be modified and saved via
+     * {@link WifiManager#save(WifiConfiguration, WifiManager.ActionListener)}.
+     */
+    public abstract WifiConfiguration getWifiConfiguration();
+
+    /**
      * Returns the ConnectedInfo object pertaining to an active connection.
      *
      * Returns null if getConnectedState() != CONNECTED_STATE_CONNECTED.
@@ -268,69 +276,6 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     /** Sets whether a network will be auto-joined or not */
     public abstract void setAutoJoinEnabled(boolean enabled);
 
-    /** Returns the ProxySettings for the network */
-    public abstract ProxySettings getProxySettings();
-    /** Returns whether the user can modify the ProxySettings for the network */
-    public abstract boolean canSetProxySettings();
-    /** Sets the ProxySettinsg for the network */
-    public abstract void setProxySettings(@NonNull ProxySettings proxySettings);
-
-    /** Returns the IpSettings for the network */
-    public abstract IpSettings getIpSettings();
-    /** Returns whether the user can set the IpSettings for the network */
-    public abstract boolean canSetIpSettings();
-    /** Sets the IpSettings for the network */
-    public abstract void setIpSettings(@NonNull IpSettings ipSettings);
-
-    /**
-     * Data class used for proxy settings
-     */
-    public static class ProxySettings {
-        @Retention(RetentionPolicy.SOURCE)
-        @IntDef(value = {
-                TYPE_NONE,
-                TYPE_MANUAL,
-                TYPE_PROXY_AUTOCONFIG
-        })
-
-        public @interface Type {}
-
-        public static final int TYPE_NONE = 0;
-        public static final int TYPE_MANUAL = 1;
-        public static final int TYPE_PROXY_AUTOCONFIG = 2;
-
-        @Type
-        public int type;
-        public String hostname;
-        public String port;
-        public String bypassAddresses;
-        public String pacUrl;
-    }
-
-    /**
-     * Data class used for IP settings
-     */
-    public static class IpSettings {
-        @Retention(RetentionPolicy.SOURCE)
-        @IntDef(value = {
-                TYPE_DCHP,
-                TYPE_STATIC
-        })
-
-        public @interface Type {}
-
-        public static final int TYPE_DCHP = 0;
-        public static final int TYPE_STATIC = 1;
-
-        @Type
-        public int type;
-        public String ipAddress;
-        public String gateway;
-        public int prefixLength;
-        public String dns1;
-        public String dns2;
-    }
-
     /**
      * Sets the callback listener for WifiEntryCallback methods.
      * Subsequent calls will overwrite the previous listener.
@@ -347,14 +292,14 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
         @Retention(RetentionPolicy.SOURCE)
         @IntDef(value = {
                 CONNECT_STATUS_SUCCESS,
-                CONNECT_STATUS_FAILURE_NO_PASSWORD,
+                CONNECT_STATUS_FAILURE_NO_CONFIG,
                 CONNECT_STATUS_FAILURE_UNKNOWN
         })
 
         public @interface ConnectStatus {}
 
         int CONNECT_STATUS_SUCCESS = 0;
-        int CONNECT_STATUS_FAILURE_NO_PASSWORD = 1;
+        int CONNECT_STATUS_FAILURE_NO_CONFIG = 1;
         int CONNECT_STATUS_FAILURE_UNKNOWN = 2;
 
         @Retention(RetentionPolicy.SOURCE)
