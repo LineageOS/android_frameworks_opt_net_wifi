@@ -168,6 +168,9 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     @Security
     public abstract int getSecurity();
 
+    /** Returns the MAC address of the connection */
+    public abstract String getMacAddress();
+
     /**
      * Indicates when a network is metered or the user marked the network as metered.
      */
@@ -216,6 +219,18 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public abstract boolean canForget();
     /** Forgets the network */
     public abstract void forget();
+
+    /** Returns whether the network can be signed-in to */
+    public abstract boolean canSignIn();
+    /** Sign-in to the network. For captive portals. */
+    public abstract void signIn();
+
+    /** Returns whether the network can be shared via QR code */
+    public abstract boolean canShare();
+    /** Returns whether the user can use Easy Connect to onboard a device to the network */
+    public abstract boolean canEasyConnect();
+    /** Returns the QR code string for the network */
+    public abstract String getQrCodeString();
 
     // Modifiable settings
 
@@ -364,6 +379,17 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
         int FORGET_STATUS_SUCCESS = 0;
         int FORGET_STATUS_FAILURE_UNKNOWN = 1;
 
+        @Retention(RetentionPolicy.SOURCE)
+        @IntDef(value = {
+                SIGNIN_STATUS_SUCCESS,
+                SIGNIN_STATUS_FAILURE_UNKNOWN
+        })
+
+        public @interface SignInStatus {}
+
+        int SIGNIN_STATUS_SUCCESS = 0;
+        int SIGNIN_STATUS_FAILURE_UNKNOWN = 1;
+
         /**
          * Indicates the state of the WifiEntry has changed and clients may retrieve updates through
          * the WifiEntry getter methods.
@@ -388,6 +414,12 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
          */
         @MainThread
         void onForgetResult(@ForgetStatus int status);
+
+        /**
+         * Result of the sign-in request indicated by the SIGNIN_STATUS constants.
+         */
+        @MainThread
+        void onSignInResult(@SignInStatus int status);
     }
 
     // TODO (b/70983952) Come up with a sorting scheme that does the right thing.
@@ -438,23 +470,30 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     }
 
     @AnyThread
-    protected void notifyOnConnectResult(int status) {
+    protected void notifyOnConnectResult(@WifiEntryCallback.ConnectStatus int status) {
         if (mListener != null) {
             mCallbackHandler.post(() -> mListener.onConnectResult(status));
         }
     }
 
     @AnyThread
-    protected void notifyOnDisconnectResult(int status) {
+    protected void notifyOnDisconnectResult(@WifiEntryCallback.DisconnectStatus int status) {
         if (mListener != null) {
             mCallbackHandler.post(() -> mListener.onDisconnectResult(status));
         }
     }
 
     @AnyThread
-    protected void notifyOnForgetResult(int status) {
+    protected void notifyOnForgetResult(@WifiEntryCallback.ForgetStatus int status) {
         if (mListener != null) {
             mCallbackHandler.post(() -> mListener.onForgetResult(status));
+        }
+    }
+
+    @AnyThread
+    protected void notifyOnSignInResult(@WifiEntryCallback.SignInStatus int status) {
+        if (mListener != null) {
+            mCallbackHandler.post(() -> mListener.onSignInResult(status));
         }
     }
 
