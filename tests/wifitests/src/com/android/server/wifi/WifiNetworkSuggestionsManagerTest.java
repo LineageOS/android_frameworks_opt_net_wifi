@@ -45,6 +45,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.net.MacAddress;
 import android.net.wifi.ISuggestionConnectionStatusListener;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiManager;
@@ -101,6 +102,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private static final int NETWORK_CALLBACK_ID = 1100;
     private static final int VALID_CARRIER_ID = 100;
     private static final int TEST_SUBID = 1;
+    private static final int TEST_NETWORK_ID = 110;
 
     private @Mock Context mContext;
     private @Mock Resources mResources;
@@ -2532,6 +2534,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 passpointConfiguration, true, false, true);
         List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
         networkSuggestionList.add(networkSuggestion);
+        dummyConfiguration.creatorUid = TEST_UID_1;
         when(mPasspointManager.addOrUpdateProvider(any(PasspointConfiguration.class),
                 anyInt(), anyString(), eq(true))).thenReturn(true);
         assertEquals(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
@@ -2541,12 +2544,133 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertNull(ewns);
     }
 
+    /**
+     * Verify return true when allow user manually connect and user approved the app
+     */
+    @Test
+    public void testIsPasspointSuggestionSharedWithUserSetToTrue() {
+        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(TEST_FQDN);
+        passpointConfiguration.setHomeSp(homeSp);
+        WifiConfiguration dummyConfiguration = new WifiConfiguration();
+        dummyConfiguration.FQDN = TEST_FQDN;
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfiguration,
+                passpointConfiguration, true, false, true);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        dummyConfiguration.creatorUid = TEST_UID_1;
+        when(mPasspointManager.addOrUpdateProvider(any(PasspointConfiguration.class),
+                anyInt(), anyString(), eq(true))).thenReturn(true);
+        assertEquals(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                TEST_PACKAGE_1, TEST_FEATURE), WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
+
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(false, TEST_PACKAGE_1);
+        assertFalse(mWifiNetworkSuggestionsManager
+                .isPasspointSuggestionSharedWithUser(dummyConfiguration));
+
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        assertTrue(mWifiNetworkSuggestionsManager
+                .isPasspointSuggestionSharedWithUser(dummyConfiguration));
+    }
+
+    /**
+     * Verify return true when disallow user manually connect and user approved the app
+     */
+    @Test
+    public void testIsPasspointSuggestionSharedWithUserSetToFalse() {
+        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(TEST_FQDN);
+        passpointConfiguration.setHomeSp(homeSp);
+        WifiConfiguration dummyConfiguration = new WifiConfiguration();
+        dummyConfiguration.FQDN = TEST_FQDN;
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfiguration,
+                passpointConfiguration, true, false, false);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mPasspointManager.addOrUpdateProvider(any(PasspointConfiguration.class),
+                anyInt(), anyString(), eq(true))).thenReturn(true);
+        assertEquals(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                TEST_PACKAGE_1, TEST_FEATURE), WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
+
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(false, TEST_PACKAGE_1);
+        assertFalse(mWifiNetworkSuggestionsManager
+                .isPasspointSuggestionSharedWithUser(dummyConfiguration));
+
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        assertFalse(mWifiNetworkSuggestionsManager
+                .isPasspointSuggestionSharedWithUser(dummyConfiguration));
+    }
+
+    /**
+     * test getWifiConfigForMatchedNetworkSuggestionsSharedWithUser.
+     *  - app without user approval will not be returned.
+     *  - open network will not be returned.
+     *  - suggestion doesn't allow user manually connect will not be return.
+     */
+    @Test
+    public void testGetWifiConfigForMatchedNetworkSuggestionsSharedWithUser() {
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, true);
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createPskNetwork(), null, false, false, false);
+        WifiNetworkSuggestion networkSuggestion3 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createPskNetwork(), null, false, false, true);
+        List<ScanResult> scanResults = new ArrayList<>();
+        scanResults.add(
+                createScanDetailForNetwork(networkSuggestion1.wifiConfiguration).getScanResult());
+        scanResults.add(
+                createScanDetailForNetwork(networkSuggestion2.wifiConfiguration).getScanResult());
+        scanResults.add(
+                createScanDetailForNetwork(networkSuggestion3.wifiConfiguration).getScanResult());
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                    add(networkSuggestion3);
+                }};
+        setupAddToWifiConfigManager(networkSuggestion1.wifiConfiguration,
+                networkSuggestion2.wifiConfiguration, networkSuggestion3.wifiConfiguration);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1, TEST_FEATURE));
+        // When app is not approved, empty list will be returned
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(false, TEST_PACKAGE_1);
+        List<WifiConfiguration> wifiConfigurationList = mWifiNetworkSuggestionsManager
+                .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(scanResults);
+        assertEquals(0, wifiConfigurationList.size());
+        // App is approved, only allow user connect, not open network will return.
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        wifiConfigurationList = mWifiNetworkSuggestionsManager
+                .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(scanResults);
+        assertEquals(networkSuggestion3.wifiConfiguration, wifiConfigurationList.get(0));
+    }
+
     private void assertSuggestionsEquals(Set<WifiNetworkSuggestion> expectedSuggestions,
             Set<ExtendedWifiNetworkSuggestion> actualExtSuggestions) {
         Set<WifiNetworkSuggestion> actualSuggestions = actualExtSuggestions.stream()
                 .map(ewns -> ewns.wns)
                 .collect(Collectors.toSet());
         assertEquals(expectedSuggestions, actualSuggestions);
+    }
+
+    private void setupAddToWifiConfigManager(WifiConfiguration...configs) {
+        for (int i = 0; i < configs.length; i++) {
+            WifiConfiguration config = configs[i];
+            config.fromWifiNetworkSuggestion = true;
+            config.ephemeral = true;
+            // setup & verify the WifiConfigmanager interactions for adding/enabling the network.
+            when(mWifiConfigManager.addOrUpdateNetwork(
+                    eq(config), anyInt(), anyString()))
+                    .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID + i));
+            when(mWifiConfigManager.updateNetworkSelectionStatus(eq(TEST_NETWORK_ID + i), anyInt()))
+                    .thenReturn(true);
+            config.networkId = TEST_NETWORK_ID + i;
+            when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID + i))
+                    .thenReturn(config);
+            when(mWifiConfigManager.getConfiguredNetwork(config.getKey())).thenReturn(config);
+        }
     }
 
     /**
