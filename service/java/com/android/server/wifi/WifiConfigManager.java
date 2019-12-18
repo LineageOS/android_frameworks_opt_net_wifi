@@ -281,9 +281,6 @@ public class WifiConfigManager {
      */
     private final Map<String, String> mRandomizedMacAddressMapping;
 
-    private final Set<String> mAggressiveMacRandomizationWhitelist;
-    private final Set<String> mAggressiveMacRandomizationBlacklist;
-
     /**
      * Store the network update listeners.
      */
@@ -410,8 +407,6 @@ public class WifiConfigManager {
                 });
         updatePnoRecencySortingSetting();
         mDeviceConfigFacade = deviceConfigFacade;
-        mAggressiveMacRandomizationWhitelist = new ArraySet<>();
-        mAggressiveMacRandomizationBlacklist = new ArraySet<>();
 
         mLocalLog = new LocalLog(
                 context.getSystemService(ActivityManager.class).isLowRamDevice() ? 128 : 256);
@@ -493,37 +488,20 @@ public class WifiConfigManager {
         if (config.getIpConfiguration().getIpAssignment() == IpConfiguration.IpAssignment.STATIC) {
             return false;
         }
-        if (mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled()) {
-            return isSsidOptInForAggressiveRandomization(config.SSID);
-        }
-        return false;
+        return isSsidOptInForAggressiveRandomization(config.SSID);
     }
 
     private boolean isSsidOptInForAggressiveRandomization(String ssid) {
-        if (mAggressiveMacRandomizationBlacklist.contains(ssid)) {
+        Set<String> perDeviceSsidBlocklist = new ArraySet<>(mContext.getResources().getStringArray(
+                R.array.config_wifi_aggressive_randomization_ssid_blocklist));
+        if (mDeviceConfigFacade.getAggressiveMacRandomizationSsidBlocklist().contains(ssid)
+                || perDeviceSsidBlocklist.contains(ssid)) {
             return false;
         }
-        return mAggressiveMacRandomizationWhitelist.contains(ssid);
-    }
-
-    /**
-     * Sets the list of SSIDs that the framework should perform aggressive MAC randomization on.
-     * @param whitelist
-     */
-    public void setAggressiveMacRandomizationWhitelist(Set<String> whitelist) {
-        // TODO: b/137795359 persist this with WifiConfigStore
-        mAggressiveMacRandomizationWhitelist.clear();
-        mAggressiveMacRandomizationWhitelist.addAll(whitelist);
-    }
-
-    /**
-     * Sets the list of SSIDs that the framework will never perform aggressive MAC randomization
-     * on.
-     * @param blacklist
-     */
-    public void setAggressiveMacRandomizationBlacklist(Set<String> blacklist) {
-        mAggressiveMacRandomizationBlacklist.clear();
-        mAggressiveMacRandomizationBlacklist.addAll(blacklist);
+        Set<String> perDeviceSsidAllowlist = new ArraySet<>(mContext.getResources().getStringArray(
+                R.array.config_wifi_aggressive_randomization_ssid_allowlist));
+        return mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist().contains(ssid)
+                || perDeviceSsidAllowlist.contains(ssid);
     }
 
     @VisibleForTesting

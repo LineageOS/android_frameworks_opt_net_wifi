@@ -151,12 +151,13 @@ public class BssidBlocklistMonitor {
         pw.println("BssidBlocklistMonitor - Bssid blocklist End ----");
     }
 
-    private boolean addToBlocklist(@NonNull BssidStatus entry, int failureStreak) {
-        long durationMs = getBlocklistDurationWithExponentialBackoff(failureStreak);
+    private void addToBlocklist(@NonNull BssidStatus entry, long durationMs,
+            boolean doNotClearUntilTimeout) {
         entry.addToBlocklist(durationMs);
+        entry.doNotClearUntilTimeout = doNotClearUntilTimeout;
         localLog(TAG + " addToBlocklist: bssid=" + entry.bssid + ", ssid=" + entry.ssid
-                + ", durationMs=" + durationMs);
-        return true;
+                + ", durationMs=" + durationMs + ", doNotClearUntilTimeout="
+                + doNotClearUntilTimeout);
     }
 
     /**
@@ -166,6 +167,16 @@ public class BssidBlocklistMonitor {
      */
     private @NonNull BssidStatus incrementFailureCountForBssid(
             @NonNull String bssid, @NonNull String ssid, int reasonCode) {
+        BssidStatus status = getOrCreateBssidStatus(bssid, ssid);
+        status.incrementFailureCount(reasonCode);
+        return status;
+    }
+
+    /**
+     * Get the BssidStatus representing the BSSID or create a new one if it doesn't exist.
+     */
+    private @NonNull BssidStatus getOrCreateBssidStatus(@NonNull String bssid,
+            @NonNull String ssid) {
         BssidStatus status = mBssidStatusMap.get(bssid);
         if (status == null || !ssid.equals(status.ssid)) {
             if (status != null) {
@@ -175,7 +186,6 @@ public class BssidBlocklistMonitor {
             status = new BssidStatus(bssid, ssid);
             mBssidStatusMap.put(bssid, status);
         }
-        status.incrementFailureCount(reasonCode);
         return status;
     }
 
@@ -199,11 +209,18 @@ public class BssidBlocklistMonitor {
         return isWatchdogRelatedFailure && mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(bssid);
     }
 
+    /**
+     * Block any attempts to auto-connect to the BSSID for the specified duration.
+     */
+    public void blockBssidForDurationMs(@NonNull String bssid, @NonNull String ssid,
+            long durationMs) {
+        BssidStatus status = getOrCreateBssidStatus(bssid, ssid);
+        addToBlocklist(status, durationMs, true);
+    }
+
     private boolean handleBssidConnectionFailureInternal(String bssid, String ssid,
             @FailureReason int reasonCode) {
-        boolean result = false;
         BssidStatus entry = incrementFailureCountForBssid(bssid, ssid, reasonCode);
-
         int currentStreak = mWifiScoreCard.getBssidBlocklistStreak(ssid, bssid, reasonCode);
         if (currentStreak > 0
                 || entry.failureCount[reasonCode] >= FAILURE_COUNT_DISABLE_THRESHOLD[reasonCode]) {
@@ -212,10 +229,12 @@ public class BssidBlocklistMonitor {
             if (shouldWaitForWatchdogToTriggerFirst(bssid, reasonCode)) {
                 return false;
             }
-            result = addToBlocklist(entry, currentStreak);
+            addToBlocklist(entry, getBlocklistDurationWithExponentialBackoff(currentStreak),
+                    false);
             mWifiScoreCard.incrementBssidBlocklistStreak(ssid, bssid, reasonCode);
+            return true;
         }
-        return result;
+        return false;
     }
 
     /**
@@ -324,7 +343,8 @@ public class BssidBlocklistMonitor {
      */
     public void clearBssidBlocklistForSsid(@NonNull String ssid) {
         int prevSize = mBssidStatusMap.size();
-        mBssidStatusMap.entrySet().removeIf(e -> e.getValue().ssid.equals(ssid));
+        mBssidStatusMap.entrySet().removeIf(e -> !e.getValue().doNotClearUntilTimeout
+                && e.getValue().ssid.equals(ssid));
         int diff = prevSize - mBssidStatusMap.size();
         if (diff > 0) {
             localLog(TAG + " clearBssidBlocklistForSsid: SSID=" + ssid
@@ -337,8 +357,10 @@ public class BssidBlocklistMonitor {
      */
     public void clearBssidBlocklist() {
         if (mBssidStatusMap.size() > 0) {
-            localLog(TAG + " clearBssidBlocklist: num BSSIDs cleared=" + mBssidStatusMap.size());
-            mBssidStatusMap.clear();
+            int prevSize = mBssidStatusMap.size();
+            mBssidStatusMap.entrySet().removeIf(e -> !e.getValue().doNotClearUntilTimeout);
+            localLog(TAG + " clearBssidBlocklist: num BSSIDs cleared="
+                    + (prevSize - mBssidStatusMap.size()));
         }
     }
 
@@ -424,7 +446,9 @@ public class BssidBlocklistMonitor {
         // The following are used to flag how long this BSSID stays in the blocklist.
         public boolean isInBlocklist;
         public long blocklistEndTimeMs;
-
+        // Indicate that this BSSID should not be removed from blacklist through other means
+        // such as |clearBssidBlocklist| and |clearBssidBlocklistForSsid|
+        public boolean doNotClearUntilTimeout;
 
         BssidStatus(String bssid, String ssid) {
             this.bssid = bssid;

@@ -26,6 +26,7 @@ import android.app.AlarmManager;
 import android.content.Context;
 import android.net.wifi.IWifiScanner;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiAnnotations;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiScanner.ChannelSpec;
 import android.net.wifi.WifiScanner.PnoSettings;
@@ -1022,7 +1023,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
         }
 
-        boolean validateScanType(@WifiScanner.ScanType int type) {
+        boolean validateScanType(@WifiAnnotations.ScanType int type) {
             return (type == WifiScanner.SCAN_TYPE_LOW_LATENCY
                     || type == WifiScanner.SCAN_TYPE_LOW_POWER
                     || type == WifiScanner.SCAN_TYPE_HIGH_ACCURACY);
