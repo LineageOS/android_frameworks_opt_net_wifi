@@ -508,4 +508,16 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
             notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
         }
     }
+
+    class ForgetListener implements WifiManager.ActionListener {
+        @Override
+        public void onSuccess() {
+            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_SUCCESS);
+        }
+
+        @Override
+        public void onFailure(int i) {
+            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_FAILURE_UNKNOWN);
+        }
+    }
 }
