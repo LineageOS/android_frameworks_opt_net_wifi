@@ -436,7 +436,7 @@ class StandardWifiEntry extends WifiEntry {
             mNetworkInfo = networkInfo;
             final int wifiInfoRssi = wifiInfo.getRssi();
             if (wifiInfoRssi != INVALID_RSSI) {
-                mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi, WifiManager.RSSI_LEVELS);
+                mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi);
             }
         } else {
             mNetworkInfo = null;
