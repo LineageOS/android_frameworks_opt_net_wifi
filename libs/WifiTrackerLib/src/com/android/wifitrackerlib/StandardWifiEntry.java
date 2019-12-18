@@ -239,13 +239,14 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean canForget() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
     public void forget() {
-        // TODO(b/70983952): Fill this method in
+        if (mWifiConfig != null) {
+            mWifiManager.forget(mWifiConfig.networkId, new ForgetListener());
+        }
     }
 
     public boolean canSignIn() {
