@@ -63,6 +63,9 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
         super(lifecycle, context, wifiManager, connectivityManager, networkScoreManager,
                 mainHandler, workerHandler, clock, maxScanAgeMillis, scanIntervalMillis, TAG);
         mChosenEntry = new StandardWifiEntry(mMainHandler, key, mWifiManager);
+        cacheNewScanResults();
+        conditionallyUpdateScanResults(true /* lastScanSucceeded */);
+        conditionallyUpdateConfig();
     }
 
     @AnyThread
@@ -70,13 +73,6 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
     @NonNull
     public WifiEntry getWifiEntry() {
         return mChosenEntry;
-    }
-
-    @Override
-    protected void handleOnStart() {
-        cacheNewScanResults();
-        conditionallyUpdateScanResults(true /* lastScanSucceeded */);
-        conditionallyUpdateConfig();
     }
 
     @WorkerThread
@@ -112,13 +108,6 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
         } else {
             conditionallyUpdateConfig();
         }
-    }
-
-    @WorkerThread
-    @Override
-    protected void handleNetworkStateChangedAction(@NonNull Intent intent) {
-        // Do nothing.
-        return;
     }
 
     /**
