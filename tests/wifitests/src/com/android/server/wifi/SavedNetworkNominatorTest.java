@@ -24,9 +24,11 @@ import static org.mockito.Mockito.*;
 import android.net.wifi.WifiConfiguration;
 import android.test.suitebuilder.annotation.SmallTest;
 import android.util.LocalLog;
+import android.util.Pair;
 
 import com.android.server.wifi.WifiNetworkSelector.NetworkNominator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
+import com.android.server.wifi.hotspot2.PasspointNetworkNominateHelper;
 import com.android.server.wifi.util.TelephonyUtil;
 
 import org.junit.After;
@@ -36,6 +38,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -49,9 +52,9 @@ public class SavedNetworkNominatorTest extends WifiBaseTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mLocalLog = new LocalLog(512);
+        mSavedNetworkEvaluator = new SavedNetworkNominator(mWifiConfigManager,
+                mPasspointNetworkNominateHelper, mLocalLog, mTelephonyUtil);
 
-        mSavedNetworkEvaluator = new SavedNetworkNominator(mWifiConfigManager, mLocalLog,
-                mTelephonyUtil);
     }
 
     /** Cleans up test. */
@@ -71,6 +74,7 @@ public class SavedNetworkNominatorTest extends WifiBaseTest {
     @Mock private Clock mClock;
     @Mock private OnConnectableListener mOnConnectableListener;
     @Mock private TelephonyUtil mTelephonyUtil;
+    @Mock private PasspointNetworkNominateHelper mPasspointNetworkNominateHelper;
     private LocalLog mLocalLog;
 
     /**
@@ -207,10 +211,26 @@ public class SavedNetworkNominatorTest extends WifiBaseTest {
         for (WifiConfiguration wifiConfiguration : savedConfigs) {
             wifiConfiguration.allowAutojoin = false;
         }
-
         mSavedNetworkEvaluator.nominateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
-
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
+    }
+
+    /**
+     * Ensure that we do nominate the only matching saved passponit network .
+     */
+    @Test
+    public void returnCandidatesIfPasspointNetworksAvailable() {
+        ScanDetail scanDetail = mock(ScanDetail.class);
+        List<ScanDetail> scanDetails = new ArrayList<>();
+        scanDetails.add(scanDetail);
+        WifiConfiguration configuration = mock(WifiConfiguration.class);
+        List<Pair<ScanDetail, WifiConfiguration>> passpointCandidates = new ArrayList<>();
+        passpointCandidates.add(Pair.create(scanDetail, configuration));
+        when(mPasspointNetworkNominateHelper.getPasspointNetworkCandidates(scanDetails, false))
+                .thenReturn(passpointCandidates);
+        mSavedNetworkEvaluator.nominateNetworks(scanDetails, null, null,
+                false, false, mOnConnectableListener);
+        verify(mOnConnectableListener).onConnectable(scanDetail, configuration);
     }
 }

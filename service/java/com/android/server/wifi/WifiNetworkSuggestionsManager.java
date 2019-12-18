@@ -1013,6 +1013,43 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Returns a set of all network suggestions matching the provided FQDN.
+     */
+    public @Nullable Set<ExtendedWifiNetworkSuggestion> getNetworkSuggestionsForFqfn(String fqdn) {
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
+                getNetworkSuggestionsForFqdnMatch(fqdn);
+        if (extNetworkSuggestions == null) {
+            return null;
+        }
+        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions =
+                extNetworkSuggestions
+                        .stream()
+                        .filter(n -> n.perAppInfo.hasUserApproved)
+                        .collect(Collectors.toSet());
+        // If there is no active notification, check if we need to get approval for any of the apps
+        // & send a notification for one of them. If there are multiple packages awaiting approval,
+        // we end up picking the first one. The others will be reconsidered in the next iteration.
+        if (!mUserApprovalNotificationActive
+                && approvedExtNetworkSuggestions.size() != extNetworkSuggestions.size()) {
+            for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
+                if (sendUserApprovalNotificationIfNotApproved(
+                        extNetworkSuggestion.perAppInfo.packageName,
+                        extNetworkSuggestion.perAppInfo.uid)) {
+                    break;
+                }
+            }
+        }
+        if (approvedExtNetworkSuggestions.isEmpty()) {
+            return null;
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "getNetworkSuggestionsForFqdn Found "
+                    + approvedExtNetworkSuggestions + " for " + fqdn);
+        }
+        return approvedExtNetworkSuggestions;
+    }
+
+    /**
      * Returns a set of all network suggestions matching the provided scan detail.
      */
     public @Nullable Set<ExtendedWifiNetworkSuggestion> getNetworkSuggestionsForScanDetail(
