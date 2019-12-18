@@ -178,6 +178,11 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
+    public WifiConfiguration getWifiConfiguration() {
+        return mWifiConfig;
+    }
+
+    @Override
     public ConnectedInfo getConnectedInfo() {
         // TODO(b/70983952): Fill this method in
         return null;
@@ -332,40 +337,6 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public void setAutoJoinEnabled(boolean enabled) {
-        // TODO(b/70983952): Fill this method in
-    }
-
-    @Override
-    public ProxySettings getProxySettings() {
-        // TODO(b/70983952): Fill this method in
-        return null;
-    }
-
-    @Override
-    public boolean canSetProxySettings() {
-        // TODO(b/70983952): Fill this method in
-        return false;
-    }
-
-    @Override
-    public void setProxySettings(@NonNull ProxySettings proxySettings) {
-        // TODO(b/70983952): Fill this method in
-    }
-
-    @Override
-    public IpSettings getIpSettings() {
-        // TODO(b/70983952): Fill this method in
-        return null;
-    }
-
-    @Override
-    public boolean canSetIpSettings() {
-        // TODO(b/70983952): Fill this method in
-        return false;
-    }
-
-    @Override
-    public void setIpSettings(@NonNull IpSettings ipSettings) {
         // TODO(b/70983952): Fill this method in
     }
 
