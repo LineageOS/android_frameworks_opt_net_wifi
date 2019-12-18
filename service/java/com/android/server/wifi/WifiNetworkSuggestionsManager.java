@@ -661,6 +661,8 @@ public class WifiNetworkSuggestionsManager {
                 sendUserApprovalNotification(packageName, uid);
             }
         }
+        // If PerAppInfo is upgrade from pre-R, uid may not be set.
+        perAppInfo.setUid(uid);
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
                 convertToExtendedWnsSet(networkSuggestions, perAppInfo);
         boolean isLowRamDevice = mContext.getSystemService(ActivityManager.class).isLowRamDevice();

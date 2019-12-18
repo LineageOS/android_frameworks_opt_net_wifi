@@ -321,6 +321,16 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         }
                     }
                 }
+                // If app has no suggestions, create perAppInfo here.
+                if (perAppInfo == null) {
+                    if (packageName == null) {
+                        throw new XmlPullParserException(
+                                "XML parsing of PerAppInfo failed");
+                    }
+                    perAppInfo = new PerAppInfo(uid, packageName, featureId);
+                    perAppInfo.hasUserApproved = hasUserApproved;
+                    perAppInfo.maxSize = maxSize;
+                }
                 // Store this app info in the map.
                 networkSuggestionsMap.put(packageName, perAppInfo);
             } catch (RuntimeException e) {
