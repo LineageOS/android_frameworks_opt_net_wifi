@@ -87,6 +87,16 @@ public class ScoringParams {
         public static final int MAX_EXPID = Integer.MAX_VALUE;
         public int expid = 0;
 
+        /** CandidateScorer parameters */
+        public int throughputBonusNumerator = 120;
+        public int throughputBonusDenominator = 433;
+        public int throughputBonusLimit = 200;
+        public int savedNetworkBonus = 500;
+        public int unmeteredNetworkBonus = 1000;
+        public int currentNetworkBonus = 20;
+        public int secureNetworkBonus = 10;
+        public int lastSelectionBonus = 1999;
+
         Values() {
         }
 
@@ -258,6 +268,23 @@ public class ScoringParams {
                 R.integer.config_wifiFrameworkScoreLowRssiThreshold6ghz);
         mVal.rssi6[GOOD] = context.getResources().getInteger(
                 R.integer.config_wifiFrameworkScoreGoodRssiThreshold6ghz);
+        mVal.throughputBonusNumerator = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkThroughputBonusNumerator);
+        mVal.throughputBonusDenominator = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkThroughputBonusDenominator);
+        mVal.throughputBonusLimit = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkThroughputBonusLimit);
+        mVal.savedNetworkBonus = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkSavedNetworkBonus);
+        mVal.unmeteredNetworkBonus = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkUnmeteredNetworkBonus);
+        mVal.currentNetworkBonus = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkCurrentNetworkBonus);
+        mVal.secureNetworkBonus = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkSecureNetworkBonus);
+        mVal.lastSelectionBonus = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkLastSelectionBonus);
+
         try {
             mVal.validate();
         } catch (IllegalArgumentException e) {
@@ -399,6 +426,66 @@ public class ScoringParams {
     public int getNudKnob() {
         loadResources(mContext);
         return mVal.nud;
+    }
+
+    /**
+     */
+    public int getThroughputBonusNumerator() {
+        return mVal.throughputBonusNumerator;
+    }
+
+    /**
+     */
+    public int getThroughputBonusDenominator() {
+        return mVal.throughputBonusDenominator;
+    }
+
+    /*
+     * Returns the maximum bonus for the network selection candidate score
+     * for the contribution of the selected score.
+     */
+    public int getThroughputBonusLimit() {
+        return mVal.throughputBonusLimit;
+    }
+
+    /*
+     * Returns the bonus for the network selection candidate score
+     * for a saved network (i.e., not a suggestion).
+     */
+    public int getSavedNetworkBonus() {
+        return mVal.savedNetworkBonus;
+    }
+
+    /*
+     * Returns the bonus for the network selection candidate score
+     * for an unmetered network.
+     */
+    public int getUnmeteredNetworkBonus() {
+        return mVal.unmeteredNetworkBonus;
+    }
+
+    /*
+     * Returns the bonus for the network selection candidate score
+     * for the currently connected network.
+     */
+    public int getCurrentNetworkBonus() {
+        return mVal.currentNetworkBonus;
+    }
+
+    /*
+     * Returns the bonus for the network selection candidate score
+     * for a secure network.
+     */
+    public int getSecureNetworkBonus() {
+        return mVal.secureNetworkBonus;
+    }
+
+    /*
+     * Returns the bonus for the network selection candidate score
+     * for a recently selected network.
+     */
+    public int getLastSelectionBonus() {
+        return mVal.lastSelectionBonus;
     }
 
     /**

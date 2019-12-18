@@ -72,6 +72,32 @@
     <!-- Boolean indicating whether or not wifi should turn off when emergency call is made -->
     <bool translatable="false" name="config_wifi_turn_off_during_emergency_call">false</bool>
 
+    <!-- Parameters for controlling network selection by the framework -->
+
+    <!-- The ratio of the next two parameters is the multiplier that converts the estimated
+         throughput in Mbps to score points. -->
+    <integer translatable="false" name="config_wifiFrameworkThroughputBonusNumerator">120</integer>
+    <integer translatable="false" name="config_wifiFrameworkThroughputBonusDenominator">433</integer>
+
+    <!-- Maximum contribution (in score points) due to the estimated throughput. -->
+    <integer translatable="false" name="config_wifiFrameworkThroughputBonusLimit">200</integer>
+
+    <!-- The default values chosen here establish four non-overlapping categories:
+             saved, unmetered
+             unsaved, unmetered
+             saved, metered
+             unsaved, metered
+         These values can be reduced to allow overlapping between categories. -->
+    <integer translatable="false" name="config_wifiFrameworkSavedNetworkBonus">500</integer>
+    <integer translatable="false" name="config_wifiFrameworkUnmeteredNetworkBonus">1000</integer>
+
+    <integer translatable="false" name="config_wifiFrameworkCurrentNetworkBonus">20</integer>
+    <integer translatable="false" name="config_wifiFrameworkSecureNetworkBonus">10</integer>
+
+    <!-- The bonus for the last-selected network starts out very large to override the category
+         boundaries. -->
+    <integer translatable="false" name="config_wifiFrameworkLastSelectionBonus">1999</integer>
+
     <!-- Integers specifying the max packet Tx/Rx rates for full scan -->
     <integer translatable="false" name="config_wifi_framework_max_tx_rate_for_full_scan">8</integer>
     <integer translatable="false" name="config_wifi_framework_max_rx_rate_for_full_scan">16</integer>

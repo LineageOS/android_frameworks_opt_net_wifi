@@ -32,6 +32,14 @@
           <item type="integer" name="config_wifi_logger_ring_buffer_verbose_size_limit_kb" />
           <item type="array" name="config_wifi_fatal_firmware_alert_error_code_list" />
           <item type="bool" name="config_wifi_turn_off_during_emergency_call" />
+          <item type="integer" name="config_wifiFrameworkThroughputBonusNumerator" />
+          <item type="integer" name="config_wifiFrameworkThroughputBonusDenominator" />
+          <item type="integer" name="config_wifiFrameworkThroughputBonusLimit" />
+          <item type="integer" name="config_wifiFrameworkSavedNetworkBonus" />
+          <item type="integer" name="config_wifiFrameworkUnmeteredNetworkBonus" />
+          <item type="integer" name="config_wifiFrameworkCurrentNetworkBonus" />
+          <item type="integer" name="config_wifiFrameworkSecureNetworkBonus" />
+          <item type="integer" name="config_wifiFrameworkLastSelectionBonus" />
           <item type="integer" name="config_wifi_framework_max_tx_rate_for_full_scan" />
           <item type="integer" name="config_wifi_framework_max_rx_rate_for_full_scan" />
           <item type="integer" name="config_wifi_framework_min_tx_rate_for_staying_on_network" />
