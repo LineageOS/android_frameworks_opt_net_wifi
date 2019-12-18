@@ -23,6 +23,7 @@ import static org.mockito.Mockito.*;
 
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
+import android.util.BackupUtils;
 
 import androidx.test.filters.SmallTest;
 
@@ -31,6 +32,10 @@ import com.android.server.wifi.util.ApConfigUtil;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 /**
  * Unit tests for {@link com.android.server.wifi.SoftApBackupRestore}.
  */
@@ -38,10 +43,28 @@ import org.junit.Test;
 public class SoftApBackupRestoreTest extends WifiBaseTest {
 
     private SoftApBackupRestore mSoftApBackupRestore;
+    private static final int LAST_WIFICOFIGURATION_BACKUP_VERSION = 3;
 
     @Before
     public void setUp() throws Exception {
         mSoftApBackupRestore = new SoftApBackupRestore();
+    }
+
+    /**
+     * Copy from WifiConfiguration for test backup/restore is backward compatible.
+     */
+    private byte[] getBytesForBackup(WifiConfiguration wificonfig) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+
+        out.writeInt(LAST_WIFICOFIGURATION_BACKUP_VERSION);
+        BackupUtils.writeString(out, wificonfig.SSID);
+        out.writeInt(wificonfig.apBand);
+        out.writeInt(wificonfig.apChannel);
+        BackupUtils.writeString(out, wificonfig.preSharedKey);
+        out.writeInt(wificonfig.getAuthType());
+        out.writeBoolean(wificonfig.hiddenSSID);
+        return baos.toByteArray();
     }
 
     /**
@@ -93,7 +116,7 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
         wifiConfig.hiddenSSID = true;
         wifiConfig.preSharedKey = "test_pwd";
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        byte[] data = wifiConfig.getBytesForBackup();
+        byte[] data = getBytesForBackup(wifiConfig);
         SoftApConfiguration restoredConfig =
                 mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
 
