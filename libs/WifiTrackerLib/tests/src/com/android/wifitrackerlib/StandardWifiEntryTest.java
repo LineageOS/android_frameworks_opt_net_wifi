@@ -30,6 +30,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.net.MacAddress;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -366,5 +367,39 @@ public class StandardWifiEntryTest {
         entry.connect();
 
         verify(mMockWifiManager, times(1)).connect(any(), any());
+    }
+
+    @Test
+    public void testGetMacAddress_randomizationOn_usesRandomizedValue() {
+        final String randomizedMac = "01:23:45:67:89:ab";
+        final WifiConfiguration config = new WifiConfiguration();
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        config.setRandomizedMacAddress(MacAddress.fromString(randomizedMac));
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config,
+                mMockWifiManager);
+
+        final String macAddress = entry.getMacAddress();
+
+        assertThat(macAddress).isEqualTo(randomizedMac);
+    }
+
+    @Test
+    public void testGetMacAddress_randomizationOff_usesDeviceMac() {
+        final String factoryMac = "01:23:45:67:89:ab";
+        final WifiConfiguration config = new WifiConfiguration();
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        when(mMockWifiManager.getFactoryMacAddresses()).thenReturn(new String[]{factoryMac});
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config,
+                mMockWifiManager);
+
+        final String macAddress = entry.getMacAddress();
+
+        assertThat(macAddress).isEqualTo(factoryMac);
     }
 }
