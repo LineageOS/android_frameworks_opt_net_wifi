@@ -99,7 +99,6 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvider;
@@ -342,7 +341,7 @@ public class WifiServiceImpl extends BaseWifiService {
                             }
                         }
                     },
-                    new IntentFilter(TelephonyIntents.ACTION_SIM_STATE_CHANGED));
+                    new IntentFilter(Intent.ACTION_SIM_STATE_CHANGED));
 
             // Adding optimizations of only receiving broadcasts when wifi is enabled
             // can result in race conditions when apps toggle wifi in the background
@@ -364,12 +363,12 @@ public class WifiServiceImpl extends BaseWifiService {
             intentFilter.addAction(Intent.ACTION_USER_REMOVED);
             intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
             intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-            intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
+            intentFilter.addAction(TelephonyManager.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
             intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
             boolean trackEmergencyCallState = mContext.getResources().getBoolean(
                     R.bool.config_wifi_turn_off_during_emergency_call);
             if (trackEmergencyCallState) {
-                intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
+                intentFilter.addAction(TelephonyManager.ACTION_EMERGENCY_CALL_STATE_CHANGED);
             }
             mContext.registerReceiver(mReceiver, intentFilter);
 
@@ -2634,11 +2633,11 @@ public class WifiServiceImpl extends BaseWifiService {
                 int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
                         BluetoothAdapter.STATE_OFF);
                 mClientModeImpl.sendBluetoothAdapterStateChange(state);
-            } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
+            } else if (action.equals(TelephonyManager.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
                 boolean emergencyMode =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_ECM_STATE, false);
                 mActiveModeWarden.emergencyCallbackModeChanged(emergencyMode);
-            } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
+            } else if (action.equals(TelephonyManager.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
                 boolean inCall =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
                 mActiveModeWarden.emergencyCallStateChanged(inCall);
