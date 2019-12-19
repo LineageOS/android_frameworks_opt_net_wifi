@@ -144,6 +144,7 @@ public class WifiMetricsTest extends WifiBaseTest {
     @Mock Clock mClock;
     @Mock ScoringParams mScoringParams;
     @Mock WifiConfigManager mWcm;
+    @Mock BssidBlocklistMonitor mBssidBlocklistMonitor;
     @Mock PasspointManager mPpm;
     @Mock WifiNetworkSelector mWns;
     @Mock WifiPowerMetrics mWifiPowerMetrics;
@@ -166,6 +167,7 @@ public class WifiMetricsTest extends WifiBaseTest {
                 new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics,
                 mWifiP2pMetrics, mDppMetrics);
         mWifiMetrics.setWifiConfigManager(mWcm);
+        mWifiMetrics.setBssidBlocklistMonitor(mBssidBlocklistMonitor);
         mWifiMetrics.setPasspointManager(mPpm);
         mWifiMetrics.setScoringParams(mScoringParams);
         mWifiMetrics.setWifiNetworkSelector(mWns);
@@ -1474,6 +1476,28 @@ public class WifiMetricsTest extends WifiBaseTest {
                 mDecodedProto.connectionEvent[0].level2FailureCode);
         assertEquals(WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN,
                 mDecodedProto.connectionEvent[0].level2FailureReason);
+    }
+
+    /**
+     * Verify the logging of number of blocked BSSIDs in ConnectionEvent.
+     */
+    @Test
+    public void testMetricNumBssidInBlocklist() throws Exception {
+        WifiConfiguration config = mock(WifiConfiguration.class);
+        config.SSID = "\"" + SSID + "\"";
+        when(config.getNetworkSelectionStatus()).thenReturn(
+                mock(WifiConfiguration.NetworkSelectionStatus.class));
+        when(mBssidBlocklistMonitor.getNumBlockedBssidsForSsid(eq(config.SSID))).thenReturn(3);
+        mWifiMetrics.startConnectionEvent(config, "RED",
+                WifiMetricsProto.ConnectionEvent.ROAM_NONE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
+        dumpProtoAndDeserialize();
+
+        assertEquals(1, mDecodedProto.connectionEvent.length);
+        assertEquals(3, mDecodedProto.connectionEvent[0].numBssidInBlocklist);
     }
 
     /**

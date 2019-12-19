@@ -20,7 +20,9 @@ import android.annotation.NonNull;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.util.LocalLog;
+import android.util.Pair;
 
+import com.android.server.wifi.hotspot2.PasspointNetworkNominateHelper;
 import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.List;
@@ -34,10 +36,13 @@ public class SavedNetworkNominator implements WifiNetworkSelector.NetworkNominat
     private final WifiConfigManager mWifiConfigManager;
     private final LocalLog mLocalLog;
     private final TelephonyUtil mTelephonyUtil;
+    private final PasspointNetworkNominateHelper mPasspointNetworkNominateHelper;
 
-    SavedNetworkNominator(WifiConfigManager configManager, LocalLog localLog,
-            TelephonyUtil telephonyUtil) {
+    SavedNetworkNominator(WifiConfigManager configManager,
+            PasspointNetworkNominateHelper nominateHelper,
+            LocalLog localLog, TelephonyUtil telephonyUtil) {
         mWifiConfigManager = configManager;
+        mPasspointNetworkNominateHelper = nominateHelper;
         mLocalLog = localLog;
         mTelephonyUtil = telephonyUtil;
     }
@@ -77,7 +82,12 @@ public class SavedNetworkNominator implements WifiNetworkSelector.NetworkNominat
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
                     @NonNull OnConnectableListener onConnectableListener) {
+        findMatchedSavedNetworks(scanDetails, onConnectableListener);
+        findMatchedPasspointNetworks(scanDetails, onConnectableListener);
+    }
 
+    private void findMatchedSavedNetworks(List<ScanDetail> scanDetails,
+            OnConnectableListener onConnectableListener) {
         for (ScanDetail scanDetail : scanDetails) {
             ScanResult scanResult = scanDetail.getScanResult();
 
@@ -142,6 +152,15 @@ public class SavedNetworkNominator implements WifiNetworkSelector.NetworkNominat
 
             onConnectableListener.onConnectable(scanDetail,
                     mWifiConfigManager.getConfiguredNetwork(network.networkId));
+        }
+    }
+
+    private void findMatchedPasspointNetworks(List<ScanDetail> scanDetails,
+            OnConnectableListener onConnectableListener) {
+        List<Pair<ScanDetail, WifiConfiguration>> candidates =
+                mPasspointNetworkNominateHelper.getPasspointNetworkCandidates(scanDetails, false);
+        for (Pair<ScanDetail, WifiConfiguration> candidate : candidates) {
+            onConnectableListener.onConnectable(candidate.first, candidate.second);
         }
     }
 }

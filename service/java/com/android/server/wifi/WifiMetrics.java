@@ -198,6 +198,7 @@ public class WifiMetrics {
     private Handler mHandler;
     private ScoringParams mScoringParams;
     private WifiConfigManager mWifiConfigManager;
+    private BssidBlocklistMonitor mBssidBlocklistMonitor;
     private WifiNetworkSelector mWifiNetworkSelector;
     private PasspointManager mPasspointManager;
     private Context mContext;
@@ -730,6 +731,7 @@ public class WifiMetrics {
                 }
                 sb.append(", networkSelectorExperimentId=");
                 sb.append(mConnectionEvent.networkSelectorExperimentId);
+                sb.append(", numBssidInBlocklist=" + mConnectionEvent.numBssidInBlocklist);
                 sb.append(", level2FailureReason=");
                 switch(mConnectionEvent.level2FailureReason) {
                     case WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_NONE:
@@ -831,6 +833,11 @@ public class WifiMetrics {
     /** Sets internal WifiDataStall member */
     public void setWifiDataStall(WifiDataStall wifiDataStall) {
         mWifiDataStall = wifiDataStall;
+    }
+
+    /** Sets internal BssidBlocklistMonitor member */
+    public void setBssidBlocklistMonitor(BssidBlocklistMonitor bssidBlocklistMonitor) {
+        mBssidBlocklistMonitor = bssidBlocklistMonitor;
     }
 
     /**
@@ -1052,6 +1059,8 @@ public class WifiMetrics {
                     mScanResultRssi = candidate.level;
                     mScanResultRssiTimestampMillis = mClock.getElapsedSinceBootMillis();
                 }
+                mCurrentConnectionEvent.mConnectionEvent.numBssidInBlocklist =
+                        mBssidBlocklistMonitor.getNumBlockedBssidsForSsid(config.SSID);
             }
         }
     }

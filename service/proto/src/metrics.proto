@@ -801,6 +801,9 @@ message ConnectionEvent {
 
   // Connection is using an aggressively generated random MAC address.
   optional bool use_aggressive_mac = 14;
+
+  // Number of BSSIDs for this network that were excluded from network selection.
+  optional int32 num_bssid_in_blocklist = 15;
 }
 
 // Number of occurrences of a specific RSSI poll rssi value

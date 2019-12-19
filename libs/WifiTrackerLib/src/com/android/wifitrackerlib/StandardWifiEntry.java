@@ -178,6 +178,11 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
+    public WifiConfiguration getWifiConfiguration() {
+        return mWifiConfig;
+    }
+
+    @Override
     public ConnectedInfo getConnectedInfo() {
         // TODO(b/70983952): Fill this method in
         return null;
@@ -234,13 +239,14 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean canForget() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
     public void forget() {
-        // TODO(b/70983952): Fill this method in
+        if (mWifiConfig != null) {
+            mWifiManager.forget(mWifiConfig.networkId, new ForgetListener());
+        }
     }
 
     public boolean canSignIn() {
@@ -335,40 +341,6 @@ class StandardWifiEntry extends WifiEntry {
         // TODO(b/70983952): Fill this method in
     }
 
-    @Override
-    public ProxySettings getProxySettings() {
-        // TODO(b/70983952): Fill this method in
-        return null;
-    }
-
-    @Override
-    public boolean canSetProxySettings() {
-        // TODO(b/70983952): Fill this method in
-        return false;
-    }
-
-    @Override
-    public void setProxySettings(@NonNull ProxySettings proxySettings) {
-        // TODO(b/70983952): Fill this method in
-    }
-
-    @Override
-    public IpSettings getIpSettings() {
-        // TODO(b/70983952): Fill this method in
-        return null;
-    }
-
-    @Override
-    public boolean canSetIpSettings() {
-        // TODO(b/70983952): Fill this method in
-        return false;
-    }
-
-    @Override
-    public void setIpSettings(@NonNull IpSettings ipSettings) {
-        // TODO(b/70983952): Fill this method in
-    }
-
     @WorkerThread
     void updateScanResultInfo(@Nullable List<ScanResult> scanResults)
             throws IllegalArgumentException {
@@ -436,7 +408,7 @@ class StandardWifiEntry extends WifiEntry {
             mNetworkInfo = networkInfo;
             final int wifiInfoRssi = wifiInfo.getRssi();
             if (wifiInfoRssi != INVALID_RSSI) {
-                mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi, WifiManager.RSSI_LEVELS);
+                mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi);
             }
         } else {
             mNetworkInfo = null;
