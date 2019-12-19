@@ -21,6 +21,7 @@ import android.content.Context;
 import android.content.IntentFilter;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.WifiConfiguration;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Process;
@@ -293,9 +294,11 @@ public class WifiApConfigStore {
                 int channel = in.readInt();
 
                 if (channel == 0) {
-                    configBuilder.setBand(band);
+                    configBuilder.setBand(
+                            ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(band));
                 } else {
-                    configBuilder.setChannel(channel, band);
+                    configBuilder.setChannel(channel,
+                            ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(band));
                 }
             }
 
@@ -304,12 +307,15 @@ public class WifiApConfigStore {
             }
 
             int authType = in.readInt();
-            if (authType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
+            if (authType == WifiConfiguration.KeyMgmt.WPA2_PSK) {
                 configBuilder.setWpa2Passphrase(in.readUTF());
             }
             config = configBuilder.build();
         } catch (IOException e) {
             Log.e(TAG, "Error reading hotspot configuration " + e);
+            config = null;
+        } catch (IllegalArgumentException ie) {
+            Log.e(TAG, "Invalid hotspot configuration " + ie);
             config = null;
         } finally {
             if (in != null) {

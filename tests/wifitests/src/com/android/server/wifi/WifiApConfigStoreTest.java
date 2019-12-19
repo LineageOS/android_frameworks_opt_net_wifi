@@ -35,12 +35,15 @@ import android.content.pm.ApplicationInfo;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.Builder;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Build;
 import android.os.Handler;
 import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.util.ApConfigUtil;
 import com.android.wifi.resources.R;
 
 import org.junit.Before;
@@ -170,22 +173,60 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         return configBuilder.build();
     }
 
-    private void writeLegacyApConfigFile(SoftApConfiguration config) throws Exception {
+    /**
+     * Generate a WifiConfiguration based on the specified parameters.
+     */
+    private WifiConfiguration setupWifiConfigurationApConfig(
+            String ssid, String preSharedKey, int keyManagement, int band, int channel,
+            boolean hiddenSSID) {
+        WifiConfiguration config = new WifiConfiguration();
+        config.SSID = ssid;
+        config.preSharedKey = preSharedKey;
+        config.allowedKeyManagement.set(keyManagement);
+        config.apBand = band;
+        config.apChannel = channel;
+        config.hiddenSSID = hiddenSSID;
+        return config;
+    }
+
+    private void writeLegacyApConfigFile(WifiConfiguration config) throws Exception {
         try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                 new FileOutputStream(mLegacyApConfigFile)))) {
             out.writeInt(WifiApConfigStore.AP_CONFIG_FILE_VERSION);
-            out.writeUTF(config.getSsid());
-            out.writeInt(config.getBand());
-            out.writeInt(config.getChannel());
-            out.writeBoolean(config.isHiddenSsid());
-            int securityType = config.getSecurityType();
-            out.writeInt(securityType);
-            if (securityType == SECURITY_TYPE_WPA2_PSK) {
-                out.writeUTF(config.getWpa2Passphrase());
+            out.writeUTF(config.SSID);
+            out.writeInt(config.apBand);
+            out.writeInt(config.apChannel);
+            out.writeBoolean(config.hiddenSSID);
+            int authType = config.getAuthType();
+            out.writeInt(authType);
+            if (authType != KeyMgmt.NONE) {
+                out.writeUTF(config.preSharedKey);
             }
         } catch (IOException e) {
             fail("Error writing hotspot configuration" + e);
         }
+    }
+
+    /**
+     * Asserts that the WifiConfigurations equal to SoftApConfiguration.
+     * This only compares the elements saved
+     * for softAp used.
+     */
+    public static void assertWifiConfigurationEqualSoftApConfiguration(
+            WifiConfiguration backup, SoftApConfiguration restore) {
+        assertEquals(backup.SSID, restore.getSsid());
+        assertEquals(backup.BSSID, restore.getBssid());
+        assertEquals(ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(backup.apBand),
+                restore.getBand());
+        assertEquals(backup.apChannel, restore.getChannel());
+        assertEquals(backup.preSharedKey, restore.getWpa2Passphrase());
+        int authType = backup.getAuthType();
+        if (backup.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
+            assertEquals(SoftApConfiguration.SECURITY_TYPE_WPA2_PSK, restore.getSecurityType());
+        } else {
+            assertEquals(SoftApConfiguration.SECURITY_TYPE_OPEN, restore.getSecurityType());
+        }
+        assertEquals(backup.hiddenSSID, restore.isHiddenSsid());
     }
 
     private void verifyApConfig(SoftApConfiguration config1, SoftApConfiguration config2) {
@@ -239,17 +280,28 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
      */
     @Test
     public void initWithExistingConfigurationInLegacyFile() throws Exception {
+        WifiConfiguration backupConfig = setupWifiConfigurationApConfig(
+                "ConfiguredAP",    /* SSID */
+                "randomKey",       /* preshared key */
+                KeyMgmt.WPA2_PSK,   /* key management */
+                1,                 /* AP band (5GHz) */
+                40,                /* AP channel */
+                true               /* Hidden SSID */);
+
+        /* Create a temporary file for AP config file storage. */
+        mLegacyApConfigFile = File.createTempFile(TEST_AP_CONFIG_FILE_PREFIX, "");
+
         SoftApConfiguration expectedConfig = setupApConfig(
                 "ConfiguredAP",           /* SSID */
                 "randomKey",              /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,   /* security type */
-                SoftApConfiguration.BAND_5GHZ,  /* AP band (5GHz) */
+                SoftApConfiguration.BAND_5GHZ, /* AP band (5GHz) */
                 40,                       /* AP channel */
                 true                      /* Hidden SSID */);
-        /* Create a temporary file for AP config file storage. */
-        mLegacyApConfigFile = File.createTempFile(TEST_AP_CONFIG_FILE_PREFIX, "");
 
-        writeLegacyApConfigFile(expectedConfig);
+        assertWifiConfigurationEqualSoftApConfiguration(backupConfig, expectedConfig);
+
+        writeLegacyApConfigFile(backupConfig);
         WifiApConfigStore store = createWifiApConfigStore(mLegacyApConfigFile.getPath());
         verify(mWifiConfigManager).saveToStore(true);
         verify(mBackupManagerProxy).notifyDataChanged();

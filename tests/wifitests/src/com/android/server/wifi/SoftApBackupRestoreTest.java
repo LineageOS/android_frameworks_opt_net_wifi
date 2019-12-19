@@ -45,6 +45,29 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
     private SoftApBackupRestore mSoftApBackupRestore;
     private static final int LAST_WIFICOFIGURATION_BACKUP_VERSION = 3;
 
+    /**
+     * Asserts that the WifiConfigurations equal to SoftApConfiguration.
+     * This only compares the elements saved
+     * for softAp used.
+     */
+    public static void assertWifiConfigurationEqualSoftApConfiguration(
+            WifiConfiguration backup, SoftApConfiguration restore) {
+        assertEquals(backup.SSID, restore.getSsid());
+        assertEquals(backup.BSSID, restore.getBssid());
+        assertEquals(ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(backup.apBand),
+                restore.getBand());
+        assertEquals(backup.apChannel, restore.getChannel());
+        assertEquals(backup.preSharedKey, restore.getWpa2Passphrase());
+        int authType = backup.getAuthType();
+        if (backup.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
+            assertEquals(SoftApConfiguration.SECURITY_TYPE_WPA2_PSK, restore.getSecurityType());
+        } else {
+            assertEquals(SoftApConfiguration.SECURITY_TYPE_OPEN, restore.getSecurityType());
+        }
+        assertEquals(backup.hiddenSSID, restore.isHiddenSsid());
+    }
+
+
     @Before
     public void setUp() throws Exception {
         mSoftApBackupRestore = new SoftApBackupRestore();
@@ -120,6 +143,6 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
         SoftApConfiguration restoredConfig =
                 mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
 
-        assertThat(ApConfigUtil.fromWifiConfiguration(wifiConfig)).isEqualTo(restoredConfig);
+        assertWifiConfigurationEqualSoftApConfiguration(wifiConfig, restoredConfig);
     }
 }
