@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.WifiConfiguration;
 import android.util.Xml;
 
 import androidx.test.filters.SmallTest;
@@ -52,14 +53,24 @@ public class SoftApStoreDataTest extends WifiBaseTest {
     private static final String TEST_SSID = "SSID";
     private static final String TEST_WPA2_PASSPHRASE = "Test";
     private static final boolean TEST_HIDDEN = false;
-    private static final int TEST_BAND = SoftApConfiguration.BAND_ANY;
+    private static final int TEST_BAND = SoftApConfiguration.BAND_2GHZ
+            | SoftApConfiguration.BAND_5GHZ;
+    private static final int TEST_OLD_BAND = WifiConfiguration.AP_BAND_ANY;
     private static final int TEST_CHANNEL = 0;
     private static final int TEST_SECURITY = SoftApConfiguration.SECURITY_TYPE_WPA2_PSK;
 
 
     private static final String TEST_SOFTAP_CONFIG_XML_STRING =
             "<string name=\"SSID\">" + TEST_SSID + "</string>\n"
-                    + "<int name=\"Band\" value=\"" + TEST_BAND + "\" />\n"
+                    + "<int name=\"Band\" value=\"" + TEST_OLD_BAND + "\" />\n"
+                    + "<int name=\"Channel\" value=\"" + TEST_CHANNEL + "\" />\n"
+                    + "<boolean name=\"HiddenSSID\" value=\"" + TEST_HIDDEN + "\" />\n"
+                    + "<int name=\"SecurityType\" value=\"" + TEST_SECURITY + "\" />\n"
+                    + "<string name=\"Wpa2Passphrase\">" + TEST_WPA2_PASSPHRASE + "</string>\n";
+
+    private static final String TEST_SOFTAP_CONFIG_XML_STRING_WITH_NEW_BAND_DESIGN =
+            "<string name=\"SSID\">" + TEST_SSID + "</string>\n"
+                    + "<int name=\"ApBand\" value=\"" + TEST_BAND + "\" />\n"
                     + "<int name=\"Channel\" value=\"" + TEST_CHANNEL + "\" />\n"
                     + "<boolean name=\"HiddenSSID\" value=\"" + TEST_HIDDEN + "\" />\n"
                     + "<int name=\"SecurityType\" value=\"" + TEST_SECURITY + "\" />\n"
@@ -142,7 +153,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
 
         when(mDataSource.toSerialize()).thenReturn(softApConfigBuilder.build());
         byte[] actualData = serializeData();
-        assertEquals(TEST_SOFTAP_CONFIG_XML_STRING, new String(actualData));
+        assertEquals(TEST_SOFTAP_CONFIG_XML_STRING_WITH_NEW_BAND_DESIGN, new String(actualData));
     }
 
     /**
@@ -152,6 +163,29 @@ public class SoftApStoreDataTest extends WifiBaseTest {
      */
     @Test
     public void deserializeSoftAp() throws Exception {
+        deserializeData(TEST_SOFTAP_CONFIG_XML_STRING_WITH_NEW_BAND_DESIGN.getBytes());
+
+        ArgumentCaptor<SoftApConfiguration> softapConfigCaptor =
+                ArgumentCaptor.forClass(SoftApConfiguration.class);
+        verify(mDataSource).fromDeserialized(softapConfigCaptor.capture());
+        SoftApConfiguration softApConfig = softapConfigCaptor.getValue();
+        assertNotNull(softApConfig);
+        assertEquals(softApConfig.getSsid(), TEST_SSID);
+        assertEquals(softApConfig.getWpa2Passphrase(), TEST_WPA2_PASSPHRASE);
+        assertEquals(softApConfig.getSecurityType(), SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+        assertEquals(softApConfig.isHiddenSsid(), TEST_HIDDEN);
+        assertEquals(softApConfig.getBand(), TEST_BAND);
+        assertEquals(softApConfig.getChannel(), TEST_CHANNEL);
+    }
+
+    /**
+     * Verify that the old format is deserialized correctly.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void deserializeOldBandSoftAp() throws Exception {
+        // Start with the old serialized data
         deserializeData(TEST_SOFTAP_CONFIG_XML_STRING.getBytes());
 
         ArgumentCaptor<SoftApConfiguration> softapConfigCaptor =

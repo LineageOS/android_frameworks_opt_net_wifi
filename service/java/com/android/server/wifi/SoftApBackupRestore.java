@@ -129,6 +129,9 @@ public class SoftApBackupRestore {
         } catch (BackupUtils.BadVersionException badVersion) {
             Log.e(TAG, "Invalid backup data received, BadVersionException: " + badVersion);
             return null;
+        } catch (IllegalArgumentException ie) {
+            Log.e(TAG, "Invalid backup data received, IllegalArgumentException " + ie);
+            return null;
         }
         return configBuilder.build();
     }
