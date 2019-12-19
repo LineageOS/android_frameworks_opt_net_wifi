@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import android.content.Context;
 import android.net.wifi.IWifiManager;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
@@ -206,12 +207,26 @@ public class WifiShellCommand extends ShellCommand {
                             return -1;
                         }
                         int apChannel = ApConfigUtil.convertFrequencyToChannel(apChannelMHz);
-                        if (apChannel == -1 || !isApChannelMHzValid(apChannelMHz)) {
+                        int band = ApConfigUtil.convertFrequencyToBand(apChannelMHz);
+                        if (apChannel == -1 || band == -1 || !isApChannelMHzValid(apChannelMHz)) {
                             pw.println("Invalid argument to 'force-softap-channel enabled' "
                                     + "- must be a valid WLAN channel");
                             return -1;
                         }
-                        mHostapdHal.enableForceSoftApChannel(apChannel);
+
+                        // validate that device support this band
+                        IWifiManager wifiManager = IWifiManager.Stub.asInterface(
+                                ServiceManager.getService(Context.WIFI_SERVICE));
+                        if ((band == SoftApConfiguration.BAND_5GHZ
+                                && !wifiManager.is5GHzBandSupported())
+                                || (band == SoftApConfiguration.BAND_6GHZ
+                                && !wifiManager.is6GHzBandSupported())) {
+                            pw.println("Invalid argument to 'force-softap-channel enabled' "
+                                    + "- channel band is not supported by the device");
+                            return -1;
+                        }
+
+                        mHostapdHal.enableForceSoftApChannel(apChannel, band);
                         return 0;
                     } else if ("disabled".equals(nextArg)) {
                         mHostapdHal.disableForceSoftApChannel();
@@ -335,6 +350,7 @@ public class WifiShellCommand extends ShellCommand {
         int[] allowed5gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ);
         int[] allowed5gDfsFreq =
             mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY);
+        int[] allowed6gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ);
         if (allowed2gFreq == null) {
             allowed2gFreq = new int[0];
         }
@@ -344,9 +360,14 @@ public class WifiShellCommand extends ShellCommand {
         if (allowed5gDfsFreq == null) {
             allowed5gDfsFreq = new int[0];
         }
+        if (allowed6gFreq == null) {
+            allowed6gFreq = new int[0];
+        }
+
         return (Arrays.binarySearch(allowed2gFreq, apChannelMHz) >= 0
                 || Arrays.binarySearch(allowed5gFreq, apChannelMHz) >= 0
-                || Arrays.binarySearch(allowed5gDfsFreq, apChannelMHz) >= 0);
+                || Arrays.binarySearch(allowed5gDfsFreq, apChannelMHz) >= 0)
+                || Arrays.binarySearch(allowed6gFreq, apChannelMHz) >= 0;
     }
 
     private void checkRootPermission() {

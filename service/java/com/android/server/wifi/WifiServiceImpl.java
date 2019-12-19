@@ -784,6 +784,30 @@ public class WifiServiceImpl extends BaseWifiService {
         }
     }
 
+    private boolean validateSoftApBand(int apBand) {
+        if (!ApConfigUtil.isBandValid(apBand)) {
+            mLog.err("Invalid SoftAp band. ").flush();
+            return false;
+        }
+
+        if (ApConfigUtil.containsBand(apBand, SoftApConfiguration.BAND_5GHZ)
+                && !is5GhzBandSupportedInternal()) {
+            mLog.err("Can not start softAp with 5GHz band, not supported.").flush();
+            return false;
+        }
+
+        if (ApConfigUtil.containsBand(apBand, SoftApConfiguration.BAND_6GHZ)) {
+            if (!is6GhzBandSupportedInternal()
+                    || !mContext.getResources().getBoolean(
+                            R.bool.config_wifiSoftap6ghzSupported)) {
+                mLog.err("Can not start softAp with 6GHz band, not supported.").flush();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * see {@link android.net.wifi.WifiManager#startTetheredHotspot(SoftApConfiguration)}
      * @param softApConfig SSID, security and channel details as part of SoftApConfiguration
@@ -823,7 +847,9 @@ public class WifiServiceImpl extends BaseWifiService {
         // null wifiConfig is a meaningful input for CMD_SET_AP; it means to use the persistent
         // AP config.
         SoftApConfiguration softApConfig = apConfig.getSoftApConfiguration();
-        if (softApConfig != null && !WifiApConfigStore.validateApWifiConfiguration(softApConfig)) {
+        if (softApConfig != null
+                && (!WifiApConfigStore.validateApWifiConfiguration(softApConfig)
+                    || !validateSoftApBand(softApConfig.getBand()))) {
             Log.e(TAG, "Invalid SoftApConfiguration");
             return false;
         }
@@ -1188,8 +1214,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     R.bool.config_wifi_local_only_hotspot_5ghz)
                     && is5GhzBandSupportedInternal();
 
-            int band = is5Ghz ? WifiConfiguration.AP_BAND_5GHZ
-                    : WifiConfiguration.AP_BAND_2GHZ;
+            int band = is5Ghz ? SoftApConfiguration.BAND_5GHZ : SoftApConfiguration.BAND_2GHZ;
 
             SoftApConfiguration softApConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(
                     mContext, band, request.getCustomConfig());
@@ -2408,6 +2433,10 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("is6GHzBandSupported uid=%").c(Binder.getCallingUid()).flush();
         }
 
+        return is6GhzBandSupportedInternal();
+    }
+
+    private boolean is6GhzBandSupportedInternal() {
         return mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport);
     }
 

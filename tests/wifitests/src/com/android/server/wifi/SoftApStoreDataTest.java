@@ -139,7 +139,6 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         softApConfigBuilder.setSsid(TEST_SSID);
         softApConfigBuilder.setWpa2Passphrase(TEST_WPA2_PASSPHRASE);
         softApConfigBuilder.setBand(TEST_BAND);
-        softApConfigBuilder.setChannel(TEST_CHANNEL);
 
         when(mDataSource.toSerialize()).thenReturn(softApConfigBuilder.build());
         byte[] actualData = serializeData();
@@ -179,8 +178,6 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         softApConfigBuilder.setSsid(TEST_SSID);
         softApConfigBuilder.setWpa2Passphrase(TEST_WPA2_PASSPHRASE);
         softApConfigBuilder.setBand(TEST_BAND);
-        softApConfigBuilder.setChannel(TEST_CHANNEL);
-
         SoftApConfiguration softApConfig = softApConfigBuilder.build();
 
         // Serialize first.

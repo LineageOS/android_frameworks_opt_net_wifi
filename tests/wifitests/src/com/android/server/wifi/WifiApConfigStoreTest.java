@@ -161,8 +161,11 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid(ssid);
         configBuilder.setWpa2Passphrase(preSharedKey);
-        configBuilder.setBand(band);
-        configBuilder.setChannel(channel);
+        if (channel == 0) {
+            configBuilder.setBand(band);
+        } else {
+            configBuilder.setChannel(channel, band);
+        }
         configBuilder.setHiddenSsid(hiddenSSID);
         return configBuilder.build();
     }
@@ -240,7 +243,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "ConfiguredAP",           /* SSID */
                 "randomKey",              /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,   /* security type */
-                1,                        /* AP band (5GHz) */
+                SoftApConfiguration.BAND_5GHZ,  /* AP band (5GHz) */
                 40,                       /* AP channel */
                 true                      /* Hidden SSID */);
         /* Create a temporary file for AP config file storage. */
@@ -276,7 +279,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "ConfiguredAP",           /* SSID */
                 "randomKey",              /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,   /* security type */
-                1,                        /* AP band (5GHz) */
+                SoftApConfiguration.BAND_5GHZ, /* AP band (5GHz) */
                 40,                       /* AP channel */
                 true                      /* Hidden SSID */);
         WifiApConfigStore store = createWifiApConfigStore();
@@ -307,7 +310,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "randomKey",                      /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,           /* security type */
                 SoftApConfiguration.BAND_2GHZ,    /* AP band */
-                40,                               /* AP channel */
+                0,                                /* AP channel */
                 true                              /* Hidden SSID */);
         store.setApConfiguration(expectedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
@@ -334,7 +337,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "randomKey",                   /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,        /* security type */
                 SoftApConfiguration.BAND_ANY,  /* AP band (ANY) */
-                40,                            /* AP channel */
+                0,                             /* AP channel */
                 false                          /* Hidden SSID */);
 
         SoftApConfiguration expectedConfig = setupApConfig(
@@ -342,7 +345,42 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "randomKey",                          /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,               /* security type */
                 SoftApConfiguration.BAND_5GHZ,        /* AP band (5GHz) */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT, /* AP channel */
+                0,                                    /* AP channel */
+                false                                 /* Hidden SSID */);
+        store.setApConfiguration(providedConfig);
+        verifyApConfig(expectedConfig, store.getApConfiguration());
+        verifyApConfig(expectedConfig, mDataStoreSource.toSerialize());
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        verify(mBackupManagerProxy, times(2)).notifyDataChanged();
+    }
+
+    /**
+     * Due to different device hw capabilities, some bands are not available if a device is
+     * dual/single mode capable.  This test verifies that a single mode device will have apBand
+     * is a multiband not including 5GHz converted into 2GHz.
+     */
+    @Test
+    public void convertSingleModeDeviceMultibandTo2Ghz() throws Exception {
+        /* Initialize WifiApConfigStore with default configuration. */
+        WifiApConfigStore store = createWifiApConfigStore();
+        verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID);
+        verify(mWifiConfigManager).saveToStore(true);
+
+        /* Update with a valid configuration. */
+        SoftApConfiguration providedConfig = setupApConfig(
+                "ConfiguredAP",                /* SSID */
+                "randomKey",                   /* preshared key */
+                SECURITY_TYPE_WPA2_PSK,        /* security type */
+                SoftApConfiguration.BAND_2GHZ | SoftApConfiguration.BAND_6GHZ,  /* AP band */
+                0,                             /* AP channel */
+                false                          /* Hidden SSID */);
+
+        SoftApConfiguration expectedConfig = setupApConfig(
+                "ConfiguredAP",                       /* SSID */
+                "randomKey",                          /* preshared key */
+                SECURITY_TYPE_WPA2_PSK,               /* security type */
+                SoftApConfiguration.BAND_2GHZ,        /* AP band (5GHz) */
+                0,                                    /* AP channel */
                 false                                 /* Hidden SSID */);
         store.setApConfiguration(providedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
@@ -381,7 +419,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     /**
      * Due to different device hw capabilities, some bands are not available if a device is
      * dual/single mode capable.  This test verifies that a dual mode device will have apBand =
-     * 5GHz converted to ANY.
+     * 5GHz converted to include 2.4GHz.
      */
     @Test
     public void convertDualModeDevice5GhzToAny() throws Exception {
@@ -405,8 +443,9 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "ConfiguredAP",                       /* SSID */
                 "randomKey",                          /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,               /* security type */
-                SoftApConfiguration.BAND_ANY,         /* AP band */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT, /* AP channel */
+                SoftApConfiguration.BAND_2GHZ
+                | SoftApConfiguration.BAND_5GHZ,      /* AP band */
+                0,                                    /* AP channel */
                 false                                 /* Hidden SSID */);
         store.setApConfiguration(providedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
@@ -435,7 +474,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "randomKey",                    /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,         /* security type */
                 SoftApConfiguration.BAND_ANY,   /* AP band */
-                40,                             /* AP channel */
+                0,                              /* AP channel */
                 false                           /* Hidden SSID */);
         store.setApConfiguration(expectedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
@@ -457,14 +496,14 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "randomKey",                    /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,         /* security type */
                 SoftApConfiguration.BAND_ANY,   /* AP band */
-                40,                             /* AP channel */
+                0,                              /* AP channel */
                 false                           /* Hidden SSID */);
         SoftApConfiguration expectedConfig = setupApConfig(
                 "ConfiguredAP",                        /* SSID */
                 "randomKey",                           /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,                /* security type */
                 SoftApConfiguration.BAND_5GHZ,         /* AP band */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT,  /* AP channel */
+                0,                                     /* AP channel */
                 false                                  /* Hidden SSID */);
         WifiApConfigStore store = createWifiApConfigStore();
         mDataStoreSource.fromDeserialized(persistedConfig);
@@ -499,7 +538,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     /**
      * Due to different device hw capabilities, some bands are not available if a device is
      * dual/single mode capable.  This test verifies that a dual mode device converts a persisted ap
-     * config with 5GHz only set for the apBand to ANY.
+     * config with 5GHz only set for the apBand to include 2.4GHz.
      */
     @Test
     public void dualModeDevice5GhzConvertedToAnyAtRetrieval() throws Exception {
@@ -516,8 +555,9 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "ConfiguredAP",                       /* SSID */
                 "randomKey",                          /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,               /* security type */
-                SoftApConfiguration.BAND_ANY,         /* AP band */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT, /* AP channel */
+                SoftApConfiguration.BAND_5GHZ
+                | SoftApConfiguration.BAND_2GHZ,      /* AP band */
+                0,                                    /* AP channel */
                 false                                 /* Hidden SSID */);
 
         WifiApConfigStore store = createWifiApConfigStore();
@@ -542,7 +582,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 "randomKey",                    /* preshared key */
                 SECURITY_TYPE_WPA2_PSK,         /* security type */
                 SoftApConfiguration.BAND_ANY,   /* AP band */
-                40,                             /* AP channel */
+                0,                              /* AP channel */
                 false                           /* Hidden SSID */);
 
         WifiApConfigStore store = createWifiApConfigStore();

@@ -69,6 +69,8 @@
           <item type="bool" name="config_wifi_softap_acs_supported" />
           <item type="string" name="config_wifi_softap_acs_supported_channel_list" />
           <item type="bool" name="config_wifi_softap_ieee80211ac_supported" />
+          <item type="bool" name="config_wifiSoftapIeee80211axSupported" />
+          <item type="bool" name="config_wifiSoftap6ghzSupported" />
           <item type="bool" name="config_wifi_local_only_hotspot_5ghz" />
           <item type="bool" name="config_wifi_connected_mac_randomization_supported" />
           <item type="bool" name="config_wifi_p2p_mac_randomization_supported" />
