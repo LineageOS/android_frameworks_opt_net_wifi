@@ -19,6 +19,7 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_DPP;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_MBO;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OCE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_WAPI;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
 
@@ -2647,6 +2648,15 @@ public class SupplicantStaIfaceHal {
             }
         }
 
+        if ((keyMgmtCapabilities & android.hardware.wifi.supplicant.V1_3.ISupplicantStaNetwork
+                .KeyMgmtMask.WAPI_PSK) != 0) {
+            advancedCapabilities |= WIFI_FEATURE_WAPI;
+
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, methodStr + ": WAPI supported");
+            }
+        }
+
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, methodStr + ": Capability flags = " + keyMgmtCapabilities);
         }
@@ -2654,12 +2664,47 @@ public class SupplicantStaIfaceHal {
         return advancedCapabilities;
     }
 
+    private int getKeyMgmtCapabilities_1_3(@NonNull String ifaceName) {
+        final String methodStr = "getKeyMgmtCapabilities_1_3";
+        MutableInt keyMgmtMask = new MutableInt(0);
+        ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+        if (iface == null) {
+            return 0;
+        }
+
+        // Get a v1.3 supplicant STA Interface
+        android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface staIfaceV13 =
+                getStaIfaceMockableV1_3(iface);
+        if (staIfaceV13 == null) {
+            Log.e(TAG, methodStr
+                    + ": ISupplicantStaIface V1.3 is null, cannot get advanced capabilities");
+            return 0;
+        }
+
+        try {
+            // Support for new key management types; WAPI_PSK, WAPI_CERT
+            // Requires HAL v1.3 or higher
+            staIfaceV13.getKeyMgmtCapabilities_1_3(
+                    (SupplicantStatus statusInternal, int keyMgmtMaskInternal) -> {
+                        if (statusInternal.code == SupplicantStatusCode.SUCCESS) {
+                            keyMgmtMask.value = keyMgmtMaskInternal;
+                        }
+                        checkStatusAndLogFailure(statusInternal, methodStr);
+                    });
+        } catch (RemoteException e) {
+            handleRemoteException(e, methodStr);
+        }
+        return keyMgmtMask.value;
+    }
+
     private int getKeyMgmtCapabilities(@NonNull String ifaceName) {
         final String methodStr = "getKeyMgmtCapabilities";
         MutableBoolean status = new MutableBoolean(false);
         MutableInt keyMgmtMask = new MutableInt(0);
 
-        if (isV1_2()) {
+        if (isV1_3()) {
+            keyMgmtMask.value = getKeyMgmtCapabilities_1_3(ifaceName);
+        } else if (isV1_2()) {
             ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
             if (iface == null) {
                 return 0;

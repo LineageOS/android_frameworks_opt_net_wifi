@@ -1114,6 +1114,7 @@ public class XmlUtil {
         public static final String XML_TAG_PLMN = "PLMN";
         public static final String XML_TAG_REALM = "Realm";
         public static final String XML_TAG_OCSP = "Ocsp";
+        public static final String XML_TAG_WAPI_CERT_SUITE = "WapiCertSuite";
 
         /**
          * Write password key to the XML stream.
@@ -1185,6 +1186,8 @@ public class XmlUtil {
             XmlUtil.writeNextValue(out, XML_TAG_PLMN, enterpriseConfig.getPlmn());
             XmlUtil.writeNextValue(out, XML_TAG_REALM, enterpriseConfig.getRealm());
             XmlUtil.writeNextValue(out, XML_TAG_OCSP, enterpriseConfig.getOcsp());
+            XmlUtil.writeNextValue(out,
+                    XML_TAG_WAPI_CERT_SUITE, enterpriseConfig.getWapiCertSuite());
         }
 
         /**
@@ -1281,6 +1284,9 @@ public class XmlUtil {
                             break;
                         case XML_TAG_REALM:
                             enterpriseConfig.setRealm((String) value);
+                            break;
+                        case XML_TAG_WAPI_CERT_SUITE:
+                            enterpriseConfig.setWapiCertSuite((String) value);
                             break;
                         default:
                             Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);

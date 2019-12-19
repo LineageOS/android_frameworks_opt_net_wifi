@@ -619,6 +619,12 @@ public class WifiBackupRestore {
                         } else if (ktype.equals("IEEE8021X")) {
                             configuration.allowedKeyManagement.set(
                                     WifiConfiguration.KeyMgmt.IEEE8021X);
+                        } else if (ktype.equals("WAPI-PSK")) {
+                            configuration.allowedKeyManagement.set(
+                                    WifiConfiguration.KeyMgmt.WAPI_PSK);
+                        } else if (ktype.equals("WAPI-CERT")) {
+                            configuration.allowedKeyManagement.set(
+                                    WifiConfiguration.KeyMgmt.WAPI_CERT);
                         }
                     }
                 }

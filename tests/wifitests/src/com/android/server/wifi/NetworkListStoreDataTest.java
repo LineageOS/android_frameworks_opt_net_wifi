@@ -189,6 +189,7 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
                     + "<string name=\"PLMN\"></string>\n"
                     + "<string name=\"Realm\"></string>\n"
                     + "<int name=\"Ocsp\" value=\"0\" />\n"
+                    + "<string name=\"WapiCertSuite\"></string>\n"
                     + "</WifiEnterpriseConfiguration>\n"
                     + "</Network>\n";
 

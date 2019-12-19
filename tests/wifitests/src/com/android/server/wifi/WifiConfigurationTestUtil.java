@@ -49,6 +49,8 @@ public class WifiConfigurationTestUtil {
     public static final int SECURITY_SAE =  1 << 3;
     public static final int SECURITY_OWE =  1 << 4;
     public static final int SECURITY_EAP_SUITE_B =  1 << 5;
+    public static final int SECURITY_WAPI_PSK =     1 << 6;
+    public static final int SECURITY_WAPI_CERT =    1 << 7;
 
     /**
      * These values are used to describe ip configuration parameters for a network.
@@ -160,6 +162,14 @@ public class WifiConfigurationTestUtil {
             if ((security & SECURITY_EAP_SUITE_B) != 0) {
                 config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SUITE_B_192);
                 config.requirePMF = true;
+            }
+
+            if ((security & SECURITY_WAPI_PSK) != 0) {
+                config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WAPI_PSK);
+            }
+
+            if ((security & SECURITY_WAPI_CERT) != 0) {
+                config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WAPI_CERT);
             }
 
         }
@@ -377,6 +387,25 @@ public class WifiConfigurationTestUtil {
         WifiConfiguration configuration =
                 generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true,
                         TEST_FQDN, TEST_PROVIDER_FRIENDLY_NAME, SECURITY_EAP);
+        return configuration;
+    }
+
+    public static WifiConfiguration createWapiPskNetwork() {
+        WifiConfiguration configuration =
+                generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true, null,
+                        null, SECURITY_WAPI_PSK);
+        configuration.preSharedKey = TEST_PSK;
+        return configuration;
+    }
+
+    public static WifiConfiguration createWapiCertNetwork() {
+        WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
+        enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.WAPI_CERT);
+        enterpriseConfig.setWapiCertSuite("wapiCertSuite");
+        WifiConfiguration configuration =
+                generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true, null,
+                        null, SECURITY_WAPI_CERT);
+        configuration.enterpriseConfig = enterpriseConfig;
         return configuration;
     }
 
