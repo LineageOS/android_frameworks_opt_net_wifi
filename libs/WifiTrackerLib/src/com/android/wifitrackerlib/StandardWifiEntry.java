@@ -236,8 +236,7 @@ class StandardWifiEntry extends WifiEntry {
                 mWifiManager.connect(connectConfig, new ConnectListener());
             } else {
                 // Secure network
-                // TODO(b/70983952): Add support for unsaved secure networks
-                // Return bad password failure to prompt user to enter password.
+                notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_NO_CONFIG);
             }
         } else {
             // Saved network
