@@ -21,6 +21,7 @@ import android.net.wifi.SoftApConfiguration;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.android.server.wifi.util.ApConfigUtil;
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 import com.android.server.wifi.util.XmlUtil;
 
@@ -42,6 +43,7 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_HIDDEN_SSID = "HiddenSSID";
     private static final String XML_TAG_SECURITY_TYPE = "SecurityType";
     private static final String XML_TAG_WPA2_PASSPHRASE = "Wpa2Passphrase";
+    private static final String XML_TAG_AP_BAND = "ApBand";
 
     private final DataSource mDataSource;
 
@@ -90,7 +92,7 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
         SoftApConfiguration softApConfig = mDataSource.toSerialize();
         if (softApConfig != null) {
             XmlUtil.writeNextValue(out, XML_TAG_SSID, softApConfig.getSsid());
-            XmlUtil.writeNextValue(out, XML_TAG_BAND, softApConfig.getBand());
+            XmlUtil.writeNextValue(out, XML_TAG_AP_BAND, softApConfig.getBand());
             XmlUtil.writeNextValue(out, XML_TAG_CHANNEL, softApConfig.getChannel());
             XmlUtil.writeNextValue(out, XML_TAG_HIDDEN_SSID, softApConfig.isHiddenSsid());
             XmlUtil.writeNextValue(out, XML_TAG_SECURITY_TYPE, softApConfig.getSecurityType());
@@ -114,47 +116,66 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
         int securityType = SoftApConfiguration.SECURITY_TYPE_OPEN;
         String wpa2Passphrase = null;
         String ssid = null;
-        while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
-            String[] valueName = new String[1];
-            Object value = XmlUtil.readCurrentValue(in, valueName);
-            if (TextUtils.isEmpty(valueName[0])) {
-                throw new XmlPullParserException("Missing value name");
+        // Note that, during deserializaion, we may read the old band encoding (XML_TAG_BAND)
+        // or the new band encoding (XML_TAG_AP_BAND) that is used after the introduction of the
+        // 6GHz band. If the old encoding is found, a conversion is done.
+        int channel = -1;
+        int apBand = -1;
+        try {
+            while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
+                String[] valueName = new String[1];
+                Object value = XmlUtil.readCurrentValue(in, valueName);
+                if (TextUtils.isEmpty(valueName[0])) {
+                    throw new XmlPullParserException("Missing value name");
+                }
+                switch (valueName[0]) {
+                    case XML_TAG_SSID:
+                        ssid = (String) value;
+                        softApConfigBuilder.setSsid((String) value);
+                        break;
+                    case XML_TAG_BAND:
+                        apBand = ApConfigUtil.convertWifiConfigBandToSoftApConfigBand((int) value);
+                        break;
+                    case XML_TAG_AP_BAND:
+                        apBand = (int) value;
+                        break;
+                    case XML_TAG_CHANNEL:
+                        channel = (int) value;
+                        break;
+                    case XML_TAG_HIDDEN_SSID:
+                        softApConfigBuilder.setHiddenSsid((boolean) value);
+                        break;
+                    case XML_TAG_SECURITY_TYPE:
+                        securityType = (int) value;
+                        break;
+                    case XML_TAG_WPA2_PASSPHRASE:
+                        wpa2Passphrase = (String) value;
+                        break;
+                    default:
+                        Log.w(TAG, "Ignoring unknown value name " + valueName[0]);
+                        break;
+                }
             }
-            switch (valueName[0]) {
-                case XML_TAG_SSID:
-                    ssid = (String) value;
-                    softApConfigBuilder.setSsid((String) value);
-                    break;
-                case XML_TAG_BAND:
-                    softApConfigBuilder.setBand((int) value);
-                    break;
-                case XML_TAG_CHANNEL:
-                    softApConfigBuilder.setChannel((int) value);
-                    break;
-                case XML_TAG_HIDDEN_SSID:
-                    softApConfigBuilder.setHiddenSsid((boolean) value);
-                    break;
-                case XML_TAG_SECURITY_TYPE:
-                    securityType = (int) value;
-                    break;
-                case XML_TAG_WPA2_PASSPHRASE:
-                    wpa2Passphrase = (String) value;
-                    break;
-                default:
-                    Log.w(TAG, "Ignoring unknown value name " + valueName[0]);
-                    break;
-            }
-        }
 
-        // We should at-least have SSID restored from store.
-        if (ssid == null) {
-            Log.e(TAG, "Failed to parse SSID");
+            // Set channel and band
+            if (channel == 0) {
+                softApConfigBuilder.setBand(apBand);
+            } else {
+                softApConfigBuilder.setChannel(channel, apBand);
+            }
+
+            // We should at-least have SSID restored from store.
+            if (ssid == null) {
+                Log.e(TAG, "Failed to parse SSID");
+                return;
+            }
+            if (securityType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
+                softApConfigBuilder.setWpa2Passphrase(wpa2Passphrase);
+            }
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Failed to parse configuration" + e);
             return;
         }
-        if (securityType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
-            softApConfigBuilder.setWpa2Passphrase(wpa2Passphrase);
-        }
-
         mDataSource.fromDeserialized(softApConfigBuilder.setSsid(ssid).build());
     }
 

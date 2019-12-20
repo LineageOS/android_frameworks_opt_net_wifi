@@ -23,6 +23,7 @@ import static org.mockito.Mockito.*;
 
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
+import android.util.BackupUtils;
 
 import androidx.test.filters.SmallTest;
 
@@ -31,6 +32,10 @@ import com.android.server.wifi.util.ApConfigUtil;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 /**
  * Unit tests for {@link com.android.server.wifi.SoftApBackupRestore}.
  */
@@ -38,10 +43,51 @@ import org.junit.Test;
 public class SoftApBackupRestoreTest extends WifiBaseTest {
 
     private SoftApBackupRestore mSoftApBackupRestore;
+    private static final int LAST_WIFICOFIGURATION_BACKUP_VERSION = 3;
+
+    /**
+     * Asserts that the WifiConfigurations equal to SoftApConfiguration.
+     * This only compares the elements saved
+     * for softAp used.
+     */
+    public static void assertWifiConfigurationEqualSoftApConfiguration(
+            WifiConfiguration backup, SoftApConfiguration restore) {
+        assertEquals(backup.SSID, restore.getSsid());
+        assertEquals(backup.BSSID, restore.getBssid());
+        assertEquals(ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(backup.apBand),
+                restore.getBand());
+        assertEquals(backup.apChannel, restore.getChannel());
+        assertEquals(backup.preSharedKey, restore.getWpa2Passphrase());
+        int authType = backup.getAuthType();
+        if (backup.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
+            assertEquals(SoftApConfiguration.SECURITY_TYPE_WPA2_PSK, restore.getSecurityType());
+        } else {
+            assertEquals(SoftApConfiguration.SECURITY_TYPE_OPEN, restore.getSecurityType());
+        }
+        assertEquals(backup.hiddenSSID, restore.isHiddenSsid());
+    }
+
 
     @Before
     public void setUp() throws Exception {
         mSoftApBackupRestore = new SoftApBackupRestore();
+    }
+
+    /**
+     * Copy from WifiConfiguration for test backup/restore is backward compatible.
+     */
+    private byte[] getBytesForBackup(WifiConfiguration wificonfig) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+
+        out.writeInt(LAST_WIFICOFIGURATION_BACKUP_VERSION);
+        BackupUtils.writeString(out, wificonfig.SSID);
+        out.writeInt(wificonfig.apBand);
+        out.writeInt(wificonfig.apChannel);
+        BackupUtils.writeString(out, wificonfig.preSharedKey);
+        out.writeInt(wificonfig.getAuthType());
+        out.writeBoolean(wificonfig.hiddenSSID);
+        return baos.toByteArray();
     }
 
     /**
@@ -51,8 +97,7 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
     public void testSoftApConfigBackupAndRestoreWithWpa2Config() throws Exception {
         SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid("TestAP");
-        configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
-        configBuilder.setChannel(40);
+        configBuilder.setChannel(40, SoftApConfiguration.BAND_5GHZ);
         configBuilder.setWpa2Passphrase("TestPsk");
         configBuilder.setHiddenSsid(true);
         SoftApConfiguration config = configBuilder.build();
@@ -71,8 +116,7 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
     public void testSoftApConfigBackupAndRestoreWithOpenSecurityConfig() throws Exception {
         SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid("TestAP");
-        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
-        configBuilder.setChannel(12);
+        configBuilder.setChannel(12, SoftApConfiguration.BAND_2GHZ);
         configBuilder.setHiddenSsid(false);
         SoftApConfiguration config = configBuilder.build();
 
@@ -95,10 +139,10 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
         wifiConfig.hiddenSSID = true;
         wifiConfig.preSharedKey = "test_pwd";
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        byte[] data = wifiConfig.getBytesForBackup();
+        byte[] data = getBytesForBackup(wifiConfig);
         SoftApConfiguration restoredConfig =
                 mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
 
-        assertThat(ApConfigUtil.fromWifiConfiguration(wifiConfig)).isEqualTo(restoredConfig);
+        assertWifiConfigurationEqualSoftApConfiguration(wifiConfig, restoredConfig);
     }
 }

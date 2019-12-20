@@ -214,6 +214,21 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
             + "<int name=\"SuggestorUid\" value=\"14556\" />\n"
             + "</NetworkSuggestion>\n"
             + "</NetworkSuggestionPerApp>";
+    private static final String TEST_POST_R_APP_WITH_EMPTY_SUGGESTION =
+            "<NetworkSuggestionPerApp>\n"
+            + "<string name=\"SuggestorPackageName\">%1$s</string>\n"
+            + "<string name=\"SuggestorFeatureId\">com.android.feature.1</string>\n"
+            + "<boolean name=\"SuggestorHasUserApproved\" value=\"false\" />\n"
+            + "<int name=\"SuggestorMaxSize\" value=\"100\" />\n"
+            + "<int name=\"SuggestorUid\" value=\"%2$d\" />\n"
+            + "</NetworkSuggestionPerApp>";
+    private static final String TEST_PRE_R_APP_WITH_EMPTY_SUGGESTION =
+            "<NetworkSuggestionPerApp>\n"
+                    + "<string name=\"SuggestorPackageName\">%1$s</string>\n"
+                    + "<string name=\"SuggestorFeatureId\">com.android.feature.1</string>\n"
+                    + "<boolean name=\"SuggestorHasUserApproved\" value=\"false\" />\n"
+                    + "<int name=\"SuggestorMaxSize\" value=\"100\" />\n"
+                    + "</NetworkSuggestionPerApp>";
 
     private @Mock NetworkSuggestionStoreData.DataSource mDataSource;
     private NetworkSuggestionStoreData mNetworkSuggestionStoreData;
@@ -385,6 +400,36 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
         // Ensure both formats produce the same parsed output.
         assertEquals(deserializedPerAppInfoMapPreRFormat, deserializedPerAppInfoMapPostRFormat);
+    }
+
+    /**
+     * Deserialize no network suggestion from a single app using a predefined string stored in the
+     * old/new XML format.
+     */
+    @Test
+    public void deserializeEmptySuggestion() throws Exception {
+        ArgumentCaptor<HashMap> deserializedNetworkSuggestionsMap =
+                ArgumentCaptor.forClass(HashMap.class);
+
+        // Old format with empty suggestion
+        String preRFormatXml = String.format(
+                TEST_PRE_R_APP_WITH_EMPTY_SUGGESTION, TEST_PACKAGE_NAME_1, TEST_UID_1);
+        deserializeData(preRFormatXml.getBytes());
+
+        // New format with empty suggestion
+        String postRFormatXml = String.format(
+                TEST_POST_R_APP_WITH_EMPTY_SUGGESTION, TEST_PACKAGE_NAME_1, TEST_UID_1);
+        deserializeData(postRFormatXml.getBytes());
+
+        // Capture the deserialized data.
+        verify(mDataSource, times(2)).fromDeserialized(deserializedNetworkSuggestionsMap.capture());
+        Map<String, PerAppInfo> deserializedPerAppInfoMapPreRFormat =
+                deserializedNetworkSuggestionsMap.getAllValues().get(0);
+        Map<String, PerAppInfo> deserializedPerAppInfoMapPostRFormat =
+                deserializedNetworkSuggestionsMap.getAllValues().get(1);
+        // Verify PerAppInfo is no
+        assertNotNull(deserializedPerAppInfoMapPreRFormat.get(TEST_PACKAGE_NAME_1));
+        assertNotNull(deserializedPerAppInfoMapPostRFormat.get(TEST_PACKAGE_NAME_1));
     }
 
     private Map<String, PerAppInfo> assertSerializeDeserialize(

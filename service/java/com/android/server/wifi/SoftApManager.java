@@ -228,7 +228,7 @@ public class SoftApManager implements ActiveModeManager {
         pw.println("mApConfig.targetMode: " + mApConfig.getTargetMode());
         SoftApConfiguration softApConfig = mApConfig.getSoftApConfiguration();
         pw.println("mApConfig.SoftApConfiguration.SSID: " + softApConfig.getSsid());
-        pw.println("mApConfig.SoftApConfiguration.apBand: " + softApConfig.getBand());
+        pw.println("mApConfig.SoftApConfiguration.mBand: " + softApConfig.getBand());
         pw.println("mApConfig.SoftApConfiguration.hiddenSSID: " + softApConfig.isHiddenSsid());
         pw.println("mConnectedClients.size(): " + mConnectedClients.size());
         pw.println("mTimeoutEnabled: " + mTimeoutEnabled);
@@ -318,7 +318,7 @@ public class SoftApManager implements ActiveModeManager {
                 Log.e(TAG, "Failed to set country code, required for setting up soft ap in 5GHz");
                 return ERROR_GENERIC;
             }
-            // Failure to set country code is not fatal for 2Ghz & Any band options.
+            // Failure to set country code is not fatal for other band options.
         }
         return SUCCESS;
     }
@@ -351,9 +351,11 @@ public class SoftApManager implements ActiveModeManager {
         // Make a copy of configuration for updating AP band and channel.
         SoftApConfiguration.Builder localConfigBuilder = new SoftApConfiguration.Builder(config);
 
+        boolean acsEnabled = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_softap_acs_supported);
         result = ApConfigUtil.updateApChannelConfig(
                 mWifiNative, mCountryCode,
-                mWifiApConfigStore.getAllowed2GChannel(), localConfigBuilder, config);
+                mWifiApConfigStore.getAllowed2GChannel(), localConfigBuilder, config, acsEnabled);
 
         if (result != SUCCESS) {
             Log.e(TAG, "Failed to update AP band and channel");
@@ -737,10 +739,16 @@ public class SoftApManager implements ActiveModeManager {
             private void updateUserBandPreferenceViolationMetricsIfNeeded() {
                 int band = mApConfig.getSoftApConfiguration().getBand();
                 boolean bandPreferenceViolated =
-                        (band == SoftApConfiguration.BAND_2GHZ
-                            && ScanResult.is5GHz(mCurrentSoftApInfo.getFrequency()))
-                        || (band == SoftApConfiguration.BAND_5GHZ
-                            && ScanResult.is24GHz(mCurrentSoftApInfo.getFrequency()));
+                        (ScanResult.is24GHz(mCurrentSoftApInfo.getFrequency())
+                            && !ApConfigUtil.containsBand(band,
+                                    SoftApConfiguration.BAND_2GHZ))
+                        || (ScanResult.is5GHz(mCurrentSoftApInfo.getFrequency())
+                            && !ApConfigUtil.containsBand(band,
+                                    SoftApConfiguration.BAND_5GHZ))
+                        || (ScanResult.is6GHz(mCurrentSoftApInfo.getFrequency())
+                            && !ApConfigUtil.containsBand(band,
+                                    SoftApConfiguration.BAND_6GHZ));
+
                 if (bandPreferenceViolated) {
                     Log.e(TAG, "Channel does not satisfy user band preference: "
                             + mCurrentSoftApInfo.getFrequency());

@@ -34,6 +34,7 @@ import android.Manifest;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.hardware.wifi.V1_0.NanCipherSuiteType;
 import android.net.wifi.aware.Characteristics;
 import android.net.wifi.aware.ConfigRequest;
 import android.net.wifi.aware.IWifiAwareDiscoverySessionCallback;
@@ -617,6 +618,35 @@ public class WifiAwareServiceImplTest extends WifiBaseTest {
         });
     }
 
+    @Test
+    public void testCapabilityTranslation() {
+        final int maxServiceName = 66;
+        final int maxServiceSpecificInfo = 69;
+        final int maxMatchFilter = 55;
+
+        Capabilities cap = new Capabilities();
+        cap.maxConcurrentAwareClusters = 1;
+        cap.maxPublishes = 2;
+        cap.maxSubscribes = 2;
+        cap.maxServiceNameLen = maxServiceName;
+        cap.maxMatchFilterLen = maxMatchFilter;
+        cap.maxTotalMatchFilterLen = 255;
+        cap.maxServiceSpecificInfoLen = maxServiceSpecificInfo;
+        cap.maxExtendedServiceSpecificInfoLen = MAX_LENGTH;
+        cap.maxNdiInterfaces = 1;
+        cap.maxNdpSessions = 1;
+        cap.maxAppInfoLen = 255;
+        cap.maxQueuedTransmitMessages = 6;
+        cap.supportedCipherSuites = NanCipherSuiteType.SHARED_KEY_256_MASK;
+
+        Characteristics characteristics = cap.toPublicCharacteristics();
+        assertEquals(characteristics.getMaxServiceNameLength(), maxServiceName);
+        assertEquals(characteristics.getMaxServiceSpecificInfoLength(), maxServiceSpecificInfo);
+        assertEquals(characteristics.getMaxMatchFilterLength(), maxMatchFilter);
+        assertEquals(characteristics.getSupportedCipherSuites(),
+                Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_SK_256);
+    }
+
     /*
      * Utilities
      */
@@ -695,6 +725,7 @@ public class WifiAwareServiceImplTest extends WifiBaseTest {
         cap.maxNdpSessions = 1;
         cap.maxAppInfoLen = 255;
         cap.maxQueuedTransmitMessages = 6;
+        cap.supportedCipherSuites = NanCipherSuiteType.SHARED_KEY_256_MASK;
         return cap.toPublicCharacteristics();
     }
 

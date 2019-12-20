@@ -19,6 +19,7 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_DPP;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_MBO;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OCE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_WAPI;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
 
@@ -1517,6 +1518,19 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
         }
     }
 
+    private class GetKeyMgmtCapabilities_1_3Answer extends MockAnswerUtil.AnswerWithArguments {
+        private int mKeyMgmtCapabilities;
+
+        GetKeyMgmtCapabilities_1_3Answer(int keyMgmtCapabilities) {
+            mKeyMgmtCapabilities = keyMgmtCapabilities;
+        }
+
+        public void answer(android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface
+                .getKeyMgmtCapabilities_1_3Callback cb) {
+            cb.onValues(mStatusSuccess, mKeyMgmtCapabilities);
+        }
+    }
+
     /**
      * Test get key management capabilities API on old HAL, should return 0 (not supported)
      */
@@ -1620,6 +1634,24 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
                         .getKeyMgmtCapabilitiesCallback.class));
 
         assertEquals(WIFI_FEATURE_DPP, mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
+    }
+
+    /**
+     * Test WAPI key may management support
+     */
+    @Test
+    public void testGetKeyMgmtCapabilitiesWapi() throws Exception {
+        setupMocksForHalV1_3();
+
+        executeAndValidateInitializationSequenceV1_3();
+
+        doAnswer(new GetKeyMgmtCapabilities_1_3Answer(android.hardware.wifi.supplicant.V1_3
+                .ISupplicantStaNetwork.KeyMgmtMask.WAPI_PSK))
+                .when(mISupplicantStaIfaceMockV13).getKeyMgmtCapabilities_1_3(any(
+                android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface
+                        .getKeyMgmtCapabilities_1_3Callback.class));
+
+        assertEquals(WIFI_FEATURE_WAPI, mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
     }
 
     /**

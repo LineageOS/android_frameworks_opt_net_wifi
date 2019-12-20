@@ -99,7 +99,6 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvider;
@@ -342,7 +341,7 @@ public class WifiServiceImpl extends BaseWifiService {
                             }
                         }
                     },
-                    new IntentFilter(TelephonyIntents.ACTION_SIM_STATE_CHANGED));
+                    new IntentFilter(Intent.ACTION_SIM_STATE_CHANGED));
 
             // Adding optimizations of only receiving broadcasts when wifi is enabled
             // can result in race conditions when apps toggle wifi in the background
@@ -364,12 +363,12 @@ public class WifiServiceImpl extends BaseWifiService {
             intentFilter.addAction(Intent.ACTION_USER_REMOVED);
             intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
             intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-            intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
+            intentFilter.addAction(TelephonyManager.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
             intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
             boolean trackEmergencyCallState = mContext.getResources().getBoolean(
                     R.bool.config_wifi_turn_off_during_emergency_call);
             if (trackEmergencyCallState) {
-                intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
+                intentFilter.addAction(TelephonyManager.ACTION_EMERGENCY_CALL_STATE_CHANGED);
             }
             mContext.registerReceiver(mReceiver, intentFilter);
 
@@ -784,6 +783,30 @@ public class WifiServiceImpl extends BaseWifiService {
         }
     }
 
+    private boolean validateSoftApBand(int apBand) {
+        if (!ApConfigUtil.isBandValid(apBand)) {
+            mLog.err("Invalid SoftAp band. ").flush();
+            return false;
+        }
+
+        if (ApConfigUtil.containsBand(apBand, SoftApConfiguration.BAND_5GHZ)
+                && !is5GhzBandSupportedInternal()) {
+            mLog.err("Can not start softAp with 5GHz band, not supported.").flush();
+            return false;
+        }
+
+        if (ApConfigUtil.containsBand(apBand, SoftApConfiguration.BAND_6GHZ)) {
+            if (!is6GhzBandSupportedInternal()
+                    || !mContext.getResources().getBoolean(
+                            R.bool.config_wifiSoftap6ghzSupported)) {
+                mLog.err("Can not start softAp with 6GHz band, not supported.").flush();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * see {@link android.net.wifi.WifiManager#startTetheredHotspot(SoftApConfiguration)}
      * @param softApConfig SSID, security and channel details as part of SoftApConfiguration
@@ -823,7 +846,9 @@ public class WifiServiceImpl extends BaseWifiService {
         // null wifiConfig is a meaningful input for CMD_SET_AP; it means to use the persistent
         // AP config.
         SoftApConfiguration softApConfig = apConfig.getSoftApConfiguration();
-        if (softApConfig != null && !WifiApConfigStore.validateApWifiConfiguration(softApConfig)) {
+        if (softApConfig != null
+                && (!WifiApConfigStore.validateApWifiConfiguration(softApConfig)
+                    || !validateSoftApBand(softApConfig.getBand()))) {
             Log.e(TAG, "Invalid SoftApConfiguration");
             return false;
         }
@@ -1188,8 +1213,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     R.bool.config_wifi_local_only_hotspot_5ghz)
                     && is5GhzBandSupportedInternal();
 
-            int band = is5Ghz ? WifiConfiguration.AP_BAND_5GHZ
-                    : WifiConfiguration.AP_BAND_2GHZ;
+            int band = is5Ghz ? SoftApConfiguration.BAND_5GHZ : SoftApConfiguration.BAND_2GHZ;
 
             SoftApConfiguration softApConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(
                     mContext, band, request.getCustomConfig());
@@ -2408,6 +2432,10 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("is6GHzBandSupported uid=%").c(Binder.getCallingUid()).flush();
         }
 
+        return is6GhzBandSupportedInternal();
+    }
+
+    private boolean is6GhzBandSupportedInternal() {
         return mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport);
     }
 
@@ -2605,11 +2633,11 @@ public class WifiServiceImpl extends BaseWifiService {
                 int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
                         BluetoothAdapter.STATE_OFF);
                 mClientModeImpl.sendBluetoothAdapterStateChange(state);
-            } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
+            } else if (action.equals(TelephonyManager.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
                 boolean emergencyMode =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_ECM_STATE, false);
                 mActiveModeWarden.emergencyCallbackModeChanged(emergencyMode);
-            } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
+            } else if (action.equals(TelephonyManager.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
                 boolean inCall =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
                 mActiveModeWarden.emergencyCallStateChanged(inCall);

@@ -21,6 +21,8 @@ import android.net.wifi.WifiConfiguration;
 import android.util.BackupUtils;
 import android.util.Log;
 
+import com.android.server.wifi.util.ApConfigUtil;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -98,8 +100,20 @@ public class SoftApBackupRestore {
             if (version == 1) return null; // Version 1 is a bad dataset.
 
             configBuilder.setSsid(BackupUtils.readString(in));
-            configBuilder.setBand(in.readInt());
-            configBuilder.setChannel(in.readInt());
+
+            int band;
+            if (version < 4) {
+                band = ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(in.readInt());
+            } else {
+                band = in.readInt();
+            }
+            int channel = in.readInt();
+
+            if (channel == 0) {
+                configBuilder.setBand(band);
+            } else {
+                configBuilder.setChannel(channel, band);
+            }
             String wpa2Passphrase = BackupUtils.readString(in);
             int securityType = in.readInt();
             if ((version < 4 && securityType == WifiConfiguration.KeyMgmt.WPA2_PSK) || (
@@ -114,6 +128,9 @@ public class SoftApBackupRestore {
             return null;
         } catch (BackupUtils.BadVersionException badVersion) {
             Log.e(TAG, "Invalid backup data received, BadVersionException: " + badVersion);
+            return null;
+        } catch (IllegalArgumentException ie) {
+            Log.e(TAG, "Invalid backup data received, IllegalArgumentException " + ie);
             return null;
         }
         return configBuilder.build();

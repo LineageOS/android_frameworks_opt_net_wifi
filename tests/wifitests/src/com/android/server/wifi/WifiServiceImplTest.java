@@ -1289,6 +1289,112 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verify attempt to start softAp with a supported 5GHz band succeeds.
+     */
+    @Test
+    public void testStartTetheredHotspotWithSupported5gBand() {
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifi5ghzSupport)))
+                .thenReturn(true);
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setSsid("TestAp")
+                .setWpa2Passphrase("thisIsABadPassword")
+                .setBand(SoftApConfiguration.BAND_5GHZ)
+                .build();
+
+        boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+        assertTrue(result);
+        verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
+        assertThat(config).isEqualTo(mSoftApModeConfigCaptor.getValue().getSoftApConfiguration());
+    }
+
+    /**
+     * Verify attempt to start softAp with a non-supported 5GHz band fails.
+     */
+    @Test
+    public void testStartTetheredHotspotWithUnSupported5gBand() {
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifi5ghzSupport)))
+                .thenReturn(false);
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setSsid("TestAp")
+                .setWpa2Passphrase("thisIsABadPassword")
+                .setBand(SoftApConfiguration.BAND_5GHZ)
+                .build();
+
+        boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+        assertFalse(result);
+        verifyZeroInteractions(mActiveModeWarden);
+    }
+
+    /**
+     * Verify attempt to start softAp with a supported 6GHz band succeeds.
+     */
+    @Test
+    public void testStartTetheredHotspotWithSupported6gBand() {
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifi6ghzSupport)))
+                .thenReturn(true);
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifiSoftap6ghzSupported)))
+                .thenReturn(true);
+
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setSsid("TestAp")
+                .setWpa2Passphrase("thisIsABadPassword")
+                .setBand(SoftApConfiguration.BAND_6GHZ)
+                .build();
+
+        boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+        assertTrue(result);
+        verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
+        assertThat(config).isEqualTo(mSoftApModeConfigCaptor.getValue().getSoftApConfiguration());
+    }
+
+    /**
+     * Verify attempt to start softAp with a non-supported 6GHz band fails.
+     */
+    @Test
+    public void testStartTetheredHotspotWithUnSupported6gBand() {
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifi6ghzSupport)))
+                .thenReturn(true);
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifiSoftap6ghzSupported)))
+                .thenReturn(false);
+
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setSsid("TestAp")
+                .setWpa2Passphrase("thisIsABadPassword")
+                .setBand(SoftApConfiguration.BAND_6GHZ)
+                .build();
+
+        boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+        assertFalse(result);
+        verifyZeroInteractions(mActiveModeWarden);
+    }
+
+    /**
+     * Verify attempt to start softAp with a supported band succeeds.
+     */
+    @Test
+    public void testStartTetheredHotspotWithSupportedBand() {
+        when(mResources.getBoolean(
+                eq(R.bool.config_wifi5ghzSupport)))
+                .thenReturn(true);
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setSsid("TestAp")
+                .setWpa2Passphrase("thisIsABadPassword")
+                .setBand(SoftApConfiguration.BAND_5GHZ)
+                .build();
+
+        boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+        assertTrue(result);
+        verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
+        assertThat(config).isEqualTo(mSoftApModeConfigCaptor.getValue().getSoftApConfiguration());
+    }
+
+    /**
      * Verify a SecurityException is thrown when a caller without the correct permission attempts to
      * start softap.
      */

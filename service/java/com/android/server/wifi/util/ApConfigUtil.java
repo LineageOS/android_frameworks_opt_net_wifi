@@ -19,6 +19,7 @@ package com.android.server.wifi.util;
 import android.annotation.NonNull;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.SoftApConfiguration.BandType;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.util.Log;
@@ -46,6 +47,41 @@ public class ApConfigUtil {
     private static final Random sRandom = new Random();
 
     /**
+     * Convert channel/band to frequency.
+     * Note: the utility does not perform any regulatory domain compliance.
+     * @param channel number to convert
+     * @param band of channel to convert
+     * @return center frequency in Mhz of the channel, -1 if no match
+     */
+    public static int convertChannelToFrequency(int channel, int band) {
+        if (band == SoftApConfiguration.BAND_2GHZ) {
+            if (channel == 14) {
+                return 2484;
+            } else if (channel >= 1 && channel <= 14) {
+                return ((channel - 1) * 5) + 2412;
+            } else {
+                return -1;
+            }
+        }
+        if (band == SoftApConfiguration.BAND_5GHZ) {
+            if (channel >= 34 && channel <= 173) {
+                return ((channel - 34) * 5) + 5170;
+            } else {
+                return -1;
+            }
+        }
+        if (band == SoftApConfiguration.BAND_6GHZ) {
+            if (channel >= 1 && channel <= 254) {
+                return (channel * 5) + 5940;
+            } else {
+                return -1;
+            }
+        }
+
+        return -1;
+    }
+
+    /**
      * Convert frequency to channel.
      * Note: the utility does not perform any regulatory domain compliance.
      * @param frequency frequency to convert
@@ -59,52 +95,144 @@ public class ApConfigUtil {
         } else if (frequency >= 5170  &&  frequency <= 5865) {
             /* DFS is included. */
             return (frequency - 5170) / 5 + 34;
+        } else if (frequency > 5940  && frequency < 7210) {
+            return ((frequency - 5940) / 5);
         }
 
         return -1;
     }
 
     /**
+     * Convert frequency to band.
+     * Note: the utility does not perform any regulatory domain compliance.
+     * @param frequency frequency to convert
+     * @return band, -1 if no match
+     */
+    public static int convertFrequencyToBand(int frequency) {
+        if (frequency >= 2412 && frequency <= 2484) {
+            return SoftApConfiguration.BAND_2GHZ;
+        } else if (frequency >= 5170  &&  frequency <= 5865) {
+            return SoftApConfiguration.BAND_5GHZ;
+        } else if (frequency > 5940  && frequency < 7210) {
+            return SoftApConfiguration.BAND_6GHZ;
+        }
+
+        return -1;
+    }
+
+    /**
+     * Convert band from WifiConfiguration into SoftApConfiguration
+     *
+     * @param wifiConfigBand band encoded as WifiConfiguration.AP_BAND_xxxx
+     * @return band as encoded as SoftApConfiguration.BAND_xxx
+     */
+    public static int convertWifiConfigBandToSoftApConfigBand(int wifiConfigBand) {
+        switch (wifiConfigBand) {
+            case WifiConfiguration.AP_BAND_2GHZ:
+                return SoftApConfiguration.BAND_2GHZ;
+            case WifiConfiguration.AP_BAND_5GHZ:
+                return SoftApConfiguration.BAND_5GHZ;
+            case WifiConfiguration.AP_BAND_ANY:
+                return SoftApConfiguration.BAND_2GHZ | SoftApConfiguration.BAND_5GHZ;
+            default:
+                return -1;
+        }
+    }
+
+    /**
+     * Checks if band is a valid combination of {link  SoftApConfiguration#BandType} values
+     */
+    public static boolean isBandValid(@BandType int band) {
+        return ((band != 0) && ((band & ~SoftApConfiguration.BAND_ANY) == 0));
+    }
+
+    /**
+     * Check if the band contains a certain sub-band
+     *
+     * @param band The combination of bands to validate
+     * @param testBand the test band to validate on
+     * @return true if band contains testBand, false otherwise
+     */
+    public static boolean containsBand(@BandType int band, @BandType int testBand) {
+        return ((band & testBand) != 0);
+    }
+
+    /**
+     * Checks if band contains multiple sub-bands
+     * @param band a combination of sub-bands
+     * @return true if band has multiple sub-bands, false otherwise
+     */
+    public static boolean isMultiband(@BandType int band) {
+        return ((band & (band - 1)) != 0);
+    }
+
+    /**
      * Return a channel number for AP setup based on the frequency band.
-     * @param apBand one of the value of SoftApConfiguration.BAND_*.
+     * @param apBand one or combination of the values of SoftApConfiguration.BAND_*.
      * @param allowed2GChannels list of allowed 2GHz channels
      * @param allowed5GFreqList list of allowed 5GHz frequencies
-     * @return a valid channel number on success, -1 on failure.
+     * @param allowed6GFreqList list of allowed 6GHz frequencies
+     * @return a valid channel frequency on success, -1 on failure.
      */
     public static int chooseApChannel(int apBand,
                                       ArrayList<Integer> allowed2GChannels,
-                                      int[] allowed5GFreqList) {
-        if (apBand != SoftApConfiguration.BAND_2GHZ
-                && apBand != SoftApConfiguration.BAND_5GHZ
-                        && apBand != SoftApConfiguration.BAND_ANY) {
+                                      int[] allowed5GFreqList,
+                                      int[] allowed6GFreqList) {
+        if (!isBandValid(apBand)) {
             Log.e(TAG, "Invalid band: " + apBand);
             return -1;
         }
 
-        // TODO(b/72120668): Create channel selection logic for AP_BAND_ANY.
-        if (apBand == SoftApConfiguration.BAND_2GHZ
-                || apBand == SoftApConfiguration.BAND_ANY)  {
-            /* Select a channel from 2GHz band. */
-            if (allowed2GChannels == null || allowed2GChannels.size() == 0) {
-                Log.d(TAG, "2GHz allowed channel list not specified");
+        int totalChannelCount = 0;
+        int size2gList = (allowed2GChannels != null) ? allowed2GChannels.size() : 0;
+        int size5gList = (allowed5GFreqList != null) ? allowed5GFreqList.length : 0;
+        int size6gList = (allowed6GFreqList != null) ? allowed6GFreqList.length : 0;
+
+        if ((apBand & SoftApConfiguration.BAND_2GHZ) != 0) {
+            totalChannelCount += size2gList;
+        }
+        if ((apBand & SoftApConfiguration.BAND_5GHZ) != 0) {
+            totalChannelCount += size5gList;
+        }
+        if ((apBand & SoftApConfiguration.BAND_6GHZ) != 0) {
+            totalChannelCount += size6gList;
+        }
+
+        if (totalChannelCount == 0) {
+            // If the default AP band is allowed, just use the default channel
+            if (containsBand(apBand, DEFAULT_AP_BAND)) {
+                Log.d(TAG, "Allowed channel list not specified, selecting default channel");
                 /* Use default channel. */
-                return DEFAULT_AP_CHANNEL;
+                return convertChannelToFrequency(DEFAULT_AP_CHANNEL,
+                        DEFAULT_AP_BAND);
+            } else {
+                Log.e(TAG, "No available channels");
+                return -1;
             }
-
-            /* Pick a random channel. */
-            int index = sRandom.nextInt(allowed2GChannels.size());
-            return allowed2GChannels.get(index).intValue();
         }
 
-        /* 5G without DFS. */
-        if (allowed5GFreqList != null && allowed5GFreqList.length > 0) {
-            /* Pick a random channel from the list of supported channels. */
-            return convertFrequencyToChannel(
-                    allowed5GFreqList[sRandom.nextInt(allowed5GFreqList.length)]);
+        // Pick a channel
+        int selectedChannelIndex = sRandom.nextInt(totalChannelCount);
+
+        if ((apBand & SoftApConfiguration.BAND_2GHZ) != 0) {
+            if (selectedChannelIndex < size2gList) {
+                return convertChannelToFrequency(
+                    allowed2GChannels.get(selectedChannelIndex).intValue(),
+                    SoftApConfiguration.BAND_2GHZ);
+            } else {
+                selectedChannelIndex -= size2gList;
+            }
         }
 
-        Log.e(TAG, "No available channels on 5GHz band");
-        return -1;
+        if ((apBand & SoftApConfiguration.BAND_5GHZ) != 0) {
+            if (selectedChannelIndex < size5gList) {
+                return allowed5GFreqList[selectedChannelIndex];
+            } else {
+                selectedChannelIndex -= size5gList;
+            }
+        }
+
+        return allowed6GFreqList[selectedChannelIndex];
     }
 
     /**
@@ -120,11 +248,11 @@ public class ApConfigUtil {
                                             String countryCode,
                                             ArrayList<Integer> allowed2GChannels,
                                             SoftApConfiguration.Builder configBuilder,
-                                            SoftApConfiguration config) {
+                                            SoftApConfiguration config,
+                                            boolean acsEnabled) {
         /* Use default band and channel for device without HAL. */
         if (!wifiNative.isHalStarted()) {
-            configBuilder.setBand(DEFAULT_AP_BAND);
-            configBuilder.setChannel(DEFAULT_AP_CHANNEL);
+            configBuilder.setChannel(DEFAULT_AP_CHANNEL, DEFAULT_AP_BAND);
             return SUCCESS;
         }
 
@@ -135,16 +263,18 @@ public class ApConfigUtil {
             return ERROR_GENERIC;
         }
 
-        /* Select a channel if it is not specified. */
-        if (config.getChannel() == 0) {
-            int channel = chooseApChannel(config.getBand(), allowed2GChannels,
-                    wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ));
-            if (channel == -1) {
+        /* Select a channel if it is not specified and ACS is not enabled */
+        if ((config.getChannel() == 0) && !acsEnabled) {
+            int freq = chooseApChannel(config.getBand(), allowed2GChannels,
+                    wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ),
+                    wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ));
+            if (freq == -1) {
                 /* We're not able to get channel from wificond. */
                 Log.e(TAG, "Failed to get available channel.");
                 return ERROR_NO_CHANNEL;
             }
-            configBuilder.setChannel(channel);
+            configBuilder.setChannel(
+                    convertFrequencyToChannel(freq), convertFrequencyToBand(freq));
         }
 
         return SUCCESS;
@@ -152,6 +282,8 @@ public class ApConfigUtil {
 
     /**
      * Helper function for converting SoftapConfiguration to WifiConfiguration.
+     * Note that WifiConfiguration only Supports 2GHz, 5GHz, 2GHz+5GHz bands,
+     * so conversion is limited to these bands.
      */
     @NonNull
     public static WifiConfiguration convertToWifiConfiguration(
@@ -194,6 +326,8 @@ public class ApConfigUtil {
      * Helper function for converting WifiConfiguration to SoftApConfiguration.
      *
      * Only Support None and WPA2 configuration conversion.
+     * Note that WifiConfiguration only Supports 2GHz, 5GHz, 2GHz+5GHz bands,
+     * so conversion is limited to these bands.
      */
     @NonNull
     public static SoftApConfiguration fromWifiConfiguration(
@@ -207,18 +341,25 @@ public class ApConfigUtil {
             configBuilder.setWpa2Passphrase(wifiConfig.preSharedKey);
         }
         configBuilder.setHiddenSsid(wifiConfig.hiddenSSID);
+
+        int band;
         switch (wifiConfig.apBand) {
             case WifiConfiguration.AP_BAND_2GHZ:
-                configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+                band = SoftApConfiguration.BAND_2GHZ;
                 break;
             case WifiConfiguration.AP_BAND_5GHZ:
-                configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
+                band = SoftApConfiguration.BAND_5GHZ;
                 break;
             default:
-                configBuilder.setBand(SoftApConfiguration.BAND_ANY);
+                // WifiConfiguration.AP_BAND_ANY means only 2GHz and 5GHz bands
+                band = SoftApConfiguration.BAND_2GHZ | SoftApConfiguration.BAND_5GHZ;
                 break;
         }
-        configBuilder.setChannel(wifiConfig.apChannel);
+        if (wifiConfig.apChannel == 0) {
+            configBuilder.setBand(band);
+        } else {
+            configBuilder.setChannel(wifiConfig.apChannel, band);
+        }
         return configBuilder.build();
     }
 }
