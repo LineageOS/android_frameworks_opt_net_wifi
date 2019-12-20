@@ -380,7 +380,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
             }
 
             @Override
-            public void onFailure(int status) throws RemoteException {
+            public void onFailure(int status, String ssid, String channelList, int[] bandList)
+                    throws RemoteException {
 
             }
 

@@ -20,6 +20,7 @@ import android.content.Context;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.hardware.wifi.supplicant.V1_2.DppAkm;
 import android.hardware.wifi.supplicant.V1_2.DppFailureCode;
+import android.hardware.wifi.supplicant.V1_3.DppSuccessCode;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiSsid;
 import android.os.Process;
@@ -195,7 +196,7 @@ abstract class SupplicantStaIfaceCallbackV1_2Impl extends
     @Override
     public void onDppSuccessConfigSent() {
         if (mStaIfaceHal.getDppCallback() != null) {
-            mStaIfaceHal.getDppCallback().onSuccessConfigSent();
+            mStaIfaceHal.getDppCallback().onSuccess(DppSuccessCode.CONFIGURATION_SENT);
         } else {
             Log.e(TAG, "onSuccessConfigSent callback is null");
         }
@@ -213,7 +214,7 @@ abstract class SupplicantStaIfaceCallbackV1_2Impl extends
     @Override
     public void onDppFailure(int code) {
         if (mStaIfaceHal.getDppCallback() != null) {
-            mStaIfaceHal.getDppCallback().onFailure(code);
+            mStaIfaceHal.getDppCallback().onFailure(code, null, null, null);
         } else {
             Log.e(TAG, "onDppFailure callback is null");
         }
