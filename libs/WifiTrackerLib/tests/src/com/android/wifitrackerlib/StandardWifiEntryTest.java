@@ -19,7 +19,6 @@ package com.android.wifitrackerlib;
 import static com.android.wifitrackerlib.TestUtils.buildScanResult;
 import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_CONNECTED;
 import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_DISCONNECTED;
-import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_MAX;
 import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_UNREACHABLE;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -316,12 +315,12 @@ public class StandardWifiEntryTest {
         final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config,
                 mMockWifiManager);
         when(mMockWifiInfo.getNetworkId()).thenReturn(1);
-        when(mMockWifiInfo.getRssi()).thenReturn(-50);
+        when(mMockWifiInfo.getRssi()).thenReturn(GOOD_RSSI);
         when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
 
         entry.updateConnectionInfo(mMockWifiInfo, mMockNetworkInfo);
 
-        assertThat(entry.getLevel()).isEqualTo(WIFI_LEVEL_MAX);
+        assertThat(entry.getLevel()).isEqualTo(GOOD_LEVEL);
         assertThat(entry.getConnectedState()).isEqualTo(CONNECTED_STATE_CONNECTED);
     }
 

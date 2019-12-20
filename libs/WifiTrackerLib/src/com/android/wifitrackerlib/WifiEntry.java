@@ -165,6 +165,11 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
      */
     public abstract int getLevel();
 
+    /**
+     * Returns the SSID of the entry, if applicable. Null otherwise.
+     */
+    public abstract String getSsid();
+
     /** Returns the security type defined by the SECURITY constants */
     @Security
     public abstract int getSecurity();
@@ -182,6 +187,11 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
      * subscription.
      */
     public abstract boolean isSaved();
+
+    /**
+     * Indicates whether or not an entry is for a subscription.
+     */
+    public abstract boolean isSubscription();
 
     /**
      * Returns the WifiConfiguration of an entry or null if unavailable. This should be used when
