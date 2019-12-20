@@ -30,8 +30,8 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.database.ContentObserver;
-import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiInfo;
+import android.net.wifi.wificond.WifiCondManager;
 import android.os.Handler;
 import android.os.test.TestLooper;
 import android.provider.Settings;

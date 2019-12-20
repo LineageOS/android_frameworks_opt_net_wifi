@@ -32,7 +32,7 @@ import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.Builder;
-import android.net.wifi.WifiCondManager;
+import android.net.wifi.wificond.WifiCondManager;
 import android.os.Handler;
 import android.os.IHwBinder;
 import android.os.RemoteException;
@@ -65,7 +65,7 @@ public class HostapdHalTest extends WifiBaseTest {
     private @Mock IServiceManager mServiceManagerMock;
     private @Mock IHostapd mIHostapdMock;
     private @Mock WifiNative.HostapdDeathEventHandler mHostapdHalDeathHandler;
-    private @Mock WifiCondManager.SoftApListener mSoftApListener;
+    private @Mock WifiCondManager.SoftApCallback mSoftApListener;
     private android.hardware.wifi.hostapd.V1_1.IHostapd mIHostapdMockV11;
     private android.hardware.wifi.hostapd.V1_2.IHostapd mIHostapdMockV12;
     private IHostapdCallback mIHostapdCallback;

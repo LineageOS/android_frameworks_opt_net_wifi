@@ -63,7 +63,6 @@ import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
-import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
@@ -73,6 +72,7 @@ import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.net.wifi.wificond.WifiCondManager;
 import android.os.BatteryStatsManager;
 import android.os.Bundle;
 import android.os.ConditionVariable;
@@ -2253,10 +2253,10 @@ public class ClientModeImpl extends StateMachine {
             return;
         }
 
-        int newRssi = pollResult.currentRssi;
-        int newTxLinkSpeed = pollResult.txBitrate;
-        int newFrequency = pollResult.associationFrequency;
-        int newRxLinkSpeed = pollResult.rxBitrate;
+        int newRssi = pollResult.currentRssiDbm;
+        int newTxLinkSpeed = pollResult.txBitrateMbps;
+        int newFrequency = pollResult.associationFrequencyMHz;
+        int newRxLinkSpeed = pollResult.rxBitrateMbps;
 
         if (mVerboseLoggingEnabled) {
             logd("fetchRssiLinkSpeedAndFrequencyNative rssi=" + newRssi
@@ -4507,8 +4507,8 @@ public class ClientModeImpl extends StateMachine {
                     WifiCondManager.TxPacketCounters counters =
                             mWifiNative.getTxPacketCounters(mInterfaceName);
                     if (counters != null) {
-                        sendTxPacketCountListenerSuccess(
-                                callbackIdentifier, counters.txSucceeded + counters.txFailed);
+                        sendTxPacketCountListenerSuccess(callbackIdentifier,
+                                counters.txPacketSucceeded + counters.txPacketFailed);
                     } else {
                         sendTxPacketCountListenerSuccess(callbackIdentifier, WifiManager.ERROR);
                     }
