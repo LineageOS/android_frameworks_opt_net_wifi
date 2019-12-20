@@ -140,6 +140,9 @@
           <item type="string" name="wifi_disable_mac_randomization_dialog_success" />
           <item type="string" name="wifi_disable_mac_randomization_dialog_failure" />
           <item type="string" name="wifi_disable_mac_randomization_dialog_network_not_found" />
+          <item type="string" name="notification_channel_network_status" />
+          <item type="string" name="notification_channel_network_alerts" />
+          <item type="string" name="notification_channel_network_available" />
           <!-- Params from strings.xml that can be overlayed -->
 
           <!-- Params from styles.xml that can be overlayed -->
