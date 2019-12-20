@@ -352,19 +352,21 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean isAutoJoinEnabled() {
-        // TODO(b/70983952): Fill this method in
-        return true;
+        if (mWifiConfig == null) {
+            return false;
+        }
+
+        return mWifiConfig.allowAutojoin;
     }
 
     @Override
     public boolean canSetAutoJoinEnabled() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
     public void setAutoJoinEnabled(boolean enabled) {
-        // TODO(b/70983952): Fill this method in
+        mWifiManager.allowAutojoin(mWifiConfig.networkId, enabled);
     }
 
     @WorkerThread
