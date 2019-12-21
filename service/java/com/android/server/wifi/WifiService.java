@@ -85,21 +85,21 @@ public final class WifiService extends SystemService {
         final NotificationChannel networkStatusChannel = new NotificationChannel(
                 NOTIFICATION_NETWORK_STATUS,
                 ctx.getResources().getString(
-                        android.R.string.notification_channel_network_status),
+                        com.android.wifi.resources.R.string.notification_channel_network_status),
                 NotificationManager.IMPORTANCE_LOW);
         channelsList.add(networkStatusChannel);
 
         final NotificationChannel networkAlertsChannel = new NotificationChannel(
                 NOTIFICATION_NETWORK_ALERTS,
                 ctx.getResources().getString(
-                        android.R.string.notification_channel_network_alerts),
+                        com.android.wifi.resources.R.string.notification_channel_network_alerts),
                 NotificationManager.IMPORTANCE_HIGH);
         channelsList.add(networkAlertsChannel);
 
         final NotificationChannel networkAvailable = new NotificationChannel(
                 NOTIFICATION_NETWORK_AVAILABLE,
                 ctx.getResources().getString(
-                        android.R.string.notification_channel_network_available),
+                        com.android.wifi.resources.R.string.notification_channel_network_available),
                 NotificationManager.IMPORTANCE_LOW);
         channelsList.add(networkAvailable);
 
