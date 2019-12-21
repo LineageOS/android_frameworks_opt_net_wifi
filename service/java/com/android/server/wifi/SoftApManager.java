@@ -25,10 +25,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.ContentObserver;
 import android.net.MacAddress;
-import android.net.wifi.IApInterfaceEventCallback;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApInfo;
+import android.net.wifi.WifiAnnotations;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
 import android.net.wifi.wificond.NativeWifiClient;
@@ -133,7 +133,8 @@ public class SoftApManager implements ActiveModeManager {
         }
 
         @Override
-        public void onSoftApChannelSwitched(int frequency, int bandwidth) {
+        public void onSoftApChannelSwitched(int frequency,
+                @WifiAnnotations.Bandwidth int bandwidth) {
             mStateMachine.sendMessage(
                     SoftApStateMachine.CMD_SOFT_AP_CHANNEL_SWITCHED, frequency, bandwidth);
         }
@@ -550,7 +551,7 @@ public class SoftApManager implements ActiveModeManager {
 
             /**
              * Set stations associated with this soft AP
-             * @param clients The connected stations
+             * @param client The connected station
              */
             private void updateConnectedClients(WifiClient client, boolean isConnected) {
                 if (client == null) {
@@ -605,37 +606,9 @@ public class SoftApManager implements ActiveModeManager {
                 return clients;
             }
 
-            private void setSoftApChannel(int freq, int bandwidth) {
-                int apBandwidth;
-
+            private void setSoftApChannel(int freq, @WifiAnnotations.Bandwidth int apBandwidth) {
                 Log.d(TAG, "Channel switched. Frequency: " + freq
-                        + " Bandwidth: " + bandwidth);
-                switch(bandwidth) {
-                    case IApInterfaceEventCallback.BANDWIDTH_INVALID:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_INVALID;
-                        break;
-                    case IApInterfaceEventCallback.BANDWIDTH_20_NOHT:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
-                        break;
-                    case IApInterfaceEventCallback.BANDWIDTH_20:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_20MHZ;
-                        break;
-                    case IApInterfaceEventCallback.BANDWIDTH_40:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_40MHZ;
-                        break;
-                    case IApInterfaceEventCallback.BANDWIDTH_80:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_80MHZ;
-                        break;
-                    case IApInterfaceEventCallback.BANDWIDTH_80P80:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_80MHZ_PLUS_MHZ;
-                        break;
-                    case IApInterfaceEventCallback.BANDWIDTH_160:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_160MHZ;
-                        break;
-                    default:
-                        apBandwidth = SoftApInfo.CHANNEL_WIDTH_INVALID;
-                        break;
-                }
+                        + " Bandwidth: " + apBandwidth);
 
                 if (freq == mCurrentSoftApInfo.getFrequency()
                         && apBandwidth == mCurrentSoftApInfo.getBandwidth()) {

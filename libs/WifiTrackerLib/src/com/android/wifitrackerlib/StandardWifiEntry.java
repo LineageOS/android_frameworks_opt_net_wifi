@@ -154,6 +154,11 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
+    public String getSsid() {
+        return mSsid;
+    }
+
+    @Override
     @Security
     public int getSecurity() {
         // TODO(b/70983952): Fill this method in
@@ -175,6 +180,11 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     public boolean isSaved() {
         return mWifiConfig != null;
+    }
+
+    @Override
+    public boolean isSubscription() {
+        return false;
     }
 
     @Override

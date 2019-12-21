@@ -80,7 +80,7 @@ public class ConnectionFailureNotificationBuilder {
 
         return mFrameworkFacade.makeNotificationBuilder(
                 mContext, WifiService.NOTIFICATION_NETWORK_ALERTS)
-                .setSmallIcon(android.R.drawable.stat_notify_wifi_in_range)
+                .setSmallIcon(com.android.wifi.resources.R.drawable.stat_notify_wifi_in_range)
                 .setTicker(title)
                 .setContentTitle(title)
                 .setContentText(content)

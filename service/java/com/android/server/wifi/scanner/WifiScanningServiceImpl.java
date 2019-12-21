@@ -2112,12 +2112,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             nativePnoSetting.min5GHzRssi = pnoSettings.min5GHzRssi;
             nativePnoSetting.min24GHzRssi = pnoSettings.min24GHzRssi;
             nativePnoSetting.min6GHzRssi = pnoSettings.min6GHzRssi;
-            nativePnoSetting.initialScoreMax = pnoSettings.initialScoreMax;
-            nativePnoSetting.currentConnectionBonus = pnoSettings.currentConnectionBonus;
-            nativePnoSetting.sameNetworkBonus = pnoSettings.sameNetworkBonus;
-            nativePnoSetting.secureBonus = pnoSettings.secureBonus;
-            nativePnoSetting.band5GHzBonus = pnoSettings.band5GHzBonus;
-            nativePnoSetting.band6GHzBonus = pnoSettings.band6GHzBonus;
             nativePnoSetting.isConnected = pnoSettings.isConnected;
             nativePnoSetting.networkList =
                     new WifiNative.PnoNetwork[pnoSettings.networkList.length];
@@ -2647,12 +2641,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
           .append(" min5GhzRssi:").append(pnoSettings.min5GHzRssi)
           .append(" min24GhzRssi:").append(pnoSettings.min24GHzRssi)
           .append(" min6GhzRssi:").append(pnoSettings.min6GHzRssi)
-          .append(" initialScoreMax:").append(pnoSettings.initialScoreMax)
-          .append(" currentConnectionBonus:").append(pnoSettings.currentConnectionBonus)
-          .append(" sameNetworkBonus:").append(pnoSettings.sameNetworkBonus)
-          .append(" secureBonus:").append(pnoSettings.secureBonus)
-          .append(" band5GhzBonus:").append(pnoSettings.band5GHzBonus)
-          .append(" band6GhzBonus:").append(pnoSettings.band6GHzBonus)
           .append(" isConnected:").append(pnoSettings.isConnected)
           .append(" networks:[ ");
         if (pnoSettings.networkList != null) {

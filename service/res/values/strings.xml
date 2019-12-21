@@ -43,6 +43,13 @@
     <!-- Notification action name for opening the wifi picker, showing the user all the nearby networks. -->
     <string name="wifi_available_action_all_networks">All networks</string>
 
+    <!-- Text shown when viewing channel settings for notifications related to network status -->
+    <string name="notification_channel_network_status">Network status</string>
+    <!-- Text shown when viewing channel settings for notifications related to network alerts -->
+    <string name="notification_channel_network_alerts">Network alerts</string>
+    <!-- Text shown when viewing the channel settings for notification about open nearby wireless networks. -->
+    <string name="notification_channel_network_available">Network available</string>
+
     <!-- Notification title for a connection to a app suggested wireless network.-->
     <string name="wifi_suggestion_title">Allow suggested Wi\u2011Fi networks?</string>
     <!-- Notification content for a connection to a app suggested wireless network.-->

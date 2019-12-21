@@ -2273,12 +2273,6 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         nativePnoSettings.min5GHzRssi = requestPnoSettings.min5GHzRssi;
         nativePnoSettings.min24GHzRssi = requestPnoSettings.min24GHzRssi;
         nativePnoSettings.min6GHzRssi = requestPnoSettings.min6GHzRssi;
-        nativePnoSettings.initialScoreMax = requestPnoSettings.initialScoreMax;
-        nativePnoSettings.currentConnectionBonus = requestPnoSettings.currentConnectionBonus;
-        nativePnoSettings.sameNetworkBonus = requestPnoSettings.sameNetworkBonus;
-        nativePnoSettings.secureBonus = requestPnoSettings.secureBonus;
-        nativePnoSettings.band5GHzBonus = requestPnoSettings.band5GHzBonus;
-        nativePnoSettings.band6GHzBonus = requestPnoSettings.band6GHzBonus;
         nativePnoSettings.isConnected = requestPnoSettings.isConnected;
         nativePnoSettings.networkList =
                 new WifiNative.PnoNetwork[requestPnoSettings.networkList.length];

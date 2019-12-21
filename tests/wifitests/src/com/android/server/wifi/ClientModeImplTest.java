@@ -51,7 +51,6 @@ import android.net.ip.IpClientCallbacks;
 import android.net.wifi.IActionListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
-import android.net.wifi.WifiCondManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
@@ -62,6 +61,7 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.net.wifi.wificond.WifiCondManager;
 import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
@@ -2560,11 +2560,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         WifiLinkLayerStats llStats = new WifiLinkLayerStats();
         llStats.txmpdu_be = 1000;
         llStats.rxmpdu_bk = 2000;
-        WifiCondManager.SignalPollResult signalPollResult = new WifiCondManager.SignalPollResult();
-        signalPollResult.currentRssi = -42;
-        signalPollResult.txBitrate = 65;
-        signalPollResult.associationFrequency = sFreq;
-        signalPollResult.rxBitrate = 54;
+        WifiCondManager.SignalPollResult signalPollResult = new WifiCondManager.SignalPollResult(
+                -42, 65, 54, sFreq);
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(llStats);
         when(mWifiNative.signalPoll(any())).thenReturn(signalPollResult);
         when(mClock.getWallClockMillis()).thenReturn(startMillis + 0);
@@ -2576,10 +2573,10 @@ public class ClientModeImplTest extends WifiBaseTest {
         WifiInfo wifiInfo = mCmi.getWifiInfo();
         assertEquals(llStats.txmpdu_be, wifiInfo.txSuccess);
         assertEquals(llStats.rxmpdu_bk, wifiInfo.rxSuccess);
-        assertEquals(signalPollResult.currentRssi, wifiInfo.getRssi());
-        assertEquals(signalPollResult.txBitrate, wifiInfo.getLinkSpeed());
-        assertEquals(signalPollResult.txBitrate, wifiInfo.getTxLinkSpeedMbps());
-        assertEquals(signalPollResult.rxBitrate, wifiInfo.getRxLinkSpeedMbps());
+        assertEquals(signalPollResult.currentRssiDbm, wifiInfo.getRssi());
+        assertEquals(signalPollResult.txBitrateMbps, wifiInfo.getLinkSpeed());
+        assertEquals(signalPollResult.txBitrateMbps, wifiInfo.getTxLinkSpeedMbps());
+        assertEquals(signalPollResult.rxBitrateMbps, wifiInfo.getRxLinkSpeedMbps());
         assertEquals(sFreq, wifiInfo.getFrequency());
         verify(mWifiScoreCard).noteSignalPoll(any());
     }
