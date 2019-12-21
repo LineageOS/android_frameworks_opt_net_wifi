@@ -131,7 +131,21 @@
     <integer translatable="false" name="config_wifi_hardware_soft_ap_max_client_count">16</integer>
 
     <string  translatable="false" name="config_wifi_random_mac_oui">DA-A1-19</string>
-    <string  translatable="false" name="config_wifi_framework_sap_2G_channel_list">1,6,11</string>
+
+    <!-- List of allowed channels in 2GHz band for softap. If the device doesn't want to restrict
+         channels this should be empty. Values is a comma separated channel string and/or channel
+         range string like '1-6,11'. -->
+    <string  translatable="false" name="config_wifiSoftap2gChannelList">1,6,11</string>
+
+    <!-- List of allowed channels in 5GHz band for softap. If the device doesn't want to restrict
+         channels this should be empty. Values is a comma separated channel string and/or channel
+         range string like '36-48,149'. -->
+    <string  translatable="false" name="config_wifiSoftap5gChannelList"></string>
+
+    <!-- List of allowed channels in 6GHz band for softap. If the device doesn't want to restrict
+         channels this should be empty. Values is a comma separated channel string and/or channel
+         range string like '36-48,149'. -->
+    <string  translatable="false" name="config_wifiSoftap6gChannelList"></string>
 
     <!-- Integer indicating associated full scan max num active channels -->
     <integer translatable="false" name="config_wifi_framework_associated_partial_scan_max_num_active_channels">6</integer>
@@ -163,11 +177,6 @@
 
     <!-- Wifi driver supports WPA3 Simultaneous Authentication of Equals (WPA3-SAE) for softap -->
     <bool translatable="false" name="config_wifi_softap_sae_supported">false</bool>
-
-    <!-- Channel list restriction to Automatic channel selection (ACS) for softap. If the device
-         doesn't want to restrict channels this should be empty. Value is a comma separated channel
-         string and/or channel range string like '1-6,11' -->
-    <string translatable="false" name="config_wifi_softap_acs_supported_channel_list"></string>
 
     <!-- Wifi driver supports IEEE80211AC for softap -->
     <bool translatable="false" name="config_wifi_softap_ieee80211ac_supported">false</bool>

@@ -130,7 +130,9 @@ public class HostapdHalTest extends WifiBaseTest {
         mResources.setBoolean(R.bool.config_wifi_softap_ieee80211ac_supported, false);
         mResources.setBoolean(R.bool.config_wifiSoftapIeee80211axSupported, false);
         mResources.setBoolean(R.bool.config_wifiSoftap6ghzSupported, false);
-        mResources.setString(R.string.config_wifi_softap_acs_supported_channel_list, "");
+        mResources.setString(R.string.config_wifiSoftap2gChannelList, "");
+        mResources.setString(R.string.config_wifiSoftap5gChannelList, "");
+        mResources.setString(R.string.config_wifiSoftap6gChannelList, "");
 
         mStatusSuccess = createHostapdStatus(HostapdStatusCode.SUCCESS);
         mStatusFailure = createHostapdStatus(HostapdStatusCode.FAILURE_UNKNOWN);
@@ -496,7 +498,9 @@ public class HostapdHalTest extends WifiBaseTest {
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mIHostapdMockV11 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
         // Enable ACS and set available channels in the config.
-        final String acsChannelStr = "1,6,11-13,40";
+        final String acsChannelStr2g = "1,6,11-13";
+        final String acsChannelStr5g = "40";
+        final String acsChannelStr6g = "";
         android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange channelRange1 =
                 new android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange();
         android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange channelRange2 =
@@ -517,7 +521,9 @@ public class HostapdHalTest extends WifiBaseTest {
         acsChannelRanges.add(channelRange3);
         acsChannelRanges.add(channelRange4);
         mResources.setBoolean(R.bool.config_wifi_softap_acs_supported, true);
-        mResources.setString(R.string.config_wifi_softap_acs_supported_channel_list, acsChannelStr);
+        mResources.setString(R.string.config_wifiSoftap2gChannelList, acsChannelStr2g);
+        mResources.setString(R.string.config_wifiSoftap5gChannelList, acsChannelStr5g);
+        mResources.setString(R.string.config_wifiSoftap6gChannelList, acsChannelStr6g);
         mHostapdHal = new HostapdHalSpy();
 
         when(mIHostapdMockV11.addAccessPoint_1_1(

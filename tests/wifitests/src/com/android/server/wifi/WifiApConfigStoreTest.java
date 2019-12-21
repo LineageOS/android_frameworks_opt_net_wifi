@@ -110,7 +110,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
 
         /* Setup expectations for Resources to return some default settings. */
         mResources = new MockResources();
-        mResources.setString(R.string.config_wifi_framework_sap_2G_channel_list,
+        mResources.setString(R.string.config_wifiSoftap2gChannelList,
                              TEST_DEFAULT_2G_CHANNEL_LIST);
         mResources.setString(R.string.wifi_tether_configure_ssid_default,
                              TEST_DEFAULT_AP_SSID);
@@ -845,21 +845,6 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 generateRandomString(mRandom.nextInt(maxLen - minLen) + minLen),
                 SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         assertTrue(WifiApConfigStore.validateApWifiConfiguration(configBuilder.build()));
-    }
-
-    /**
-     * Verify the default 2GHz channel list is properly returned.
-     */
-    @Test
-    public void testDefault2GHzChannelListReturned() {
-        // first build known good list
-        WifiApConfigStore store = createWifiApConfigStore();
-        ArrayList<Integer> channels = store.getAllowed2GChannel();
-
-        assertEquals(mKnownGood2GChannelList.size(), channels.size());
-        for (int channel : channels) {
-            assertTrue(mKnownGood2GChannelList.contains(channel));
-        }
     }
 
     /**
