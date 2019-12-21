@@ -618,19 +618,6 @@ public class WifiConnectivityManager {
         return DEFAULT_SCANNING_SCHEDULE;
     }
 
-    /** Returns maximum PNO score, before any awards/bonuses. */
-    private int initialScoreMax() {
-        final int rssiScoreOffset = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_RSSI_SCORE_OFFSET);
-        final int rssiScoreSlope = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
-
-        return rssiScoreSlope * (Math.max(Math.max(mScoringParams.getGoodRssi(ScoringParams.BAND2),
-                                           mScoringParams.getGoodRssi(ScoringParams.BAND5)),
-                                           mScoringParams.getGoodRssi(ScoringParams.BAND6))
-                                  + rssiScoreOffset);
-    }
-
     /**
      * This checks the connection attempt rate and recommends whether the connection attempt
      * should be skipped or not. This attempts to rate limit the rate of connections to
@@ -1033,17 +1020,6 @@ public class WifiConnectivityManager {
         pnoSettings.min6GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND6);
         pnoSettings.min5GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND5);
         pnoSettings.min24GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND2);
-        pnoSettings.initialScoreMax = initialScoreMax();
-        pnoSettings.currentConnectionBonus = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_current_network_boost);
-        pnoSettings.sameNetworkBonus = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_SAME_BSSID_AWARD);
-        pnoSettings.secureBonus = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_SECURITY_AWARD);
-        pnoSettings.band5GHzBonus = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_5GHz_preference_boost_factor);
-        pnoSettings.band6GHzBonus = mContext.getResources().getInteger(
-                R.integer.config_wifiFramework6ghzPreferenceBoostFactor);
 
         // Initialize scan settings
         ScanSettings scanSettings = new ScanSettings();

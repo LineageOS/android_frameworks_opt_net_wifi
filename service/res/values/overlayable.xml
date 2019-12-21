@@ -32,13 +32,6 @@
           <item type="integer" name="config_wifi_logger_ring_buffer_verbose_size_limit_kb" />
           <item type="array" name="config_wifi_fatal_firmware_alert_error_code_list" />
           <item type="bool" name="config_wifi_turn_off_during_emergency_call" />
-          <item type="integer" name="config_wifi_framework_5GHz_preference_boost_factor" />
-          <item type="integer" name="config_wifiFramework6ghzPreferenceBoostFactor" />
-          <item type="integer" name="config_wifi_framework_RSSI_SCORE_OFFSET" />
-          <item type="integer" name="config_wifi_framework_RSSI_SCORE_SLOPE" />
-          <item type="integer" name="config_wifi_framework_SAME_BSSID_AWARD" />
-          <item type="integer" name="config_wifi_framework_LAST_SELECTION_AWARD" />
-          <item type="integer" name="config_wifi_framework_SECURITY_AWARD" />
           <item type="integer" name="config_wifi_framework_max_tx_rate_for_full_scan" />
           <item type="integer" name="config_wifi_framework_max_rx_rate_for_full_scan" />
           <item type="integer" name="config_wifi_framework_min_tx_rate_for_staying_on_network" />
@@ -59,7 +52,6 @@
           <item type="string"  name="config_wifi_random_mac_oui" />
           <item type="string"  name="config_wifi_framework_sap_2G_channel_list" />
           <item type="integer" name="config_wifi_framework_associated_partial_scan_max_num_active_channels" />
-          <item type="integer" name="config_wifi_framework_current_network_boost" />
           <item type="integer" name="config_wifi_framework_recovery_timeout_delay" />
           <item type="bool" name="config_wifi_framework_enable_associated_network_selection" />
           <item type="bool" name="config_wifi_framework_use_single_radio_chain_scan_results_network_selection" />

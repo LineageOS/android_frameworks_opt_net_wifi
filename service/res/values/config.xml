@@ -72,14 +72,6 @@
     <!-- Boolean indicating whether or not wifi should turn off when emergency call is made -->
     <bool translatable="false" name="config_wifi_turn_off_during_emergency_call">false</bool>
 
-    <!-- Integer specifying the basic autojoin parameters -->
-    <integer translatable="false" name="config_wifi_framework_5GHz_preference_boost_factor">40</integer>
-    <integer translatable="false" name="config_wifiFramework6ghzPreferenceBoostFactor">40</integer>
-    <integer translatable="false" name="config_wifi_framework_RSSI_SCORE_OFFSET">85</integer>
-    <integer translatable="false" name="config_wifi_framework_RSSI_SCORE_SLOPE">4</integer>
-    <integer translatable="false" name="config_wifi_framework_SAME_BSSID_AWARD">24</integer>
-    <integer translatable="false" name="config_wifi_framework_LAST_SELECTION_AWARD">480</integer>
-    <integer translatable="false" name="config_wifi_framework_SECURITY_AWARD">80</integer>
     <!-- Integers specifying the max packet Tx/Rx rates for full scan -->
     <integer translatable="false" name="config_wifi_framework_max_tx_rate_for_full_scan">8</integer>
     <integer translatable="false" name="config_wifi_framework_max_rx_rate_for_full_scan">16</integer>
@@ -114,9 +106,6 @@
 
     <!-- Integer indicating associated full scan max num active channels -->
     <integer translatable="false" name="config_wifi_framework_associated_partial_scan_max_num_active_channels">6</integer>
-
-    <!-- Integer indicating RSSI boost given to current network -->
-    <integer translatable="false" name="config_wifi_framework_current_network_boost">16</integer>
 
     <!-- Integer delay in milliseconds before set wlan interface up during watchdog recovery -->
     <integer translatable="false" name="config_wifi_framework_recovery_timeout_delay">2000</integer>

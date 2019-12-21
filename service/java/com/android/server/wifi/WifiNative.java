@@ -2649,12 +2649,6 @@ public class WifiNative {
         public int min5GHzRssi;
         public int min24GHzRssi;
         public int min6GHzRssi;
-        public int initialScoreMax;
-        public int currentConnectionBonus;
-        public int sameNetworkBonus;
-        public int secureBonus;
-        public int band5GHzBonus;
-        public int band6GHzBonus;
         public int periodInMs;
         public boolean isConnected;
         public PnoNetwork[] networkList;

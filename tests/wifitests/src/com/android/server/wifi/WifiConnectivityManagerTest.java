@@ -171,15 +171,11 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     Resources mockResource() {
         Resources resource = mock(Resources.class);
 
-        when(resource.getInteger(R.integer.config_wifi_framework_SECURITY_AWARD)).thenReturn(80);
-        when(resource.getInteger(R.integer.config_wifi_framework_SAME_BSSID_AWARD)).thenReturn(24);
         when(resource.getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection)).thenReturn(true);
         when(resource.getInteger(
                 R.integer.config_wifi_framework_wifi_score_good_rssi_threshold_24GHz))
                 .thenReturn(-60);
-        when(resource.getInteger(
-                R.integer.config_wifi_framework_current_network_boost)).thenReturn(16);
         when(resource.getInteger(
                 R.integer.config_wifi_framework_max_tx_rate_for_full_scan)).thenReturn(8);
         when(resource.getInteger(
