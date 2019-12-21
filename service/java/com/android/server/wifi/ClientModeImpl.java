@@ -76,6 +76,7 @@ import android.net.wifi.wificond.WifiCondManager;
 import android.os.BatteryStatsManager;
 import android.os.Bundle;
 import android.os.ConditionVariable;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -763,7 +764,8 @@ public class ClientModeImpl extends StateMachine {
 
         mCountryCode = countryCode;
 
-        mWifiScoreReport = new WifiScoreReport(mWifiInjector.getScoringParams(), mClock);
+        mWifiScoreReport = new WifiScoreReport(mWifiInjector.getScoringParams(), mClock,
+                new Handler(looper));
 
         mNetworkCapabilitiesFilter.addTransportType(NetworkCapabilities.TRANSPORT_WIFI);
         mNetworkCapabilitiesFilter.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
