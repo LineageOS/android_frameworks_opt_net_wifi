@@ -2528,7 +2528,7 @@ public class SupplicantStaIfaceHal {
 
     protected class SupplicantStaIfaceHalCallbackV1_3 extends SupplicantStaIfaceCallbackV1_3Impl {
         SupplicantStaIfaceHalCallbackV1_3(@NonNull String ifaceName) {
-            super(SupplicantStaIfaceHal.this, ifaceName);
+            super(SupplicantStaIfaceHal.this, ifaceName, mWifiMonitor);
         }
     }
 

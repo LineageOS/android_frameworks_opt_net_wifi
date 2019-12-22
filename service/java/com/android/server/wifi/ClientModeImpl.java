@@ -101,6 +101,7 @@ import com.android.internal.util.MessageUtils;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
+import com.android.server.wifi.MboOceController.BtmFrameData;
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;
 import com.android.server.wifi.hotspot2.NetworkDetail;
@@ -904,6 +905,8 @@ public class ClientModeImpl extends StateMachine {
                 mSupplicantStateTracker.getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT,
                 mSupplicantStateTracker.getHandler());
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE,
+                getHandler());
     }
 
     private void setMulticastFilter(boolean enabled) {
@@ -2056,6 +2059,12 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(" ");
                 sb.append(/* DhcpResults */ msg.obj);
                 break;
+            case WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE:
+                BtmFrameData frameData = (BtmFrameData) msg.obj;
+                if (frameData != null) {
+                    sb.append(" ").append(frameData.toString());
+                }
+                break;
             default:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
@@ -2118,6 +2127,9 @@ public class ClientModeImpl extends StateMachine {
                 break;
             case WifiMonitor.GAS_QUERY_START_EVENT:
                 s = "GAS_QUERY_START_EVENT";
+                break;
+            case WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE:
+                s = "MBO_OCE_BSS_TM_HANDLING_DONE";
                 break;
             case WifiP2pServiceImpl.GROUP_CREATING_TIMED_OUT:
                 s = "GROUP_CREATING_TIMED_OUT";
@@ -4019,6 +4031,9 @@ public class ClientModeImpl extends StateMachine {
                     // monitoring.
                     mPasspointManager.receivedWnmFrame((WnmData) message.obj);
                     break;
+                case WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE:
+                    handleBssTransitionRequest((BtmFrameData) message.obj);
+                    break;
                 case CMD_CONFIG_ND_OFFLOAD:
                     final boolean enabled = (message.arg1 > 0);
                     mWifiNative.configureNeighborDiscoveryOffload(mInterfaceName, enabled);
@@ -5842,5 +5857,48 @@ public class ClientModeImpl extends StateMachine {
             message.sendingUid = callingUid;
             sendMessage(message);
         });
+    }
+
+    /**
+     * Handle BSS transition request from Connected BSS.
+     *
+     * @param frameData Data retrieved from received BTM request frame.
+     */
+    private void handleBssTransitionRequest(BtmFrameData frameData) {
+        if (frameData == null) {
+            return;
+        }
+
+        String bssid = mWifiInfo.getBSSID();
+        String ssid = mWifiInfo.getSSID();
+        if ((bssid == null) || (ssid == null) || WifiManager.UNKNOWN_SSID.equals(ssid)) {
+            Log.e(TAG, "Failed to handle BSS transition: bssid: " + bssid + " ssid: " + ssid);
+            return;
+        }
+
+        boolean isImminentBit = (frameData.mBssTmDataFlagsMask
+                & (MboOceConstants.BTM_DATA_FLAG_DISASSOCIATION_IMMINENT
+                | MboOceConstants.BTM_DATA_FLAG_BSS_TERMINATION_INCLUDED
+                | MboOceConstants.BTM_DATA_FLAG_ESS_DISASSOCIATION_IMMINENT)) != 0;
+
+
+        if (isImminentBit) {
+            long duration = frameData.mBlackListDurationMs;
+            if (duration == 0) {
+                /*
+                 * When AP sets one of the imminent bits and disassociation timer / BSS termination
+                 * duration / MBO assoc retry delay is set to zero(reserved as per spec),
+                 * blacklist the BSS for sometime to avoid AP rejecting the re-connect request.
+                 */
+                duration = MboOceConstants.DEFAULT_BLACKLIST_DURATION_MS;
+            }
+            // Blacklist the current BSS
+            mBssidBlocklistMonitor.blockBssidForDurationMs(bssid, ssid, duration);
+        }
+
+        if (frameData.mStatus != MboOceConstants.BTM_RESPONSE_STATUS_ACCEPT) {
+            // Trigger the network selection and re-connect to new network if available.
+            mWifiConnectivityManager.forceConnectivityScan(ClientModeImpl.WIFI_WORK_SOURCE);
+        }
     }
 }

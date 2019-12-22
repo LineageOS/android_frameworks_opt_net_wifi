@@ -17,6 +17,7 @@ package com.android.server.wifi;
 
 import android.annotation.NonNull;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
+import android.hardware.wifi.supplicant.V1_3.ISupplicantStaIfaceCallback.BssTmData;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -26,12 +27,15 @@ abstract class SupplicantStaIfaceCallbackV1_3Impl extends
     private static final String TAG = SupplicantStaIfaceCallbackV1_3Impl.class.getSimpleName();
     private final SupplicantStaIfaceHal mStaIfaceHal;
     private final String mIfaceName;
+    private final WifiMonitor mWifiMonitor;
     private final SupplicantStaIfaceHal.SupplicantStaIfaceHalCallbackV1_2 mCallbackV12;
 
     SupplicantStaIfaceCallbackV1_3Impl(@NonNull SupplicantStaIfaceHal staIfaceHal,
-            @NonNull String ifaceName) {
+            @NonNull String ifaceName,
+            @NonNull WifiMonitor wifiMonitor) {
         mStaIfaceHal = staIfaceHal;
         mIfaceName = ifaceName;
+        mWifiMonitor = wifiMonitor;
         // Create an older callback for function delegation,
         // and it would cascadingly create older one.
         mCallbackV12 = mStaIfaceHal.new SupplicantStaIfaceHalCallbackV1_2(mIfaceName);
@@ -202,4 +206,121 @@ abstract class SupplicantStaIfaceCallbackV1_3Impl extends
             Log.e(TAG, "onDppFailure callback is null");
         }
     }
+
+    @Override
+    public void onBssTmHandlingDone(BssTmData tmData) {
+        MboOceController.BtmFrameData btmFrmData = new MboOceController.BtmFrameData();
+
+        btmFrmData.mStatus = halToFrameworkBtmResponseStatus(tmData.status);
+        btmFrmData.mBssTmDataFlagsMask = halToFrameworkBssTmDataFlagsMask(tmData.flags);
+        btmFrmData.mBlackListDurationMs = tmData.assocRetryDelayMs;
+        if ((tmData.flags & BssTmDataFlagsMask.MBO_TRANSITION_REASON_CODE_INCLUDED) != 0) {
+            btmFrmData.mTransitionReason = halToFrameworkMboTransitionReason(
+                    tmData.mboTransitionReason);
+        }
+        if ((tmData.flags
+                & BssTmDataFlagsMask.MBO_CELLULAR_DATA_CONNECTION_PREFERENCE_INCLUDED) != 0) {
+            btmFrmData.mCellPreference =
+                    halToFrameworkMboCellularDataConnectionPreference(tmData.mboCellPreference);
+        }
+        mStaIfaceHal.logCallback(
+                "onBssTmHandlingDone: Handle BTM handling event");
+        mWifiMonitor.broadcastBssTmHandlingDoneEvent(mIfaceName, btmFrmData);
+    }
+
+    private @MboOceConstants.BtmResponseStatus int halToFrameworkBtmResponseStatus(int status) {
+        switch (status) {
+            case BssTmStatusCode.ACCEPT:
+                return MboOceConstants.BTM_RESPONSE_STATUS_ACCEPT;
+            case BssTmStatusCode.REJECT_UNSPECIFIED:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_UNSPECIFIED;
+            case BssTmStatusCode.REJECT_INSUFFICIENT_BEACON:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_INSUFFICIENT_BEACON;
+            case BssTmStatusCode.REJECT_INSUFFICIENT_CAPABITY:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_INSUFFICIENT_CAPABITY;
+            case BssTmStatusCode.REJECT_BSS_TERMINATION_UNDESIRED:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_BSS_TERMINATION_UNDESIRED;
+            case BssTmStatusCode.REJECT_BSS_TERMINATION_DELAY_REQUEST:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_BSS_TERMINATION_DELAY_REQUEST;
+            case BssTmStatusCode.REJECT_STA_CANDIDATE_LIST_PROVIDED:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_STA_CANDIDATE_LIST_PROVIDED;
+            case BssTmStatusCode.REJECT_NO_SUITABLE_CANDIDATES:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_NO_SUITABLE_CANDIDATES;
+            case BssTmStatusCode.REJECT_LEAVING_ESS:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_LEAVING_ESS;
+            default:
+                return MboOceConstants.BTM_RESPONSE_STATUS_REJECT_RESERVED;
+        }
+    }
+
+    private int halToFrameworkBssTmDataFlagsMask(int flags) {
+        int tmDataflags = 0;
+        if ((flags & BssTmDataFlagsMask.WNM_MODE_PREFERRED_CANDIDATE_LIST_INCLUDED) != 0) {
+            tmDataflags |= MboOceConstants.BTM_DATA_FLAG_PREFERRED_CANDIDATE_LIST_INCLUDED;
+        }
+        if ((flags & BssTmDataFlagsMask.WNM_MODE_ABRIDGED) != 0) {
+            tmDataflags |= MboOceConstants.BTM_DATA_FLAG_MODE_ABRIDGED;
+        }
+        if ((flags & BssTmDataFlagsMask.WNM_MODE_DISASSOCIATION_IMMINENT) != 0) {
+            tmDataflags |= MboOceConstants.BTM_DATA_FLAG_DISASSOCIATION_IMMINENT;
+        }
+        if ((flags & BssTmDataFlagsMask.WNM_MODE_BSS_TERMINATION_INCLUDED) != 0) {
+            tmDataflags |= MboOceConstants.BTM_DATA_FLAG_BSS_TERMINATION_INCLUDED;
+        }
+        if ((flags & BssTmDataFlagsMask.WNM_MODE_ESS_DISASSOCIATION_IMMINENT) != 0) {
+            tmDataflags |= MboOceConstants.BTM_DATA_FLAG_ESS_DISASSOCIATION_IMMINENT;
+        }
+        if ((flags & BssTmDataFlagsMask.MBO_TRANSITION_REASON_CODE_INCLUDED) != 0) {
+            tmDataflags |= MboOceConstants.BTM_DATA_FLAG_MBO_TRANSITION_REASON_CODE_INCLUDED;
+        }
+        if ((flags & BssTmDataFlagsMask.MBO_ASSOC_RETRY_DELAY_INCLUDED) != 0) {
+            tmDataflags |= MboOceConstants.BTM_DATA_FLAG_MBO_ASSOC_RETRY_DELAY_INCLUDED;
+        }
+        if ((flags & BssTmDataFlagsMask.MBO_CELLULAR_DATA_CONNECTION_PREFERENCE_INCLUDED) != 0) {
+            tmDataflags |=
+                    MboOceConstants.BTM_DATA_FLAG_MBO_CELL_DATA_CONNECTION_PREFERENCE_INCLUDED;
+        }
+        return tmDataflags;
+    }
+
+    private @MboOceConstants.MboTransitionReason int halToFrameworkMboTransitionReason(
+            int reason) {
+        switch (reason) {
+            case MboTransitionReasonCode.UNSPECIFIED:
+                return MboOceConstants.MBO_TRANSITION_REASON_UNSPECIFIED;
+            case MboTransitionReasonCode.EXCESSIVE_FRAME_LOSS:
+                return MboOceConstants.MBO_TRANSITION_REASON_EXCESSIVE_FRAME_LOSS;
+            case MboTransitionReasonCode.EXCESSIVE_TRAFFIC_DELAY:
+                return MboOceConstants.MBO_TRANSITION_REASON_EXCESSIVE_TRAFFIC_DELAY;
+            case MboTransitionReasonCode.INSUFFICIENT_BANDWIDTH:
+                return MboOceConstants.MBO_TRANSITION_REASON_INSUFFICIENT_BANDWIDTH;
+            case MboTransitionReasonCode.LOAD_BALANCING:
+                return MboOceConstants.MBO_TRANSITION_REASON_LOAD_BALANCING;
+            case MboTransitionReasonCode.LOW_RSSI:
+                return MboOceConstants.MBO_TRANSITION_REASON_LOW_RSSI;
+            case MboTransitionReasonCode.RX_EXCESSIVE_RETRIES:
+                return MboOceConstants.MBO_TRANSITION_REASON_RX_EXCESSIVE_RETRIES;
+            case MboTransitionReasonCode.HIGH_INTERFERENCE:
+                return MboOceConstants.MBO_TRANSITION_REASON_HIGH_INTERFERENCE;
+            case MboTransitionReasonCode.GRAY_ZONE:
+                return MboOceConstants.MBO_TRANSITION_REASON_GRAY_ZONE;
+            default:
+                return MboOceConstants.MBO_TRANSITION_REASON_RESERVED;
+        }
+    }
+
+    private @MboOceConstants.MboTransitionReason int
+            halToFrameworkMboCellularDataConnectionPreference(int cellPref) {
+        switch (cellPref) {
+            case MboCellularDataConnectionPrefValue.EXCLUDED:
+                return MboOceConstants.MBO_CELLULAR_DATA_CONNECTION_EXCLUDED;
+            case MboCellularDataConnectionPrefValue.NOT_PREFERRED:
+                return MboOceConstants.MBO_CELLULAR_DATA_CONNECTION_NOT_PREFERRED;
+            case MboCellularDataConnectionPrefValue.PREFERRED:
+                return MboOceConstants.MBO_CELLULAR_DATA_CONNECTION_PREFERRED;
+            default:
+                return MboOceConstants.MBO_CELLULAR_DATA_CONNECTION_RESERVED;
+        }
+    }
+
 }
