@@ -66,6 +66,7 @@
           <item type="bool" name="config_wifi_only_link_same_credential_configurations" />
           <item type="bool" name="config_wifi_framework_enable_sar_tx_power_limit" />
           <item type="bool" name="config_wifi_framework_enable_soft_ap_sar_tx_power_limit" />
+          <item type="bool" name="config_wifi_sofap_client_force_disconnect_supported" />
           <item type="bool" name="config_wifi_softap_acs_supported" />
           <item type="string" name="config_wifi_softap_acs_supported_channel_list" />
           <item type="bool" name="config_wifi_softap_ieee80211ac_supported" />

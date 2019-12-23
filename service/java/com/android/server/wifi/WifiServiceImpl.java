@@ -970,13 +970,7 @@ public class WifiServiceImpl extends BaseWifiService {
         public SoftApCapability getSoftApCapability() {
             synchronized (mLock) {
                 if (mTetheredSoftApCapability == null) {
-                    mTetheredSoftApCapability =  new SoftApCapability();
-                    int hardwareSupportedMaxClient = mContext.getResources().getInteger(
-                            R.integer.config_wifi_hardware_soft_ap_max_client_count);
-                    if (hardwareSupportedMaxClient <= 0) {
-                        Log.e(TAG, "Error, Hardware maximum_client should be positive number");
-                    }
-                    mTetheredSoftApCapability.setMaxSupportedClients(hardwareSupportedMaxClient);
+                    mTetheredSoftApCapability = ApConfigUtil.updateCapabilityFromResource(mContext);
                 }
                 return mTetheredSoftApCapability;
             }
@@ -1162,13 +1156,7 @@ public class WifiServiceImpl extends BaseWifiService {
 
         public SoftApCapability getSoftApCapability() {
             if (mLohsSoftApCapability == null) {
-                mLohsSoftApCapability =  new SoftApCapability();
-                int hardwareSupportedMaxClient = mContext.getResources().getInteger(
-                        R.integer.config_wifi_hardware_soft_ap_max_client_count);
-                if (hardwareSupportedMaxClient <= 0) {
-                    Log.e(TAG, "Error, Hardware maximum_client should be positive number");
-                }
-                mLohsSoftApCapability.setMaxSupportedClients(hardwareSupportedMaxClient);
+                mLohsSoftApCapability =  ApConfigUtil.updateCapabilityFromResource(mContext);
             }
             return mLohsSoftApCapability;
         }

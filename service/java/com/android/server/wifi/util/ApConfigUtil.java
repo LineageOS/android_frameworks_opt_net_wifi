@@ -17,7 +17,9 @@
 package com.android.server.wifi.util;
 
 import android.annotation.NonNull;
+import android.content.Context;
 import android.net.MacAddress;
+import android.net.wifi.SoftApCapability;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.BandType;
 import android.net.wifi.WifiConfiguration;
@@ -25,6 +27,7 @@ import android.net.wifi.WifiScanner;
 import android.util.Log;
 
 import com.android.server.wifi.WifiNative;
+import com.android.wifi.resources.R;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -368,5 +371,33 @@ public class ApConfigUtil {
             configBuilder.setChannel(wifiConfig.apChannel, band);
         }
         return configBuilder.build();
+    }
+
+    /**
+     * Helper function to creating SoftApCapability instance with initial field from resource file.
+     */
+    @NonNull
+    public static SoftApCapability updateCapabilityFromResource(@NonNull Context context) {
+        int features = 0;
+        if (context.getResources().getBoolean(
+                R.bool.config_wifi_softap_acs_supported)) {
+            Log.d(TAG, "Update Softap capability, add acs feature support");
+            features |= SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
+        }
+
+        if (context.getResources().getBoolean(
+                R.bool.config_wifi_sofap_client_force_disconnect_supported)) {
+            Log.d(TAG, "Update Softap capability, add client control feature support");
+            features |= SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT;
+        }
+        SoftApCapability capability = new SoftApCapability(features);
+        int hardwareSupportedMaxClient = context.getResources().getInteger(
+                R.integer.config_wifi_hardware_soft_ap_max_client_count);
+        if (hardwareSupportedMaxClient > 0) {
+            Log.d(TAG, "Update Softap capability, max client = " + hardwareSupportedMaxClient);
+            capability.setMaxSupportedClients(hardwareSupportedMaxClient);
+        }
+
+        return capability;
     }
 }

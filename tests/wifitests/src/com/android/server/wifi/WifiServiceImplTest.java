@@ -4937,5 +4937,4 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mActiveModeWarden).updateSoftApCapability(any());
         staticMockSession.finishMocking();
     }
-
 }
