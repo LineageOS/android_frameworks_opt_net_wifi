@@ -1493,6 +1493,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         if (WifiNetworkSelector.PRESET_CANDIDATE_SCORER_NAME.equals(
                 mThroughputScorer.getIdentifier())) {
             mWifiNetworkSelector.registerCandidateScorer(mCompatibilityScorer);
+            return; //TODO(b/142081306) temporarily disabled
         } else {
             mWifiNetworkSelector.registerCandidateScorer(mThroughputScorer);
         }
