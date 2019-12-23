@@ -42,6 +42,7 @@ import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
 import com.android.server.wifi.HalDeviceManager.ManagerStatusListener;
 import com.android.server.wifi.PropertyService;
 import com.android.server.wifi.WifiBaseTest;
+import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiVendorHal;
 
 import org.junit.Before;
@@ -68,6 +69,7 @@ public class WifiP2pNativeInterfaceManagementTest extends WifiBaseTest {
     @Mock private IWifiP2pIface mIWifiP2pIface;
     @Mock private IWifiIface mIWifiIface;
     @Mock private WifiVendorHal mWifiVendorHal;
+    @Mock private WifiInjector mWifiInjector;
     private WifiP2pNative mWifiP2pNative;
     private WifiStatus mWifiStatusSuccess;
     private ManagerStatusListener mManagerStatusListener;
@@ -98,7 +100,7 @@ public class WifiP2pNativeInterfaceManagementTest extends WifiBaseTest {
         when(mPropertyService.getString(P2P_INTERFACE_PROPERTY, P2P_IFACE_NAME))
               .thenReturn(P2P_IFACE_NAME);
 
-        mWifiP2pNative = new WifiP2pNative(
+        mWifiP2pNative = new WifiP2pNative(mWifiInjector,
                               mWifiVendorHal, mSupplicantP2pIfaceHal, mHalDeviceManager,
                               mPropertyService);
     }
