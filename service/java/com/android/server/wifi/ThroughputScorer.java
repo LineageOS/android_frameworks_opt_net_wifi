@@ -44,29 +44,6 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_RSSI_SCORE_SLOPE
     public static final int RSSI_SCORE_SLOPE_IS_4 = 4;
 
-    // config_wifi_framework_SECURITY_AWARD
-    public static final int SECURITY_AWARD = 10;
-
-    // config_wifi_framework_LAST_SELECTION_AWARD
-    public static final int LAST_SELECTION_AWARD_IS_480 = 480;
-
-    // Bonus score for current network
-    // High RSSI case:
-    //   Bonus RSSI score: 10 (equivalent to RSSI variation 2.5dB)
-    //   Bonus throughput score: 10 (equivalent to ~ 40Mbps).
-    // Low RSSI case:
-    //   Bonus RSSI score: 16 (equivalent to RSSI variation 4dB)
-    //   Bonus throughput score: 4 (equivalent to ~ 16Mbps).
-    public static final int CURRENT_NETWORK_BOOST = 20;
-
-    // Max throughput in 11AC 40MHz 2SS mode with zero channel utilization
-    public static final int MAX_THROUGHPUT_AC_40_MHZ_2SS_MBPS = 433;
-    // Max throughput score in 11AC 40MHz 2SS mode
-    public static final int MAX_THROUGHPUT_BONUS_SCORE_AC_40_MHZ_2SS = 120;
-
-    // Max throughput bonus score for all possible modes
-    public static final int MAX_THROUGHPUT_BONUS_SCORE = 200;
-
     private static final boolean USE_USER_CONNECT_CHOICE = true;
 
     ThroughputScorer(ScoringParams scoringParams) {
@@ -89,18 +66,27 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
         int throughputBonusScore = calculateThroughputBonusScore(candidate);
 
         int lastSelectionBonusScore = (int)
-                (candidate.getLastSelectionWeight() * LAST_SELECTION_AWARD_IS_480);
+                (candidate.getLastSelectionWeight() * mScoringParams.getLastSelectionBonus());
 
-        int currentNetworkBoost = candidate.isCurrentNetwork() ? CURRENT_NETWORK_BOOST : 0;
+        int currentNetworkBoost = candidate.isCurrentNetwork()
+                ? mScoringParams.getCurrentNetworkBonus()
+                : 0;
 
-        int securityAward = candidate.isOpenNetwork() ? 0 : SECURITY_AWARD;
+        int securityAward = candidate.isOpenNetwork()
+                ? 0
+                : mScoringParams.getSecureNetworkBonus();
 
-        // To simulate the old strict priority rule, subtract a penalty based on
-        // which evaluator added the candidate.
-        int evaluatorGroupScore = -1000 * candidate.getNominatorId();
+        int unmeteredAward = candidate.isMetered()
+                ? 0
+                : mScoringParams.getUnmeteredNetworkBonus();
+
+        int savedNetworkAward = (candidate.getNominatorId()
+                    == WifiNetworkSelector.NetworkNominator.NOMINATOR_ID_SAVED)
+                ? mScoringParams.getSavedNetworkBonus()
+                : 0;
 
         int score = rssiBaseScore + throughputBonusScore + lastSelectionBonusScore
-                + currentNetworkBoost + securityAward + evaluatorGroupScore;
+                + currentNetworkBoost + securityAward + unmeteredAward + savedNetworkAward;
 
         if (DBG) {
             Log.d(TAG, " rssiScore: " + rssiBaseScore
@@ -108,7 +94,8 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
                     + " lastSelectionBonus: " + lastSelectionBonusScore
                     + " currentNetworkBoost: " + currentNetworkBoost
                     + " securityAward: " + securityAward
-                    + " evaluatorScore: " + evaluatorGroupScore
+                    + " unmeteredAward: " + unmeteredAward
+                    + " savedNetworkAward: " + savedNetworkAward
                     + " final score: " + score);
         }
 
@@ -121,9 +108,9 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
 
     private int calculateThroughputBonusScore(Candidate candidate) {
         int throughputScoreRaw = candidate.getPredictedThroughputMbps()
-                * MAX_THROUGHPUT_BONUS_SCORE_AC_40_MHZ_2SS
-                / MAX_THROUGHPUT_AC_40_MHZ_2SS_MBPS;
-        return Math.min(throughputScoreRaw, MAX_THROUGHPUT_BONUS_SCORE);
+                * mScoringParams.getThroughputBonusNumerator()
+                / mScoringParams.getThroughputBonusDenominator();
+        return Math.min(throughputScoreRaw, mScoringParams.getThroughputBonusLimit());
     }
 
     @Override
