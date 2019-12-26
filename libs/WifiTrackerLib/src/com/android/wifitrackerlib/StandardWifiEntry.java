@@ -56,6 +56,7 @@ class StandardWifiEntry extends WifiEntry {
     private final @Security int mSecurity;
     @Nullable private WifiConfiguration mWifiConfig;
     @Nullable private NetworkInfo mNetworkInfo;
+    @Nullable private WifiInfo mWifiInfo;
     private boolean mCalledConnect = false;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
@@ -309,19 +310,39 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     @MeteredChoice
     public int getMeteredChoice() {
-        // TODO(b/70983952): Fill this method in
-        return METERED_CHOICE_UNMETERED;
+        if (mWifiConfig != null) {
+            final int meteredOverride = mWifiConfig.meteredOverride;
+            if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NONE) {
+                return METERED_CHOICE_AUTO;
+            } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
+                return METERED_CHOICE_METERED;
+            } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NOT_METERED) {
+                return METERED_CHOICE_UNMETERED;
+            }
+        }
+        return METERED_CHOICE_UNKNOWN;
     }
 
     @Override
     public boolean canSetMeteredChoice() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
     public void setMeteredChoice(int meteredChoice) {
-        // TODO(b/70983952): Fill this method in
+        if (mWifiConfig == null) {
+            return;
+        }
+
+        final WifiConfiguration saveConfig = new WifiConfiguration(mWifiConfig);
+        if (meteredChoice == METERED_CHOICE_AUTO) {
+            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NONE;
+        } else if (meteredChoice == METERED_CHOICE_METERED) {
+            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
+        } else if (meteredChoice == METERED_CHOICE_UNMETERED) {
+            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
+        }
+        mWifiManager.save(saveConfig);
     }
 
     @Override
@@ -433,6 +454,7 @@ class StandardWifiEntry extends WifiEntry {
         if (mWifiConfig != null && wifiInfo != null
                 && mWifiConfig.networkId == wifiInfo.getNetworkId()) {
             mNetworkInfo = networkInfo;
+            mWifiInfo = wifiInfo;
             final int wifiInfoRssi = wifiInfo.getRssi();
             if (wifiInfoRssi != INVALID_RSSI) {
                 mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi);
