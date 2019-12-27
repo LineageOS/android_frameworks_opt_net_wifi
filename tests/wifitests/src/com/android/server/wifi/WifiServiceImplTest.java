@@ -2097,7 +2097,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testCustomLohs_Wpa2() {
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("customSsid")
-                .setWpa2Passphrase("passphrase")
+                .setPassphrase("passphrase", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .build();
         FakeLohsCallback callback = new FakeLohsCallback();
 
@@ -2135,7 +2135,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testCustomLohs_GeneratesSsidIfAbsent() {
         SoftApConfiguration config = new SoftApConfiguration.Builder()
-                .setWpa2Passphrase("passphrase")
+                .setPassphrase("passphrase", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .build();
         FakeLohsCallback callback = new FakeLohsCallback();
 
@@ -3668,7 +3668,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private SoftApConfiguration createValidSoftApConfiguration() {
         return new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_2GHZ)
                 .build();
     }

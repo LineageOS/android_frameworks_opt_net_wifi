@@ -388,10 +388,17 @@ public class SoftApManager implements ActiveModeManager {
         if (config.getMaxNumberOfClients() != 0
                 && !mCurrentSoftApCapability.isFeatureSupported(
                 SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
-            Log.d(TAG, "Error, Max Client control need HAL support");
+            Log.d(TAG, "Error, Max Client control requires HAL support");
             return ERROR_UNSUPPORTED_CONFIGURATION;
         }
 
+        if ((config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION
+                || config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE)
+                && !mCurrentSoftApCapability.isFeatureSupported(
+                SoftApCapability.SOFTAP_FEATURE_WPA3_SAE)) {
+            Log.d(TAG, "Error, SAE requires HAL support");
+            return ERROR_UNSUPPORTED_CONFIGURATION;
+        }
         if (!mWifiNative.startSoftAp(mApInterfaceName,
                   localConfigBuilder.build(), mSoftApListener)) {
             Log.e(TAG, "Soft AP start failed");

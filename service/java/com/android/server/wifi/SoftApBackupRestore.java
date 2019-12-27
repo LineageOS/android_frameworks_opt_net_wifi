@@ -68,7 +68,7 @@ public class SoftApBackupRestore {
             BackupUtils.writeString(out, config.getSsid());
             out.writeInt(config.getBand());
             out.writeInt(config.getChannel());
-            BackupUtils.writeString(out, config.getWpa2Passphrase());
+            BackupUtils.writeString(out, config.getPassphrase());
             out.writeInt(config.getSecurityType());
             out.writeBoolean(config.isHiddenSsid());
         } catch (IOException io) {
@@ -114,11 +114,12 @@ public class SoftApBackupRestore {
             } else {
                 configBuilder.setChannel(channel, band);
             }
-            String wpa2Passphrase = BackupUtils.readString(in);
+            String passphrase = BackupUtils.readString(in);
             int securityType = in.readInt();
-            if ((version < 4 && securityType == WifiConfiguration.KeyMgmt.WPA2_PSK) || (
-                    version >= 4 && securityType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)) {
-                configBuilder.setWpa2Passphrase(wpa2Passphrase);
+            if (version < 4 && securityType == WifiConfiguration.KeyMgmt.WPA2_PSK) {
+                configBuilder.setPassphrase(passphrase, SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+            } else if (version >= 4 && securityType != SoftApConfiguration.SECURITY_TYPE_OPEN) {
+                configBuilder.setPassphrase(passphrase, securityType);
             }
             if (version >= 3) {
                 configBuilder.setHiddenSsid(in.readBoolean());

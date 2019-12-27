@@ -162,7 +162,8 @@ public class SoftApManagerTest extends WifiBaseTest {
         mTestSoftApInfo.setBandwidth(TEST_AP_BANDWIDTH_IN_SOFTAPINFO);
         // Default set up all features support.
         int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT
-                | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
+                | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD
+                | SoftApCapability.SOFTAP_FEATURE_WPA3_SAE;
         mTestSoftApCapability = new SoftApCapability(testSoftApFeature);
         mTestSoftApCapability.setMaxSupportedClients(10);
     }
@@ -240,7 +241,8 @@ public class SoftApManagerTest extends WifiBaseTest {
         Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
         configBuilder.setSsid(TEST_SSID);
-        configBuilder.setWpa2Passphrase(TEST_PASSWORD);
+        configBuilder.setPassphrase(TEST_PASSWORD,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         SoftApModeConfiguration apConfig = new SoftApModeConfiguration(
                 WifiManager.IFACE_IP_MODE_TETHERED, configBuilder.build(),
                 mTestSoftApCapability);
@@ -1561,9 +1563,12 @@ public class SoftApManagerTest extends WifiBaseTest {
         assertEquals(expectedIfaceName, ifaceName);
         assertEquals(expectedMode, mode);
     }
+
     @Test
     public void testForceClientDisconnectNotInvokeWhenNotSupport() throws Exception {
-        SoftApCapability noClientControlCapability = new SoftApCapability(0);
+        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_WPA3_SAE
+                | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
+        SoftApCapability noClientControlCapability = new SoftApCapability(testSoftApFeature);
         noClientControlCapability.setMaxSupportedClients(1);
         SoftApModeConfiguration apConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null,
@@ -1598,8 +1603,10 @@ public class SoftApManagerTest extends WifiBaseTest {
 
     @Test
     public void testSoftApEnableFailureBecauseSetMaxClientWhenNotSupport() throws Exception {
+        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_WPA3_SAE
+                | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
         when(mWifiNative.setupInterfaceForSoftApMode(any())).thenReturn(TEST_INTERFACE_NAME);
-        SoftApCapability noClientControlCapability = new SoftApCapability(0);
+        SoftApCapability noClientControlCapability = new SoftApCapability(testSoftApFeature);
         noClientControlCapability.setMaxSupportedClients(1);
         SoftApConfiguration softApConfig = new SoftApConfiguration.Builder(
                 mDefaultApConfig).setMaxNumberOfClients(1).build();
@@ -1607,6 +1614,41 @@ public class SoftApManagerTest extends WifiBaseTest {
         SoftApModeConfiguration apConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, softApConfig,
                 noClientControlCapability);
+        SoftApManager newSoftApManager = new SoftApManager(mContext,
+                                                           mLooper.getLooper(),
+                                                           mFrameworkFacade,
+                                                           mWifiNative,
+                                                           TEST_COUNTRY_CODE,
+                                                           mListener,
+                                                           mCallback,
+                                                           mWifiApConfigStore,
+                                                           apConfig,
+                                                           mWifiMetrics,
+                                                           mSarManager,
+                                                           mWifiDiagnostics);
+        mLooper.dispatchAll();
+        newSoftApManager.start();
+        mLooper.dispatchAll();
+        verify(mCallback).onStateChanged(WifiManager.WIFI_AP_STATE_ENABLING, 0);
+        verify(mCallback).onStateChanged(WifiManager.WIFI_AP_STATE_FAILED,
+                WifiManager.SAP_START_FAILURE_UNSUPPORTED_CONFIGURATION);
+        verify(mListener).onStartFailure();
+    }
+
+    @Test
+    public void testSoftApEnableFailureBecauseSecurityTypeSaeSetupButSaeNotSupport()
+            throws Exception {
+        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT
+                | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
+        when(mWifiNative.setupInterfaceForSoftApMode(any())).thenReturn(TEST_INTERFACE_NAME);
+        SoftApCapability noSaeCapability = new SoftApCapability(testSoftApFeature);
+        SoftApConfiguration softApConfig = new SoftApConfiguration.Builder(
+                mDefaultApConfig).setPassphrase(TEST_PASSWORD,
+                SoftApConfiguration.SECURITY_TYPE_WPA3_SAE).build();
+
+        SoftApModeConfiguration apConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, softApConfig,
+                noSaeCapability);
         SoftApManager newSoftApManager = new SoftApManager(mContext,
                                                            mLooper.getLooper(),
                                                            mFrameworkFacade,
