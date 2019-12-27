@@ -64,7 +64,6 @@ import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.TelephonyUtil;
 
 import java.io.PrintWriter;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -113,7 +112,6 @@ public class PasspointManager {
     private final AnqpCache mAnqpCache;
     private final ANQPRequestManager mAnqpRequestManager;
     private final WifiConfigManager mWifiConfigManager;
-    private final CertificateVerifier mCertVerifier;
     private final WifiMetrics mWifiMetrics;
     private final PasspointProvisioner mPasspointProvisioner;
     private final AppOpsManager mAppOps;
@@ -334,7 +332,6 @@ public class PasspointManager {
         mProviders = new HashMap<>();
         mAnqpCache = objectFactory.makeAnqpCache(clock);
         mAnqpRequestManager = objectFactory.makeANQPRequestManager(mPasspointEventHandler, clock);
-        mCertVerifier = objectFactory.makeCertificateVerifier();
         mWifiConfigManager = wifiConfigManager;
         mWifiMetrics = wifiMetrics;
         mProviderIndex = 0;
@@ -388,23 +385,6 @@ public class PasspointManager {
         if (!config.validate()) {
             Log.e(TAG, "Invalid configuration");
             return false;
-        }
-
-        // For Hotspot 2.0 Release 1, the CA Certificate must be trusted by one of the pre-loaded
-        // public CAs in the system key store on the device.  Since the provisioning method
-        // for Release 1 is not standardized nor trusted,  this is a reasonable restriction
-        // to improve security.  The presence of UpdateIdentifier is used to differentiate
-        // between R1 and R2 configuration.
-        X509Certificate[] x509Certificates = config.getCredential().getCaCertificates();
-        if (config.getUpdateIdentifier() == Integer.MIN_VALUE && x509Certificates != null) {
-            try {
-                for (X509Certificate certificate : x509Certificates) {
-                    mCertVerifier.verifyCaCert(certificate);
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to verify CA certificate: " + e.getMessage());
-                return false;
-            }
         }
 
         mTelephonyUtil.tryUpdateCarrierIdForPasspoint(config);
