@@ -58,6 +58,7 @@ class StandardWifiEntry extends WifiEntry {
     @Nullable private NetworkInfo mNetworkInfo;
     @Nullable private WifiInfo mWifiInfo;
     private boolean mCalledConnect = false;
+    private boolean mCalledDisconnect = false;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
@@ -247,13 +248,21 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean canDisconnect() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return getConnectedState() == CONNECTED_STATE_CONNECTED;
     }
 
     @Override
     public void disconnect() {
-        // TODO(b/70983952): Fill this method in
+        if (canDisconnect()) {
+            mCalledDisconnect = true;
+            mCallbackHandler.postDelayed(() -> {
+                if (mCalledDisconnect) {
+                    notifyOnDisconnectResult(
+                            WifiEntryCallback.DISCONNECT_STATUS_FAILURE_UNKNOWN);
+                }
+            }, 10_000 /* delayMillis */);
+            mWifiManager.disconnect();
+        }
     }
 
     @Override
@@ -342,7 +351,7 @@ class StandardWifiEntry extends WifiEntry {
         } else if (meteredChoice == METERED_CHOICE_UNMETERED) {
             saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
         }
-        mWifiManager.save(saveConfig);
+        mWifiManager.save(saveConfig, null /* listener */);
     }
 
     @Override
@@ -465,6 +474,10 @@ class StandardWifiEntry extends WifiEntry {
             }
         } else {
             mNetworkInfo = null;
+        }
+        if (mCalledDisconnect && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
+            mCalledDisconnect = false;
+            notifyOnDisconnectResult(WifiEntryCallback.DISCONNECT_STATUS_SUCCESS);
         }
         notifyOnUpdated();
     }
