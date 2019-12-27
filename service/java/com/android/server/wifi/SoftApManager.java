@@ -70,9 +70,6 @@ import java.util.Locale;
 public class SoftApManager implements ActiveModeManager {
     private static final String TAG = "SoftApManager";
 
-    // Minimum limit to use for timeout delay if the value from overlay setting is too small.
-    private static final int MIN_SOFT_AP_TIMEOUT_DELAY_MS = 600_000;  // 10 minutes
-
     @VisibleForTesting
     public static final String SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG = TAG
             + " Soft AP Send Message Timeout";
@@ -95,6 +92,8 @@ public class SoftApManager implements ActiveModeManager {
     private final WifiApConfigStore mWifiApConfigStore;
 
     private final WifiMetrics mWifiMetrics;
+
+    private boolean mIsRandomizeBssid;
 
     @NonNull
     private SoftApModeConfiguration mApConfig;
@@ -173,6 +172,7 @@ public class SoftApManager implements ActiveModeManager {
             // may still be null if we fail to load the default config
         }
         if (softApConfig != null) {
+            mIsRandomizeBssid = softApConfig.getBssid() == null;
             softApConfig = mWifiApConfigStore.randomizeBssidIfUnset(mContext, softApConfig);
         }
         mApConfig = new SoftApModeConfiguration(apConfig.getTargetMode(),
@@ -229,6 +229,16 @@ public class SoftApManager implements ActiveModeManager {
      */
     public void updateCapability(@NonNull SoftApCapability capability) {
         mStateMachine.sendMessage(SoftApStateMachine.CMD_UPDATE_CAPABILITY, capability);
+    }
+
+    /**
+     * Update AP configuration. Called when setting update config via
+     * {@link WifiManager#setSoftApConfiguration(SoftApConfiguration)}
+     *
+     * @param config new AP config.
+     */
+    public void updateConfiguration(@NonNull SoftApConfiguration config) {
+        mStateMachine.sendMessage(SoftApStateMachine.CMD_UPDATE_CONFIG, config);
     }
 
     /**
@@ -452,6 +462,7 @@ public class SoftApManager implements ActiveModeManager {
         public static final int CMD_INTERFACE_DOWN = 8;
         public static final int CMD_SOFT_AP_CHANNEL_SWITCHED = 9;
         public static final int CMD_UPDATE_CAPABILITY = 10;
+        public static final int CMD_UPDATE_CONFIG = 11;
 
         private final State mIdleState = new IdleState();
         private final State mStartedState = new StartedState();
@@ -542,6 +553,11 @@ public class SoftApManager implements ActiveModeManager {
                             mCurrentSoftApCapability = new SoftApCapability(capability);
                         }
                         break;
+                    case CMD_UPDATE_CONFIG:
+                        SoftApConfiguration newConfig = (SoftApConfiguration) message.obj;
+                        mApConfig = new SoftApModeConfiguration(mApConfig.getTargetMode(),
+                                newConfig, mCurrentSoftApCapability);
+                        break;
                     default:
                         // Ignore all other commands.
                         break;
@@ -552,7 +568,6 @@ public class SoftApManager implements ActiveModeManager {
         }
 
         private class StartedState extends State {
-            private int mTimeoutDelay;
             private WakeupMessage mSoftApTimeoutMessage;
             private SoftApTimeoutEnabledSettingObserver mSettingObserver;
 
@@ -589,23 +604,20 @@ public class SoftApManager implements ActiveModeManager {
                 }
             }
 
-            private int getConfigSoftApTimeoutDelay() {
-                int delay = mContext.getResources().getInteger(
-                        R.integer.config_wifi_framework_soft_ap_timeout_delay);
-                if (delay < MIN_SOFT_AP_TIMEOUT_DELAY_MS) {
-                    delay = MIN_SOFT_AP_TIMEOUT_DELAY_MS;
-                    Log.w(TAG, "Overriding timeout delay with minimum limit value");
-                }
-                Log.d(TAG, "Timeout delay: " + delay);
-                return delay;
-            }
-
             private void scheduleTimeoutMessage() {
-                if (!mTimeoutEnabled) {
+                if (!mTimeoutEnabled || mConnectedClients.size() != 0) {
+                    cancelTimeoutMessage();
                     return;
                 }
-                mSoftApTimeoutMessage.schedule(SystemClock.elapsedRealtime() + mTimeoutDelay);
-                Log.d(TAG, "Timeout message scheduled");
+                int timeout = mApConfig.getSoftApConfiguration().getShutdownTimeoutMillis();
+                if (timeout == 0) {
+                    timeout =  mContext.getResources().getInteger(
+                            R.integer.config_wifiFrameworkSoftApShutDownTimeoutMilliseconds);
+                }
+                mSoftApTimeoutMessage.schedule(SystemClock.elapsedRealtime()
+                        + timeout);
+                Log.d(TAG, "Timeout message scheduled, delay = "
+                        + timeout);
             }
 
             private void cancelTimeoutMessage() {
@@ -689,11 +701,7 @@ public class SoftApManager implements ActiveModeManager {
                 mWifiMetrics.addSoftApNumAssociatedStationsChangedEvent(
                         mConnectedClients.size(), mApConfig.getTargetMode());
 
-                if (mConnectedClients.size() == 0) {
-                    scheduleTimeoutMessage();
-                } else {
-                    cancelTimeoutMessage();
-                }
+                scheduleTimeoutMessage();
             }
 
             private void setSoftApChannel(int freq, @WifiAnnotations.Bandwidth int apBandwidth) {
@@ -745,7 +753,6 @@ public class SoftApManager implements ActiveModeManager {
                 mIfaceIsDestroyed = false;
                 onUpChanged(mWifiNative.isInterfaceUp(mApInterfaceName));
 
-                mTimeoutDelay = getConfigSoftApTimeoutDelay();
                 Handler handler = mStateMachine.getHandler();
                 mSoftApTimeoutMessage = new WakeupMessage(mContext, handler,
                         SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG,
@@ -852,12 +859,7 @@ public class SoftApManager implements ActiveModeManager {
                             break;
                         }
                         mTimeoutEnabled = isEnabled;
-                        if (!mTimeoutEnabled) {
-                            cancelTimeoutMessage();
-                        }
-                        if (mTimeoutEnabled && mConnectedClients.size() == 0) {
-                            scheduleTimeoutMessage();
-                        }
+                        scheduleTimeoutMessage();
                         break;
                     case CMD_INTERFACE_STATUS_CHANGED:
                         boolean isUp = message.arg1 == 1;
@@ -907,6 +909,33 @@ public class SoftApManager implements ActiveModeManager {
                             SoftApCapability capability = (SoftApCapability) message.obj;
                             mCurrentSoftApCapability = new SoftApCapability(capability);
                             updateClientConnection();
+                        }
+                        break;
+                    case CMD_UPDATE_CONFIG:
+                        SoftApConfiguration newConfig = (SoftApConfiguration) message.obj;
+                        SoftApConfiguration currentConfig = mApConfig.getSoftApConfiguration();
+                        if (mIsRandomizeBssid) {
+                            // Current bssid is ramdon because unset. Set back to null..
+                            currentConfig = new SoftApConfiguration.Builder(currentConfig)
+                                    .setBssid(null)
+                                    .build();
+                        }
+                        if (!ApConfigUtil.checkConfigurationChangeNeedToRestart(
+                                currentConfig, newConfig)) {
+                            Log.d(TAG, "Configuration changed to " + newConfig);
+                            boolean needRescheduleTimer =
+                                    mApConfig.getSoftApConfiguration().getShutdownTimeoutMillis()
+                                    != newConfig.getShutdownTimeoutMillis();
+                            mApConfig = new SoftApModeConfiguration(mApConfig.getTargetMode(),
+                                    newConfig, mCurrentSoftApCapability);
+                            updateClientConnection();
+                            if (needRescheduleTimer) {
+                                cancelTimeoutMessage();
+                                scheduleTimeoutMessage();
+                            }
+                        } else {
+                            Log.d(TAG, "Ignore the config: " + newConfig
+                                    + " update since it requires restart");
                         }
                         break;
                     default:
