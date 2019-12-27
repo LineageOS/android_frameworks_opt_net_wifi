@@ -102,6 +102,7 @@ public class TelephonyUtil {
     private boolean mVerboseLogEnabled = false;
     private SparseBooleanArray mImsiEncryptionRequired = new SparseBooleanArray();
     private SparseBooleanArray mImsiEncryptionInfoAvailable = new SparseBooleanArray();
+    private SparseBooleanArray mEapMethodPrefixEnable = new SparseBooleanArray();
 
     /**
      * Gets the instance of TelephonyUtil.
@@ -160,6 +161,7 @@ public class TelephonyUtil {
 
         mImsiEncryptionRequired.clear();
         mImsiEncryptionInfoAvailable.clear();
+        mEapMethodPrefixEnable.clear();
         List<SubscriptionInfo> activeSubInfos =
                 mSubscriptionManager.getActiveSubscriptionInfoList();
         if (activeSubInfos == null) {
@@ -172,6 +174,12 @@ public class TelephonyUtil {
                                     & TelephonyManager.KEY_TYPE_WLAN) != 0) {
                 vlogd("IMSI encryption is required for " + subId);
                 mImsiEncryptionRequired.put(subId, true);
+            }
+
+            if ((carrierConfigManager.getConfigForSubId(subId)
+                    .getBoolean(CarrierConfigManager.ENABLE_EAP_METHOD_PREFIX_BOOL))) {
+                vlogd("EAP Prefix is required for " + subId);
+                mEapMethodPrefixEnable.put(subId, true);
             }
 
             try {
@@ -352,7 +360,15 @@ public class TelephonyUtil {
         }
 
         String realm = String.format(THREE_GPP_NAI_REALM_FORMAT, mnc, mcc);
-        return ANONYMOUS_IDENTITY + "@" + realm;
+        StringBuilder sb = new StringBuilder();
+        if (mEapMethodPrefixEnable.get(subId)) {
+            // Set the EAP method as a prefix
+            String eapMethod = EAP_METHOD_PREFIX.get(config.enterpriseConfig.getEapMethod());
+            if (!TextUtils.isEmpty(eapMethod)) {
+                sb.append(eapMethod);
+            }
+        }
+        return sb.append(ANONYMOUS_IDENTITY).append("@").append(realm).toString();
     }
 
     /**
@@ -512,8 +528,10 @@ public class TelephonyUtil {
      * Returns true if {@code identity} contains an anonymous@realm identity, false otherwise.
      */
     public static boolean isAnonymousAtRealmIdentity(String identity) {
-        if (identity == null) return false;
-        return identity.startsWith(TelephonyUtil.ANONYMOUS_IDENTITY + "@");
+        if (TextUtils.isEmpty(identity)) return false;
+        final String anonymousId = TelephonyUtil.ANONYMOUS_IDENTITY + "@";
+        return identity.startsWith(anonymousId)
+                || identity.substring(1).startsWith(anonymousId);
     }
 
     // TODO replace some of this code with Byte.parseByte
