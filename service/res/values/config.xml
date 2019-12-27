@@ -127,6 +127,9 @@
          smaller than the limit. -->
     <integer translatable="false" name="config_wifi_framework_soft_ap_timeout_delay">600000</integer>
 
+    <!-- Integer indicating maximum hardware supported client number of soft ap -->
+    <integer translatable="false" name="config_wifi_hardware_soft_ap_max_client_count">16</integer>
+
     <string  translatable="false" name="config_wifi_random_mac_oui">DA-A1-19</string>
     <string  translatable="false" name="config_wifi_framework_sap_2G_channel_list">1,6,11</string>
 

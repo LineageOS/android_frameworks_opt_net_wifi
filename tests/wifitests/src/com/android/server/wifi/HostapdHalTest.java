@@ -30,6 +30,7 @@ import android.hardware.wifi.hostapd.V1_0.IHostapd;
 import android.hardware.wifi.hostapd.V1_1.IHostapdCallback;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
+import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.Builder;
 import android.net.wifi.wificond.WifiCondManager;
@@ -72,6 +73,8 @@ public class HostapdHalTest extends WifiBaseTest {
     private MockResources mResources;
     HostapdStatus mStatusSuccess;
     HostapdStatus mStatusFailure;
+    android.hardware.wifi.hostapd.V1_2.HostapdStatus mStatusSuccess12;
+    android.hardware.wifi.hostapd.V1_2.HostapdStatus mStatusFailure12;
     private TestLooper mLooper = new TestLooper();
     private HostapdHal mHostapdHal;
     private ArgumentCaptor<IHwBinder.DeathRecipient> mServiceManagerDeathCaptor =
@@ -130,6 +133,10 @@ public class HostapdHalTest extends WifiBaseTest {
 
         mStatusSuccess = createHostapdStatus(HostapdStatusCode.SUCCESS);
         mStatusFailure = createHostapdStatus(HostapdStatusCode.FAILURE_UNKNOWN);
+
+
+        mStatusSuccess12 = createHostapdStatus_1_2(HostapdStatusCode.SUCCESS);
+        mStatusFailure12 = createHostapdStatus_1_2(HostapdStatusCode.FAILURE_UNKNOWN);
 
         when(mContext.getResources()).thenReturn(mResources);
         when(mServiceManagerMock.linkToDeath(any(IHwBinder.DeathRecipient.class),
@@ -764,5 +771,75 @@ public class HostapdHalTest extends WifiBaseTest {
         status.code = code;
         return status;
     }
+
+    private android.hardware.wifi.hostapd.V1_2.HostapdStatus createHostapdStatus_1_2(int code) {
+        android.hardware.wifi.hostapd.V1_2.HostapdStatus status =
+                new android.hardware.wifi.hostapd.V1_2.HostapdStatus();
+        status.code = code;
+        return status;
+    }
+
+    /**
+     * Verifies the successful execute forceClientDisconnect.
+     */
+    @Test
+    public void testForceClientDisconnectSuccess() throws Exception {
+        executeAndValidateInitializationSequence();
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        MacAddress test_client = MacAddress.fromString("da:a1:19:0:0:0");
+        mIHostapdMockV12 = mock(android.hardware.wifi.hostapd.V1_2.IHostapd.class);
+        when(mIHostapdMockV12.forceClientDisconnect(any(), any(), anyShort()))
+                .thenReturn(mStatusSuccess12);
+
+        assertTrue(mHostapdHal.forceClientDisconnect(IFACE_NAME, test_client, 0));
+        verify(mIHostapdMockV12).forceClientDisconnect(any(), any(), anyShort());
+    }
+
+    /**
+     * Verifies the failure handling in forceClientDisconnect.
+     */
+    @Test
+    public void testForceClientDisconnectFailure() throws Exception {
+        executeAndValidateInitializationSequence();
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        MacAddress test_client = MacAddress.fromString("da:a1:19:0:0:0");
+        mIHostapdMockV12 = mock(android.hardware.wifi.hostapd.V1_2.IHostapd.class);
+        when(mIHostapdMockV12.forceClientDisconnect(any(), any(), anyShort()))
+                .thenReturn(mStatusFailure12);
+
+        assertFalse(mHostapdHal.forceClientDisconnect(IFACE_NAME, test_client, 0));
+        verify(mIHostapdMockV12).forceClientDisconnect(any(), any(), anyShort());
+    }
+
+    /**
+     * Verifies the exception handling in forceClientDisconnect.
+     */
+    @Test
+    public void testforceClientDisconnectRemoteException() throws Exception {
+        executeAndValidateInitializationSequence();
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        MacAddress test_client = MacAddress.fromString("da:a1:19:0:0:0");
+        mIHostapdMockV12 = mock(android.hardware.wifi.hostapd.V1_2.IHostapd.class);
+        doThrow(new RemoteException()).when(mIHostapdMockV12)
+                .forceClientDisconnect(any(), any(), anyShort());
+
+        assertFalse(mHostapdHal.forceClientDisconnect(IFACE_NAME, test_client, 0));
+        verify(mIHostapdMockV12).forceClientDisconnect(any(), any(), anyShort());
+    }
+
+    /**
+     * Verifies the HIDL not support handling in forceClientDisconnect.
+     */
+    @Test
+    public void testforceClientDisconnectHIDLNotSupport() throws Exception {
+        executeAndValidateInitializationSequence();
+        MacAddress test_client = MacAddress.fromString("da:a1:19:0:0:0");
+
+        assertFalse(mHostapdHal.forceClientDisconnect(IFACE_NAME, test_client, 0));
+    }
+
 }
 

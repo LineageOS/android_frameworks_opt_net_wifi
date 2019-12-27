@@ -1722,6 +1722,19 @@ public class WifiNative {
     }
 
     /**
+     * Force a softap client disconnect with specific reason code.
+     *
+     * @param ifaceName Name of the interface.
+     * @param client Mac address to force disconnect in clients of the SoftAp.
+     * @param reasonCode One of disconnect reason code which defined in {@link ApConfigUtil}.
+     * @return true on success, false otherwise.
+     */
+    public boolean forceClientDisconnect(@NonNull String ifaceName,
+            @NonNull MacAddress client, int reasonCode) {
+        return mHostapdHal.forceClientDisconnect(ifaceName, client, reasonCode);
+    }
+
+    /**
      * Set MAC address of the given interface
      * @param interfaceName Name of the interface
      * @param mac Mac address to change into
