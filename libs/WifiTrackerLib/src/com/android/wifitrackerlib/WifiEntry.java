@@ -26,6 +26,7 @@ import androidx.annotation.AnyThread;
 import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -226,22 +227,22 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     /** Returns whether the entry should show a connect option */
     public abstract boolean canConnect();
     /** Connects to the network */
-    public abstract void connect();
+    public abstract void connect(@Nullable ConnectCallback callback);
 
     /** Returns whether the entry should show a disconnect option */
     public abstract boolean canDisconnect();
     /** Disconnects from the network */
-    public abstract void disconnect();
+    public abstract void disconnect(@Nullable DisconnectCallback callback);
 
     /** Returns whether the entry should show a forget option */
     public abstract boolean canForget();
     /** Forgets the network */
-    public abstract void forget();
+    public abstract void forget(@Nullable ForgetCallback callback);
 
     /** Returns whether the network can be signed-in to */
     public abstract boolean canSignIn();
     /** Sign-in to the network. For captive portals. */
-    public abstract void signIn();
+    public abstract void signIn(@Nullable SignInCallback callback);
 
     /** Returns whether the network can be shared via QR code */
     public abstract boolean canShare();
@@ -295,10 +296,30 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     }
 
     /**
-     * Listener for changes to the state of the WifiEntry or the result of actions on the WifiEntry.
-     * These callbacks will be invoked on the main thread.
+     * Listener for changes to the state of the WifiEntry.
+     * This callback will be invoked on the main thread.
      */
     public interface WifiEntryCallback {
+        /**
+         * Indicates the state of the WifiEntry has changed and clients may retrieve updates through
+         * the WifiEntry getter methods.
+         */
+        @MainThread
+        void onUpdated();
+    }
+
+    @AnyThread
+    protected void notifyOnUpdated() {
+        if (mListener != null) {
+            mCallbackHandler.post(() -> mListener.onUpdated());
+        }
+    }
+
+    /**
+     * Listener for changes to the state of the WifiEntry.
+     * This callback will be invoked on the main thread.
+     */
+    public interface ConnectCallback {
         @Retention(RetentionPolicy.SOURCE)
         @IntDef(value = {
                 CONNECT_STATUS_SUCCESS,
@@ -312,6 +333,18 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
         int CONNECT_STATUS_FAILURE_NO_CONFIG = 1;
         int CONNECT_STATUS_FAILURE_UNKNOWN = 2;
 
+        /**
+         * Result of the connect request indicated by the CONNECT_STATUS constants.
+         */
+        @MainThread
+        void onConnectResult(@ConnectStatus int status);
+    }
+
+    /**
+     * Listener for changes to the state of the WifiEntry.
+     * This callback will be invoked on the main thread.
+     */
+    public interface DisconnectCallback {
         @Retention(RetentionPolicy.SOURCE)
         @IntDef(value = {
                 DISCONNECT_STATUS_SUCCESS,
@@ -322,7 +355,18 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
 
         int DISCONNECT_STATUS_SUCCESS = 0;
         int DISCONNECT_STATUS_FAILURE_UNKNOWN = 1;
+        /**
+         * Result of the disconnect request indicated by the DISCONNECT_STATUS constants.
+         */
+        @MainThread
+        void onDisconnectResult(@DisconnectStatus int status);
+    }
 
+    /**
+     * Listener for changes to the state of the WifiEntry.
+     * This callback will be invoked on the main thread.
+     */
+    public interface ForgetCallback {
         @Retention(RetentionPolicy.SOURCE)
         @IntDef(value = {
                 FORGET_STATUS_SUCCESS,
@@ -334,6 +378,18 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
         int FORGET_STATUS_SUCCESS = 0;
         int FORGET_STATUS_FAILURE_UNKNOWN = 1;
 
+        /**
+         * Result of the forget request indicated by the FORGET_STATUS constants.
+         */
+        @MainThread
+        void onForgetResult(@ForgetStatus int status);
+    }
+
+    /**
+     * Listener for changes to the state of the WifiEntry.
+     * This callback will be invoked on the main thread.
+     */
+    public interface SignInCallback {
         @Retention(RetentionPolicy.SOURCE)
         @IntDef(value = {
                 SIGNIN_STATUS_SUCCESS,
@@ -346,36 +402,12 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
         int SIGNIN_STATUS_FAILURE_UNKNOWN = 1;
 
         /**
-         * Indicates the state of the WifiEntry has changed and clients may retrieve updates through
-         * the WifiEntry getter methods.
-         */
-        @MainThread
-        void onUpdated();
-
-        /**
-         * Result of the connect request indicated by the CONNECT_STATUS constants.
-         */
-        @MainThread
-        void onConnectResult(@ConnectStatus int status);
-
-        /**
-         * Result of the disconnect request indicated by the DISCONNECT_STATUS constants.
-         */
-        @MainThread
-        void onDisconnectResult(@DisconnectStatus int status);
-
-        /**
-         * Result of the forget request indicated by the FORGET_STATUS constants.
-         */
-        @MainThread
-        void onForgetResult(@ForgetStatus int status);
-
-        /**
          * Result of the sign-in request indicated by the SIGNIN_STATUS constants.
          */
         @MainThread
         void onSignInResult(@SignInStatus int status);
     }
+
 
     // TODO (b/70983952) Come up with a sorting scheme that does the right thing.
     @Override
@@ -415,40 +447,5 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
                 .append(",security:")
                 .append(getSecurity())
                 .toString();
-    }
-
-    @AnyThread
-    protected void notifyOnUpdated() {
-        if (mListener != null) {
-            mCallbackHandler.post(() -> mListener.onUpdated());
-        }
-    }
-
-    @AnyThread
-    protected void notifyOnConnectResult(@WifiEntryCallback.ConnectStatus int status) {
-        if (mListener != null) {
-            mCallbackHandler.post(() -> mListener.onConnectResult(status));
-        }
-    }
-
-    @AnyThread
-    protected void notifyOnDisconnectResult(@WifiEntryCallback.DisconnectStatus int status) {
-        if (mListener != null) {
-            mCallbackHandler.post(() -> mListener.onDisconnectResult(status));
-        }
-    }
-
-    @AnyThread
-    protected void notifyOnForgetResult(@WifiEntryCallback.ForgetStatus int status) {
-        if (mListener != null) {
-            mCallbackHandler.post(() -> mListener.onForgetResult(status));
-        }
-    }
-
-    @AnyThread
-    protected void notifyOnSignInResult(@WifiEntryCallback.SignInStatus int status) {
-        if (mListener != null) {
-            mCallbackHandler.post(() -> mListener.onSignInResult(status));
-        }
     }
 }
