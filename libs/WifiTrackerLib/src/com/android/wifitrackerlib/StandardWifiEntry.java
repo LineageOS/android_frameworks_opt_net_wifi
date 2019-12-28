@@ -167,8 +167,16 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public String getMacAddress() {
-        // TODO(b/70983952): Fill this method in
-        return null;
+        if (mWifiConfig == null || getPrivacy() != PRIVACY_RANDOMIZED_MAC) {
+            final String[] factoryMacs = mWifiManager.getFactoryMacAddresses();
+            if (factoryMacs.length > 0) {
+                return factoryMacs[0];
+            } else {
+                return null;
+            }
+        } else {
+            return mWifiConfig.getRandomizedMacAddress().toString();
+        }
     }
 
     @Override
@@ -325,8 +333,15 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     @Privacy
     public int getPrivacy() {
-        // TODO(b/70983952): Fill this method in
-        return PRIVACY_RANDOMIZED_MAC;
+        if (mWifiConfig == null) {
+            return PRIVACY_UNKNOWN;
+        }
+
+        if (mWifiConfig.macRandomizationSetting == WifiConfiguration.RANDOMIZATION_NONE) {
+            return PRIVACY_DEVICE_MAC;
+        } else {
+            return PRIVACY_RANDOMIZED_MAC;
+        }
     }
 
     @Override
