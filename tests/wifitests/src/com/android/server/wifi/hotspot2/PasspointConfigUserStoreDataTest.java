@@ -16,8 +16,12 @@
 
 package com.android.server.wifi.hotspot2;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.Credential;
@@ -244,16 +248,20 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
     public void serializeAndDeserializeUserStoreData() throws Exception {
         // Setup expected data.
         List<PasspointProvider> providerList = new ArrayList<>();
-        providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
+        PasspointProvider provider1 = new PasspointProvider(createFullPasspointConfiguration(),
                 mKeyStore, mTelephonyUtil, TEST_PROVIDER_ID, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
                 false, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS),
                 TEST_CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, null,
-                TEST_HAS_EVER_CONNECTED, TEST_SHARED));
-        providerList.add(new PasspointProvider(createFullPasspointConfiguration(), mKeyStore,
-                mTelephonyUtil, TEST_PROVIDER_ID_2, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
-                true, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS, TEST_CA_CERTIFICATE_ALIAS_2),
+                TEST_HAS_EVER_CONNECTED, TEST_SHARED);
+        PasspointProvider provider2 = new PasspointProvider(createFullPasspointConfiguration(),
+                mKeyStore, mTelephonyUtil, TEST_PROVIDER_ID_2, TEST_CREATOR_UID,
+                TEST_CREATOR_PACKAGE, true,
+                Arrays.asList(TEST_CA_CERTIFICATE_ALIAS, TEST_CA_CERTIFICATE_ALIAS_2),
                 TEST_CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, TEST_REMEDIATION_CA_CERTIFICATE_ALIAS,
-                TEST_HAS_EVER_CONNECTED, TEST_SHARED));
+                TEST_HAS_EVER_CONNECTED, TEST_SHARED);
+        provider2.setAutoJoinEnabled(false);
+        providerList.add(provider1);
+        providerList.add(provider2);
 
         // Serialize data for user store.
         when(mDataSource.getProviders()).thenReturn(providerList);

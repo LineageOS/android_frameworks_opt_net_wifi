@@ -148,6 +148,9 @@ public class PasspointNetworkNominateHelper {
                 if (matchedProvider.first.isFromSuggestion() != isFromSuggestion) {
                     continue;
                 }
+                if (!matchedProvider.first.isAutoJoinEnabled()) {
+                    continue;
+                }
                 List<PasspointNetworkCandidate> candidates = candidatesPerProvider
                         .computeIfAbsent(matchedProvider.first, k -> new ArrayList<>());
                 candidates.add(new PasspointNetworkCandidate(matchedProvider.first,

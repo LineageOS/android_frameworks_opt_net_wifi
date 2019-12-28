@@ -2344,6 +2344,24 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager#allowAutojoinPasspoint(String, boolean)}
+     * @param fqdn the FQDN that identifies the passpoint configuration
+     * @param enableAutojoin true to enable auto-join, false to disable
+     */
+    @Override
+    public void allowAutojoinPasspoint(String fqdn, boolean enableAutojoin) {
+        enforceNetworkSettingsPermission();
+        if (fqdn == null) {
+            throw new IllegalArgumentException("FQDN cannot be null");
+        }
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("allowAutojoinPasspoint=% uid=%").c(enableAutojoin).c(callingUid).flush();
+        mWifiThreadRunner.post(
+                () -> mPasspointManager.enableAutojoin(fqdn, enableAutojoin));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#getConnectionInfo()}
      * @return the Wi-Fi information, contained in {@link WifiInfo}.
      */
