@@ -369,8 +369,9 @@ public class SoftApManager implements ActiveModeManager {
         // Make a copy of configuration for updating AP band and channel.
         SoftApConfiguration.Builder localConfigBuilder = new SoftApConfiguration.Builder(config);
 
-        boolean acsEnabled = mContext.getResources()
-                .getBoolean(R.bool.config_wifi_softap_acs_supported);
+        boolean acsEnabled = mCurrentSoftApCapability.isFeatureSupported(
+                SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD);
+
         result = ApConfigUtil.updateApChannelConfig(
                 mWifiNative, mCountryCode,
                 mWifiApConfigStore.getAllowed2GChannel(), localConfigBuilder, config, acsEnabled);
@@ -384,18 +385,18 @@ public class SoftApManager implements ActiveModeManager {
             Log.d(TAG, "SoftAP is a hidden network");
         }
 
+        if (config.getMaxNumberOfClients() != 0
+                && !mCurrentSoftApCapability.isFeatureSupported(
+                SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
+            Log.d(TAG, "Error, Max Client control need HAL support");
+            return ERROR_UNSUPPORTED_CONFIGURATION;
+        }
+
         if (!mWifiNative.startSoftAp(mApInterfaceName,
                   localConfigBuilder.build(), mSoftApListener)) {
             Log.e(TAG, "Soft AP start failed");
             return ERROR_GENERIC;
         }
-        // TODO: b/140172237, it needs to check feature support or not from SoftApCapability
-        /*
-        if (config.getMaxNumberOfClients() != 0) {
-            Log.d(TAG, "Error, Max Client control need HAL support");
-            return ERROR_UNSUPPORTED_CONFIGURATION;
-        }
-        */
 
         mWifiDiagnostics.startLogging(mApInterfaceName);
         mStartTimestamp = FORMATTER.format(new Date(System.currentTimeMillis()));
@@ -420,12 +421,14 @@ public class SoftApManager implements ActiveModeManager {
             maxConfig = Math.min(maxConfig, config.getMaxNumberOfClients());
         }
         if (mConnectedClients.size() == maxConfig) {
-            // TODO: b/140172237, it needs to check feature support or not from SoftApCapability
-            Log.i(TAG, "No more room for new client, current HAL support: ");
-            Log.d(TAG, "Force disconnect for client: " + newClient);
-            mWifiNative.forceClientDisconnect(
-                    mApInterfaceName, newClient.getMacAddress(),
-                    ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS);
+            Log.i(TAG, "No more room for new client:" + newClient);
+            if (mCurrentSoftApCapability.isFeatureSupported(
+                       SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
+                Log.d(TAG, "Force disconnect for client: " + newClient);
+                mWifiNative.forceClientDisconnect(
+                        mApInterfaceName, newClient.getMacAddress(),
+                        ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS);
+            }
             isAllow = false;
         }
         return isAllow;
@@ -609,31 +612,30 @@ public class SoftApManager implements ActiveModeManager {
              * configuration.
              */
             private void updateClientConnection() {
-                final int maxAllowedClientsByHardwareAndCarrierg =
+                final int maxAllowedClientsByHardwareAndCarrier =
                         mCurrentSoftApCapability.getMaxSupportedClients();
                 final int userApConfigMaxClientCount =
                         mApConfig.getSoftApConfiguration().getMaxNumberOfClients();
-                int finalMaxClientCount = maxAllowedClientsByHardwareAndCarrierg;
+                int finalMaxClientCount = maxAllowedClientsByHardwareAndCarrier;
                 if (userApConfigMaxClientCount > 0) {
                     finalMaxClientCount = Math.min(userApConfigMaxClientCount,
-                            maxAllowedClientsByHardwareAndCarrierg);
+                            maxAllowedClientsByHardwareAndCarrier);
                 }
                 if (mConnectedClients.size() > finalMaxClientCount) {
                     Log.d(TAG, "Capability Changed, update connected client");
                     Iterator<WifiClient> iterator = mConnectedClients.iterator();
                     int remove_count = mConnectedClients.size() - finalMaxClientCount;
-                    // TODO: b/140172237, it needs to check feature support or not from
-                    // SoftApCapability
-                    while (iterator.hasNext()) {
-                        if (remove_count == 0) {
-                            break;
+                    if (mCurrentSoftApCapability.isFeatureSupported(
+                                SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
+                        while (iterator.hasNext()) {
+                            if (remove_count == 0) break;
+                            WifiClient client = iterator.next();
+                            Log.d(TAG, "Force disconnect for client: " + client);
+                            mWifiNative.forceClientDisconnect(
+                                    mApInterfaceName, client.getMacAddress(),
+                                    ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS);
+                            remove_count--;
                         }
-                        WifiClient client = iterator.next();
-                        Log.d(TAG, "Force disconnect for client: " + client);
-                        mWifiNative.forceClientDisconnect(
-                                mApInterfaceName, client.getMacAddress(),
-                                ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS);
-                        remove_count--;
                     }
                 }
             }

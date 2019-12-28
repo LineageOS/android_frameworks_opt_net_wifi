@@ -155,6 +155,9 @@
          power limit for meeting SAR requirements -->
     <bool translatable="false" name="config_wifi_framework_enable_soft_ap_sar_tx_power_limit">false</bool>
 
+    <!-- Wifi Hal supports force client disconnect for softap -->
+    <bool translatable="false" name="config_wifi_sofap_client_force_disconnect_supported">true</bool>
+
     <!-- Wifi driver supports Automatic channel selection (ACS) for softap -->
     <bool translatable="false" name="config_wifi_softap_acs_supported">false</bool>
 

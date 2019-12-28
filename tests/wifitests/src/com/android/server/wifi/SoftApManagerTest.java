@@ -160,7 +160,10 @@ public class SoftApManagerTest extends WifiBaseTest {
         mTestSoftApInfo = new SoftApInfo();
         mTestSoftApInfo.setFrequency(TEST_AP_FREQUENCY);
         mTestSoftApInfo.setBandwidth(TEST_AP_BANDWIDTH_IN_SOFTAPINFO);
-        mTestSoftApCapability = new SoftApCapability();
+        // Default set up all features support.
+        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT
+                | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
+        mTestSoftApCapability = new SoftApCapability(testSoftApFeature);
         mTestSoftApCapability.setMaxSupportedClients(10);
     }
 
@@ -554,12 +557,13 @@ public class SoftApManagerTest extends WifiBaseTest {
      */
     @Test
     public void startSoftApFailNoChannel() throws Exception {
+        SoftApCapability noAcsCapability = new SoftApCapability(0);
         Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
         configBuilder.setSsid(TEST_SSID);
         SoftApModeConfiguration softApConfig = new SoftApModeConfiguration(
                 WifiManager.IFACE_IP_MODE_TETHERED, configBuilder.build(),
-                mTestSoftApCapability);
+                noAcsCapability);
 
         when(mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ)).thenReturn(null);
         when(mWifiNative.setupInterfaceForSoftApMode(any())).thenReturn(TEST_INTERFACE_NAME);
@@ -1556,5 +1560,71 @@ public class SoftApManagerTest extends WifiBaseTest {
         assertEquals(expectedErrorCode, errorCode);
         assertEquals(expectedIfaceName, ifaceName);
         assertEquals(expectedMode, mode);
+    }
+    @Test
+    public void testForceClientDisconnectNotInvokeWhenNotSupport() throws Exception {
+        SoftApCapability noClientControlCapability = new SoftApCapability(0);
+        noClientControlCapability.setMaxSupportedClients(1);
+        SoftApModeConfiguration apConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null,
+                noClientControlCapability);
+        startSoftApAndVerifyEnabled(apConfig);
+
+        verify(mCallback).onConnectedClientsChanged(new ArrayList<>());
+
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT, true);
+        mLooper.dispatchAll();
+
+        verify(mCallback, times(2)).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
+
+        verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(
+                1, apConfig.getTargetMode());
+        // Verify timer is canceled at this point
+        verify(mAlarmManager.getAlarmManager()).cancel(any(WakeupMessage.class));
+
+        // Second client connect and max client set is 1.
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT_2, true);
+        mLooper.dispatchAll();
+        verify(mWifiNative, never()).forceClientDisconnect(
+                        any(), any(), anyInt());
+        verify(mWifiMetrics, never()).addSoftApNumAssociatedStationsChangedEvent(
+                2, apConfig.getTargetMode());
+    }
+
+    @Test
+    public void testSoftApEnableFailureBecauseSetMaxClientWhenNotSupport() throws Exception {
+        when(mWifiNative.setupInterfaceForSoftApMode(any())).thenReturn(TEST_INTERFACE_NAME);
+        SoftApCapability noClientControlCapability = new SoftApCapability(0);
+        noClientControlCapability.setMaxSupportedClients(1);
+        SoftApConfiguration softApConfig = new SoftApConfiguration.Builder(
+                mDefaultApConfig).setMaxNumberOfClients(1).build();
+
+        SoftApModeConfiguration apConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, softApConfig,
+                noClientControlCapability);
+        SoftApManager newSoftApManager = new SoftApManager(mContext,
+                                                           mLooper.getLooper(),
+                                                           mFrameworkFacade,
+                                                           mWifiNative,
+                                                           TEST_COUNTRY_CODE,
+                                                           mListener,
+                                                           mCallback,
+                                                           mWifiApConfigStore,
+                                                           apConfig,
+                                                           mWifiMetrics,
+                                                           mSarManager,
+                                                           mWifiDiagnostics);
+        mLooper.dispatchAll();
+        newSoftApManager.start();
+        mLooper.dispatchAll();
+        verify(mCallback).onStateChanged(WifiManager.WIFI_AP_STATE_ENABLING, 0);
+        verify(mCallback).onStateChanged(WifiManager.WIFI_AP_STATE_FAILED,
+                WifiManager.SAP_START_FAILURE_UNSUPPORTED_CONFIGURATION);
+        verify(mListener).onStartFailure();
     }
 }

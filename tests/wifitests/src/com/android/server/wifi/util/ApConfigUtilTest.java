@@ -22,6 +22,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
+import android.content.res.Resources;
+import android.net.wifi.SoftApCapability;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.Builder;
 import android.net.wifi.WifiConfiguration;
@@ -31,6 +34,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiNative;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -118,7 +122,10 @@ public class ApConfigUtilTest extends WifiBaseTest {
     private static final int[] ALLOWED_6G_FREQS = {5945, 5965};
     private static final int[] ALLOWED_5G_CHANNELS = {36, 38, 40};
 
+    @Mock Context mContext;
+    @Mock Resources mResources;
     @Mock WifiNative mWifiNative;
+
     private final ArrayList<Integer> mAllowed2GChannels =
             new ArrayList<Integer>(Arrays.asList(ALLOWED_2G_CHANNELS));
 
@@ -398,5 +405,23 @@ public class ApConfigUtilTest extends WifiBaseTest {
         assertEquals(SoftApConfiguration.BAND_5GHZ | SoftApConfiguration.BAND_2GHZ,
                 configBuilder.build().getBand());
         assertEquals(0, configBuilder.build().getChannel());
+    }
+
+    @Test
+    public void testSoftApCapabilityInitWithResourceValue() throws Exception {
+        int testFeatures = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT;
+        SoftApCapability capability = new SoftApCapability(testFeatures);
+        int test_max_client = 10;
+        capability.setMaxSupportedClients(test_max_client);
+
+        when(mContext.getResources()).thenReturn(mResources);
+        when(mResources.getInteger(R.integer.config_wifi_hardware_soft_ap_max_client_count))
+                .thenReturn(test_max_client);
+        when(mResources.getBoolean(R.bool.config_wifi_softap_acs_supported))
+                .thenReturn(false);
+        when(mResources.getBoolean(R.bool.config_wifi_sofap_client_force_disconnect_supported))
+                .thenReturn(true);
+        assertEquals(ApConfigUtil.updateCapabilityFromResource(mContext),
+                capability);
     }
 }
