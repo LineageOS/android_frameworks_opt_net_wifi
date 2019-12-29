@@ -1949,9 +1949,12 @@ public class WifiConfigManager {
                     + " has no matching config");
             return false;
         }
+
         config.allowAutojoin = choice;
         sendConfiguredNetworkChangedBroadcast(config, WifiManager.CHANGE_REASON_CONFIG_CHANGE);
-        saveToStore(true);
+        if (!config.ephemeral) {
+            saveToStore(true);
+        }
         return true;
     }
 

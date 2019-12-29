@@ -2417,8 +2417,35 @@ public class WifiServiceImpl extends BaseWifiService {
 
         int callingUid = Binder.getCallingUid();
         mLog.info("allowAutojoin=% uid=%").c(choice).c(callingUid).flush();
-        mWifiThreadRunner.post(
-                () -> mWifiConfigManager.allowAutojoin(netId, choice));
+        mWifiThreadRunner.post(() -> {
+            WifiConfiguration config = mWifiConfigManager.getConfiguredNetwork(netId);
+            if (config == null) {
+                return;
+            }
+            if (config.fromWifiNetworkSpecifier) {
+                Log.e(TAG, "Auto-join configuration is not permitted for NetworkSpecifier "
+                        + "connections: " + config);
+                return;
+            }
+            if (config.isPasspoint() && !config.isEphemeral()) {
+                Log.e(TAG,
+                        "Auto-join configuration for a non-ephemeral Passpoint network should be "
+                                + "configured using FQDN: "
+                                + config);
+                return;
+            }
+            // If the network is a suggestion, store the auto-join configure to the
+            // WifiNetWorkSuggestionsManager.
+            if (config.fromWifiNetworkSuggestion) {
+                if (!mWifiNetworkSuggestionsManager
+                        .allowNetworkSuggestionAutojoin(config, choice)) {
+                    return;
+                }
+            }
+            // even for Suggestion, modify the current ephemeral configuration so that
+            // existing configuration auto-connection is updated correctly
+            mWifiConfigManager.allowAutojoin(netId, choice);
+        });
     }
 
     /**
