@@ -287,6 +287,7 @@ class StandardWifiEntry extends WifiEntry {
         }
     }
 
+    @Override
     public boolean canSignIn() {
         // TODO(b/70983952): Fill this method in
         return false;
