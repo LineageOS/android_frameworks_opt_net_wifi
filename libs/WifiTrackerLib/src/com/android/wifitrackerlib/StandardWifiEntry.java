@@ -56,7 +56,9 @@ class StandardWifiEntry extends WifiEntry {
     private final @Security int mSecurity;
     @Nullable private WifiConfiguration mWifiConfig;
     @Nullable private NetworkInfo mNetworkInfo;
+    @Nullable private WifiInfo mWifiInfo;
     private boolean mCalledConnect = false;
+    private boolean mCalledDisconnect = false;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
@@ -246,13 +248,21 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean canDisconnect() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return getConnectedState() == CONNECTED_STATE_CONNECTED;
     }
 
     @Override
     public void disconnect() {
-        // TODO(b/70983952): Fill this method in
+        if (canDisconnect()) {
+            mCalledDisconnect = true;
+            mCallbackHandler.postDelayed(() -> {
+                if (mCalledDisconnect) {
+                    notifyOnDisconnectResult(
+                            WifiEntryCallback.DISCONNECT_STATUS_FAILURE_UNKNOWN);
+                }
+            }, 10_000 /* delayMillis */);
+            mWifiManager.disconnect();
+        }
     }
 
     @Override
@@ -309,19 +319,39 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     @MeteredChoice
     public int getMeteredChoice() {
-        // TODO(b/70983952): Fill this method in
-        return METERED_CHOICE_UNMETERED;
+        if (mWifiConfig != null) {
+            final int meteredOverride = mWifiConfig.meteredOverride;
+            if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NONE) {
+                return METERED_CHOICE_AUTO;
+            } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
+                return METERED_CHOICE_METERED;
+            } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NOT_METERED) {
+                return METERED_CHOICE_UNMETERED;
+            }
+        }
+        return METERED_CHOICE_UNKNOWN;
     }
 
     @Override
     public boolean canSetMeteredChoice() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
     public void setMeteredChoice(int meteredChoice) {
-        // TODO(b/70983952): Fill this method in
+        if (mWifiConfig == null) {
+            return;
+        }
+
+        final WifiConfiguration saveConfig = new WifiConfiguration(mWifiConfig);
+        if (meteredChoice == METERED_CHOICE_AUTO) {
+            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NONE;
+        } else if (meteredChoice == METERED_CHOICE_METERED) {
+            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
+        } else if (meteredChoice == METERED_CHOICE_UNMETERED) {
+            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
+        }
+        mWifiManager.save(saveConfig, null /* listener */);
     }
 
     @Override
@@ -433,6 +463,7 @@ class StandardWifiEntry extends WifiEntry {
         if (mWifiConfig != null && wifiInfo != null
                 && mWifiConfig.networkId == wifiInfo.getNetworkId()) {
             mNetworkInfo = networkInfo;
+            mWifiInfo = wifiInfo;
             final int wifiInfoRssi = wifiInfo.getRssi();
             if (wifiInfoRssi != INVALID_RSSI) {
                 mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi);
@@ -443,6 +474,10 @@ class StandardWifiEntry extends WifiEntry {
             }
         } else {
             mNetworkInfo = null;
+        }
+        if (mCalledDisconnect && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
+            mCalledDisconnect = false;
+            notifyOnDisconnectResult(WifiEntryCallback.DISCONNECT_STATUS_SUCCESS);
         }
         notifyOnUpdated();
     }
