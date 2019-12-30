@@ -187,7 +187,8 @@ public class HostapdHalTest extends WifiBaseTest {
      */
     @Test
     public void testInitialize_successV1_1() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(
+                android.hardware.wifi.hostapd.V1_1.IHostapd.kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mIHostapdMockV11 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
         executeAndValidateInitializationSequenceV1_1(false);
@@ -198,7 +199,8 @@ public class HostapdHalTest extends WifiBaseTest {
      */
     @Test
     public void testInitialize_registerCallbackFailureV1_1() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(
+                android.hardware.wifi.hostapd.V1_1.IHostapd.kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mIHostapdMockV11 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
         executeAndValidateInitializationSequenceV1_1(true);
@@ -482,7 +484,8 @@ public class HostapdHalTest extends WifiBaseTest {
      */
     @Test
     public void testAddAccessPointSuccess_Psk_BandAny_WithACS_AcsChannels() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(
+                android.hardware.wifi.hostapd.V1_1.IHostapd.kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mIHostapdMockV11 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
         // Enable ACS and set available channels in the config.
@@ -622,7 +625,8 @@ public class HostapdHalTest extends WifiBaseTest {
      */
     @Test
     public void testOnFailureCallbackHandling() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(
+                android.hardware.wifi.hostapd.V1_1.IHostapd.kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mIHostapdMockV11 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
         when(mIHostapdMockV11.addAccessPoint_1_1(
