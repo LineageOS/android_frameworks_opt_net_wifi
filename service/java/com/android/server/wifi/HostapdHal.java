@@ -21,6 +21,7 @@ import android.content.Context;
 import android.hardware.wifi.hostapd.V1_0.HostapdStatus;
 import android.hardware.wifi.hostapd.V1_0.HostapdStatusCode;
 import android.hardware.wifi.hostapd.V1_0.IHostapd;
+import android.hardware.wifi.hostapd.V1_2.DebugLevel;
 import android.hardware.wifi.hostapd.V1_2.Ieee80211ReasonCode;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
@@ -133,6 +134,7 @@ public class HostapdHal {
     void enableVerboseLogging(boolean enable) {
         synchronized (mLock) {
             mVerboseLoggingEnabled = enable;
+            setLogLevel();
         }
     }
 
@@ -307,6 +309,9 @@ public class HostapdHal {
                 mIHostapd = null;
                 return false;
             }
+
+            // Setup log level
+            setLogLevel();
         }
         return true;
     }
@@ -834,6 +839,35 @@ public class HostapdHal {
             if (onFailureListener != null) {
                 onFailureListener.run();
             }
+        }
+    }
+
+    /**
+     * Set the debug log level for hostapd.
+     *
+     * @return true if request is sent successfully, false otherwise.
+     */
+    public boolean setLogLevel() {
+        synchronized (mLock) {
+            final String methodStr = "setDebugParams";
+            if (!checkHostapdAndLogFailure(methodStr)) return false;
+            if (isV1_2()) {
+                try {
+                    android.hardware.wifi.hostapd.V1_2.IHostapd iHostapdV1_2 =
+                            getHostapdMockableV1_2();
+                    if (iHostapdV1_2 == null) return false;
+                    android.hardware.wifi.hostapd.V1_2.HostapdStatus status =
+                            iHostapdV1_2.setDebugParams(mVerboseLoggingEnabled
+                                    ? DebugLevel.DEBUG
+                                    : DebugLevel.INFO);
+                    return checkStatusAndLogFailure12(status, methodStr);
+                } catch (RemoteException e) {
+                    handleRemoteException(e, methodStr);
+                }
+            } else {
+                Log.d(TAG, "HIDL doesn't support setDebugParams");
+            }
+            return false;
         }
     }
 }
