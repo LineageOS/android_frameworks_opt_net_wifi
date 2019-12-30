@@ -133,7 +133,7 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
 
     // Callback associated with this WifiEntry. Subclasses should call its methods appropriately.
     private WifiEntryCallback mListener;
-    private Handler mCallbackHandler;
+    protected Handler mCallbackHandler;
 
     WifiEntry(@NonNull Handler callbackHandler, boolean forSavedNetworksPage,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
@@ -449,30 +449,6 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     protected void notifyOnSignInResult(@WifiEntryCallback.SignInStatus int status) {
         if (mListener != null) {
             mCallbackHandler.post(() -> mListener.onSignInResult(status));
-        }
-    }
-
-    class ConnectListener implements WifiManager.ActionListener {
-        @Override
-        public void onSuccess() {
-            notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_SUCCESS);
-        }
-
-        @Override
-        public void onFailure(int i) {
-            notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
-        }
-    }
-
-    class ForgetListener implements WifiManager.ActionListener {
-        @Override
-        public void onSuccess() {
-            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_SUCCESS);
-        }
-
-        @Override
-        public void onFailure(int i) {
-            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_FAILURE_UNKNOWN);
         }
     }
 }

@@ -56,6 +56,7 @@ class StandardWifiEntry extends WifiEntry {
     private final @Security int mSecurity;
     @Nullable private WifiConfiguration mWifiConfig;
     @Nullable private NetworkInfo mNetworkInfo;
+    private boolean mCalledConnect = false;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
@@ -208,8 +209,8 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean canConnect() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return mLevel != WIFI_LEVEL_UNREACHABLE
+                && getConnectedState() == CONNECTED_STATE_DISCONNECTED;
     }
 
     @Override
@@ -235,8 +236,7 @@ class StandardWifiEntry extends WifiEntry {
                 mWifiManager.connect(connectConfig, new ConnectListener());
             } else {
                 // Secure network
-                // TODO(b/70983952): Add support for unsaved secure networks
-                // Return bad password failure to prompt user to enter password.
+                notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_NO_CONFIG);
             }
         } else {
             // Saved network
@@ -351,19 +351,21 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean isAutoJoinEnabled() {
-        // TODO(b/70983952): Fill this method in
-        return true;
+        if (mWifiConfig == null) {
+            return false;
+        }
+
+        return mWifiConfig.allowAutojoin;
     }
 
     @Override
     public boolean canSetAutoJoinEnabled() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
     public void setAutoJoinEnabled(boolean enabled) {
-        // TODO(b/70983952): Fill this method in
+        mWifiManager.allowAutojoin(mWifiConfig.networkId, enabled);
     }
 
     @WorkerThread
@@ -435,6 +437,10 @@ class StandardWifiEntry extends WifiEntry {
             if (wifiInfoRssi != INVALID_RSSI) {
                 mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi);
             }
+            if (mCalledConnect && getConnectedState() == CONNECTED_STATE_CONNECTED) {
+                mCalledConnect = false;
+                notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_SUCCESS);
+            }
         } else {
             mNetworkInfo = null;
         }
@@ -453,5 +459,36 @@ class StandardWifiEntry extends WifiEntry {
         checkNotNull(config.SSID, "Cannot create key with null SSID in config!");
         return KEY_PREFIX + removeDoubleQuotes(config.SSID) + ","
                 + getSecurityFromWifiConfiguration(config);
+    }
+
+    class ConnectListener implements WifiManager.ActionListener {
+        @Override
+        public void onSuccess() {
+            mCalledConnect = true;
+            // If we aren't connected to the network after 10 seconds, trigger the failure callback
+            mCallbackHandler.postDelayed(() -> {
+                if (mCalledConnect && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
+                    notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
+                    mCalledConnect = false;
+                }
+            }, 10_000 /* delayMillis */);
+        }
+
+        @Override
+        public void onFailure(int i) {
+            notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
+        }
+    }
+
+    class ForgetListener implements WifiManager.ActionListener {
+        @Override
+        public void onSuccess() {
+            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_SUCCESS);
+        }
+
+        @Override
+        public void onFailure(int i) {
+            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_FAILURE_UNKNOWN);
+        }
     }
 }
