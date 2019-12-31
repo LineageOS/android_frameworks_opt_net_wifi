@@ -360,6 +360,7 @@ public class BssidBlocklistMonitorTest {
      * Verify that the blocklist streak is incremented after adding a BSSID to blocklist.
      * And then verify the blocklist streak is not reset by a regular timeout.
      */
+    @Test
     public void testIncrementingBlocklistStreakCount() {
         verifyAddTestBssidToBlocklist();
         // verify that the blocklist streak is incremented

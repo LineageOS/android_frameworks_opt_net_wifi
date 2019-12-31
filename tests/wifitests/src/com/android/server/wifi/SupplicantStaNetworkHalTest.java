@@ -1000,7 +1000,11 @@ public class SupplicantStaNetworkHalTest extends WifiBaseTest {
     /** Verifies that setPmkCache can set PMK cache
      *
      */
+    @Test
     public void testSetPmkCache() {
+        // Now expose the V1.3 ISupplicantStaNetwork
+        createSupplicantStaNetwork(SupplicantStaNetworkVersion.V1_3);
+
         WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork();
         config.enterpriseConfig =
                 WifiConfigurationTestUtil.createTLSWifiEnterpriseConfigWithNonePhase2();

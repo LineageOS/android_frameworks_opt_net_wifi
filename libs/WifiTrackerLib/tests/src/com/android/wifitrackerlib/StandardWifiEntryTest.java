@@ -343,6 +343,7 @@ public class StandardWifiEntryTest {
         assertThat(entry.getConnectedState()).isEqualTo(CONNECTED_STATE_DISCONNECTED);
     }
 
+    @Test
     public void testConnect_savedNetwork_usesSavedConfig() {
         final ScanResult scan = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
         final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler,

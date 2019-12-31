@@ -357,6 +357,7 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     /**
      * Verify that we ignore any unknown tags when parsing a <Network> block.
      */
+    @Test
     public void parseNetworkWithUnknownTag() throws Exception {
         String configFormat =
                 "<Network>\n"
