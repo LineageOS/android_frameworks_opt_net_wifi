@@ -370,6 +370,22 @@ public class StandardWifiEntryTest {
     }
 
     @Test
+    public void testConnect_unsavedSecureNetwork_returnsNoConfigFailure() {
+        final ScanResult secureScan = buildScanResult("ssid", "bssid0", 0, GOOD_RSSI);
+        secureScan.capabilities = "PSK";
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler,
+                Arrays.asList(secureScan),
+                mMockWifiManager);
+        entry.setListener(mMockListener);
+
+        entry.connect();
+        mTestLooper.dispatchAll();
+
+        verify(mMockListener, times(1))
+                .onConnectResult(WifiEntry.WifiEntryCallback.CONNECT_STATUS_FAILURE_NO_CONFIG);
+    }
+
+    @Test
     public void testGetMacAddress_randomizationOn_usesRandomizedValue() {
         final String randomizedMac = "01:23:45:67:89:ab";
         final WifiConfiguration config = new WifiConfiguration();
