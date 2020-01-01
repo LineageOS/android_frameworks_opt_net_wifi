@@ -24,13 +24,18 @@ import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pGroupList;
 import android.net.wifi.p2p.nsd.WifiP2pServiceInfo;
+import android.net.wifi.wificond.WifiCondManager;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.server.wifi.HalDeviceManager;
 import com.android.server.wifi.PropertyService;
+import com.android.server.wifi.WifiInjector;
+import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.WifiVendorHal;
+
+import java.util.Set;
 
 /**
  * Native calls for bring up/shut down of the supplicant daemon and for
@@ -42,6 +47,7 @@ public class WifiP2pNative {
     private static final String TAG = "WifiP2pNative";
     private boolean mVerboseLoggingEnabled = false;
     private final SupplicantP2pIfaceHal mSupplicantP2pIfaceHal;
+    private final WifiInjector mWifiInjector;
     private final HalDeviceManager mHalDeviceManager;
     private final PropertyService mPropertyService;
     private final WifiVendorHal mWifiVendorHal;
@@ -108,9 +114,10 @@ public class WifiP2pNative {
         }
     }
 
-    public WifiP2pNative(WifiVendorHal wifiVendorHal,
+    public WifiP2pNative(WifiInjector wifiInjector, WifiVendorHal wifiVendorHal,
             SupplicantP2pIfaceHal p2pIfaceHal, HalDeviceManager halDeviceManager,
             PropertyService propertyService) {
+        mWifiInjector = wifiInjector;
         mWifiVendorHal = wifiVendorHal;
         mSupplicantP2pIfaceHal = p2pIfaceHal;
         mHalDeviceManager = halDeviceManager;
@@ -597,11 +604,24 @@ public class WifiP2pNative {
             default:
                 freq = config.groupOwnerBand;
         }
+        abortWifiRunningScanIfNeeded(join);
         return mSupplicantP2pIfaceHal.groupAdd(
                 config.networkName,
                 config.passphrase,
                 (config.netId == WifiP2pGroup.PERSISTENT_NET_ID),
                 freq, config.deviceAddress, join);
+    }
+
+    private void abortWifiRunningScanIfNeeded(boolean isJoin) {
+        if (!isJoin) return;
+
+        WifiCondManager wifiCondManager = mWifiInjector.getWifiCondManager();
+        WifiNative wifiNative = mWifiInjector.getWifiNative();
+        Set<String> wifiClientInterfaces = wifiNative.getClientInterfaceNames();
+
+        for (String interfaceName: wifiClientInterfaces) {
+            wifiCondManager.abortScan(interfaceName);
+        }
     }
 
     /**

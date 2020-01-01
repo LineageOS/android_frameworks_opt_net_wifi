@@ -142,14 +142,32 @@ public class HostapdHal {
      * @return true if supported, false otherwise.
      */
     private boolean isV1_1() {
+        return checkHalVersionByInterfaceName(
+                android.hardware.wifi.hostapd.V1_1.IHostapd.kInterfaceName);
+    }
+
+    /**
+     * Uses the IServiceManager to check if the device is running V1_2 of the HAL from the VINTF for
+     * the device.
+     * @return true if supported, false otherwise.
+     */
+    private boolean isV1_2() {
+        return checkHalVersionByInterfaceName(
+                android.hardware.wifi.hostapd.V1_2.IHostapd.kInterfaceName);
+    }
+
+    private boolean checkHalVersionByInterfaceName(String interfaceName) {
+        if (interfaceName == null) {
+            return false;
+        }
         synchronized (mLock) {
             if (mIServiceManager == null) {
-                Log.e(TAG, "isV1_1: called but mServiceManager is null!?");
+                Log.e(TAG, "checkHalVersionByInterfaceName called but mServiceManager is null!?");
                 return false;
             }
             try {
                 return (mIServiceManager.getTransport(
-                        android.hardware.wifi.hostapd.V1_1.IHostapd.kInterfaceName,
+                        interfaceName,
                         HAL_INSTANCE_NAME)
                         != IServiceManager.Transport.EMPTY);
             } catch (RemoteException e) {
@@ -157,20 +175,6 @@ public class HostapdHal {
                 handleRemoteException(e, "getTransport");
                 return false;
             }
-        }
-    }
-
-    /**
-     * Checks if the service is running HAL version 1.2 on the device.
-     * @return true if supported, false otherwise.
-     */
-    private boolean isV1_2() {
-        try {
-            return (getHostapdMockableV1_2() != null);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Exception while operating on IServiceManager: " + e);
-            handleRemoteException(e, "getHostapdMockableV1_2");
-            return false;
         }
     }
 
@@ -299,11 +303,13 @@ public class HostapdHal {
                 return false;
             }
             if (!linkToHostapdDeath(mHostapdDeathRecipient, ++mDeathRecipientCookie)) {
+                Log.e(TAG, "Fail to link to Hostapd Death, Stopping hostapd HIDL startup");
                 mIHostapd = null;
                 return false;
             }
             // Register for callbacks for 1.1 hostapd.
             if (isV1_1() && !registerCallback(new HostapdCallback())) {
+                Log.e(TAG, "Fail to regiester Callback, Stopping hostapd HIDL startup");
                 mIHostapd = null;
                 return false;
             }

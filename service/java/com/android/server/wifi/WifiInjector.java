@@ -228,7 +228,7 @@ public class WifiInjector {
                 wifiHandler, new Random(), this);
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);
-        mWifiP2pNative = new WifiP2pNative(
+        mWifiP2pNative = new WifiP2pNative(this,
                 mWifiVendorHal, mSupplicantP2pIfaceHal, mHalDeviceManager,
                 mPropertyService);
 
@@ -785,5 +785,9 @@ public class WifiInjector {
             mNetdWrapper = new NetdWrapper(mContext, new Handler(mWifiHandlerThread.getLooper()));
         }
         return mNetdWrapper;
+    }
+
+    public WifiCondManager getWifiCondManager() {
+        return mWifiCondManager;
     }
 }
