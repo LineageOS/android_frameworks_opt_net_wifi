@@ -115,9 +115,6 @@
           <item type="string" name="wifi_wakeup_onboarding_action_disable" />
           <item type="string" name="wifi_wakeup_enabled_title" />
           <item type="string" name="wifi_wakeup_enabled_content" />
-          <item type="string" name="wifi_softap_config_change" />
-          <item type="string" name="wifi_softap_config_change_summary" />
-          <item type="string" name="wifi_softap_config_change_detailed" />
           <item type="string" name="wifi_watchdog_network_disabled" />
           <item type="string" name="wifi_watchdog_network_disabled_detailed" />
           <item type="string" name="wifi_connect_alert_title" />
