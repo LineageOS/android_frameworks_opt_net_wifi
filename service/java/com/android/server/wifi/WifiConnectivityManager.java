@@ -268,8 +268,8 @@ public class WifiConnectivityManager {
     /**
      * Set whether bluetooth is in the connected state
      */
-    public void setBluetoothConnected(boolean isBlueToothConnected) {
-        mNetworkSelector.setBluetoothConnected(isBlueToothConnected);
+    public void setBluetoothConnected(boolean isBluetoothConnected) {
+        mNetworkSelector.setBluetoothConnected(isBluetoothConnected);
     }
 
     // All single scan results listener.
@@ -574,7 +574,6 @@ public class WifiConnectivityManager {
         mClock = clock;
         mScoringParams = scoringParams;
         mConnectionAttemptTimeStamps = new LinkedList<>();
-
         mPnoScanIntervalMs = MOVING_PNO_SCAN_INTERVAL_MS;
 
         // Listen to WifiConfigManager network update events
@@ -815,15 +814,12 @@ public class WifiConnectivityManager {
 
         boolean isScanNeeded = true;
         boolean isFullBandScan = true;
-        boolean isTrafficOverThreshold = mWifiInfo.getTxSuccessRate()
-                > mContext.getResources().getInteger(
-                        R.integer.config_wifi_framework_max_tx_rate_for_full_scan)
-                || mWifiInfo.getRxSuccessRate()
-                > mContext.getResources().getInteger(
-                        R.integer.config_wifi_framework_max_rx_rate_for_full_scan);
 
-        // If the WiFi traffic is heavy, only partial scan is proposed.
-        if (mWifiState == WIFI_STATE_CONNECTED && isTrafficOverThreshold) {
+        // If current network link quality is sufficient or has active stream,
+        // skip scan (with firmware roaming) or do partial scan only (without firmware roaming).
+        if (mWifiState == WIFI_STATE_CONNECTED
+                && (mNetworkSelector.hasSufficientLinkQuality(mWifiInfo, mScoringParams)
+                || mNetworkSelector.hasActiveStream(mWifiInfo, mScoringParams))) {
             // If only partial scan is proposed and firmware roaming control is supported,
             // we will not issue any scan because firmware roaming will take care of
             // intra-SSID roam.
@@ -831,7 +827,7 @@ public class WifiConnectivityManager {
                 localLog("No partial scan because firmware roaming is supported.");
                 isScanNeeded = false;
             } else {
-                localLog("No full band scan due to ongoing traffic");
+                localLog("No full band scan because current network is sufficient");
                 isFullBandScan = false;
             }
         }

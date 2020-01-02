@@ -48,6 +48,8 @@ public class ScoringParams {
     private static final int SUFFICIENT = 2;
     private static final int GOOD = 3;
 
+    private static final int ACTIVE_TRAFFIC = 1;
+    private static final int HIGH_TRAFFIC = 2;
     /**
      * Parameter values are stored in a separate container so that a new collection of values can
      * be checked for consistency before activating them.
@@ -284,7 +286,10 @@ public class ScoringParams {
                 R.integer.config_wifiFrameworkSecureNetworkBonus);
         mVal.lastSelectionBonus = context.getResources().getInteger(
                 R.integer.config_wifiFrameworkLastSelectionBonus);
-
+        mVal.pps[ACTIVE_TRAFFIC] = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkMinPacketPerSecondActiveTraffic);
+        mVal.pps[HIGH_TRAFFIC] = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkMinPacketPerSecondHighTraffic);
         try {
             mVal.validate();
         } catch (IllegalArgumentException e) {
@@ -409,7 +414,15 @@ public class ScoringParams {
      */
     public int getYippeeSkippyPacketsPerSecond() {
         loadResources(mContext);
-        return mVal.pps[2];
+        return mVal.pps[HIGH_TRAFFIC];
+    }
+
+    /**
+     * Returns a packet rate that should be considered acceptable to skip scan or network selection
+     */
+    public int getActiveTrafficPacketsPerSecond() {
+        loadResources(mContext);
+        return mVal.pps[ACTIVE_TRAFFIC];
     }
 
     /**
