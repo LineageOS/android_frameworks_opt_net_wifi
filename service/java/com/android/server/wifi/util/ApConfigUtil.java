@@ -503,7 +503,7 @@ public class ApConfigUtil {
         }
 
         if (context.getResources().getBoolean(
-                R.bool.config_wifi_sofap_client_force_disconnect_supported)) {
+                R.bool.config_wifiSofapClientForceDisconnectSupported)) {
             Log.d(TAG, "Update Softap capability, add client control feature support");
             features |= SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT;
         }
@@ -514,7 +514,7 @@ public class ApConfigUtil {
         }
         SoftApCapability capability = new SoftApCapability(features);
         int hardwareSupportedMaxClient = context.getResources().getInteger(
-                R.integer.config_wifi_hardware_soft_ap_max_client_count);
+                R.integer.config_wifiHardwareSoftapMaxClientCount);
         if (hardwareSupportedMaxClient > 0) {
             Log.d(TAG, "Update Softap capability, max client = " + hardwareSupportedMaxClient);
             capability.setMaxSupportedClients(hardwareSupportedMaxClient);

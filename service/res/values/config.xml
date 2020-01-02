@@ -128,7 +128,7 @@
     <integer translatable="false" name="config_wifi_framework_soft_ap_timeout_delay">600000</integer>
 
     <!-- Integer indicating maximum hardware supported client number of soft ap -->
-    <integer translatable="false" name="config_wifi_hardware_soft_ap_max_client_count">16</integer>
+    <integer translatable="false" name="config_wifiHardwareSoftapMaxClientCount">16</integer>
 
     <string  translatable="false" name="config_wifi_random_mac_oui">DA-A1-19</string>
 
@@ -170,7 +170,7 @@
     <bool translatable="false" name="config_wifi_framework_enable_soft_ap_sar_tx_power_limit">false</bool>
 
     <!-- Wifi Hal supports force client disconnect for softap -->
-    <bool translatable="false" name="config_wifi_sofap_client_force_disconnect_supported">true</bool>
+    <bool translatable="false" name="config_wifiSofapClientForceDisconnectSupported">true</bool>
 
     <!-- Wifi driver supports Automatic channel selection (ACS) for softap -->
     <bool translatable="false" name="config_wifi_softap_acs_supported">false</bool>

@@ -986,7 +986,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 int carrierMaxClient = carrierConfig.getInt(
                         CarrierConfigManager.Wifi.KEY_HOTSPOT_MAX_CLIENT_COUNT);
                 int finalSupportedClientNumber = mContext.getResources().getInteger(
-                        R.integer.config_wifi_hardware_soft_ap_max_client_count);
+                        R.integer.config_wifiHardwareSoftapMaxClientCount);
                 if (carrierMaxClient > 0) {
                     finalSupportedClientNumber = Math.min(finalSupportedClientNumber,
                             carrierMaxClient);

@@ -450,11 +450,11 @@ public class ApConfigUtilTest extends WifiBaseTest {
         capability.setMaxSupportedClients(test_max_client);
 
         when(mContext.getResources()).thenReturn(mResources);
-        when(mResources.getInteger(R.integer.config_wifi_hardware_soft_ap_max_client_count))
+        when(mResources.getInteger(R.integer.config_wifiHardwareSoftapMaxClientCount))
                 .thenReturn(test_max_client);
         when(mResources.getBoolean(R.bool.config_wifi_softap_acs_supported))
                 .thenReturn(false);
-        when(mResources.getBoolean(R.bool.config_wifi_sofap_client_force_disconnect_supported))
+        when(mResources.getBoolean(R.bool.config_wifiSofapClientForceDisconnectSupported))
                 .thenReturn(true);
         assertEquals(ApConfigUtil.updateCapabilityFromResource(mContext),
                 capability);

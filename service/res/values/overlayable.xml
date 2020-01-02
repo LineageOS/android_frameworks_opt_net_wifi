@@ -66,7 +66,7 @@
           <item type="bool" name="config_wifi_only_link_same_credential_configurations" />
           <item type="bool" name="config_wifi_framework_enable_sar_tx_power_limit" />
           <item type="bool" name="config_wifi_framework_enable_soft_ap_sar_tx_power_limit" />
-          <item type="bool" name="config_wifi_sofap_client_force_disconnect_supported" />
+          <item type="bool" name="config_wifiSofapClientForceDisconnectSupported" />
           <item type="bool" name="config_wifi_softap_acs_supported" />
           <item type="bool" name="config_wifi_softap_sae_supported" />
           <item type="bool" name="config_wifi_softap_ieee80211ac_supported" />
@@ -96,7 +96,7 @@
           <item type="array" name="config_wifiDisconnectedScanIntervalScheduleSec" />
           <item type="array" name="config_wifiConnectedScanIntervalScheduleSec" />
           <item type="bool" name="config_wifiScanHiddenNetworksScanOnlyMode" />
-          <item type="integer" name="config_wifi_hardware_soft_ap_max_client_count" />
+          <item type="integer" name="config_wifiHardwareSoftapMaxClientCount" />
           <!-- Params from config.xml that can be overlayed -->
 
           <!-- Params from strings.xml that can be overlayed -->

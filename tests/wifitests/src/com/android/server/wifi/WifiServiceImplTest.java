@@ -302,7 +302,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mApplicationInfo = new ApplicationInfo();
         mApplicationInfo.targetSdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT;
         when(mResources.getInteger(
-                eq(R.integer.config_wifi_hardware_soft_ap_max_client_count)))
+                eq(R.integer.config_wifiHardwareSoftapMaxClientCount)))
                 .thenReturn(10);
         WifiInjector.sWifiInjector = mWifiInjector;
         when(mRequestInfo.getPid()).thenReturn(mPid);
