@@ -16,7 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"Sistemos „Wi‑Fi“"</string>
+    <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Sistemos „Wi‑Fi“ šaltiniai"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="one">Pasiekiami „Wi-Fi“ tinklai</item>
       <item quantity="few">Pasiekiami „Wi-Fi“ tinklai</item>
@@ -36,6 +36,9 @@
     <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"Palieskite, jei norite matyti visus tinklus"</string>
     <string name="wifi_available_action_connect" msgid="7989951293406720158">"Prisijungti"</string>
     <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"Visi tinklai"</string>
+    <string name="notification_channel_network_status" msgid="7808526906954286713">"Tinklo būsena"</string>
+    <string name="notification_channel_network_alerts" msgid="3638265846217667221">"Tinklo įspėjimai"</string>
+    <string name="notification_channel_network_available" msgid="7791052175212297403">"Tinklas pasiekiamas"</string>
     <string name="wifi_suggestion_title" msgid="8724552631151189767">"Leisti siūlomus „Wi‑Fi“ tinklus?"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"„<xliff:g id="NAME">%s</xliff:g>“ siūlomi tinklai. Įrenginys gali prisijungti automatiškai."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Leisti"</string>
@@ -45,9 +48,6 @@
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Neįjunkite vėl"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"„Wi‑Fi“ įjungtas automatiškai"</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"Esate netoli išsaugoto tinklo: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
-    <string name="wifi_softap_config_change" msgid="1210975707034881716">"Viešosios interneto prieigos taško nustatymų pakeitimai"</string>
-    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"Viešosios prieigos taško dažnio juosta pasikeitė."</string>
-    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"Šiame įrenginyje nepalaikoma tik 5 GHz nuostata. Vietoj to šiame įrenginyje bus naudojama 5 GHz dažnio juosta, kai bus pasiekiama."</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Nepavyko prisijungti prie „Wi-Fi“"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" turi prastą interneto ryšį."</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Leisti prisijungti?"</string>
@@ -66,4 +66,12 @@
     <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"„Android TV“ įrenginys bus laikinai atjungtas nuo „Wi-Fi“, kol bus prijungtas prie „<xliff:g id="DEVICE_NAME">%1$s</xliff:g>“"</string>
     <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"Telefonas bus laikinai atjungtas nuo „Wi-Fi“, kol bus prijungtas prie „<xliff:g id="DEVICE_NAME">%1$s</xliff:g>“"</string>
     <string name="dlg_ok" msgid="3250085870426030310">"Gerai"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Nepavyksta prisijungti prie „<xliff:g id="SSID">%1$s</xliff:g>“"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Palieskite, kad pakeistumėte privatumo nustatymus, ir bandykite dar kartą"</string>
+    <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Keisti privatumo nustatymą?"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"„<xliff:g id="SSID_0">%1$s</xliff:g>“ gali norėti prisijungti naudodama jūsų įrenginio MAC adresą – unikalų identifikatorių. Gali būti, kad tokiu atveju įrenginio vietovę galės stebėti netoliese esantys įrenginiai. \n\nJei tęsite, „<xliff:g id="SSID_1">%1$s</xliff:g>“ pakeis jūsų privatumo nustatymus ir bandys prisijungti iš naujo."</string>
+    <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Keisti nustatymą"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Nustatymas atnaujintas. Pabandykite prisijungti dar kartą."</string>
+    <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Nepavyko pakeisti privatumo nustatymo"</string>
+    <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Tinklas nerastas"</string>
 </resources>

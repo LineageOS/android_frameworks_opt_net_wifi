@@ -16,7 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"Sistemski Wi-Fi"</string>
+    <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Sistemska sredstva za Wi-Fi"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="one">Na voljo so omrežja Wi-Fi</item>
       <item quantity="two">Na voljo so omrežja Wi-Fi</item>
@@ -36,6 +36,9 @@
     <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"Dotaknite se, če si želite ogledati vsa omrežja"</string>
     <string name="wifi_available_action_connect" msgid="7989951293406720158">"Vzpostavi povezavo"</string>
     <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"Vsa omrežja"</string>
+    <string name="notification_channel_network_status" msgid="7808526906954286713">"Stanje omrežja"</string>
+    <string name="notification_channel_network_alerts" msgid="3638265846217667221">"Opozorila omrežja"</string>
+    <string name="notification_channel_network_available" msgid="7791052175212297403">"Omrežje je na voljo"</string>
     <string name="wifi_suggestion_title" msgid="8724552631151189767">"Želite dovoliti predlagana omrežja Wi-Fi?"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> – predlagana omrežja. Naprava se lahko poveže samodejno."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Dovoli"</string>
@@ -45,9 +48,6 @@
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Ne vklopi znova"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"Wi‑Fi je bil vklopljen samodejno"</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"Ste v bližini shranjenega omrežja: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
-    <string name="wifi_softap_config_change" msgid="1210975707034881716">"Spremembe nastavitev dostopne točke"</string>
-    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"Pas dostopne točke je spremenjen."</string>
-    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"Ta naprava ne podpira prednostne nastavitve samo za 5-GHz pas. Namesto tega bo ta naprava uporabljala 5-GHz pas, ko bo na voljo."</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Z omrežjem Wi-Fi se ni mogoče povezati"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" ima slabo internetno povezavo."</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Ali dovolite vzpostavitev povezave?"</string>
@@ -66,4 +66,12 @@
     <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"Naprava Android TV bo začasno prekinila povezavo z omrežjem Wi-Fi, medtem ko je povezana z napravo <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
     <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"Telefon bo začasno prekinil povezavo z Wi-Fi-jem, ko je povezan z napravo <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
     <string name="dlg_ok" msgid="3250085870426030310">"V redu"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Povezava z omrežjem <xliff:g id="SSID">%1$s</xliff:g> ni mogoča"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Dotaknite se za spremembo nastavitev zasebnosti in poskusite znova"</string>
+    <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Želite spremeniti nastavitev zasebnosti?"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Omrežje <xliff:g id="SSID_0">%1$s</xliff:g> bo morda za vzpostavitev povezave želelo uporabiti naslov MAC naprave, ki je enolični identifikator. To lahko napravam v bližini omogoči spremljanje lokacije vaše naprave. \n\nČe nadaljujete, bo omrežje <xliff:g id="SSID_1">%1$s</xliff:g> spremenilo nastavitev zasebnosti in se poskušalo znova povezati."</string>
+    <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Spremeni nastavitev"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Nastavitev je posodobljena. Poskusite se znova povezati."</string>
+    <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Nastavitve zasebnosti ni mogoče spremeniti"</string>
+    <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Omrežja ni mogoče najti"</string>
 </resources>

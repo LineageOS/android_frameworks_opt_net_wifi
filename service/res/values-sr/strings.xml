@@ -16,7 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"Wi-Fi система"</string>
+    <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Системски Wi-Fi ресурси"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="one">Wi-Fi мреже су доступне</item>
       <item quantity="few">Wi-Fi мреже су доступне</item>
@@ -34,6 +34,9 @@
     <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"Додирните да бисте видели све мреже"</string>
     <string name="wifi_available_action_connect" msgid="7989951293406720158">"Повежи"</string>
     <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"Све мреже"</string>
+    <string name="notification_channel_network_status" msgid="7808526906954286713">"Статус мреже"</string>
+    <string name="notification_channel_network_alerts" msgid="3638265846217667221">"Обавештења у вези са мрежом"</string>
+    <string name="notification_channel_network_available" msgid="7791052175212297403">"Мрежа је доступна"</string>
     <string name="wifi_suggestion_title" msgid="8724552631151189767">"Желите да дозволите предложене Wi‑Fi мреже?"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Мреже које предлаже <xliff:g id="NAME">%s</xliff:g>. Уређај ће се можда повезати аутоматски."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Дозволи"</string>
@@ -43,9 +46,6 @@
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Не укључуј поново"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"Wi‑Fi је аутоматски укључен"</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"У близини сте сачуване мреже: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
-    <string name="wifi_softap_config_change" msgid="1210975707034881716">"Промене подешавања за хотспот"</string>
-    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"Опсег хотспота је промењен."</string>
-    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"Овај уређај не подржава подешавање само за 5 GHz. Уређај ће користити опсег од 5 GHz када буде доступан."</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Није могуће повезати са Wi-Fi мрежом"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" има лошу интернет везу."</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Желите ли да дозволите повезивање?"</string>
@@ -64,4 +64,12 @@
     <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"Android TV уређај ће привремено прекинути везу са Wi-Fi мрежом док је повезан са уређајем <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
     <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"Телефон ће привремено прекинути везу са Wi-Fi-јем док је повезан са уређајем <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
     <string name="dlg_ok" msgid="3250085870426030310">"Потврди"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Повезивање на мрежу <xliff:g id="SSID">%1$s</xliff:g> није успело"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Додирните да бисте променили подешавања приватности и пробали поново"</string>
+    <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Желите ли да промените подешавања приватности?"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> можда жели да се повеже помоћу MAC адресе уређаја, јединственог идентификатора. То може да омогући уређајима у близини да прате локацију уређаја. \n\nАко наставите, <xliff:g id="SSID_1">%1$s</xliff:g> ће променити подешавања приватности и поново пробати да се повеже."</string>
+    <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Промени подешавање"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Подешавање је ажурирано. Пробајте поново да се повежете."</string>
+    <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Промена подешавања приватности није успела"</string>
+    <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Мрежа није пронађена"</string>
 </resources>

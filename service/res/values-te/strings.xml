@@ -16,7 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"సిస్టమ్ Wi-Fi"</string>
+    <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"సిస్టమ్ Wi-Fi వనరులు"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="other">Wi-Fi నెట్‌వర్క్‌లు అందుబాటులో ఉన్నాయి</item>
       <item quantity="one">Wi-Fi నెట్‌వర్క్ అందుబాటులో ఉంది</item>
@@ -32,6 +32,9 @@
     <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"అన్ని నెట్‌వర్క్‌లు చూడటానికి నొక్కండి"</string>
     <string name="wifi_available_action_connect" msgid="7989951293406720158">"కనెక్ట్ చేయి"</string>
     <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"అన్ని నెట్‌వర్క్‌లు"</string>
+    <string name="notification_channel_network_status" msgid="7808526906954286713">"నెట్‌వర్క్ స్థితి"</string>
+    <string name="notification_channel_network_alerts" msgid="3638265846217667221">"నెట్‌వర్క్ హెచ్చరికలు"</string>
+    <string name="notification_channel_network_available" msgid="7791052175212297403">"నెట్‌వర్క్ అందుబాటులో ఉంది"</string>
     <string name="wifi_suggestion_title" msgid="8724552631151189767">"సూచించిన Wi‑Fi నెట్‌వర్క్‌లను అనుమతించాలా?"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> సూచించిన నెట్‌వర్క్‌లు. పరికరం ఆటోమేటిక్‌గా కనెక్ట్ అవచ్చు."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"అనుమతించు"</string>
@@ -41,9 +44,6 @@
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"తిరిగి ఆన్ చేయవద్దు"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"Wi‑Fi స్వయంచాలకంగా ఆన్ చేయబడింది"</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"మీరు సేవ్ చేసిన నెట్‌వర్క్‌కి సమీపంలో ఉన్నారు: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
-    <string name="wifi_softap_config_change" msgid="1210975707034881716">"మీ హాట్‌స్పాట్ సెట్టింగ్‌లకు మార్పులు"</string>
-    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"మీ హాట్‌స్పాట్ బ్యాండ్ మార్చబడింది."</string>
-    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"ఈ పరికరం 5GHz కోసం మాత్రమే మీ ప్రాధాన్యతకు మద్దతు ఇవ్వదు. బదులుగా, ఈ పరికరం అందుబాటులో ఉన్నప్పుడు 5GHz బ్యాండ్‌ను ఉపయోగిస్తుంది."</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Wi-Fiకి కనెక్ట్ చేయడం సాధ్యపడలేదు"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" బలహీన ఇంటర్నెట్ కనెక్షన్‌ను కలిగి ఉంది."</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"కనెక్షన్‌ని అనుమతించాలా?"</string>
@@ -62,4 +62,12 @@
     <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"మీ Android TV పరికరం <xliff:g id="DEVICE_NAME">%1$s</xliff:g>కి కనెక్ట్ అయి ఉన్నప్పుడు తాత్కాలికంగా Wi-Fi నుండి డిస్‌కనెక్ట్ అవుతుంది"</string>
     <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"ఫోన్ <xliff:g id="DEVICE_NAME">%1$s</xliff:g>కి కనెక్ట్ అయినప్పుడు అది Wi-Fi నుండి తాత్కాలికంగా డిస్‌కనెక్ట్ చేయబడుతుంది"</string>
     <string name="dlg_ok" msgid="3250085870426030310">"సరే"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g>కు కనెక్ట్ చేయడం సాధ్యపడదు"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"మీ గోప్యతా సెట్టింగ్‌లను మార్చడానికి నొక్కి, మళ్లీ ప్రయత్నించండి"</string>
+    <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"గోప్యతా సెట్టింగ్‌ను మార్చాలా?"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> అనేది ప్రత్యేకమైన ఐడెంటిఫయర్ అయిన మీ డివైజ్ MAC చిరునామాను ఉపయోగించి కనెక్ట్ చేయాలనుకోవచ్చు. అలా చేయడం వలన మీ లొకేషన్‌ను ట్రాక్ చేయడానికి సమీప పరికరాలకు అనుమతి లభించవచ్చు. \n\nఒకవేళ మీరు కొనసాగితే, మీ గోప్యతా సెట్టింగ్‌ను <xliff:g id="SSID_1">%1$s</xliff:g> మారుస్తుంది, అప్పుడు తిరిగి కనెక్ట్ చేయడానికి ప్రయత్నిస్తుంది."</string>
+    <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"సెట్టింగ్‌ను మార్చండి"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"సెట్టింగ్ అప్‌డేట్ చేయబడింది. మళ్లీ కనెక్ట్ చేయడాన్ని ప్రయత్నించండి."</string>
+    <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"గోప్యతా సెట్టింగ్‌లను మార్చడం సాధ్యం కాదు"</string>
+    <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"నెట్‌వర్క్ కనుగొనబడలేదు"</string>
 </resources>

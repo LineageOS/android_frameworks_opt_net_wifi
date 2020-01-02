@@ -16,7 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"‏شبكة Wi‑Fi للنظام"</string>
+    <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"‏مصادر شبكة Wi-Fi للنظام"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="zero">‏لا تتوفر أي شبكات Wi-Fi</item>
       <item quantity="two">‏تتوفر شبكتا Wi-Fi</item>
@@ -40,6 +40,9 @@
     <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"انقر للاطلاع على جميع الشبكات"</string>
     <string name="wifi_available_action_connect" msgid="7989951293406720158">"اتصال"</string>
     <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"جميع الشبكات"</string>
+    <string name="notification_channel_network_status" msgid="7808526906954286713">"حالة الشبكة"</string>
+    <string name="notification_channel_network_alerts" msgid="3638265846217667221">"تنبيهات الشبكة"</string>
+    <string name="notification_channel_network_available" msgid="7791052175212297403">"الشبكة متوفرة"</string>
     <string name="wifi_suggestion_title" msgid="8724552631151189767">"‏هل تريد السماح لشبكات Wi‑Fi المقترحة؟"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"شبكات <xliff:g id="NAME">%s</xliff:g> المقترحة - قد يتم توصيل الجهاز تلقائيًا."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"سماح"</string>
@@ -49,9 +52,6 @@
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"عدم إعادة التشغيل"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"‏تم تفعيل شبكة Wi-Fi تلقائيًا."</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"أنت قريب من شبكة محفوظة: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>."</string>
-    <string name="wifi_softap_config_change" msgid="1210975707034881716">"التغييرات التي طرأت على إعدادات نقطة الاتصال"</string>
-    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"تمّ تغيير نطاق نقطة الاتصال الخاصة بك."</string>
-    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"لا يتوافق هذا الجهاز مع إعدادك المفضّل الخاص باستخدام النطاق 5 غيغاهرتز فقط. وسيستخدم الجهاز بدلاً من ذلك النطاق 5 غيغاهرتز عندما يكون متاحًا."</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"‏تعذر الاتصال بـ Wi-Fi"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" تحتوي على اتصال إنترنت ضعيف."</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"هل تريد السماح بالاتصال؟"</string>
@@ -70,4 +70,12 @@
     <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"‏سيتم قطع اتصال جهاز Android TV بشبكة Wi-Fi مؤقتًا أثناء اتصاله بجهاز<xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
     <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"‏سيتم قطع اتصال الهاتف مؤقتًا بشبكة Wi-Fi في الوقت الذي يكون فيه متصلاً بـ <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
     <string name="dlg_ok" msgid="3250085870426030310">"حسنًا"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"يتعذّر الاتصال بـ <xliff:g id="SSID">%1$s</xliff:g>."</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"انقر لتغيير إعدادات الخصوصية وإعادة المحاولة."</string>
+    <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"هل تريد تغيير إعداد الخصوصية؟"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"‏قد يحتاج <xliff:g id="SSID_0">%1$s</xliff:g> إلى الاتصال باستخدام عنوان MAC الخاص بجهازك ومعرّف فريد. وقد يسمح هذا الإجراء للأجهزة القريبة بتتبع الموقع الجغرافي لجهازك. \n\nفي حال مواصلة تنفيذ هذا الإجراء، سيغيّر <xliff:g id="SSID_1">%1$s</xliff:g> إعداد الخصوصية ويحاول إعادة الاتصال."</string>
+    <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"تغيير الإعداد"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"تم تعديل الإعداد. حاوِل إعادة الاتصال."</string>
+    <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"لا يمكن تغيير إعداد الخصوصية."</string>
+    <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"لم يتم العثور على الشبكة."</string>
 </resources>
