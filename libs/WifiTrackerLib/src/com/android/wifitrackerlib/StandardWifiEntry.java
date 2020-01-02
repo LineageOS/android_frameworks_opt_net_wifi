@@ -287,16 +287,50 @@ class StandardWifiEntry extends WifiEntry {
         // TODO(b/70983952): Fill this method in
     }
 
+    /**
+     * Returns whether the network can be shared via QR code.
+     * See https://github.com/zxing/zxing/wiki/Barcode-Contents#wi-fi-network-config-android-ios-11
+     */
     @Override
     public boolean canShare() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        if (!isSaved()) {
+            return false;
+        }
+
+        switch (mSecurity) {
+            case SECURITY_PSK:
+            case SECURITY_WEP:
+            case SECURITY_NONE:
+            case SECURITY_SAE:
+            case SECURITY_OWE:
+                return true;
+            default:
+                return false;
+        }
     }
 
+    /**
+     * Returns whether the user can use Easy Connect to onboard a device to the network.
+     * See https://www.wi-fi.org/discover-wi-fi/wi-fi-easy-connect
+     */
     @Override
     public boolean canEasyConnect() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        if (!isSaved()) {
+            return false;
+        }
+
+        if (!mWifiManager.isEasyConnectSupported()) {
+            return false;
+        }
+
+        // DPP 1.0 only supports SAE and PSK.
+        switch (mSecurity) {
+            case SECURITY_SAE:
+            case SECURITY_PSK:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
