@@ -17,6 +17,8 @@
 android_test {
     name: "FrameworksWifiTests",
 
+    defaults: ["framework-wifi-test-defaults"],
+
     srcs: [
         "**/*.java",
     	// wifi-service sources must be included here so that the latest changes
@@ -100,7 +102,6 @@ android_test {
     ],
 
     min_sdk_version: "29",
-    platform_apis: true,
     privileged: true,
     test_suites: [
         "device-tests",
