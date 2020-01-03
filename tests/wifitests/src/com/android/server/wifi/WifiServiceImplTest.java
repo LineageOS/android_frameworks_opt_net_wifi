@@ -2273,6 +2273,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mClientSoftApCallback, never()).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
         verify(mClientSoftApCallback, never()).onConnectedClientsChanged(any());
         verify(mClientSoftApCallback, never()).onInfoChanged(any());
+        verify(mClientSoftApCallback, never()).onCapabilityChanged(any());
     }
 
 
@@ -2296,6 +2297,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(callback).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
         verify(callback).onConnectedClientsChanged(Mockito.<WifiClient>anyList());
         verify(callback).onInfoChanged(new SoftApInfo());
+        verify(callback).onCapabilityChanged(ApConfigUtil.updateCapabilityFromResource(mContext));
+        // Don't need to invoke callback when register.
+        verify(callback, never()).onBlockedClientConnecting(any(), anyInt());
     }
 
     /**
@@ -2369,14 +2373,18 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void correctCallbackIsCalledAfterAddingTwoCallbacksAndRemovingOne() throws Exception {
         final int callbackIdentifier = 1;
+        WifiClient testWifiClient = new WifiClient(MacAddress.fromString("22:33:44:55:66:77"));
         mWifiServiceImpl.registerSoftApCallback(mAppBinder, mClientSoftApCallback,
                 callbackIdentifier);
+        mLooper.dispatchAll();
 
         // Change state from default before registering the second callback
         final List<WifiClient> testClients = new ArrayList();
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
         mStateMachineSoftApCallback.onInfoChanged(mTestSoftApInfo);
+        mStateMachineSoftApCallback.onBlockedClientConnecting(testWifiClient, 0);
+
 
         // Register another callback and verify the new state is returned in the immediate callback
         final int anotherUid = 2;
@@ -2385,6 +2393,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mAnotherSoftApCallback).onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         verify(mAnotherSoftApCallback).onConnectedClientsChanged(testClients);
         verify(mAnotherSoftApCallback).onInfoChanged(mTestSoftApInfo);
+        // Verify only first callback will receive onBlockedClientConnecting since it call after
+        // first callback register but before another callback register.
+        verify(mClientSoftApCallback).onBlockedClientConnecting(testWifiClient, 0);
+        verify(mAnotherSoftApCallback, never()).onBlockedClientConnecting(testWifiClient, 0);
 
         // unregister the fisrt callback
         mWifiServiceImpl.unregisterSoftApCallback(callbackIdentifier);
@@ -2470,9 +2482,11 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void updatesSoftApStateAndConnectedClientsOnSoftApEvents() throws Exception {
         final List<WifiClient> testClients = new ArrayList();
+        WifiClient testWifiClient = new WifiClient(MacAddress.fromString("22:33:44:55:66:77"));
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
         mStateMachineSoftApCallback.onInfoChanged(mTestSoftApInfo);
+        mStateMachineSoftApCallback.onBlockedClientConnecting(testWifiClient, 0);
 
         // Register callback after num clients and soft AP are changed.
         final int callbackIdentifier = 1;
@@ -2482,6 +2496,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mClientSoftApCallback).onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         verify(mClientSoftApCallback).onConnectedClientsChanged(testClients);
         verify(mClientSoftApCallback).onInfoChanged(mTestSoftApInfo);
+        // Don't need to invoke callback when register.
+        verify(mClientSoftApCallback, never()).onBlockedClientConnecting(any(), anyInt());
     }
 
     private class IntentFilterMatcher implements ArgumentMatcher<IntentFilter> {

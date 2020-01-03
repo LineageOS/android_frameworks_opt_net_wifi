@@ -59,9 +59,11 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Manage WiFi in AP mode.
@@ -116,6 +118,12 @@ public class SoftApManager implements ActiveModeManager {
     private BaseWifiDiagnostics mWifiDiagnostics;
 
     private @Role int mRole = ROLE_UNSPECIFIED;
+
+    @NonNull
+    private Set<MacAddress> mBlockedClientList = new HashSet<>();
+
+    @NonNull
+    private Set<MacAddress> mAllowedClientList = new HashSet<>();
 
     /**
      * Listener for soft AP events.
@@ -181,6 +189,10 @@ public class SoftApManager implements ActiveModeManager {
         mSarManager = sarManager;
         mWifiDiagnostics = wifiDiagnostics;
         mStateMachine = new SoftApStateMachine(looper);
+        if (softApConfig != null) {
+            mBlockedClientList = new HashSet<>(softApConfig.getBlockedClientList());
+            mAllowedClientList = new HashSet<>(softApConfig.getAllowedClientList());
+        }
     }
 
     /**
@@ -394,20 +406,11 @@ public class SoftApManager implements ActiveModeManager {
             Log.d(TAG, "SoftAP is a hidden network");
         }
 
-        if (config.getMaxNumberOfClients() != 0
-                && !mCurrentSoftApCapability.isFeatureSupported(
-                SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
-            Log.d(TAG, "Error, Max Client control requires HAL support");
+        if (!ApConfigUtil.checkSupportAllConfiguration(config, mCurrentSoftApCapability)) {
+            Log.d(TAG, "Unsupported Configuration detect! config = " + config);
             return ERROR_UNSUPPORTED_CONFIGURATION;
         }
 
-        if ((config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION
-                || config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE)
-                && !mCurrentSoftApCapability.isFeatureSupported(
-                SoftApCapability.SOFTAP_FEATURE_WPA3_SAE)) {
-            Log.d(TAG, "Error, SAE requires HAL support");
-            return ERROR_UNSUPPORTED_CONFIGURATION;
-        }
         if (!mWifiNative.startSoftAp(mApInterfaceName,
                   localConfigBuilder.build(), mSoftApListener)) {
             Log.e(TAG, "Soft AP start failed");
@@ -430,24 +433,39 @@ public class SoftApManager implements ActiveModeManager {
         Log.d(TAG, "Soft AP is stopped");
     }
 
-    private boolean checkSoftApMaxClient(SoftApConfiguration config, WifiClient newClient) {
-        boolean isAllow = true;
+    private boolean checkSoftApClient(SoftApConfiguration config, WifiClient newClient) {
+        if (!mCurrentSoftApCapability.isFeatureSupported(
+                SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
+            return true;
+        }
+
+        if (config.isClientControlByUserEnabled()
+                && !mAllowedClientList.contains(newClient.getMacAddress())) {
+            if (!mBlockedClientList.contains(newClient.getMacAddress())) {
+                mSoftApCallback.onBlockedClientConnecting(newClient,
+                        WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_BLOCKED_BY_USER);
+            }
+            Log.d(TAG, "Force disconnect for unauthorized client: " + newClient);
+            mWifiNative.forceClientDisconnect(
+                    mApInterfaceName, newClient.getMacAddress(),
+                    WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_BLOCKED_BY_USER);
+            return false;
+        }
         int maxConfig = mCurrentSoftApCapability.getMaxSupportedClients();
         if (config.getMaxNumberOfClients() > 0) {
             maxConfig = Math.min(maxConfig, config.getMaxNumberOfClients());
         }
-        if (mConnectedClients.size() == maxConfig) {
+
+        if (mConnectedClients.size() >= maxConfig) {
             Log.i(TAG, "No more room for new client:" + newClient);
-            if (mCurrentSoftApCapability.isFeatureSupported(
-                       SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
-                Log.d(TAG, "Force disconnect for client: " + newClient);
-                mWifiNative.forceClientDisconnect(
-                        mApInterfaceName, newClient.getMacAddress(),
-                        ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS);
-            }
-            isAllow = false;
+            mWifiNative.forceClientDisconnect(
+                    mApInterfaceName, newClient.getMacAddress(),
+                    WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS);
+            mSoftApCallback.onBlockedClientConnecting(newClient,
+                    WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS);
+            return false;
         }
-        return isAllow;
+        return true;
     }
 
     private class SoftApStateMachine extends StateMachine {
@@ -555,8 +573,11 @@ public class SoftApManager implements ActiveModeManager {
                         break;
                     case CMD_UPDATE_CONFIG:
                         SoftApConfiguration newConfig = (SoftApConfiguration) message.obj;
+                        Log.d(TAG, "Configuration changed to " + newConfig);
                         mApConfig = new SoftApModeConfiguration(mApConfig.getTargetMode(),
                                 newConfig, mCurrentSoftApCapability);
+                        mBlockedClientList = new HashSet<>(newConfig.getBlockedClientList());
+                        mAllowedClientList = new HashSet<>(newConfig.getAllowedClientList());
                         break;
                     default:
                         // Ignore all other commands.
@@ -630,6 +651,10 @@ public class SoftApManager implements ActiveModeManager {
              * configuration.
              */
             private void updateClientConnection() {
+                if (!mCurrentSoftApCapability.isFeatureSupported(
+                        SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
+                    return;
+                }
                 final int maxAllowedClientsByHardwareAndCarrier =
                         mCurrentSoftApCapability.getMaxSupportedClients();
                 final int userApConfigMaxClientCount =
@@ -639,21 +664,38 @@ public class SoftApManager implements ActiveModeManager {
                     finalMaxClientCount = Math.min(userApConfigMaxClientCount,
                             maxAllowedClientsByHardwareAndCarrier);
                 }
-                if (mConnectedClients.size() > finalMaxClientCount) {
-                    Log.d(TAG, "Capability Changed, update connected client");
+                int targetDisconnectClientNumber = mConnectedClients.size() - finalMaxClientCount;
+                List<WifiClient> allowedConnectedList = new ArrayList<>();
+                if (mApConfig.getSoftApConfiguration().isClientControlByUserEnabled()) {
+                    // Check allow list first
                     Iterator<WifiClient> iterator = mConnectedClients.iterator();
-                    int remove_count = mConnectedClients.size() - finalMaxClientCount;
-                    if (mCurrentSoftApCapability.isFeatureSupported(
-                                SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)) {
-                        while (iterator.hasNext()) {
-                            if (remove_count == 0) break;
-                            WifiClient client = iterator.next();
-                            Log.d(TAG, "Force disconnect for client: " + client);
+                    while (iterator.hasNext()) {
+                        WifiClient client = iterator.next();
+                        if (mAllowedClientList.contains(client.getMacAddress())) {
+                            allowedConnectedList.add(client);
+                        } else {
+                            Log.d(TAG, "Force disconnect for not allowed client: " + client);
                             mWifiNative.forceClientDisconnect(
                                     mApInterfaceName, client.getMacAddress(),
-                                    ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS);
-                            remove_count--;
+                                    WifiManager
+                                    .SAP_CLIENT_BLOCK_REASON_CODE_BLOCKED_BY_USER);
+                            targetDisconnectClientNumber--;
                         }
+                    }
+                } else {
+                    allowedConnectedList = new ArrayList<>(mConnectedClients);
+                }
+                if (targetDisconnectClientNumber > 0) {
+                    Iterator<WifiClient> allowedClientIterator = allowedConnectedList.iterator();
+                    while (allowedClientIterator.hasNext()) {
+                        if (targetDisconnectClientNumber == 0) break;
+                        WifiClient allowedClient = allowedClientIterator.next();
+                        Log.d(TAG, "Force disconnect for client due to no more room: "
+                                + allowedClient);
+                        mWifiNative.forceClientDisconnect(
+                                mApInterfaceName, allowedClient.getMacAddress(),
+                                WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS);
+                        targetDisconnectClientNumber--;
                     }
                 }
             }
@@ -676,7 +718,7 @@ public class SoftApManager implements ActiveModeManager {
                     return;
                 }
                 if (isConnected) {
-                    boolean isAllow = checkSoftApMaxClient(
+                    boolean isAllow = checkSoftApClient(
                             mApConfig.getSoftApConfiguration(), client);
                     if (isAllow) {
                         mConnectedClients.add(client);
@@ -926,6 +968,8 @@ public class SoftApManager implements ActiveModeManager {
                             boolean needRescheduleTimer =
                                     mApConfig.getSoftApConfiguration().getShutdownTimeoutMillis()
                                     != newConfig.getShutdownTimeoutMillis();
+                            mBlockedClientList = new HashSet<>(newConfig.getBlockedClientList());
+                            mAllowedClientList = new HashSet<>(newConfig.getAllowedClientList());
                             mApConfig = new SoftApModeConfiguration(mApConfig.getTargetMode(),
                                     newConfig, mCurrentSoftApCapability);
                             updateClientConnection();
