@@ -420,4 +420,88 @@ public class StandardWifiEntryTest {
 
         assertThat(macAddress).isEqualTo(factoryMac);
     }
+
+    @Test
+    public void testCanShare_securityCanShare_shouldReturnTrue() {
+        final StandardWifiEntry pskWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_PSK);
+        final StandardWifiEntry wepWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_WEP);
+        final StandardWifiEntry openWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_OPEN);
+        final StandardWifiEntry saeWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_SAE);
+        final StandardWifiEntry oweWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_OWE);
+
+        assertThat(pskWifiEntry.canShare()).isTrue();
+        assertThat(wepWifiEntry.canShare()).isTrue();
+        assertThat(openWifiEntry.canShare()).isTrue();
+        assertThat(saeWifiEntry.canShare()).isTrue();
+        assertThat(oweWifiEntry.canShare()).isTrue();
+    }
+
+    @Test
+    public void testCanShare_securityCanNotShare_shouldReturnFalse() {
+        final StandardWifiEntry eapWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_EAP);
+        final StandardWifiEntry eapSuiteBWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_EAP_SUITE_B);
+
+        assertThat(eapWifiEntry.canShare()).isFalse();
+        assertThat(eapSuiteBWifiEntry.canShare()).isFalse();
+    }
+
+    @Test
+    public void testCanEasyConnect_deviceNotSupported_shouldReturnFalse() {
+        when(mMockWifiManager.isEasyConnectSupported()).thenReturn(false);
+        final ScanResult pskScanResult = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
+        pskScanResult.capabilities = "PSK";
+
+        final StandardWifiEntry pskWifiEntry = new StandardWifiEntry(mTestHandler,
+                Arrays.asList(pskScanResult), mMockWifiManager);
+
+        assertThat(pskWifiEntry.canEasyConnect()).isFalse();
+    }
+
+    @Test
+    public void testCanEasyConnect_securityCanEasyConnect_shouldReturnTrue() {
+        when(mMockWifiManager.isEasyConnectSupported()).thenReturn(true);
+        final StandardWifiEntry pskWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_PSK);
+        final StandardWifiEntry saeWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_SAE);
+
+        assertThat(pskWifiEntry.canEasyConnect()).isTrue();
+        assertThat(saeWifiEntry.canEasyConnect()).isTrue();
+    }
+
+    @Test
+    public void testCanEasyConnect_securityCanNotEasyConnect_shouldReturnFalse() {
+        when(mMockWifiManager.isEasyConnectSupported()).thenReturn(true);
+        final StandardWifiEntry openWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_OPEN);
+        final StandardWifiEntry wepWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_WEP);
+        final StandardWifiEntry eapWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_EAP);
+        final StandardWifiEntry eapSuiteBWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_EAP_SUITE_B);
+        final StandardWifiEntry oweWifiEntry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_OWE);
+
+        assertThat(openWifiEntry.canEasyConnect()).isFalse();
+        assertThat(wepWifiEntry.canEasyConnect()).isFalse();
+        assertThat(eapWifiEntry.canEasyConnect()).isFalse();
+        assertThat(eapSuiteBWifiEntry.canEasyConnect()).isFalse();
+        assertThat(oweWifiEntry.canEasyConnect()).isFalse();
+    }
+
+    private StandardWifiEntry getSavedStandardWifiEntry(int wifiConfigurationSecureType) {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.setSecurityParams(wifiConfigurationSecureType);
+        return new StandardWifiEntry(mTestHandler, config,
+                mMockWifiManager);
+    }
 }
