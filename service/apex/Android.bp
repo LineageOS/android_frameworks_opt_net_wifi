@@ -25,6 +25,7 @@ apex_defaults {
     init_rc: ["../wifi.rc"],
     key: "com.android.wifi.key",
     certificate: ":com.android.wifi.certificate",
+    apps: ["wifi-service-resources"],
 }
 
 filegroup {
@@ -37,7 +38,6 @@ apex {
     name: "com.android.wifi",
     defaults: ["com.android.wifi-defaults"],
     manifest: "apex_manifest.json",
-    apps: ["wifi-service-resources"],
 }
 
 apex_key {
