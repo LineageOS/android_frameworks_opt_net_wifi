@@ -28,6 +28,7 @@ import android.hardware.wifi.hostapd.V1_0.HostapdStatus;
 import android.hardware.wifi.hostapd.V1_0.HostapdStatusCode;
 import android.hardware.wifi.hostapd.V1_0.IHostapd;
 import android.hardware.wifi.hostapd.V1_1.IHostapdCallback;
+import android.hardware.wifi.hostapd.V1_2.DebugLevel;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.MacAddress;
@@ -843,6 +844,27 @@ public class HostapdHalTest extends WifiBaseTest {
         MacAddress test_client = MacAddress.fromString("da:a1:19:0:0:0");
 
         assertFalse(mHostapdHal.forceClientDisconnect(IFACE_NAME, test_client, 0));
+    }
+
+    /**
+     * Verifies the setting of log level.
+     */
+    @Test
+    public void testSetLogLevel() throws Exception {
+        executeAndValidateInitializationSequence();
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mIHostapdMockV12 = mock(android.hardware.wifi.hostapd.V1_2.IHostapd.class);
+        when(mIHostapdMockV12.setDebugParams(anyInt()))
+                .thenReturn(mStatusSuccess12);
+
+        mHostapdHal.enableVerboseLogging(true);
+        verify(mIHostapdMockV12)
+                .setDebugParams(eq(DebugLevel.DEBUG));
+
+        mHostapdHal.enableVerboseLogging(false);
+        verify(mIHostapdMockV12)
+                .setDebugParams(eq(DebugLevel.INFO));
     }
 
 }
