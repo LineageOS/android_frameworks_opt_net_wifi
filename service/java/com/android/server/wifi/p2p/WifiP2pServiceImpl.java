@@ -2908,6 +2908,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             }
 
             public void exit() {
+                // The group is still there and handling incoming request,
+                // no need to update P2P connection information.
+                if (mGroup != null) return;
+
                 mWifiP2pMetrics.endGroupEvent();
                 updateThisDevice(WifiP2pDevice.AVAILABLE);
                 resetWifiP2pInfo();
