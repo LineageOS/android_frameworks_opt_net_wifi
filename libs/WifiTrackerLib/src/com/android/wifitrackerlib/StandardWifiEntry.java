@@ -57,6 +57,9 @@ class StandardWifiEntry extends WifiEntry {
     @Nullable private WifiConfiguration mWifiConfig;
     @Nullable private NetworkInfo mNetworkInfo;
     @Nullable private WifiInfo mWifiInfo;
+    @Nullable private ConnectCallback mConnectCallback;
+    @Nullable private DisconnectCallback mDisconnectCallback;
+    @Nullable private ForgetCallback mForgetCallback;
     private boolean mCalledConnect = false;
     private boolean mCalledDisconnect = false;
 
@@ -216,7 +219,8 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
-    public void connect() {
+    public void connect(@Nullable ConnectCallback callback) {
+        mConnectCallback = callback;
         if (mWifiConfig == null) {
             // Unsaved network
             if (mSecurity == SECURITY_NONE
@@ -235,14 +239,18 @@ class StandardWifiEntry extends WifiEntry {
                 } else {
                     connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
                 }
-                mWifiManager.connect(connectConfig, new ConnectListener());
+                mWifiManager.connect(connectConfig, new ConnectActionListener());
             } else {
                 // Secure network
-                notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_NO_CONFIG);
+                if (callback != null) {
+                    mCallbackHandler.post(() ->
+                            callback.onConnectResult(
+                                    ConnectCallback.CONNECT_STATUS_FAILURE_NO_CONFIG));
+                }
             }
         } else {
             // Saved network
-            mWifiManager.connect(mWifiConfig.networkId, new ConnectListener());
+            mWifiManager.connect(mWifiConfig.networkId, new ConnectActionListener());
         }
     }
 
@@ -252,13 +260,14 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
-    public void disconnect() {
+    public void disconnect(@Nullable DisconnectCallback callback) {
         if (canDisconnect()) {
             mCalledDisconnect = true;
+            mDisconnectCallback = callback;
             mCallbackHandler.postDelayed(() -> {
-                if (mCalledDisconnect) {
-                    notifyOnDisconnectResult(
-                            WifiEntryCallback.DISCONNECT_STATUS_FAILURE_UNKNOWN);
+                if (callback != null && mCalledDisconnect) {
+                    callback.onDisconnectResult(
+                            DisconnectCallback.DISCONNECT_STATUS_FAILURE_UNKNOWN);
                 }
             }, 10_000 /* delayMillis */);
             mWifiManager.disconnect();
@@ -271,9 +280,10 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
-    public void forget() {
+    public void forget(@Nullable ForgetCallback callback) {
         if (mWifiConfig != null) {
-            mWifiManager.forget(mWifiConfig.networkId, new ForgetListener());
+            mForgetCallback = callback;
+            mWifiManager.forget(mWifiConfig.networkId, new ForgetActionListener());
         }
     }
 
@@ -283,7 +293,7 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @Override
-    public void signIn() {
+    public void signIn(@Nullable SignInCallback callback) {
         // TODO(b/70983952): Fill this method in
     }
 
@@ -470,14 +480,23 @@ class StandardWifiEntry extends WifiEntry {
             }
             if (mCalledConnect && getConnectedState() == CONNECTED_STATE_CONNECTED) {
                 mCalledConnect = false;
-                notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_SUCCESS);
+                mCallbackHandler.post(() -> {
+                    if (mConnectCallback != null) {
+                        mConnectCallback.onConnectResult(ConnectCallback.CONNECT_STATUS_SUCCESS);
+                    }
+                });
             }
         } else {
             mNetworkInfo = null;
         }
         if (mCalledDisconnect && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
             mCalledDisconnect = false;
-            notifyOnDisconnectResult(WifiEntryCallback.DISCONNECT_STATUS_SUCCESS);
+            mCallbackHandler.post(() -> {
+                if (mDisconnectCallback != null) {
+                    mDisconnectCallback.onDisconnectResult(
+                            DisconnectCallback.DISCONNECT_STATUS_SUCCESS);
+                }
+            });
         }
         notifyOnUpdated();
     }
@@ -496,14 +515,16 @@ class StandardWifiEntry extends WifiEntry {
                 + getSecurityFromWifiConfiguration(config);
     }
 
-    class ConnectListener implements WifiManager.ActionListener {
+    private class ConnectActionListener implements WifiManager.ActionListener {
         @Override
         public void onSuccess() {
             mCalledConnect = true;
             // If we aren't connected to the network after 10 seconds, trigger the failure callback
             mCallbackHandler.postDelayed(() -> {
-                if (mCalledConnect && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
-                    notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
+                if (mConnectCallback != null && mCalledConnect
+                        && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
+                    mConnectCallback.onConnectResult(
+                            ConnectCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
                     mCalledConnect = false;
                 }
             }, 10_000 /* delayMillis */);
@@ -511,19 +532,32 @@ class StandardWifiEntry extends WifiEntry {
 
         @Override
         public void onFailure(int i) {
-            notifyOnConnectResult(WifiEntryCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
+            mCallbackHandler.post(() -> {
+                if (mConnectCallback != null) {
+                    mConnectCallback.onConnectResult(
+                            mConnectCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
+                }
+            });
         }
     }
 
-    class ForgetListener implements WifiManager.ActionListener {
+    class ForgetActionListener implements WifiManager.ActionListener {
         @Override
         public void onSuccess() {
-            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_SUCCESS);
+            mCallbackHandler.post(() -> {
+                if (mForgetCallback != null) {
+                    mForgetCallback.onForgetResult(ForgetCallback.FORGET_STATUS_SUCCESS);
+                }
+            });
         }
 
         @Override
         public void onFailure(int i) {
-            notifyOnForgetResult(WifiEntryCallback.FORGET_STATUS_FAILURE_UNKNOWN);
+            mCallbackHandler.post(() -> {
+                if (mForgetCallback != null) {
+                    mForgetCallback.onForgetResult(ForgetCallback.FORGET_STATUS_FAILURE_UNKNOWN);
+                }
+            });
         }
     }
 }

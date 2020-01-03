@@ -57,6 +57,7 @@ public class StandardWifiEntryTest {
     public static final int BAD_LEVEL = 1;
 
     @Mock private WifiEntry.WifiEntryCallback mMockListener;
+    @Mock private WifiEntry.ConnectCallback mMockConnectCallback;
     @Mock private WifiManager mMockWifiManager;
     @Mock private WifiInfo mMockWifiInfo;
     @Mock private NetworkInfo mMockNetworkInfo;
@@ -343,6 +344,7 @@ public class StandardWifiEntryTest {
         assertThat(entry.getConnectedState()).isEqualTo(CONNECTED_STATE_DISCONNECTED);
     }
 
+    @Test
     public void testConnect_savedNetwork_usesSavedConfig() {
         final ScanResult scan = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
         final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler,
@@ -353,7 +355,7 @@ public class StandardWifiEntryTest {
         config.networkId = 1;
         entry.updateConfig(config);
 
-        entry.connect();
+        entry.connect(null /* ConnectCallback */);
 
         verify(mMockWifiManager, times(1)).connect(eq(1), any());
     }
@@ -364,7 +366,7 @@ public class StandardWifiEntryTest {
                 buildScanResult("ssid", "bssid0", 0, GOOD_RSSI)),
                 mMockWifiManager);
 
-        entry.connect();
+        entry.connect(null /* ConnectCallback */);
 
         verify(mMockWifiManager, times(1)).connect(any(), any());
     }
@@ -378,11 +380,11 @@ public class StandardWifiEntryTest {
                 mMockWifiManager);
         entry.setListener(mMockListener);
 
-        entry.connect();
+        entry.connect(mMockConnectCallback);
         mTestLooper.dispatchAll();
 
-        verify(mMockListener, times(1))
-                .onConnectResult(WifiEntry.WifiEntryCallback.CONNECT_STATUS_FAILURE_NO_CONFIG);
+        verify(mMockConnectCallback, times(1))
+                .onConnectResult(WifiEntry.ConnectCallback.CONNECT_STATUS_FAILURE_NO_CONFIG);
     }
 
     @Test

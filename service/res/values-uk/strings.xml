@@ -16,7 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"Система Wi-Fi"</string>
+    <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Системні ресурси Wi-Fi"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="one">Мережі Wi-Fi доступні</item>
       <item quantity="few">Мережі Wi-Fi доступні</item>
@@ -36,6 +36,9 @@
     <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"Торкніться, щоб побачити всі мережі"</string>
     <string name="wifi_available_action_connect" msgid="7989951293406720158">"Під’єднатися"</string>
     <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"Усі мережі"</string>
+    <string name="notification_channel_network_status" msgid="7808526906954286713">"Статус мережі"</string>
+    <string name="notification_channel_network_alerts" msgid="3638265846217667221">"Сповіщення мережі"</string>
+    <string name="notification_channel_network_available" msgid="7791052175212297403">"Мережа доступна"</string>
     <string name="wifi_suggestion_title" msgid="8724552631151189767">"Дозволити пропоновані мережі Wi‑Fi?"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Мережі, пропоновані додатком <xliff:g id="NAME">%s</xliff:g>. Пристрій може підключитися автоматично."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Дозволити"</string>
@@ -45,9 +48,6 @@
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Не вмикати знову"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"З’єднання Wi-Fi увімкнулось автоматично"</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"Ви поблизу збереженої мережі: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
-    <string name="wifi_softap_config_change" msgid="1210975707034881716">"Зміни в налаштуваннях точки доступу"</string>
-    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"Діапазон точки доступу змінено."</string>
-    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"На цьому пристрої не підтримується налаштування лише 5 ГГц. Замість цього буде використовуватися діапазон 5 ГГц, якщо доступно."</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Не вдалося під’єднатися до мережі Wi-Fi"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" має погане з’єднання з Інтернетом."</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Дозволити з’єднання?"</string>
@@ -66,4 +66,12 @@
     <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"На час підключення до пристрою <xliff:g id="DEVICE_NAME">%1$s</xliff:g> Android TV тимчасово відключиться від мережі Wi-Fi"</string>
     <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"Під час з’єднання з пристроєм <xliff:g id="DEVICE_NAME">%1$s</xliff:g> телефон тимчасово від’єднається від мережі Wi-Fi"</string>
     <string name="dlg_ok" msgid="3250085870426030310">"OK"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Не вдалося підключитися до мережі \"<xliff:g id="SSID">%1$s</xliff:g>\""</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Натисніть, щоб змінити налаштування конфіденційності й повторити спробу"</string>
+    <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Змінити налаштування конфіденційності?"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> може підключитися за допомогою унікального ідентифікатора вашого пристрою – його MAC-адреси. Через це пристрої поруч зможуть відстежувати місцеположення вашого пристрою. \n\nЯкщо продовжити, <xliff:g id="SSID_1">%1$s</xliff:g> змінить ваші налаштування конфіденційності й повторить спробу підключення."</string>
+    <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Змінити налаштування"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Налаштування оновлено. Спробуйте підключитися знову."</string>
+    <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Не вдалося змінити налаштування конфіденційності"</string>
+    <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Мережу не знайдено"</string>
 </resources>

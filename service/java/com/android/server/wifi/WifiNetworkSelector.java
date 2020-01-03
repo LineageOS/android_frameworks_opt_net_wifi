@@ -214,7 +214,34 @@ public class WifiNetworkSelector {
         mLocalLog.log(log);
     }
 
-    private boolean isCurrentNetworkSufficient(WifiInfo wifiInfo, List<ScanDetail> scanDetails) {
+    /**
+     * Check if current network has sufficient RSSI
+     * @param wifiInfo info of currently connected network
+     * @param scoringParams scoring parameter set including RSSI sufficiency check threshold
+     * @return true if current link quality is sufficient, false otherwise.
+     */
+    public static boolean hasSufficientLinkQuality(WifiInfo wifiInfo, ScoringParams scoringParams) {
+        int currentRssi = wifiInfo.getRssi();
+        return  currentRssi >= scoringParams.getSufficientRssi(wifiInfo.getFrequency());
+    }
+
+    /**
+     * Check if current network has active Tx or Rx traffic
+     * @param wifiInfo info of currently connected network
+     * @param scoringParams scoring parameter set including active traffic check threshold
+     * @return true if it has active Tx or Rx traffic, false otherwise.
+     */
+    public static boolean hasActiveStream(WifiInfo wifiInfo, ScoringParams scoringParams) {
+        return (wifiInfo.getTxSuccessRate() > scoringParams.getActiveTrafficPacketsPerSecond())
+                || (wifiInfo.getRxSuccessRate() > scoringParams.getActiveTrafficPacketsPerSecond());
+    }
+
+    /**
+     * Check if one of following conditions is met to avoid a new network selection
+     * 1) current network is in OSU process
+     * 2) current network has internet access, sufficient link quality and active traffic
+     */
+    private boolean isCurrentNetworkSufficient(WifiInfo wifiInfo) {
         // Currently connected?
         if (wifiInfo.getSupplicantState() != SupplicantState.COMPLETED) {
             localLog("No current connected network.");
@@ -224,19 +251,6 @@ public class WifiNetworkSelector {
                     + " , ID: " + wifiInfo.getNetworkId());
         }
 
-        final int stayOnNetworkMinimumTxRate = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_min_tx_rate_for_staying_on_network);
-        final int stayOnNetworkMinimumRxRate = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network);
-        int currentRssi = wifiInfo.getRssi();
-        boolean hasQualifiedRssi = currentRssi
-                > mScoringParams.getSufficientRssi(wifiInfo.getFrequency());
-        boolean hasActiveStream = (wifiInfo.getTxSuccessRate() > stayOnNetworkMinimumTxRate)
-                || (wifiInfo.getRxSuccessRate() > stayOnNetworkMinimumRxRate);
-        if (hasQualifiedRssi && hasActiveStream) {
-            localLog("Stay on current network because of good RSSI and ongoing traffic");
-            return true;
-        }
         WifiConfiguration network =
                 mWifiConfigManager.getConfiguredNetwork(wifiInfo.getNetworkId());
 
@@ -245,58 +259,25 @@ public class WifiNetworkSelector {
             return false;
         }
 
-        if (mWifiConfigManager.getLastSelectedNetwork() == network.networkId
-                && (mClock.getElapsedSinceBootMillis()
-                    - mWifiConfigManager.getLastSelectedTimeStamp())
-                <= LAST_USER_SELECTION_SUFFICIENT_MS) {
-            localLog("Current network is recently user-selected.");
-            return true;
-        }
-
-        // OSU (Online Sign Up) network for Passpoint Release 2 is sufficient network.
+        // Set OSU (Online Sign Up) network for Passpoint Release 2 to sufficient
+        // so that network select selection is skipped and OSU process can complete.
         if (network.osu) {
             return true;
         }
 
-        // Ephemeral network is not qualified.
-        if (wifiInfo.isEphemeral()) {
-            localLog("Current network is an ephemeral one.");
-            return false;
-        }
-
-        if (wifiInfo.is24GHz()) {
-            // 2.4GHz networks is not qualified whenever 5GHz is available
-            if (is5GHzNetworkAvailable(scanDetails)) {
-                localLog("Current network is 2.4GHz. 5GHz networks available.");
-                return false;
-            }
-        }
-        if (!hasQualifiedRssi) {
-            localLog("Current network RSSI[" + currentRssi + "]-acceptable but not qualified.");
-            return false;
-        }
-
-        // Open network is not qualified.
-        if (WifiConfigurationUtil.isConfigForOpenNetwork(network)) {
-            localLog("Current network is a open one.");
-            return false;
-        }
-
-        // Network with no internet access reports is not qualified.
+        // Network with no internet access reports is not sufficient
         if (network.numNoInternetAccessReports > 0 && !network.noInternetAccessExpected) {
             localLog("Current network has [" + network.numNoInternetAccessReports
                     + "] no-internet access reports.");
             return false;
         }
-        return true;
-    }
 
-    // Determine whether there are any 5GHz networks in the scan result
-    private boolean is5GHzNetworkAvailable(List<ScanDetail> scanDetails) {
-        for (ScanDetail detail : scanDetails) {
-            ScanResult result = detail.getScanResult();
-            if (result.is5GHz()) return true;
+        if ((hasSufficientLinkQuality(wifiInfo, mScoringParams))
+                && hasActiveStream(wifiInfo, mScoringParams)) {
+            localLog("Stay on current network due to sufficient link quality and ongoing traffic");
+            return true;
         }
+
         return false;
     }
 
@@ -326,8 +307,10 @@ public class WifiNetworkSelector {
                     return false;
                 }
             }
-
-            if (isCurrentNetworkSufficient(wifiInfo, scanDetails)) {
+            // Please note other scans (e.g., location scan or app scan) may also trigger network
+            // selection and these scans may or may not run sufficiency check.
+            // So it is better to run sufficiency check here before network selection.
+            if (isCurrentNetworkSufficient(wifiInfo)) {
                 localLog("Current connected network already sufficient. Skip network selection.");
                 return false;
             } else {
@@ -828,6 +811,7 @@ public class WifiNetworkSelector {
         // Get a fresh copy of WifiConfiguration reflecting any scan result updates
         WifiConfiguration selectedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(selectedNetworkId);
+        // TODO (b/136675430): the legacyOverrideWanted check seems unnecessary
         if (selectedNetwork != null && legacyOverrideWanted) {
             selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();

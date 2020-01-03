@@ -40,10 +40,8 @@
           <item type="integer" name="config_wifiFrameworkCurrentNetworkBonus" />
           <item type="integer" name="config_wifiFrameworkSecureNetworkBonus" />
           <item type="integer" name="config_wifiFrameworkLastSelectionBonus" />
-          <item type="integer" name="config_wifi_framework_max_tx_rate_for_full_scan" />
-          <item type="integer" name="config_wifi_framework_max_rx_rate_for_full_scan" />
-          <item type="integer" name="config_wifi_framework_min_tx_rate_for_staying_on_network" />
-          <item type="integer" name="config_wifi_framework_min_rx_rate_for_staying_on_network" />
+          <item type="integer" name="config_wifiFrameworkMinPacketPerSecondActiveTraffic" />
+          <item type="integer" name="config_wifiFrameworkMinPacketPerSecondHighTraffic" />
           <item type="integer" name="config_wifi_framework_wifi_score_bad_rssi_threshold_5GHz" />
           <item type="integer" name="config_wifi_framework_wifi_score_entry_rssi_threshold_5GHz" />
           <item type="integer" name="config_wifi_framework_wifi_score_low_rssi_threshold_5GHz" />
@@ -115,9 +113,6 @@
           <item type="string" name="wifi_wakeup_onboarding_action_disable" />
           <item type="string" name="wifi_wakeup_enabled_title" />
           <item type="string" name="wifi_wakeup_enabled_content" />
-          <item type="string" name="wifi_softap_config_change" />
-          <item type="string" name="wifi_softap_config_change_summary" />
-          <item type="string" name="wifi_softap_config_change_detailed" />
           <item type="string" name="wifi_watchdog_network_disabled" />
           <item type="string" name="wifi_watchdog_network_disabled_detailed" />
           <item type="string" name="wifi_connect_alert_title" />

@@ -16,7 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"ସିଷ୍ଟମ୍ ୱାଇ-ଫାଇ"</string>
+    <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"ସିଷ୍ଟମ୍ ୱାଇ-ଫାଇ ରିସୋର୍ସ"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="other">ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କଗୁଡ଼ିକ ଉପଲବ୍ଧ</item>
       <item quantity="one">ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କ ଉପଲବ୍ଧ</item>
@@ -32,6 +32,9 @@
     <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"ସମସ୍ତ ନେଟ୍‌ୱର୍କ ଦେଖିବାକୁ ଟାପ୍‍ କରନ୍ତୁ"</string>
     <string name="wifi_available_action_connect" msgid="7989951293406720158">"କନେକ୍ଟ କରନ୍ତୁ"</string>
     <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"ସମସ୍ତ ନେଟ୍‌ୱର୍କ"</string>
+    <string name="notification_channel_network_status" msgid="7808526906954286713">"ନେଟୱର୍କ ସ୍ଥିତି"</string>
+    <string name="notification_channel_network_alerts" msgid="3638265846217667221">"ନେଟୱର୍କ ଅଲର୍ଟ"</string>
+    <string name="notification_channel_network_available" msgid="7791052175212297403">"ନେଟ୍‌ୱର୍କ ଉପଲବ୍ଧ ଅଛି"</string>
     <string name="wifi_suggestion_title" msgid="8724552631151189767">"ପ୍ରସ୍ତାବିତ ୱାଇ-ଫାଇ ନେଟ୍‌ୱାର୍କଗୁଡ଼ିକୁ ଅନୁମତି ଦେବେ?"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> ପ୍ରସ୍ତାବିତ ନେଟ୍‌ୱାର୍କଗୁଡ଼ିକ। ଡିଭାଇସ୍ ହୁଏତ ସ୍ୱଚାଳିତ ଭାବେ ସଂଯୋଗ ହୋଇପାରେ।"</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"ଅନୁମତି ଦିଅନ୍ତୁ"</string>
@@ -41,9 +44,6 @@
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"ପୁଣି ଅନ୍‍ କରନ୍ତୁ ନାହିଁ"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"ୱାଇ-ଫାଇ ସ୍ୱଚାଳିତ ଭାବେ ଅନ୍‍ ହେଲା"</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"ସେଭ୍ ହୋଇଥିବା ନେଟ୍‌ୱର୍କ ନିକଟରେ ଆପଣ ଅଛନ୍ତି: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
-    <string name="wifi_softap_config_change" msgid="1210975707034881716">"ଆପଣଙ୍କର ହଟ୍‌ସ୍ପଟ୍‍ ସେଟିଙ୍ଗକୁ ବଦଳିଯାଇଛି"</string>
-    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"ଆପଣଙ୍କର ହଟ୍‍ସ୍ପଟ୍‌ ପରିବର୍ତ୍ତନ କରାଯାଇଛି"</string>
-    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"କେବଳ 5GHz ପାଇଁ, ଏହି ଡିଭାଇସ୍‍ ଆପଣଙ୍କର ପସନ୍ଦକୁ ସପୋର୍ଟ କରେନାହିଁ। ଏହା ପରିବର୍ତ୍ତେ, ଏହି ଡିଭାଇସ୍‍ 5GHz ବ୍ୟାଣ୍ଡ ବ୍ୟବହାର କରିବ।"</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"ୱାଇ-ଫାଇ ସହ ସଂଯୋଗ ହୋଇପାରିଲା ନାହିଁ"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" ଏହାର ଦୁର୍ବଳ ଇଣ୍ଟରନେଟ୍‍ ସଂଯୋଗ ରହିଛି।"</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"ସଂଯୋଗର ଅନୁମତି ଦେବେ?"</string>
@@ -62,4 +62,12 @@
     <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"ଆପଣଙ୍କର Android ଟିଭି ଡିଭାଇସ୍ <xliff:g id="DEVICE_NAME">%1$s</xliff:g> ସହ ସଂଯୋଗ ହେଉଥିବା ସମୟରେ ୱାଇ-ଫାଇରୁ ଅସ୍ଥାୟୀ ଭାବେ ବିଚ୍ଛିନ୍ନ ହେବ"</string>
     <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"<xliff:g id="DEVICE_NAME">%1$s</xliff:g> ସହ ସଂଯୋଗ ଥିବାବେଳେ ଫୋନ୍‌ଟି ୱାଇ-ଫାଇରୁ ଅସ୍ଥାୟୀ ଭାବରେ ବିଚ୍ଛିନ୍ନ ହେବ"</string>
     <string name="dlg_ok" msgid="3250085870426030310">"ଠିକ୍‍ ଅଛି"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g> ସହିତ ସଂଯୋଗ କରାଯାଇପାରିବ ନାହିଁ"</string>
+    <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"ଗୋପନୀୟତା ସେଟିଂସ୍ ବଦଳେଇବାକୁ ଟାପ୍ କରନ୍ତୁ ଏବଂ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ"</string>
+    <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"ଗୋପନୀୟତା ସେଟିଂ ବଦଳେଇବେ?"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> ଆପଣଙ୍କ ଡିଭାଇସ୍‌ର ଏକ ସ୍ୱତନ୍ତ୍ର ଚିହ୍ନଟକାରୀ MAC ଠିକଣା ବ୍ୟବହାର କରି ସଂଯୋଗ କରିବାକୁ ଚାହିଁପାରେ। ଏହା ଆପଣଙ୍କର ଡିଭାଇସ୍‌ର ଲୋକେସନ୍‌କୁ ଟ୍ରାକ୍ କରିବାକୁ ଆଖପାଖର ଡିଭାଇସ୍‌ଗୁଡ଼ିକୁ ଅନୁମତି ଦେଇପାରେ। \n\nଯଦି ଆପଣ ଜାରି ରଖନ୍ତି, ତେବେ <xliff:g id="SSID_1">%1$s</xliff:g> ଆପଣଙ୍କର ଗୋପନୀୟତା ସେଟିଂକୁ ବଦଳାଇ ପୁଣି ସଂଯୋଗ କରିବାକୁ ଚେଷ୍ଟା କରିବ।"</string>
+    <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"ସେଟିଂକୁ ବଦଳାନ୍ତୁ"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"ସେଟିଂକୁ ଅପ୍‌ଡେଟ୍ କରାଯାଇଛି। ପୁଣି ସଂଯୋଗ କରିବାକୁ ଚେଷ୍ଟା କରନ୍ତୁ।"</string>
+    <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"ଗୋପନୀୟତା ସେଟିଂ ବଦଳିପାରିବ ନାହିଁ"</string>
+    <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"ନେଟ୍‌ୱାର୍କ ମିଳିଲା ନାହିଁ"</string>
 </resources>

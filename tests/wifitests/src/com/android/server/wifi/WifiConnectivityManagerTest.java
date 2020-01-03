@@ -93,6 +93,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         mWifiScanner = mockWifiScanner();
         mWifiConnectivityHelper = mockWifiConnectivityHelper();
         mWifiNS = mockWifiNetworkSelector();
+        when(mScoringParams.getSufficientRssi(anyInt())).thenReturn(SUFFICIENT_RSSI_THRESHOLD);
         when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
@@ -105,10 +106,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         mWifiConnectivityManager.setTrustedConnectionAllowed(true);
         mWifiConnectivityManager.setWifiEnabled(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
-        mFullScanMaxTxPacketRate = mResource.getInteger(
-                R.integer.config_wifi_framework_max_tx_rate_for_full_scan);
-        mFullScanMaxRxPacketRate = mResource.getInteger(
-                R.integer.config_wifi_framework_max_rx_rate_for_full_scan);
+        mMinPacketRateActiveTraffic = mResource.getInteger(
+                R.integer.config_wifiFrameworkMinPacketPerSecondActiveTraffic);
         when(mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(anyString())).thenReturn(false);
     }
 
@@ -144,14 +143,14 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     @Mock private BssidBlocklistMonitor mBssidBlocklistMonitor;
     @Mock private WifiChannelUtilization mWifiChannelUtilization;
+    @Mock private ScoringParams mScoringParams;
     @Captor ArgumentCaptor<ScanResult> mCandidateScanResultCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mBssidBlacklistCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mSsidWhitelistCaptor;
     @Captor ArgumentCaptor<WifiConfigManager.OnNetworkUpdateListener>
             mNetworkUpdateListenerCaptor;
     private MockResources mResources;
-    private int mFullScanMaxTxPacketRate;
-    private int mFullScanMaxRxPacketRate;
+    private int mMinPacketRateActiveTraffic;
 
     private static final int CANDIDATE_NETWORK_ID = 0;
     private static final String CANDIDATE_SSID = "\"AnSsid\"";
@@ -167,6 +166,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     private static final int MAX_SCAN_INTERVAL_IN_SCHEDULE = 60;
     private static final int[] DEFAULT_SINGLE_SCAN_SCHEDULE = {20, 40, 80, 160};
     private static final int MAX_SCAN_INTERVAL_IN_DEFAULT_SCHEDULE = 160;
+    private static final int SUFFICIENT_RSSI_THRESHOLD = -60;
+    private static final int SUFFICIENT_TX_SPEED_THRESHOLD = 24;
 
     Resources mockResource() {
         Resources resource = mock(Resources.class);
@@ -177,16 +178,13 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 R.integer.config_wifi_framework_wifi_score_good_rssi_threshold_24GHz))
                 .thenReturn(-60);
         when(resource.getInteger(
-                R.integer.config_wifi_framework_max_tx_rate_for_full_scan)).thenReturn(8);
-        when(resource.getInteger(
-                R.integer.config_wifi_framework_max_rx_rate_for_full_scan)).thenReturn(16);
+                R.integer.config_wifiFrameworkMinPacketPerSecondActiveTraffic)).thenReturn(16);
         when(resource.getIntArray(
                 R.array.config_wifiConnectedScanIntervalScheduleSec))
                 .thenReturn(VALID_CONNECTED_SINGLE_SCAN_SCHEDULE);
         when(resource.getIntArray(
                 R.array.config_wifiDisconnectedScanIntervalScheduleSec))
                 .thenReturn(VALID_DISCONNECTED_SINGLE_SCAN_SCHEDULE);
-
         return resource;
     }
 
@@ -333,7 +331,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
 
     WifiConnectivityManager createConnectivityManager() {
         return new WifiConnectivityManager(mContext,
-                new ScoringParams(mContext),
+                mScoringParams,
                 mClientModeImpl, mWifiInjector,
                 mWifiConfigManager, mWifiInfo, mWifiNS, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier,
@@ -1129,7 +1127,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
 
     /**
      * Verify that we perform full band scan when the currently connected network's tx/rx success
-     * rate is low.
+     * rate is low and current RSSI is also low.
      *
      * Expected behavior: WifiConnectivityManager does full band scan.
      */
@@ -1137,6 +1135,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     public void checkSingleScanSettingsWhenConnectedWithLowDataRate() {
         mWifiInfo.setTxSuccessRate(0);
         mWifiInfo.setRxSuccessRate(0);
+        mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD - 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
         channelList.add(1);
@@ -1167,16 +1166,17 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
 
     /**
      * Verify that we perform partial scan when the currently connected network's tx/rx success
-     * rate is high and when the currently connected network is present in scan
-     * cache in WifiConfigManager.
+     * rate is high, current RSSI is low and currently connected network is
+     * present in scan cache in WifiConfigManager.
      * WifiConnectivityManager does partial scan only when firmware roaming is not supported.
      *
      * Expected behavior: WifiConnectivityManager does partial scan.
      */
     @Test
     public void checkPartialScanRequestedWithHighDataRateWithoutFwRoaming() {
-        mWifiInfo.setTxSuccessRate(mFullScanMaxTxPacketRate * 2);
-        mWifiInfo.setRxSuccessRate(mFullScanMaxRxPacketRate * 2);
+        mWifiInfo.setTxSuccessRate(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setRxSuccessRate(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD - 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
         channelList.add(1);
@@ -1210,21 +1210,18 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that we skip the partial scan when:
-     * 1. The currently connected network's tx/rx success rate is high.
-     * 2. When the currently connected network is present in scan
-     * cache in WifiConfigManager.
-     * 3. When firmware roaming is supported.
-     * Expected behavior: WifiConnectivityManager does no scan, but periodic scans
-     * are still scheduled.
+     * Verify that we perform partial scan when the currently connected network's RSSI is high,
+     * Tx/Rx success rates are low, and when the currently connected network is present
+     * in scan cache in WifiConfigManager.
+     * WifiConnectivityManager does partial scan only when firmware roaming is not supported.
+     *
+     * Expected behavior: WifiConnectivityManager does partial scan.
      */
     @Test
-    public void checkPartialScanSkippedWithHighDataRateWithFwRoaming() {
-        mWifiInfo.setTxSuccessRate(mFullScanMaxTxPacketRate * 2);
-        mWifiInfo.setRxSuccessRate(mFullScanMaxRxPacketRate * 2);
-
-        long currentTimeStamp = CURRENT_SYSTEM_TIME_MS;
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
+    public void checkPartialScanRequestedWithHighRssiTxSpeedWithoutFwRoaming() {
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD + 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
         channelList.add(1);
@@ -1235,8 +1232,17 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 .thenReturn(new WifiConfiguration());
         when(mWifiConfigManager.fetchChannelSetForNetworkForPartialScan(anyInt(), anyLong(),
                 anyInt())).thenReturn(channelList);
-        // No scan will be requested when firmware roaming control is not supported.
-        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
+        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(false);
+
+        doAnswer(new AnswerWithArguments() {
+            public void answer(ScanSettings settings, ScanListener listener,
+                    WorkSource workSource) throws Exception {
+                assertEquals(settings.band, WifiScanner.WIFI_BAND_UNSPECIFIED);
+                assertEquals(settings.channels.length, channelList.size());
+                for (int chanIdx = 0; chanIdx < settings.channels.length; chanIdx++) {
+                    assertTrue(channelList.contains(settings.channels[chanIdx].frequency));
+                }
+            }}).when(mWifiScanner).startScan(anyObject(), anyObject(), anyObject());
 
         // Set screen to ON
         mWifiConnectivityManager.handleScreenStateChanged(true);
@@ -1245,27 +1251,23 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         mWifiConnectivityManager.handleConnectionStateChanged(
                 WifiConnectivityManager.WIFI_STATE_CONNECTED);
 
-        verify(mWifiScanner, never()).startScan(anyObject(), anyObject(), anyObject());
-
-        // Get the first periodic scan interval to check that we are still scheduling
-        // periodic scans.
-        long firstIntervalMs = mAlarmManager
-                .getTriggerTimeMillis(WifiConnectivityManager.PERIODIC_SCAN_TIMER_TAG)
-                - currentTimeStamp;
-        assertEquals(VALID_CONNECTED_SINGLE_SCAN_SCHEDULE[0] * 1000, firstIntervalMs);
+        verify(mWifiScanner).startScan(anyObject(), anyObject(), anyObject());
     }
+
 
     /**
      * Verify that we fall back to full band scan when the currently connected network's tx/rx
-     * success rate is high and the currently connected network is not present in scan cache in
-     * WifiConfigManager. This is simulated by returning an empty hashset in |makeChannelList|.
+     * success rate is high, RSSI is also high but the currently connected network
+     * is not present in scan cache in WifiConfigManager.
+     * This is simulated by returning an empty hashset in |makeChannelList|.
      *
      * Expected behavior: WifiConnectivityManager does full band scan.
      */
     @Test
     public void checkSingleScanSettingsWhenConnectedWithHighDataRateNotInCache() {
-        mWifiInfo.setTxSuccessRate(mFullScanMaxTxPacketRate * 2);
-        mWifiInfo.setRxSuccessRate(mFullScanMaxRxPacketRate * 2);
+        mWifiInfo.setTxSuccessRate(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setRxSuccessRate(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD + 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
 
