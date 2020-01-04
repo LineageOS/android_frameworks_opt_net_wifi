@@ -28,5 +28,5 @@ android_test {
         "android.test.mock",
     ],
 
-    defaults: ["framework-wifi-test-defaults"],
+    platform_apis: true,
 }

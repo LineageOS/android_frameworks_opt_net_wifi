@@ -152,6 +152,8 @@ java_library {
     },
 
     init_rc: ["wifi.rc"],
+
+    plugins: ["java_api_finder"],
 }
 
 // Westworld auto-generated code
