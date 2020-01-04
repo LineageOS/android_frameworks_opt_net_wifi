@@ -401,8 +401,7 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean canSetPrivacy() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
@@ -421,7 +420,13 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public void setPrivacy(int privacy) {
-        // TODO(b/70983952): Fill this method in
+        if (!canSetPrivacy()) {
+            return;
+        }
+
+        mWifiConfig.macRandomizationSetting = privacy == PRIVACY_RANDOMIZED_MAC
+                ? WifiConfiguration.RANDOMIZATION_PERSISTENT : WifiConfiguration.RANDOMIZATION_NONE;
+        mWifiManager.save(mWifiConfig, null /* listener */);
     }
 
     @Override
