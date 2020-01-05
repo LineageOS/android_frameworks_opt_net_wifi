@@ -20,6 +20,7 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.drawable.Icon;
 
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.wifi.resources.R;
@@ -67,7 +68,8 @@ public class WakeupNotificationFactory {
 
         return mFrameworkFacade.makeNotificationBuilder(mContext,
                 WifiService.NOTIFICATION_NETWORK_STATUS)
-                .setSmallIcon(R.drawable.ic_wifi_settings)
+                .setSmallIcon(Icon.createWithResource(WifiContext.WIFI_OVERLAY_APK_PKG_NAME,
+                        R.drawable.ic_wifi_settings))
                 .setTicker(title)
                 .setContentTitle(title)
                 .setContentText(content)

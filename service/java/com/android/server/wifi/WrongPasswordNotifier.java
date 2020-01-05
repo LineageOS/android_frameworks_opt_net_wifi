@@ -21,6 +21,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.drawable.Icon;
 import android.provider.Settings;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -85,7 +86,8 @@ public class WrongPasswordNotifier {
                 .setAutoCancel(true)
                 .setTimeoutAfter(CANCEL_TIMEOUT_MILLISECONDS)
                 // TODO(zqiu): consider creating a new icon.
-                .setSmallIcon(com.android.wifi.resources.R.drawable.stat_notify_wifi_in_range)
+                .setSmallIcon(Icon.createWithResource(WifiContext.WIFI_OVERLAY_APK_PKG_NAME,
+                        com.android.wifi.resources.R.drawable.stat_notify_wifi_in_range))
                 .setContentTitle(mContext.getString(
                         com.android.wifi.resources.R.string.wifi_available_title_failed_to_connect))
                 .setContentText(ssid)

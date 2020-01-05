@@ -24,6 +24,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.drawable.Icon;
 import android.net.wifi.WifiConfiguration;
 import android.os.Handler;
 import android.view.WindowManager;
@@ -80,7 +81,8 @@ public class ConnectionFailureNotificationBuilder {
 
         return mFrameworkFacade.makeNotificationBuilder(
                 mContext, WifiService.NOTIFICATION_NETWORK_ALERTS)
-                .setSmallIcon(com.android.wifi.resources.R.drawable.stat_notify_wifi_in_range)
+                .setSmallIcon(Icon.createWithResource(WifiContext.WIFI_OVERLAY_APK_PKG_NAME,
+                        com.android.wifi.resources.R.drawable.stat_notify_wifi_in_range))
                 .setTicker(title)
                 .setContentTitle(title)
                 .setContentText(content)
