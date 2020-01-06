@@ -155,6 +155,15 @@ java_library {
     init_rc: ["wifi.rc"],
 
     plugins: ["java_api_finder"],
+
+    visibility: [
+        "//frameworks/opt/net/wifi/service/apex",
+        "//frameworks/opt/net/wifi/tests/wifitests/apex",
+    ],
+    apex_available: [
+        "com.android.wifi",
+        "test_com.android.wifi",
+    ],
 }
 
 // Westworld auto-generated code
