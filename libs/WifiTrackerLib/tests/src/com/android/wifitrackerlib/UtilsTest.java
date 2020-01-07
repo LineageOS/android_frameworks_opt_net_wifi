@@ -18,19 +18,60 @@ package com.android.wifitrackerlib;
 
 import static com.android.wifitrackerlib.TestUtils.buildScanResult;
 import static com.android.wifitrackerlib.Utils.filterScanResultsByCapabilities;
+import static com.android.wifitrackerlib.Utils.getAppLabelForSavedNetwork;
+import static com.android.wifitrackerlib.Utils.getAutoConnectDescription;
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
+import static com.android.wifitrackerlib.Utils.getMeteredDescription;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import android.net.wifi.ScanResult;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.net.NetworkInfo;
+import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.Handler;
+import android.os.test.TestLooper;
+
+import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class UtilsTest {
+
+    private static final String LABEL_AUTO_CONNECTION_DISABLED = "Auto-Connection disabled";
+    private static final String LABEL_METERED = "Metered";
+    private static final String LABEL_UNMETERED = "Unmetered";
+
+    private static final String SYSTEM_UID_APP_NAME = "systemUidAppName";
+    private static final String APP_LABEL = "appLabel";
+    private static final String SETTINGS_APP_NAME = "com.android.settings";
+
+    @Mock private Context mMockContext;
+    @Mock private Resources mMockResources;
+
+    private Handler mTestHandler;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+
+        TestLooper testLooper = new TestLooper();
+        mTestHandler = new Handler(testLooper.getLooper());
+        when(mMockContext.getResources()).thenReturn(mMockResources);
+    }
 
     @Test
     public void testGetBestScanResult_emptyList_returnsNull() {
@@ -86,5 +127,134 @@ public class UtilsTest {
                 false /* isEnhancedOpenSupported */);
 
         assertThat(filteredScans).containsExactly(wpa3TransitionScan, enhancedOpenTransitionScan);
+    }
+
+    @Test
+    public void testGetAppLabelForSavedNetwork_returnAppLabel() {
+        final PackageManager mockPackageManager = mock(PackageManager.class);
+        when(mMockContext.getPackageManager()).thenReturn(mockPackageManager);
+        when(mockPackageManager.getNameForUid(android.os.Process.SYSTEM_UID))
+                .thenReturn(SYSTEM_UID_APP_NAME);
+        final ApplicationInfo mockApplicationInfo = mock(ApplicationInfo.class);
+        when(mMockContext.getApplicationInfo()).thenReturn(mockApplicationInfo);
+        mockApplicationInfo.packageName = SYSTEM_UID_APP_NAME;
+        when(mockApplicationInfo.loadLabel(mockPackageManager)).thenReturn(APP_LABEL);
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.creatorName = SYSTEM_UID_APP_NAME;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+        when(mMockResources.getString(R.string.settings_package))
+                .thenReturn(SETTINGS_APP_NAME);
+
+        final CharSequence appLabel = getAppLabelForSavedNetwork(mMockContext, entry);
+
+        assertThat(appLabel).isEqualTo(APP_LABEL);
+    }
+
+    @Test
+    public void testGetAutoConnectDescription_autoJoinEnabled_returnEmptyString() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.allowAutojoin = true;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+        when(mMockResources.getString(R.string.auto_connect_disable))
+                .thenReturn(LABEL_AUTO_CONNECTION_DISABLED);
+
+        final String autoConnectDescription = getAutoConnectDescription(mMockContext, entry);
+
+        assertThat(autoConnectDescription).isEqualTo("");
+    }
+
+    @Test
+    public void testGetAutoConnectDescription_autoJoinDisabled_returnDisable() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.allowAutojoin = false;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+        when(mMockResources.getString(R.string.auto_connect_disable))
+                .thenReturn(LABEL_AUTO_CONNECTION_DISABLED);
+
+        final String autoConnectDescription = getAutoConnectDescription(mMockContext, entry);
+
+        assertThat(autoConnectDescription).isEqualTo(LABEL_AUTO_CONNECTION_DISABLED);
+    }
+
+    @Test
+    public void testGetMeteredDescription_noOverrideNoHint_returnEmptyString() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NONE;
+        config.meteredHint = false;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+
+        final String meteredDescription = getMeteredDescription(mMockContext, entry);
+
+        assertThat(meteredDescription).isEqualTo("");
+    }
+
+    @Test
+    public void testGetMeteredDescription_overrideMetered_returnMetered() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.meteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+        when(mMockResources.getString(R.string.wifi_metered_label)).thenReturn(LABEL_METERED);
+
+        final String meteredDescription = getMeteredDescription(mMockContext, entry);
+
+        assertThat(meteredDescription).isEqualTo(LABEL_METERED);
+    }
+
+    @Test
+    public void testGetMeteredDescription__meteredHintTrueAndOverrideNone_returnMetered() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.meteredHint = true;
+        config.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NONE;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+        when(mMockResources.getString(R.string.wifi_metered_label)).thenReturn(LABEL_METERED);
+
+        final String meteredDescription = getMeteredDescription(mMockContext, entry);
+
+        assertThat(meteredDescription).isEqualTo(LABEL_METERED);
+    }
+
+    @Test
+    public void testGetMeteredDescription__meteredHintTrueAndOverrideMetered_returnMetered() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.meteredHint = true;
+        config.meteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+        when(mMockResources.getString(R.string.wifi_metered_label)).thenReturn(LABEL_METERED);
+
+        final String meteredDescription = getMeteredDescription(mMockContext, entry);
+
+        assertThat(meteredDescription).isEqualTo(LABEL_METERED);
+    }
+
+    @Test
+    public void testGetMeteredDescription__meteredHintTrueAndOverrideNotMetered_returnUnmetered() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.meteredHint = true;
+        config.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
+        final StandardWifiEntry entry = getStandardWifiEntry(config);
+        when(mMockResources.getString(R.string.wifi_unmetered_label)).thenReturn(LABEL_UNMETERED);
+
+        final String meteredDescription = getMeteredDescription(mMockContext, entry);
+
+        assertThat(meteredDescription).isEqualTo(LABEL_UNMETERED);
+    }
+
+    private StandardWifiEntry getStandardWifiEntry(WifiConfiguration config) {
+        final WifiManager mockWifiManager = mock(WifiManager.class);
+        final StandardWifiEntry entry = new StandardWifiEntry(mMockContext, mTestHandler, config,
+                mockWifiManager);
+        final WifiInfo mockWifiInfo = mock(WifiInfo.class);
+        final NetworkInfo mockNetworkInfo = mock(NetworkInfo.class);
+
+        entry.updateConnectionInfo(mockWifiInfo, mockNetworkInfo);
+        return entry;
     }
 }

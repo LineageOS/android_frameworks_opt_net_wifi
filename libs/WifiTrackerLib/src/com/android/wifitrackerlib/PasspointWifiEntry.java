@@ -99,6 +99,11 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public String getSummary() {
+        return getSummary(true /* concise */);
+    }
+
+    @Override
+    public String getSummary(boolean concise) {
         // TODO(b/70983952): Fill this method in
         return "Passpoint"; // Placeholder string
     }

@@ -296,7 +296,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
         // Create new StandardWifiEntry objects for each leftover group of scan results.
         for (Map.Entry<String, List<ScanResult>> e: scanResultsByKey.entrySet()) {
             final StandardWifiEntry newEntry =
-                    new StandardWifiEntry(mMainHandler, e.getValue(), mWifiManager);
+                    new StandardWifiEntry(mContext, mMainHandler, e.getValue(), mWifiManager);
             // Populate with a saved config, if available
             newEntry.updateConfig(mWifiConfigCache.get(newEntry.getKey()));
             mStandardWifiEntryCache.put(newEntry.getKey(), newEntry);
@@ -443,7 +443,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
                         wifiConfigToStandardWifiEntryKey(config)))
                 .findAny().ifPresent(config -> {
                     final StandardWifiEntry connectedEntry =
-                            new StandardWifiEntry(mMainHandler, config, mWifiManager);
+                            new StandardWifiEntry(mContext, mMainHandler, config, mWifiManager);
                     connectedEntry.updateConnectionInfo(wifiInfo, networkInfo);
                     mStandardWifiEntryCache.put(connectedEntry.getKey(), connectedEntry);
                 });
