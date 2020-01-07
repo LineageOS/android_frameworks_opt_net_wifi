@@ -4925,9 +4925,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      * WifiConfigManager.
      */
     private void setDefaults(WifiConfiguration configuration) {
-        if (configuration.allowedAuthAlgorithms.isEmpty()) {
-            configuration.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-        }
         if (configuration.allowedProtocols.isEmpty()) {
             configuration.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
             configuration.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
