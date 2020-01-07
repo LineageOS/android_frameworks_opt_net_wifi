@@ -109,15 +109,6 @@ public class PasspointObjectFactory{
     }
 
     /**
-     * Create an instance of {@link CertificateVerifier}.
-     *
-     * @return {@link CertificateVerifier}
-     */
-    public CertificateVerifier makeCertificateVerifier() {
-        return new CertificateVerifier();
-    }
-
-    /**
      * Create an instance of {@link PasspointProvisioner}.
      *
      * @param context Instance of {@link Context}
