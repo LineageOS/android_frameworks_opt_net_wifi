@@ -30,7 +30,7 @@ import android.util.Log;
  */
 public class WifiContext extends ContextWrapper {
     private static final String TAG = "WifiContext";
-    private static final String WIFI_OVERLAY_APK_PKG_NAME = "com.android.wifi.resources";
+    public static final String WIFI_OVERLAY_APK_PKG_NAME = "com.android.wifi.resources";
 
     // Cached resources from the resources APK.
     private AssetManager mWifiAssetsFromApk;

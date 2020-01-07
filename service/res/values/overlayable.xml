@@ -149,6 +149,11 @@
           <item type="style" name="wifi_section" />
           <!-- Params from styles.xml that can be overlayed -->
 
+          <!-- Params from styles.xml that can be overlayed -->
+          <item type="drawable" name="stat_notify_wifi_in_range" />
+          <item type="drawable" name="ic_wifi_settings" />
+          <!-- Params from styles.xml that can be overlayed -->
+
         </policy>
         <!-- END VENDOR CUSTOMIZATION -->
     </overlayable>
