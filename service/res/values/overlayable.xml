@@ -70,6 +70,11 @@
           <item type="bool" name="config_wifi_softap_ieee80211ac_supported" />
           <item type="bool" name="config_wifiSoftapIeee80211axSupported" />
           <item type="bool" name="config_wifiSoftap6ghzSupported" />
+          <item type="bool" name="config_wifiSoftapHeSuBeamformerSupported" />
+          <item type="bool" name="config_wifiSoftapHeSuBeamformeeSupported" />
+          <item type="bool" name="config_wifiSoftapHeMuBeamformerSupported" />
+          <item type="integer" name="config_wifiSoftapHeBssColor" />
+          <item type="bool" name="config_wifiSoftapHeTwtSupported" />
           <item type="bool" name="config_wifi_local_only_hotspot_5ghz" />
           <item type="bool" name="config_wifi_connected_mac_randomization_supported" />
           <item type="bool" name="config_wifi_p2p_mac_randomization_supported" />
@@ -78,7 +83,7 @@
           <item type="array" name="config_wifi_aggressive_randomization_ssid_blocklist" />
           <item type="bool" name="config_wifi_link_probing_supported" />
           <item type="bool" name="config_wifi_11ax_supported" />
-          <item type="bool" name="config_wifi_contiguous_160mhz_supported" />
+         <item type="bool" name="config_wifi_contiguous_160mhz_supported" />
           <item type="integer" name="config_wifi_max_num_spatial_stream_supported" />
           <item type="string" name="config_wifi_tcp_buffers" />
           <item type="string" name="wifi_tether_configure_ssid_default" />

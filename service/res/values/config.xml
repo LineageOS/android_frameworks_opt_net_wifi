@@ -172,6 +172,21 @@
     <!-- Wifi driver supports IEEE80211AX for softap -->
     <bool translatable="false" name="config_wifiSoftapIeee80211axSupported">false</bool>
 
+    <!-- Wifi driver supports IEEE80211AX single user beamformer for softap -->
+    <bool translatable="false" name="config_wifiSoftapHeSuBeamformerSupported">false</bool>
+
+    <!-- Wifi driver supports IEEE80211AX single user beamformee for softap -->
+    <bool translatable="false" name="config_wifiSoftapHeSuBeamformeeSupported">false</bool>
+
+    <!-- Wifi driver supports IEEE80211AX multiple user beamformer for softap -->
+    <bool translatable="false" name="config_wifiSoftapHeMuBeamformerSupported">false</bool>
+
+    <!-- Wifi driver IEEE80211AX bss color for softap -->
+    <integer translatable="false" name="config_wifiSoftapHeBssColor">0</integer>
+
+    <!-- Wifi driver supports IEEE80211AX TWT (Target Wake Time) for softap -->
+    <bool translatable="false" name="config_wifiSoftapHeTwtSupported">false</bool>
+
     <!-- Wifi driver supports 6GHz band for softap -->
     <bool translatable="false" name="config_wifiSoftap6ghzSupported">false</bool>
 

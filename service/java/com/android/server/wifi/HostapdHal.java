@@ -424,6 +424,21 @@ public class HostapdHal {
                         ifaceParams1_2.hwModeParams.enable6GhzBand =
                                 mContext.getResources().getBoolean(
                                     R.bool.config_wifiSoftap6ghzSupported);
+                        ifaceParams1_2.hwModeParams.enableHeSingleUserBeamformer =
+                                mContext.getResources().getBoolean(
+                                    R.bool.config_wifiSoftapHeSuBeamformerSupported);
+                        ifaceParams1_2.hwModeParams.enableHeSingleUserBeamformee =
+                                mContext.getResources().getBoolean(
+                                    R.bool.config_wifiSoftapHeSuBeamformeeSupported);
+                        ifaceParams1_2.hwModeParams.enableHeMultiUserBeamformer =
+                                mContext.getResources().getBoolean(
+                                    R.bool.config_wifiSoftapHeMuBeamformerSupported);
+                        ifaceParams1_2.hwModeParams.heBssColor =
+                                mContext.getResources().getInteger(
+                                    R.integer.config_wifiSoftapHeBssColor);
+                        ifaceParams1_2.hwModeParams.enableHeTargetWakeTime =
+                                mContext.getResources().getBoolean(
+                                    R.bool.config_wifiSoftapHeTwtSupported);
                         ifaceParams1_2.channelParams.bandMask = getHalBandMask(band);
 
                         android.hardware.wifi.hostapd.V1_2.IHostapd iHostapdV1_2 =
