@@ -324,4 +324,7 @@
     <!-- The interval in milliseconds at which wifi rtt ranging requests will be throttled when
          they are coming from the background apps (default = 30 mins). -->
     <integer translatable="false" name="config_wifiRttBackgroundExecGapMs">1800000</integer>
+
+    <!-- Integer indicating the RSSI and link layer stats polling interval in milliseconds when device is connected and screen is on -->
+    <integer translatable="false" name="config_wifiPollRssiIntervalMilliseconds">3000</integer>
 </resources>

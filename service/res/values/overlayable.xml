@@ -104,6 +104,7 @@
           <item type="bool" name="config_wifiPnoRecencySortingEnabled" />
           <item type="bool" name="config_wifiSuspendOptimizationsEnabled" />
           <item type="integer" name="config_wifiRttBackgroundExecGapMs" />
+          <item type="integer" name="config_wifiPollRssiIntervalMilliseconds" />
           <!-- Params from config.xml that can be overlayed -->
 
           <!-- Params from strings.xml that can be overlayed -->
