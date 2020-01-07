@@ -17,6 +17,10 @@ package com.android.server.wifi.util;
 
 import android.net.wifi.ScanResult;
 import android.net.wifi.ScanResult.InformationElement;
+import android.net.wifi.WifiAnnotations.Cipher;
+import android.net.wifi.WifiAnnotations.KeyMgmt;
+import android.net.wifi.WifiAnnotations.Protocol;
+import android.net.wifi.wificond.WifiCondManager;
 import android.util.Log;
 
 import com.android.server.wifi.ByteBufferReader;
@@ -29,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 
 public class InformationElementUtil {
     private static final String TAG = "InformationElementUtil";
@@ -902,10 +907,10 @@ public class InformationElementUtil {
         private static final int RSN_CIPHER_NO_GROUP_ADDRESSED = 0x07ac0f00;
         private static final int RSN_CIPHER_GCMP_256 = 0x09ac0f00;
 
-        public ArrayList<Integer> protocol;
-        public ArrayList<ArrayList<Integer>> keyManagement;
-        public ArrayList<ArrayList<Integer>> pairwiseCipher;
-        public ArrayList<Integer> groupCipher;
+        public List<Integer> protocol;
+        public List<List<Integer>> keyManagement;
+        public List<List<Integer>> pairwiseCipher;
+        public List<Integer> groupCipher;
         public boolean isESS;
         public boolean isIBSS;
         public boolean isPrivacy;
@@ -1008,7 +1013,7 @@ public class InformationElementUtil {
             }
         }
 
-        private static int parseWpaCipher(int cipher) {
+        private static @Cipher int parseWpaCipher(int cipher) {
             switch (cipher) {
                 case WPA_CIPHER_NONE:
                     return ScanResult.CIPHER_NONE;
@@ -1023,7 +1028,7 @@ public class InformationElementUtil {
             }
         }
 
-        private static int parseRsnCipher(int cipher) {
+        private static @Cipher int parseRsnCipher(int cipher) {
             switch (cipher) {
                 case RSN_CIPHER_NONE:
                     return ScanResult.CIPHER_NONE;
@@ -1148,10 +1153,10 @@ public class InformationElementUtil {
          */
 
         public void from(InformationElement[] ies, BitSet beaconCap, boolean isOweSupported) {
-            protocol = new ArrayList<Integer>();
-            keyManagement = new ArrayList<ArrayList<Integer>>();
-            groupCipher = new ArrayList<Integer>();
-            pairwiseCipher = new ArrayList<ArrayList<Integer>>();
+            protocol = new ArrayList<>();
+            keyManagement = new ArrayList<>();
+            groupCipher = new ArrayList<>();
+            pairwiseCipher = new ArrayList<>();
 
             if (ies == null || beaconCap == null) {
                 return;
@@ -1160,6 +1165,17 @@ public class InformationElementUtil {
             isIBSS = beaconCap.get(CAP_IBSS_BIT_OFFSET);
             isPrivacy = beaconCap.get(CAP_PRIVACY_BIT_OFFSET);
             for (InformationElement ie : ies) {
+                WifiCondManager.OemSecurityType oemSecurityType =
+                        WifiCondManager.parseOemSecurityTypeElement(
+                        ie.id, ie.idExt, ie.bytes);
+                if (oemSecurityType != null
+                        && oemSecurityType.protocol != ScanResult.PROTOCOL_NONE) {
+                    protocol.add(oemSecurityType.protocol);
+                    keyManagement.add(oemSecurityType.keyManagement);
+                    pairwiseCipher.add(oemSecurityType.pairwiseCipher);
+                    groupCipher.add(oemSecurityType.groupCipher);
+                }
+
                 if (ie.id == InformationElement.EID_RSN) {
                     parseRsnElement(ie);
                 }
@@ -1211,7 +1227,7 @@ public class InformationElementUtil {
             }
         }
 
-        private String protocolToString(int protocol) {
+        private String protocolToString(@Protocol int protocol) {
             switch (protocol) {
                 case ScanResult.PROTOCOL_NONE:
                     return "None";
@@ -1228,7 +1244,7 @@ public class InformationElementUtil {
             }
         }
 
-        private String keyManagementToString(int akm) {
+        private String keyManagementToString(@KeyMgmt int akm) {
             switch (akm) {
                 case ScanResult.KEY_MGMT_NONE:
                     return "None";
@@ -1265,7 +1281,7 @@ public class InformationElementUtil {
             }
         }
 
-        private String cipherToString(int cipher) {
+        private String cipherToString(@Cipher int cipher) {
             switch (cipher) {
                 case ScanResult.CIPHER_NONE:
                     return "None";
@@ -1275,6 +1291,8 @@ public class InformationElementUtil {
                     return "GCMP-256";
                 case ScanResult.CIPHER_TKIP:
                     return "TKIP";
+                case ScanResult.CIPHER_SMS4:
+                    return "SMS4";
                 default:
                     return "?";
             }
