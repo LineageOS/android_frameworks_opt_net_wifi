@@ -31,6 +31,7 @@ import static java.util.stream.Collectors.toMap;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
+import android.net.LinkProperties;
 import android.net.NetworkInfo;
 import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
@@ -173,9 +174,11 @@ public class WifiPickerTracker extends BaseWifiTracker {
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
         final WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
         final NetworkInfo networkInfo = mConnectivityManager.getActiveNetworkInfo();
-        updateStandardWifiEntryConnectionInfo(wifiInfo, networkInfo);
+        updateConnectionInfo(wifiInfo, networkInfo);
         // Create a StandardWifiEntry for the current connection if there are no scan results yet.
         conditionallyCreateConnectedStandardWifiEntry(wifiInfo, networkInfo);
+        handleLinkPropertiesChanged(mConnectivityManager.getLinkProperties(
+                mWifiManager.getCurrentNetwork()));
         notifyOnNumSavedNetworksChanged();
         notifyOnNumSavedSubscriptionsChanged();
         updateWifiEntries();
@@ -224,9 +227,18 @@ public class WifiPickerTracker extends BaseWifiTracker {
     @Override
     protected void handleNetworkStateChangedAction(@NonNull Intent intent) {
         checkNotNull(intent, "Intent cannot be null!");
-        updateStandardWifiEntryConnectionInfo(mWifiManager.getConnectionInfo(),
+        updateConnectionInfo(mWifiManager.getConnectionInfo(),
                 (NetworkInfo) intent.getExtra(WifiManager.EXTRA_NETWORK_INFO));
         updateWifiEntries();
+    }
+
+    @WorkerThread
+    @Override
+    protected void handleLinkPropertiesChanged(@NonNull LinkProperties linkProperties) {
+        if (mConnectedWifiEntry != null
+                && mConnectedWifiEntry.getConnectedState() == CONNECTED_STATE_CONNECTED) {
+            mConnectedWifiEntry.updateLinkProperties(linkProperties);
+        }
     }
 
     /**
@@ -402,14 +414,17 @@ public class WifiPickerTracker extends BaseWifiTracker {
     }
 
     /**
-     * Updates all StandardWifiEntries with the current connection info.
+     * Updates all WifiEntries with the current connection info.
      * @param wifiInfo WifiInfo of the current connection
      * @param networkInfo NetworkInfo of the current connection
      */
     @WorkerThread
-    private void updateStandardWifiEntryConnectionInfo(@Nullable WifiInfo wifiInfo,
+    private void updateConnectionInfo(@Nullable WifiInfo wifiInfo,
             @Nullable NetworkInfo networkInfo) {
-        for (StandardWifiEntry entry : mStandardWifiEntryCache.values()) {
+        for (WifiEntry entry : mStandardWifiEntryCache.values()) {
+            entry.updateConnectionInfo(wifiInfo, networkInfo);
+        }
+        for (WifiEntry entry : mPasspointWifiEntryCache.values()) {
             entry.updateConnectionInfo(wifiInfo, networkInfo);
         }
     }

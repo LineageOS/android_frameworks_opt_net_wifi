@@ -320,6 +320,17 @@ class PasspointWifiEntry extends WifiEntry {
         notifyOnUpdated();
     }
 
+    @WorkerThread
+    @Override
+    protected boolean connectionInfoMatches(@NonNull WifiInfo wifiInfo,
+            @NonNull NetworkInfo networkInfo) {
+        if (!wifiInfo.isPasspointAp()) {
+            return false;
+        }
+
+        return mWifiConfig != null && mWifiConfig.networkId == wifiInfo.getNetworkId();
+    }
+
     @NonNull
     static String fqdnToPasspointWifiEntryKey(@NonNull String fqdn) {
         checkNotNull(fqdn, "Cannot create key with null fqdn!");

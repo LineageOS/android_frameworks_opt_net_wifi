@@ -16,9 +16,17 @@
 
 package com.android.wifitrackerlib;
 
+import static android.net.wifi.WifiInfo.INVALID_RSSI;
+
 import static androidx.core.util.Preconditions.checkNotNull;
 
+import android.net.LinkAddress;
+import android.net.LinkProperties;
+import android.net.NetworkInfo;
+import android.net.NetworkUtils;
+import android.net.RouteInfo;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 
@@ -27,10 +35,17 @@ import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Abstract base class for an entry representing a Wi-Fi network in a Wi-Fi picker/settings.
@@ -136,6 +151,17 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     private WifiEntryCallback mListener;
     protected Handler mCallbackHandler;
 
+    protected int mLevel = WIFI_LEVEL_UNREACHABLE;
+    protected WifiInfo mWifiInfo;
+    protected NetworkInfo mNetworkInfo;
+    protected ConnectedInfo mConnectedInfo;
+
+    protected ConnectCallback mConnectCallback;
+    protected DisconnectCallback mDisconnectCallback;
+
+    protected boolean mCalledConnect = false;
+    protected boolean mCalledDisconnect = false;
+
     WifiEntry(@NonNull Handler callbackHandler, boolean forSavedNetworksPage,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
         checkNotNull(callbackHandler, "Cannot construct with null handler!");
@@ -152,7 +178,26 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
 
     /** Returns connection state of the network defined by the CONNECTED_STATE constants */
     @ConnectedState
-    public abstract int getConnectedState();
+    public int getConnectedState() {
+        if (mNetworkInfo == null) {
+            return CONNECTED_STATE_DISCONNECTED;
+        }
+
+        switch (mNetworkInfo.getDetailedState()) {
+            case SCANNING:
+            case CONNECTING:
+            case AUTHENTICATING:
+            case OBTAINING_IPADDR:
+            case VERIFYING_POOR_LINK:
+            case CAPTIVE_PORTAL_CHECK:
+                return CONNECTED_STATE_CONNECTING;
+            case CONNECTED:
+                return CONNECTED_STATE_CONNECTED;
+            default:
+                return CONNECTED_STATE_DISCONNECTED;
+        }
+    }
+
 
     /** Returns the display title. This is most commonly the SSID of a network. */
     public abstract String getTitle();
@@ -206,7 +251,9 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
      *
      * Returns null if getConnectedState() != CONNECTED_STATE_CONNECTED.
      */
-    public abstract ConnectedInfo getConnectedInfo();
+    public ConnectedInfo getConnectedInfo() {
+        return mConnectedInfo;
+    }
 
     /**
      * Info associated with the active connection.
@@ -214,10 +261,10 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public static class ConnectedInfo {
         @Frequency
         public int frequencyMhz;
-        public List<String> dnsServers;
+        public List<String> dnsServers = new ArrayList<>();
         public int linkSpeedMbps;
         public String ipAddress;
-        public List<String> ipv6Addresses;
+        public List<String> ipv6Addresses = new ArrayList<>();
         public String gateway;
         public String subnetMask;
     }
@@ -408,6 +455,105 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
         void onSignInResult(@SignInStatus int status);
     }
 
+    /**
+     * Returns whether or not the supplied WifiInfo and NetworkInfo represent this WifiEntry
+     */
+    protected abstract boolean connectionInfoMatches(@NonNull WifiInfo wifiInfo,
+            @NonNull NetworkInfo networkInfo);
+
+    /**
+     * Updates information regarding the current network connection. If the supplied WifiInfo and
+     * NetworkInfo do not match this WifiEntry, then the WifiEntry will update to be
+     * unconnected.
+     */
+    @WorkerThread
+    void updateConnectionInfo(@Nullable WifiInfo wifiInfo, @Nullable NetworkInfo networkInfo) {
+        if (wifiInfo != null && networkInfo != null
+                && connectionInfoMatches(wifiInfo, networkInfo)) {
+            // Connection info matches, so the WifiInfo/NetworkInfo represent this network and
+            // the network is currently connecting or connected.
+            mWifiInfo = wifiInfo;
+            mNetworkInfo = networkInfo;
+            final int wifiInfoRssi = wifiInfo.getRssi();
+            if (wifiInfoRssi != INVALID_RSSI) {
+                mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi);
+            }
+            if (getConnectedState() == CONNECTED_STATE_CONNECTED) {
+                if (mCalledConnect) {
+                    mCalledConnect = false;
+                    mCallbackHandler.post(() -> {
+                        if (mConnectCallback != null) {
+                            mConnectCallback.onConnectResult(
+                                    ConnectCallback.CONNECT_STATUS_SUCCESS);
+                        }
+                    });
+                }
+
+                if (mConnectedInfo == null) {
+                    mConnectedInfo = new ConnectedInfo();
+                }
+                mConnectedInfo.frequencyMhz = wifiInfo.getFrequency();
+                mConnectedInfo.linkSpeedMbps = wifiInfo.getLinkSpeed();
+            }
+        } else { // Connection info doesn't matched, so this network is disconnected
+            mNetworkInfo = null;
+            mConnectedInfo = null;
+            if (mCalledDisconnect) {
+                mCalledDisconnect = false;
+                mCallbackHandler.post(() -> {
+                    if (mDisconnectCallback != null) {
+                        mDisconnectCallback.onDisconnectResult(
+                                DisconnectCallback.DISCONNECT_STATUS_SUCCESS);
+                    }
+                });
+            }
+        }
+        notifyOnUpdated();
+    }
+
+    // Method for WifiTracker to update the link properties, which is valid for all WifiEntry types.
+    @WorkerThread
+    void updateLinkProperties(@Nullable LinkProperties linkProperties) {
+        if (getConnectedState() != CONNECTED_STATE_CONNECTED) {
+            return;
+        }
+
+        if (mConnectedInfo == null) {
+            mConnectedInfo = new ConnectedInfo();
+        }
+        // Find IPv4 and IPv6 addresses, and subnet mask
+        List<String> ipv6Addresses = new ArrayList<>();
+        for (LinkAddress addr : linkProperties.getLinkAddresses()) {
+            if (addr.getAddress() instanceof Inet4Address) {
+                mConnectedInfo.ipAddress = addr.getAddress().getHostAddress();
+                try {
+                    InetAddress all = InetAddress.getByAddress(
+                            new byte[]{(byte) 255, (byte) 255, (byte) 255, (byte) 255});
+                    mConnectedInfo.subnetMask = NetworkUtils.getNetworkPart(
+                            all, addr.getPrefixLength()).getHostAddress();
+                } catch (UnknownHostException e) {
+                    // Leave subnet null;
+                }
+            } else if (addr.getAddress() instanceof Inet6Address) {
+                ipv6Addresses.add(addr.getAddress().getHostAddress());
+            }
+        }
+        mConnectedInfo.ipv6Addresses = ipv6Addresses;
+
+        // Find IPv4 default gateway.
+        for (RouteInfo routeInfo : linkProperties.getRoutes()) {
+            if (routeInfo.isIPv4Default() && routeInfo.hasGateway()) {
+                mConnectedInfo.gateway = routeInfo.getGateway().getHostAddress();
+                break;
+            }
+        }
+
+        // Find DNS servers
+        mConnectedInfo.dnsServers = linkProperties.getDnsServers().stream()
+                .map(InetAddress::getHostAddress).collect(Collectors.toList());
+
+        notifyOnUpdated();
+    }
 
     // TODO (b/70983952) Come up with a sorting scheme that does the right thing.
     @Override
@@ -446,6 +592,10 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
                 .append(getLevel())
                 .append(",security:")
                 .append(getSecurity())
+                .append(",connected:")
+                .append(getConnectedState() == CONNECTED_STATE_CONNECTED ? "true" : "false")
+                .append(",connectedInfo:")
+                .append(getConnectedInfo())
                 .toString();
     }
 }

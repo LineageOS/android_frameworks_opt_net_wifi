@@ -16,11 +16,16 @@
 
 package com.android.wifitrackerlib;
 
+import static android.net.NetworkCapabilities.TRANSPORT_WIFI;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkRequest;
 import android.net.NetworkScoreManager;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
@@ -30,6 +35,7 @@ import android.util.Log;
 import androidx.annotation.AnyThread;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleObserver;
@@ -118,6 +124,18 @@ public class BaseWifiTracker implements LifecycleObserver {
     protected final long mScanIntervalMillis;
     protected final ScanResultUpdater mScanResultUpdater;
 
+    // Network request for listening on changes to Wifi link properties.
+    private final NetworkRequest mNetworkRequest = new NetworkRequest.Builder()
+            .clearCapabilities().addTransportType(TRANSPORT_WIFI).build();
+
+    private final ConnectivityManager.NetworkCallback mNetworkCallback =
+            new ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onLinkPropertiesChanged(Network network, LinkProperties lp) {
+                    handleLinkPropertiesChanged(lp);
+                }
+            };
+
     /**
      * Constructor for BaseWifiTracker.
      *
@@ -175,6 +193,8 @@ public class BaseWifiTracker implements LifecycleObserver {
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         mContext.registerReceiver(mBroadcastReceiver, filter,
                 /* broadcastPermission */ null, mWorkerHandler);
+        mConnectivityManager.registerNetworkCallback(mNetworkRequest, mNetworkCallback,
+                mWorkerHandler);
         if (mWifiManager.getWifiState() == WifiManager.WIFI_STATE_ENABLED) {
             mScanner.start();
         } else {
@@ -192,6 +212,7 @@ public class BaseWifiTracker implements LifecycleObserver {
         // TODO (b/70983952): Unregister score cache and receivers for network callbacks.
         mScanner.stop();
         mContext.unregisterReceiver(mBroadcastReceiver);
+        mConnectivityManager.unregisterNetworkCallback(mNetworkCallback);
     }
 
     /**
@@ -246,6 +267,11 @@ public class BaseWifiTracker implements LifecycleObserver {
      */
     @WorkerThread
     protected void handleNetworkStateChangedAction(@NonNull Intent intent) {
+        // Do nothing.
+    };
+
+    @WorkerThread
+    protected void handleLinkPropertiesChanged(@Nullable LinkProperties linkProperties) {
         // Do nothing.
     };
 
