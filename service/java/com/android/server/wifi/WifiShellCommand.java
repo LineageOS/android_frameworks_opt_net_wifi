@@ -16,14 +16,11 @@
 
 package com.android.server.wifi;
 
-import android.content.Context;
-import android.net.wifi.IWifiManager;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.wificond.WifiCondManager;
+import android.os.BasicShellCommandHandler;
 import android.os.Binder;
-import android.os.ServiceManager;
-import android.os.ShellCommand;
 
 import com.android.server.wifi.util.ApConfigUtil;
 
@@ -46,7 +43,7 @@ import java.util.concurrent.TimeUnit;
  * Permissions: currently root permission is required for most
  * commands, which is checked using {@link #checkRootPermission()}.
  */
-public class WifiShellCommand extends ShellCommand {
+public class WifiShellCommand extends BasicShellCommandHandler {
     private final ClientModeImpl mClientModeImpl;
     private final WifiLockManager mWifiLockManager;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
@@ -55,8 +52,9 @@ public class WifiShellCommand extends ShellCommand {
     private final HostapdHal mHostapdHal;
     private final WifiCountryCode mWifiCountryCode;
     private final WifiLastResortWatchdog mWifiLastResortWatchdog;
+    private final WifiServiceImpl mWifiService;
 
-    WifiShellCommand(WifiInjector wifiInjector) {
+    WifiShellCommand(WifiInjector wifiInjector, WifiServiceImpl wifiService) {
         mClientModeImpl = wifiInjector.getClientModeImpl();
         mWifiLockManager = wifiInjector.getWifiLockManager();
         mWifiNetworkSuggestionsManager = wifiInjector.getWifiNetworkSuggestionsManager();
@@ -65,6 +63,7 @@ public class WifiShellCommand extends ShellCommand {
         mWifiNative = wifiInjector.getWifiNative();
         mWifiCountryCode = wifiInjector.getWifiCountryCode();
         mWifiLastResortWatchdog = wifiInjector.getWifiLastResortWatchdog();
+        mWifiService = wifiService;
     }
 
     @Override
@@ -214,13 +213,10 @@ public class WifiShellCommand extends ShellCommand {
                             return -1;
                         }
 
-                        // validate that device support this band
-                        IWifiManager wifiManager = IWifiManager.Stub.asInterface(
-                                ServiceManager.getService(Context.WIFI_SERVICE));
                         if ((band == SoftApConfiguration.BAND_5GHZ
-                                && !wifiManager.is5GHzBandSupported())
+                                && !mWifiService.is5GHzBandSupported())
                                 || (band == SoftApConfiguration.BAND_6GHZ
-                                && !wifiManager.is6GHzBandSupported())) {
+                                && !mWifiService.is6GHzBandSupported())) {
                             pw.println("Invalid argument to 'force-softap-channel enabled' "
                                     + "- channel band is not supported by the device");
                             return -1;
@@ -305,9 +301,7 @@ public class WifiShellCommand extends ShellCommand {
                                         + " or 'disabled'");
                         return -1;
                     }
-                    IWifiManager wifiManager = IWifiManager.Stub.asInterface(
-                            ServiceManager.getService(Context.WIFI_SERVICE));
-                    wifiManager.setWifiEnabled("com.android.shell", enabled);
+                    mWifiService.setWifiEnabled("com.android.shell", enabled);
                     return 0;
                 }
                 default:
