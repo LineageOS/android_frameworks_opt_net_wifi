@@ -2008,24 +2008,24 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     private static class FakeLohsCallback extends ILocalOnlyHotspotCallback.Stub {
         boolean mIsStarted = false;
-        WifiConfiguration mWifiConfig = null;
+        SoftApConfiguration mSoftApConfig = null;
 
         @Override
-        public void onHotspotStarted(WifiConfiguration wifiConfig) {
+        public void onHotspotStarted(SoftApConfiguration softApConfig) {
             mIsStarted = true;
-            this.mWifiConfig = wifiConfig;
+            this.mSoftApConfig = softApConfig;
         }
 
         @Override
         public void onHotspotStopped() {
             mIsStarted = false;
-            mWifiConfig = null;
+            mSoftApConfig = null;
         }
 
         @Override
         public void onHotspotFailed(int i) {
             mIsStarted = false;
-            mWifiConfig = null;
+            mSoftApConfig = null;
         }
     }
 
@@ -2112,9 +2112,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.SSID).isEqualTo("customSsid");
-        assertThat(callback.mWifiConfig.getAuthType()).isEqualTo(KeyMgmt.WPA2_PSK);
-        assertThat(callback.mWifiConfig.preSharedKey).isEqualTo("passphrase");
+        assertThat(callback.mSoftApConfig.getSsid()).isEqualTo("customSsid");
+        assertThat(callback.mSoftApConfig.getSecurityType())
+                .isEqualTo(SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+        assertThat(callback.mSoftApConfig.getPassphrase()).isEqualTo("passphrase");
     }
 
     @Test
@@ -2131,9 +2132,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.SSID).isEqualTo("customSsid");
-        assertThat(callback.mWifiConfig.getAuthType()).isEqualTo(KeyMgmt.NONE);
-        assertThat(callback.mWifiConfig.preSharedKey).isNull();
+        assertThat(callback.mSoftApConfig.getSsid()).isEqualTo("customSsid");
+        assertThat(callback.mSoftApConfig.getSecurityType())
+                .isEqualTo(SoftApConfiguration.SECURITY_TYPE_OPEN);
+        assertThat(callback.mSoftApConfig.getPassphrase()).isNull();
     }
 
     @Test
@@ -2150,7 +2152,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.SSID).isNotEmpty();
+        assertThat(callback.mSoftApConfig.getSsid()).isNotEmpty();
     }
 
     @Test
@@ -2167,7 +2169,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.BSSID)
+        assertThat(callback.mSoftApConfig.getBssid().toString())
                 .ignoringCase().isEqualTo("aa:bb:cc:dd:ee:ff");
     }
 
