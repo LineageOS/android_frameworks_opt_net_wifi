@@ -341,7 +341,7 @@ public class PasspointNetworkNominateHelperTest {
         assertEquals(1, candidates.size());
 
         assertEquals("", candidates.get(0).second.enterpriseConfig.getAnonymousIdentity());
-        assertTrue(candidates.get(0).second.enterpriseConfig.requireSimCredential());
+        assertTrue(candidates.get(0).second.enterpriseConfig.isAuthenticationSimBased());
     }
 
     /**

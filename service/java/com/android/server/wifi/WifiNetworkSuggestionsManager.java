@@ -1083,7 +1083,7 @@ public class WifiNetworkSuggestionsManager {
                     }
                     WifiConfiguration config = n.wns.wifiConfiguration;
                     if (config != null && config.enterpriseConfig != null
-                            && config.enterpriseConfig.requireSimCredential()) {
+                            && config.enterpriseConfig.isAuthenticationSimBased()) {
                         int subId = mTelephonyUtil.getBestMatchSubscriptionId(config);
                         if (!mTelephonyUtil.isSimPresent(subId)
                                 || (mTelephonyUtil.requiresImsiEncryption(subId)
