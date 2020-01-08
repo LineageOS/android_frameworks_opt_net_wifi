@@ -92,9 +92,9 @@ public class WifiCountryCode {
     }
 
     private void initializeTelephonyCountryCodeIfNeeded() {
-        // If we don't have a country code set, read it from telephony on bootup.
+        // If we don't have telephony country code set yet, poll it.
         if (mTelephonyCountryCode == null) {
-            Log.d(TAG, "Reading country code on initialization");
+            Log.d(TAG, "Reading country code from telephony");
             setCountryCode(mTelephonyManager.getNetworkCountryIso());
         }
     }
@@ -111,13 +111,15 @@ public class WifiCountryCode {
         // We are ready to set country code now.
         // We need to post pending country code request.
         if (mReady) {
-            initializeTelephonyCountryCodeIfNeeded();
             updateCountryCode();
         }
     }
 
     /**
      * Enable force-country-code mode
+     * This is for forcing a country using cmd wifi from adb shell
+     * This is for test purpose only and we should disallow any update from
+     * telephony in this mode
      * @param countryCode The forced two-letter country code
      */
     synchronized void enableForceCountryCode(String countryCode) {
@@ -127,6 +129,7 @@ public class WifiCountryCode {
         }
         mForceCountryCode = true;
         mTelephonyCountryCode = countryCode.toUpperCase(Locale.US);
+
         // If wpa_supplicant is ready we set the country code now, otherwise it will be
         // set once wpa_supplicant is ready.
         if (mReady) {
@@ -141,17 +144,23 @@ public class WifiCountryCode {
      */
     synchronized void disableForceCountryCode() {
         mForceCountryCode = false;
-        // Set mTelephonyCountryCode to null so that default country code is used until
-        // next call of setCountryCode().
         mTelephonyCountryCode = null;
+
+        // If wpa_supplicant is ready we set the country code now, otherwise it will be
+        // set once wpa_supplicant is ready.
+        if (mReady) {
+            updateCountryCode();
+        } else {
+            Log.d(TAG, "skip update supplicant not ready yet");
+        }
     }
 
     private boolean setCountryCode(String countryCode) {
         if (mForceCountryCode) {
-            Log.d(TAG, "Country code can't be set because it is the force-country-code mode");
+            Log.d(TAG, "Telephony Country code ignored due to force-country-code mode");
             return false;
         }
-        Log.d(TAG, "Set country code to: " + countryCode);
+        Log.d(TAG, "Set telephony country code to: " + countryCode);
         mTelephonyCountryTimestamp = FORMATTER.format(new Date(System.currentTimeMillis()));
 
         // Empty country code.
@@ -246,6 +255,9 @@ public class WifiCountryCode {
     }
 
     private String pickCountryCode() {
+
+        initializeTelephonyCountryCodeIfNeeded();
+
         if (mTelephonyCountryCode != null) {
             return mTelephonyCountryCode;
         }
