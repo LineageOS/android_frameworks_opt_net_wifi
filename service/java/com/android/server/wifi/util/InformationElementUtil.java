@@ -61,6 +61,10 @@ public class InformationElementUtil {
             if (eid == InformationElement.EID_SSID) {
                 found_ssid = true;
             } else if (eid == InformationElement.EID_EXTENSION_PRESENT) {
+                if (elementLength == 0) {
+                    // Malformed IE, skipping
+                    break;
+                }
                 eidExt = data.get() & Constants.BYTE_MASK;
                 elementLength--;
             }
