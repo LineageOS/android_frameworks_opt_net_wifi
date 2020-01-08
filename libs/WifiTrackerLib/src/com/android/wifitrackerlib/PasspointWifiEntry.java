@@ -21,7 +21,7 @@ import static android.net.wifi.WifiInfo.removeDoubleQuotes;
 import static androidx.core.util.Preconditions.checkNotNull;
 
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
-import static com.android.wifitrackerlib.Utils.getSecurityFromWifiConfiguration;
+import static com.android.wifitrackerlib.Utils.getSecurityTypeFromWifiConfiguration;
 
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
@@ -70,7 +70,7 @@ class PasspointWifiEntry extends WifiEntry {
     PasspointWifiEntry(@NonNull Handler callbackHandler,
             @NonNull PasspointConfiguration passpointConfig,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
-        super(callbackHandler, false /* forSavedNetworksPage */, wifiManager);
+        super(callbackHandler, wifiManager, false /* forSavedNetworksPage */);
 
         checkNotNull(passpointConfig, "Cannot construct with null PasspointConfiguration!");
 
@@ -298,7 +298,7 @@ class PasspointWifiEntry extends WifiEntry {
             @Nullable List<ScanResult> roamingScanResults)
             throws IllegalArgumentException {
         mWifiConfig = wifiConfig;
-        mSecurity = getSecurityFromWifiConfiguration(wifiConfig);
+        mSecurity = getSecurityTypeFromWifiConfiguration(wifiConfig);
 
         if (homeScanResults == null) {
             homeScanResults = new ArrayList<>();

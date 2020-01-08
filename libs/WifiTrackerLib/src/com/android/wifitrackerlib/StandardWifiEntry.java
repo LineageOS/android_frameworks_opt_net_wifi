@@ -25,8 +25,7 @@ import static com.android.wifitrackerlib.Utils.getAppLabelForSavedNetwork;
 import static com.android.wifitrackerlib.Utils.getAutoConnectDescription;
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
 import static com.android.wifitrackerlib.Utils.getMeteredDescription;
-import static com.android.wifitrackerlib.Utils.getSecurityFromScanResult;
-import static com.android.wifitrackerlib.Utils.getSecurityFromWifiConfiguration;
+import static com.android.wifitrackerlib.Utils.getSecurityTypeFromWifiConfiguration;
 import static com.android.wifitrackerlib.Utils.getSpeedDescription;
 import static com.android.wifitrackerlib.Utils.getVerboseLoggingDescription;
 
@@ -76,44 +75,34 @@ class StandardWifiEntry extends WifiEntry {
     @Nullable private String mRecommendationServiceLabel;
 
     StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
+            @NonNull String key,
             @NonNull List<ScanResult> scanResults,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
-        super(callbackHandler, false /* forSavedNetworksPage */, wifiManager);
+        this(context, callbackHandler, key, wifiManager, false /* forSavedNetworksPage */);
 
         checkNotNull(scanResults, "Cannot construct with null ScanResult list!");
-
-        mContext = context;
         if (scanResults.isEmpty()) {
             throw new IllegalArgumentException("Cannot construct with empty ScanResult list!");
         }
-        final ScanResult firstScan = scanResults.get(0);
-        mKey = scanResultToStandardWifiEntryKey(firstScan);
-        mSsid = firstScan.SSID;
-        mSecurity = getSecurityFromScanResult(firstScan);
         updateScanResultInfo(scanResults);
         updateRecommendationServiceLabel();
     }
 
     StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
-            @NonNull WifiConfiguration config,
+            @NonNull String key, @NonNull WifiConfiguration config,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
-        super(callbackHandler, true /* forSavedNetworksPage */, wifiManager);
+        this(context, callbackHandler, key, wifiManager, false /* forSavedNetworksPage */);
 
         checkNotNull(config, "Cannot construct with null config!");
         checkNotNull(config.SSID, "Supplied config must have an SSID!");
-
-        mContext = context;
-        mKey = wifiConfigToStandardWifiEntryKey(config);
-        mSsid = removeDoubleQuotes(config.SSID);
-        mSecurity = getSecurityFromWifiConfiguration(config);
         mWifiConfig = config;
         updateRecommendationServiceLabel();
     }
 
     StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
-            @NonNull String key, @NonNull WifiManager wifiManager) {
+            @NonNull String key, @NonNull WifiManager wifiManager, boolean forSavedNetworksPage) {
         // TODO: second argument (isSaved = false) is bogus in this context
-        super(callbackHandler, false, wifiManager);
+        super(callbackHandler, wifiManager, forSavedNetworksPage);
 
         if (!key.startsWith(KEY_PREFIX)) {
             throw new IllegalArgumentException("Key does not start with correct prefix!");
@@ -358,15 +347,12 @@ class StandardWifiEntry extends WifiEntry {
         if (mWifiConfig == null) {
             // Unsaved network
             if (mSecurity == SECURITY_NONE
-                    || mSecurity == SECURITY_OWE
-                    || mSecurity == SECURITY_OWE_TRANSITION) {
+                    || mSecurity == SECURITY_OWE) {
                 // Open network
                 final WifiConfiguration connectConfig = new WifiConfiguration();
                 connectConfig.SSID = "\"" + mSsid + "\"";
 
-                if (mSecurity == SECURITY_OWE
-                        || (mSecurity == SECURITY_OWE_TRANSITION
-                        && mWifiManager.isEnhancedOpenSupported())) {
+                if (mSecurity == SECURITY_OWE) {
                     // Use OWE if possible
                     connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.OWE);
                     connectConfig.requirePMF = true;
@@ -443,11 +429,11 @@ class StandardWifiEntry extends WifiEntry {
         }
 
         switch (mSecurity) {
-            case SECURITY_PSK:
-            case SECURITY_WEP:
             case SECURITY_NONE:
-            case SECURITY_SAE:
             case SECURITY_OWE:
+            case SECURITY_WEP:
+            case SECURITY_PSK:
+            case SECURITY_SAE:
                 return true;
             default:
                 return false;
@@ -468,10 +454,10 @@ class StandardWifiEntry extends WifiEntry {
             return false;
         }
 
-        // DPP 1.0 only supports SAE and PSK.
+        // DPP 1.0 only supports WPA2 and WPA3.
         switch (mSecurity) {
-            case SECURITY_SAE:
             case SECURITY_PSK:
+            case SECURITY_SAE:
                 return true;
             default:
                 return false;
@@ -593,12 +579,6 @@ class StandardWifiEntry extends WifiEntry {
                         "Attempted to update with wrong SSID! Expected: "
                                 + mSsid + ", Actual: " + result.SSID + ", ScanResult: " + result);
             }
-            int security = getSecurityFromScanResult(result);
-            if (security != mSecurity) {
-                throw new IllegalArgumentException(
-                        "Attempted to update with wrong security type! Expected: "
-                        + mSecurity + ", Actual: " + security + ", ScanResult: " + result);
-            }
         }
 
         mCurrentScanResults.clear();
@@ -624,11 +604,11 @@ class StandardWifiEntry extends WifiEntry {
                                 + ", Actual: " + removeDoubleQuotes(wifiConfig.SSID)
                                 + ", Config: " + wifiConfig);
             }
-            if (mSecurity != getSecurityFromWifiConfiguration(wifiConfig)) {
+            if (mSecurity != getSecurityTypeFromWifiConfiguration(wifiConfig)) {
                 throw new IllegalArgumentException(
                         "Attempted to update with wrong security!"
-                                + " Expected: " + mSsid
-                                + ", Actual: " + getSecurityFromWifiConfiguration(wifiConfig)
+                                + " Expected: " + mSecurity
+                                + ", Actual: " + getSecurityTypeFromWifiConfiguration(wifiConfig)
                                 + ", Config: " + wifiConfig);
             }
         }
@@ -656,9 +636,9 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @NonNull
-    static String scanResultToStandardWifiEntryKey(@NonNull ScanResult scan) {
-        checkNotNull(scan, "Cannot create key with null scan result!");
-        return KEY_PREFIX + scan.SSID + "," + getSecurityFromScanResult(scan);
+    static String ssidAndSecurityToStandardWifiEntryKey(@NonNull String ssid,
+            @Security int security) {
+        return KEY_PREFIX + ssid + "," + security;
     }
 
     @NonNull
@@ -666,7 +646,7 @@ class StandardWifiEntry extends WifiEntry {
         checkNotNull(config, "Cannot create key with null config!");
         checkNotNull(config.SSID, "Cannot create key with null SSID in config!");
         return KEY_PREFIX + removeDoubleQuotes(config.SSID) + ","
-                + getSecurityFromWifiConfiguration(config);
+                + getSecurityTypeFromWifiConfiguration(config);
     }
 
     private class ConnectActionListener implements WifiManager.ActionListener {

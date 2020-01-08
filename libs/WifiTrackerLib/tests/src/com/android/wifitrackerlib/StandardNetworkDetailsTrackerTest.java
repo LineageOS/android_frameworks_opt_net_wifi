@@ -16,8 +16,9 @@
 
 package com.android.wifitrackerlib;
 
-import static com.android.wifitrackerlib.StandardWifiEntry.scanResultToStandardWifiEntryKey;
+import static com.android.wifitrackerlib.StandardWifiEntry.ssidAndSecurityToStandardWifiEntryKey;
 import static com.android.wifitrackerlib.TestUtils.buildScanResult;
+import static com.android.wifitrackerlib.WifiEntry.SECURITY_NONE;
 import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_UNREACHABLE;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -138,8 +139,7 @@ public class StandardNetworkDetailsTrackerTest {
      */
     @Test
     public void testGetWifiEntry_HasCorrectKey() {
-        final String key = scanResultToStandardWifiEntryKey(
-                buildScanResult("ssid", "bssid", START_MILLIS));
+        final String key = ssidAndSecurityToStandardWifiEntryKey("ssid", SECURITY_NONE);
 
         final StandardNetworkDetailsTracker tracker = createTestStandardNetworkDetailsTracker(key);
 
@@ -152,7 +152,7 @@ public class StandardNetworkDetailsTrackerTest {
     @Test
     public void testHandleOnStart_scanResultUpdaterUpdateCorrectly() {
         final ScanResult chosen = buildScanResult("ssid", "bssid", START_MILLIS);
-        final String key = scanResultToStandardWifiEntryKey(chosen);
+        final String key = ssidAndSecurityToStandardWifiEntryKey("ssid", SECURITY_NONE);
         final StandardNetworkDetailsTracker tracker = createTestStandardNetworkDetailsTracker(key);
         final ScanResult other = buildScanResult("ssid2", "bssid", START_MILLIS, -50 /* rssi */);
         when(mMockWifiManager.getScanResults()).thenReturn(Collections.singletonList(other));
@@ -172,7 +172,7 @@ public class StandardNetworkDetailsTrackerTest {
     public void testScanResultsAvailableAction_updates_getLevel() {
         // Starting without any scans available should make level WIFI_LEVEL_UNREACHABLE
         final ScanResult scan = buildScanResult("ssid", "bssid", START_MILLIS, -50 /* rssi */);
-        final String key = scanResultToStandardWifiEntryKey(scan);
+        final String key = ssidAndSecurityToStandardWifiEntryKey("ssid", SECURITY_NONE);
         final StandardNetworkDetailsTracker tracker = createTestStandardNetworkDetailsTracker(key);
 
         tracker.onStart();
@@ -209,8 +209,7 @@ public class StandardNetworkDetailsTrackerTest {
     @Test
     public void testConfiguredNetworksChangedAction_updates_isSaved() {
         // Initialize with no config. isSaved() should return false.
-        final String key = scanResultToStandardWifiEntryKey(
-                buildScanResult("ssid", "bssid", START_MILLIS));
+        final String key = ssidAndSecurityToStandardWifiEntryKey("ssid", SECURITY_NONE);
         final StandardNetworkDetailsTracker tracker = createTestStandardNetworkDetailsTracker(key);
 
         tracker.onStart();
@@ -251,7 +250,7 @@ public class StandardNetworkDetailsTrackerTest {
     public void testWifiStateChanged_disabled_clearsLevel() {
         // Start with scan result and wifi state enabled. Level should not be unreachable.
         final ScanResult scan = buildScanResult("ssid", "bssid", START_MILLIS, -50 /* rssi */);
-        final String key = scanResultToStandardWifiEntryKey(scan);
+        final String key = ssidAndSecurityToStandardWifiEntryKey("ssid", SECURITY_NONE);
         when(mMockWifiManager.getScanResults()).thenReturn(Collections.singletonList(scan));
 
         final StandardNetworkDetailsTracker tracker = createTestStandardNetworkDetailsTracker(key);

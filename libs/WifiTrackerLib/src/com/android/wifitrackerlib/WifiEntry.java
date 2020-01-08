@@ -56,18 +56,18 @@ import java.util.stream.Collectors;
  * actions on the represented network.
  */
 public abstract class WifiEntry implements Comparable<WifiEntry> {
+    /**
+     * Security type based on WifiConfiguration.KeyMgmt
+     */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(value = {
             SECURITY_NONE,
+            SECURITY_OWE,
             SECURITY_WEP,
             SECURITY_PSK,
-            SECURITY_EAP,
-            SECURITY_OWE,
             SECURITY_SAE,
+            SECURITY_EAP,
             SECURITY_EAP_SUITE_B,
-            SECURITY_PSK_SAE_TRANSITION,
-            SECURITY_OWE_TRANSITION,
-            SECURITY_MAX_VAL
     })
 
     public @interface Security {}
@@ -79,9 +79,8 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public static final int SECURITY_OWE = 4;
     public static final int SECURITY_SAE = 5;
     public static final int SECURITY_EAP_SUITE_B = 6;
-    public static final int SECURITY_PSK_SAE_TRANSITION = 7;
-    public static final int SECURITY_OWE_TRANSITION = 8;
-    public static final int SECURITY_MAX_VAL = 9; // Has to be the last
+
+    public static final int NUM_SECURITY_TYPES = 7;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(value = {
@@ -198,8 +197,8 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     protected boolean mCalledConnect = false;
     protected boolean mCalledDisconnect = false;
 
-    WifiEntry(@NonNull Handler callbackHandler, boolean forSavedNetworksPage,
-            @NonNull WifiManager wifiManager) throws IllegalArgumentException {
+    WifiEntry(@NonNull Handler callbackHandler, @NonNull WifiManager wifiManager,
+            boolean forSavedNetworksPage) throws IllegalArgumentException {
         checkNotNull(callbackHandler, "Cannot construct with null handler!");
         checkNotNull(wifiManager, "Cannot construct with null WifiManager!");
         mCallbackHandler = callbackHandler;
@@ -261,6 +260,12 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     /** Returns the security type defined by the SECURITY constants */
     @Security
     public abstract int getSecurity();
+
+    /** Returns the string representation of the security of the WifiEntry. */
+    public String getSecurityString() {
+        // TODO (b/70983952) Implement this
+        return null;
+    }
 
     /** Returns the MAC address of the connection */
     public abstract String getMacAddress();
