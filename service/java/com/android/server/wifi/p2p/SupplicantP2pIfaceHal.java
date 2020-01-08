@@ -512,14 +512,20 @@ public class SupplicantP2pIfaceHal {
     }
 
     /**
-     * Returns false if SupplicantP2pIface is null, and logs failure to call methodStr
+     * Returns SupplicantP2pIface on success, logs failure to call methodStr
+     * and returns false otherwise
      */
-    private boolean checkSupplicantP2pIfaceAndLogFailureV1_2(String method) {
-        if (getP2pIfaceMockableV1_2() == null) {
-            Log.e(TAG, "Can't call " + method + ": ISupplicantP2pIface is null");
-            return false;
+    private android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface
+            getSupplicantP2pIfaceAndLogFailureV1_2(String method) {
+        synchronized (mLock) {
+            android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface p2pIfaceV12 =
+                    getP2pIfaceMockableV1_2();
+            if (p2pIfaceV12 == null) {
+                Log.e(TAG, "Can't call " + method + ": ISupplicantP2pIface is null");
+                return null;
+            }
+            return p2pIfaceV12;
         }
-        return true;
     }
 
     private int wpsInfoToConfigMethod(int info) {
@@ -1195,7 +1201,10 @@ public class SupplicantP2pIfaceHal {
     public boolean groupAdd(String networkName, String passphrase,
             boolean isPersistent, int freq, String peerAddress, boolean join) {
         synchronized (mLock) {
-            if (!checkSupplicantP2pIfaceAndLogFailureV1_2("groupAdd_1_2")) return false;
+            android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface ifaceV12 =
+                    getSupplicantP2pIfaceAndLogFailureV1_2("groupAdd_1_2");
+            if (ifaceV12 == null) return false;
+
             java.util.ArrayList<Byte> ssid = NativeUtil.decodeSsid("\"" + networkName + "\"");
             byte[] macAddress = null;
             try {
@@ -1205,8 +1214,6 @@ public class SupplicantP2pIfaceHal {
                 return false;
             }
 
-            android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface ifaceV12 =
-                    getP2pIfaceMockableV1_2();
             SupplicantResult<Void> result =
                     new SupplicantResult("groupAdd(" + networkName + ", "
                         + (TextUtils.isEmpty(passphrase) ? "<Empty>" : "<Non-Empty>")
@@ -2369,10 +2376,10 @@ public class SupplicantP2pIfaceHal {
      */
     public boolean setMacRandomization(boolean enable) {
         synchronized (mLock) {
-            if (!checkSupplicantP2pIfaceAndLogFailureV1_2("setMacRandomization")) return false;
-
             android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface ifaceV12 =
-                    getP2pIfaceMockableV1_2();
+                    getSupplicantP2pIfaceAndLogFailureV1_2("setMacRandomization");
+            if (ifaceV12 == null) return false;
+
             SupplicantResult<Void> result = new SupplicantResult(
                     "setMacRandomization(" + enable + ")");
             try {
