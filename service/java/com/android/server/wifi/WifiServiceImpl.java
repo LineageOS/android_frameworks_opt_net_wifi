@@ -2843,7 +2843,7 @@ public class WifiServiceImpl extends BaseWifiService {
     public int handleShellCommand(@NonNull ParcelFileDescriptor in,
             @NonNull ParcelFileDescriptor out, @NonNull ParcelFileDescriptor err,
             @NonNull String[] args) {
-        return new WifiShellCommand(mWifiInjector).exec(
+        return new WifiShellCommand(mWifiInjector, this).exec(
                 this, in.getFileDescriptor(), out.getFileDescriptor(), err.getFileDescriptor(),
                 args);
     }
