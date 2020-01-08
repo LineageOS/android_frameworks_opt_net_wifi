@@ -582,7 +582,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             setupForActiveRequest();
 
             // Store the active network request.
-            mActiveSpecificNetworkRequest = new NetworkRequest(networkRequest);
+            mActiveSpecificNetworkRequest = networkRequest;
             WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
             mActiveSpecificNetworkRequestSpecifier = new WifiNetworkSpecifier(
                     wns.ssidPatternMatcher, wns.bssidPatternMatcher, wns.wifiConfiguration,
