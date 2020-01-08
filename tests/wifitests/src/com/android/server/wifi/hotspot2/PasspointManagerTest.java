@@ -47,6 +47,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -173,8 +174,8 @@ public class PasspointManagerTest extends WifiBaseTest {
     @Mock ANQPRequestManager mAnqpRequestManager;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiConfigStore mWifiConfigStore;
-    @Mock PasspointConfigSharedStoreData.DataSource mSharedDataSource;
-    @Mock PasspointConfigUserStoreData.DataSource mUserDataSource;
+    PasspointConfigSharedStoreData.DataSource mSharedDataSource;
+    PasspointConfigUserStoreData.DataSource mUserDataSource;
     @Mock WifiMetrics mWifiMetrics;
     @Mock OsuNetworkConnection mOsuNetworkConnection;
     @Mock OsuServerConnection mOsuServerConnection;
@@ -298,6 +299,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         lenient().when(provider.getConfig()).thenReturn(config);
         lenient().when(provider.getWifiConfig()).thenReturn(wifiConfig);
         lenient().when(provider.getCreatorUid()).thenReturn(TEST_CREATOR_UID);
+        lenient().when(provider.isAutoJoinEnabled()).thenReturn(true);
         return provider;
     }
 
@@ -627,6 +629,15 @@ public class PasspointManagerTest extends WifiBaseTest {
         List<PasspointProvider> providers = mUserDataSource.getProviders();
         assertEquals(1, providers.size());
         assertEquals(config, providers.get(0).getConfig());
+        assertTrue(mManager.enableAutojoin(providers.get(0).getConfig().getHomeSp().getFqdn(),
+                false));
+        verify(providers.get(0)).setAutoJoinEnabled(false);
+        assertTrue(mManager.enableAutojoin(providers.get(0).getConfig().getHomeSp().getFqdn(),
+                true));
+        verify(providers.get(0)).setAutoJoinEnabled(true);
+        assertFalse(mManager.enableAutojoin(providers.get(0).getConfig().getHomeSp().getFqdn()
+                + "-XXXX", true));
+
         // Provider index start with 0, should be 1 after adding a provider.
         assertEquals(1, mSharedDataSource.getProviderIndex());
 
@@ -635,7 +646,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         verify(provider).uninstallCertsAndKeys();
         verify(mWifiConfigManager).removePasspointConfiguredNetwork(
                 provider.getWifiConfig().getKey());
-        verify(mWifiConfigManager).saveToStore(true);
+        verify(mWifiConfigManager, times(3)).saveToStore(true);
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallSuccess();
         verify(mAppOpsManager).stopWatchingMode(any(AppOpsManager.OnOpChangedListener.class));
@@ -709,7 +720,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         TelephonyManager specifiedTm = mock(TelephonyManager.class);
         when(mTelephonyManager.createForSubscriptionId(eq(TEST_SUBID))).thenReturn(specifiedTm);
         when(specifiedTm.getSubscriberId()).thenReturn(FULL_IMSI);
-        List<SubscriptionInfo> subInfoList = new ArrayList<>() {{
+        List<SubscriptionInfo> subInfoList = new ArrayList<SubscriptionInfo>() {{
                 add(subInfo);
             }};
         when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(subInfoList);
@@ -723,7 +734,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         assertTrue(ut.addOrUpdateProvider(config, TEST_CREATOR_UID, TEST_PACKAGE, true));
 
         assertEquals(TEST_CARRIER_ID, config.getCarrierId());
-        List<String> fqdnList = new ArrayList<>(){{
+        List<String> fqdnList = new ArrayList<String>(){{
                 add(TEST_FQDN);
             }};
         assertEquals(TEST_CARRIER_ID,
@@ -796,9 +807,8 @@ public class PasspointManagerTest extends WifiBaseTest {
                 TEST_FRIENDLY_NAME);
         PasspointProvider provider = mock(PasspointProvider.class);
         when(provider.installCertsAndKeys()).thenReturn(false);
-        when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
-                eq(mTelephonyUtil), anyLong(), eq(TEST_CREATOR_UID), eq(TEST_PACKAGE), eq(false)))
-                .thenReturn(provider);
+        when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore), eq(mTelephonyUtil),
+                anyLong(), eq(TEST_CREATOR_UID), eq(TEST_PACKAGE), eq(false))).thenReturn(provider);
         assertFalse(mManager.addOrUpdateProvider(config, TEST_CREATOR_UID, TEST_PACKAGE, false));
         verify(mWifiMetrics).incrementNumPasspointProviderInstallation();
         verify(mWifiMetrics, never()).incrementNumPasspointProviderInstallSuccess();

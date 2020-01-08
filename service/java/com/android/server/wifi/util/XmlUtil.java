@@ -357,6 +357,7 @@ public class XmlUtil {
         public static final String XML_TAG_MAC_RANDOMIZATION_SETTING = "MacRandomizationSetting";
         public static final String XML_TAG_SAE_PASSWORD_ID_KEY = "SaePasswordId";
         public static final String XML_TAG_CARRIER_ID = "CarrierId";
+        public static final String XML_TAG_IS_AUTO_JOIN = "AutoJoinEnabled";
 
         /**
          * Write WepKeys to the XML stream.
@@ -458,6 +459,7 @@ public class XmlUtil {
                     out, XML_TAG_ALLOWED_SUITE_B_CIPHERS,
                     configuration.allowedSuiteBCiphers.toByteArray());
             XmlUtil.writeNextValue(out, XML_TAG_SHARED, configuration.shared);
+            XmlUtil.writeNextValue(out, XML_TAG_IS_AUTO_JOIN, configuration.allowAutojoin);
         }
 
         /**
@@ -713,6 +715,9 @@ public class XmlUtil {
                             break;
                         case XML_TAG_CARRIER_ID:
                             configuration.carrierId = (int) value;
+                            break;
+                        case XML_TAG_IS_AUTO_JOIN:
+                            configuration.allowAutojoin = (boolean) value;
                             break;
                         default:
                             Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
