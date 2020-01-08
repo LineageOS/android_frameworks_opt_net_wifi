@@ -35,12 +35,12 @@ import android.net.wifi.aware.SubscribeConfig;
 import android.net.wifi.aware.WifiAwareManager;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
 import android.net.wifi.util.HexEncoding;
+import android.os.BasicShellCommandHandler;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.RemoteException;
-import android.os.ShellCommand;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.text.TextUtils;
@@ -259,7 +259,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
      * @return -1 if parameter not recognized or invalid value, 0 otherwise.
      */
     @Override
-    public int onCommand(ShellCommand parentShell) {
+    public int onCommand(BasicShellCommandHandler parentShell) {
         final PrintWriter pw_err = parentShell.getErrPrintWriter();
         final PrintWriter pw_out = parentShell.getOutPrintWriter();
 
@@ -360,7 +360,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
     }
 
     @Override
-    public void onHelp(String command, ShellCommand parentShell) {
+    public void onHelp(String command, BasicShellCommandHandler parentShell) {
         final PrintWriter pw = parentShell.getOutPrintWriter();
 
         pw.println("  " + command);

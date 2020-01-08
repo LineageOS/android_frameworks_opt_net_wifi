@@ -18,6 +18,7 @@ package com.android.server.wifi.rtt;
 
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -37,15 +38,14 @@ import android.net.wifi.rtt.RangingResultCallback;
 import android.net.wifi.rtt.ResponderConfig;
 import android.net.wifi.rtt.ResponderLocation;
 import android.net.wifi.rtt.WifiRttManager;
+import android.os.BasicShellCommandHandler;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.os.RemoteException;
-import android.os.ResultReceiver;
-import android.os.ShellCallback;
-import android.os.ShellCommand;
 import android.os.UserHandle;
 import android.os.WorkSource;
 import android.os.WorkSource.WorkChain;
@@ -123,7 +123,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             "override_assume_no_privilege";
     private static final int CONTROL_PARAM_OVERRIDE_ASSUME_NO_PRIVILEGE_DEFAULT = 0;
 
-    private class RttShellCommand extends ShellCommand {
+    private class RttShellCommand extends BasicShellCommandHandler {
         private Map<String, Integer> mControlParams = new HashMap<>();
 
         @Override
@@ -381,9 +381,12 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     }
 
     @Override
-    public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
-            String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        mShellCommand.exec(this, in, out, err, args, callback, resultReceiver);
+    public int handleShellCommand(@NonNull ParcelFileDescriptor in,
+            @NonNull ParcelFileDescriptor out, @NonNull ParcelFileDescriptor err,
+            @NonNull String[] args) {
+        return mShellCommand.exec(
+                this, in.getFileDescriptor(), out.getFileDescriptor(), err.getFileDescriptor(),
+                args);
     }
 
     /**

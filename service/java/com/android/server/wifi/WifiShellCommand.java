@@ -21,9 +21,9 @@ import android.net.wifi.IWifiManager;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.wificond.WifiCondManager;
+import android.os.BasicShellCommandHandler;
 import android.os.Binder;
 import android.os.ServiceManager;
-import android.os.ShellCommand;
 
 import com.android.server.wifi.util.ApConfigUtil;
 
@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  * Permissions: currently root permission is required for most
  * commands, which is checked using {@link #checkRootPermission()}.
  */
-public class WifiShellCommand extends ShellCommand {
+public class WifiShellCommand extends BasicShellCommandHandler {
     private final ClientModeImpl mClientModeImpl;
     private final WifiLockManager mWifiLockManager;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;

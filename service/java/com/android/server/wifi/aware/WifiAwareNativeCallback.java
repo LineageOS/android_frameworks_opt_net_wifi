@@ -29,7 +29,7 @@ import android.hardware.wifi.V1_2.IWifiNanIfaceEventCallback;
 import android.hardware.wifi.V1_2.NanDataPathChannelInfo;
 import android.hardware.wifi.V1_2.NanDataPathScheduleUpdateInd;
 import android.net.wifi.util.HexEncoding;
-import android.os.ShellCommand;
+import android.os.BasicShellCommandHandler;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -89,7 +89,7 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
      * @return -1 if parameter not recognized or invalid value, 0 otherwise.
      */
     @Override
-    public int onCommand(ShellCommand parentShell) {
+    public int onCommand(BasicShellCommandHandler parentShell) {
         final PrintWriter pwe = parentShell.getErrPrintWriter();
         final PrintWriter pwo = parentShell.getOutPrintWriter();
 
@@ -148,7 +148,7 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
     }
 
     @Override
-    public void onHelp(String command, ShellCommand parentShell) {
+    public void onHelp(String command, BasicShellCommandHandler parentShell) {
         final PrintWriter pw = parentShell.getOutPrintWriter();
 
         pw.println("  " + command);
