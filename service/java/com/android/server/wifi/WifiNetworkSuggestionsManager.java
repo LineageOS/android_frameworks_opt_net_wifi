@@ -33,6 +33,7 @@ import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.drawable.Icon;
 import android.net.MacAddress;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ScanResult;
@@ -938,7 +939,8 @@ public class WifiNetworkSuggestionsManager {
         CharSequence appName = getAppName(packageName, uid);
         Notification notification = new Notification.Builder(
                 mContext, WifiService.NOTIFICATION_NETWORK_STATUS)
-                .setSmallIcon(com.android.wifi.resources.R.drawable.stat_notify_wifi_in_range)
+                .setSmallIcon(Icon.createWithResource(WifiContext.WIFI_OVERLAY_APK_PKG_NAME,
+                        com.android.wifi.resources.R.drawable.stat_notify_wifi_in_range))
                 .setTicker(mResources.getString(R.string.wifi_suggestion_title))
                 .setContentTitle(mResources.getString(R.string.wifi_suggestion_title))
                 .setStyle(new Notification.BigTextStyle()

@@ -41,9 +41,6 @@ import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyMap;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -112,7 +109,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoSession;
 
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -175,7 +171,6 @@ public class PasspointManagerTest extends WifiBaseTest {
     @Mock PasspointEventHandler.Callbacks mCallbacks;
     @Mock AnqpCache mAnqpCache;
     @Mock ANQPRequestManager mAnqpRequestManager;
-    @Mock CertificateVerifier mCertVerifier;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiConfigStore mWifiConfigStore;
     @Mock PasspointConfigSharedStoreData.DataSource mSharedDataSource;
@@ -208,7 +203,6 @@ public class PasspointManagerTest extends WifiBaseTest {
         when(mObjectFactory.makeAnqpCache(mClock)).thenReturn(mAnqpCache);
         when(mObjectFactory.makeANQPRequestManager(any(), eq(mClock)))
                 .thenReturn(mAnqpRequestManager);
-        when(mObjectFactory.makeCertificateVerifier()).thenReturn(mCertVerifier);
         when(mObjectFactory.makeOsuNetworkConnection(any(Context.class)))
                 .thenReturn(mOsuNetworkConnection);
         when(mObjectFactory.makeOsuServerConnection())
@@ -719,11 +713,9 @@ public class PasspointManagerTest extends WifiBaseTest {
                 add(subInfo);
             }};
         when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(subInfoList);
-        doNothing().when(mCertVerifier).verifyCaCert(any(X509Certificate.class));
         when(mWifiKeyStore.putCaCertInKeyStore(any(String.class), any(Certificate.class)))
                 .thenReturn(true);
         PasspointObjectFactory spyFactory = spy(new PasspointObjectFactory());
-        doReturn(mCertVerifier).when(spyFactory).makeCertificateVerifier();
         PasspointManager ut = new PasspointManager(mContext, mWifiInjector, mHandler, mWifiNative,
                 mWifiKeyStore, mClock, spyFactory, mWifiConfigManager,
                 mWifiConfigStore, mWifiMetrics, mTelephonyUtil);
@@ -813,19 +805,23 @@ public class PasspointManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that adding a provider with an invalid CA certificate will fail.
+     * Verify that adding a provider with R1 configuration and a private self-signed CA certificate
+     * is installed correctly.
      *
      * @throws Exception
      */
     @Test
-    public void addProviderWithInvalidCaCert() throws Exception {
+    public void addProviderWithR1ConfigPrivateCaCert() throws Exception {
         PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
                 TEST_FRIENDLY_NAME);
-        doThrow(new GeneralSecurityException())
-                .when(mCertVerifier).verifyCaCert(any(X509Certificate.class));
-        assertFalse(mManager.addOrUpdateProvider(config, TEST_CREATOR_UID, TEST_PACKAGE, false));
+        PasspointProvider provider = createMockProvider(config);
+        when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
+                eq(mTelephonyUtil), anyLong(), eq(TEST_CREATOR_UID), eq(TEST_PACKAGE),
+                eq(false))).thenReturn(provider);
+        assertTrue(mManager.addOrUpdateProvider(config, TEST_CREATOR_UID, TEST_PACKAGE, false));
+        verifyInstalledConfig(config);
         verify(mWifiMetrics).incrementNumPasspointProviderInstallation();
-        verify(mWifiMetrics, never()).incrementNumPasspointProviderInstallSuccess();
+        verify(mWifiMetrics).incrementNumPasspointProviderInstallSuccess();
     }
 
     /**
@@ -844,7 +840,6 @@ public class PasspointManagerTest extends WifiBaseTest {
                 eq(mTelephonyUtil), anyLong(), eq(TEST_CREATOR_UID), eq(TEST_PACKAGE),
                 eq(false))).thenReturn(provider);
         assertTrue(mManager.addOrUpdateProvider(config, TEST_CREATOR_UID, TEST_PACKAGE, false));
-        verify(mCertVerifier, never()).verifyCaCert(any(X509Certificate.class));
         verifyInstalledConfig(config);
         verify(mWifiMetrics).incrementNumPasspointProviderInstallation();
         verify(mWifiMetrics).incrementNumPasspointProviderInstallSuccess();
