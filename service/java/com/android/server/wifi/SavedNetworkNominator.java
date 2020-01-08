@@ -132,7 +132,7 @@ public class SavedNetworkNominator implements WifiNetworkSelector.NetworkNominat
                         + scanResult.BSSID);
                 continue;
             } else if (network.enterpriseConfig != null
-                    && network.enterpriseConfig.requireSimCredential()) {
+                    && network.enterpriseConfig.isAuthenticationSimBased()) {
                 int subId = mTelephonyUtil.getBestMatchSubscriptionId(network);
                 if (!mTelephonyUtil.isSimPresent(subId)) {
                     // Don't select if security type is EAP SIM/AKA/AKA' when SIM is not present.

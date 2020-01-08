@@ -942,7 +942,7 @@ public class WifiConfigManager {
         // Since it is "owned" by us, so always allow us to modify them.
         if (config.enterpriseConfig != null
                 && uid == Process.WIFI_UID
-                && config.enterpriseConfig.requireSimCredential()) {
+                && config.enterpriseConfig.isAuthenticationSimBased()) {
             return true;
         }
 
@@ -2951,7 +2951,7 @@ public class WifiConfigManager {
         if (mVerboseLoggingEnabled) localLog("resetSimNetworks");
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
             if (config.enterpriseConfig == null
-                    || !config.enterpriseConfig.requireSimCredential()) {
+                    || !config.enterpriseConfig.isAuthenticationSimBased()) {
                 continue;
             }
             if (config.enterpriseConfig.getEapMethod() == WifiEnterpriseConfig.Eap.PEAP) {

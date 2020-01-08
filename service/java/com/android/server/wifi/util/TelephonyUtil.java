@@ -255,7 +255,7 @@ public class TelephonyUtil {
         }
         // Legacy WifiConfiguration without carrier ID
         if (config.enterpriseConfig == null
-                 || !config.enterpriseConfig.requireSimCredential()) {
+                 || !config.enterpriseConfig.isAuthenticationSimBased()) {
             Log.w(TAG, "The legacy config is not using EAP-SIM.");
             return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
         }
@@ -502,7 +502,7 @@ public class TelephonyUtil {
      */
     private static int getSimMethodForConfig(WifiConfiguration config) {
         if (config == null || config.enterpriseConfig == null
-                || !config.enterpriseConfig.requireSimCredential()) {
+                || !config.enterpriseConfig.isAuthenticationSimBased()) {
             return WifiEnterpriseConfig.Eap.NONE;
         }
         int eapMethod = config.enterpriseConfig.getEapMethod();
