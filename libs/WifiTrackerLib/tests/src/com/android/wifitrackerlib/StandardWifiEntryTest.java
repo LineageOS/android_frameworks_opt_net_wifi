@@ -30,6 +30,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.net.LinkProperties;
 import android.net.MacAddress;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
@@ -495,6 +496,24 @@ public class StandardWifiEntryTest {
         assertThat(eapWifiEntry.canEasyConnect()).isFalse();
         assertThat(eapSuiteBWifiEntry.canEasyConnect()).isFalse();
         assertThat(oweWifiEntry.canEasyConnect()).isFalse();
+    }
+
+    @Test
+    public void testUpdateLinkProperties_updatesConnectedInfo() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config,
+                mMockWifiManager);
+        when(mMockWifiInfo.getNetworkId()).thenReturn(1);
+        when(mMockWifiInfo.getRssi()).thenReturn(GOOD_RSSI);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
+        entry.updateConnectionInfo(mMockWifiInfo, mMockNetworkInfo);
+
+        entry.updateLinkProperties(new LinkProperties());
+
+        assertThat(entry.getConnectedInfo()).isNotNull();
     }
 
     private StandardWifiEntry getSavedStandardWifiEntry(int wifiConfigurationSecureType) {

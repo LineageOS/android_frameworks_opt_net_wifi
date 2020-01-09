@@ -20,12 +20,14 @@ import static androidx.core.util.Preconditions.checkNotNull;
 
 import static com.android.wifitrackerlib.StandardWifiEntry.scanResultToStandardWifiEntryKey;
 import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
+import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_CONNECTED;
 
 import static java.util.stream.Collectors.toList;
 
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
+import android.net.LinkProperties;
 import android.net.NetworkInfo;
 import android.net.NetworkScoreManager;
 import android.net.wifi.WifiConfiguration;
@@ -71,6 +73,8 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
         final WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
         final NetworkInfo networkInfo = mConnectivityManager.getActiveNetworkInfo();
         mChosenEntry.updateConnectionInfo(wifiInfo, networkInfo);
+        handleLinkPropertiesChanged(mConnectivityManager.getLinkProperties(
+                mWifiManager.getCurrentNetwork()));
     }
 
     @AnyThread
@@ -121,6 +125,14 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
         checkNotNull(intent, "Intent cannot be null!");
         mChosenEntry.updateConnectionInfo(mWifiManager.getConnectionInfo(),
                 (NetworkInfo) intent.getExtra(WifiManager.EXTRA_NETWORK_INFO));
+    }
+
+    @WorkerThread
+    @Override
+    protected void handleLinkPropertiesChanged(@NonNull LinkProperties linkProperties) {
+        if (mChosenEntry.getConnectedState() == CONNECTED_STATE_CONNECTED) {
+            mChosenEntry.updateLinkProperties(linkProperties);
+        }
     }
 
     /**
