@@ -2853,6 +2853,8 @@ public class WifiMetrics {
                 pw.println("mWifiLogProto.rxLinkSpeedCount5gLow=" + mRxLinkSpeedCount5gLow);
                 pw.println("mWifiLogProto.rxLinkSpeedCount5gMid=" + mRxLinkSpeedCount5gMid);
                 pw.println("mWifiLogProto.rxLinkSpeedCount5gHigh=" + mRxLinkSpeedCount5gHigh);
+                pw.println("mWifiLogProto.numIpRenewalFailure="
+                        + mWifiLogProto.numIpRenewalFailure);
             }
         }
     }
@@ -5108,6 +5110,15 @@ public class WifiMetrics {
     public void incrementPasspointProvisionSuccess() {
         synchronized (mLock) {
             mNumProvisionSuccess++;
+        }
+    }
+
+    /**
+     * Increment number of IP renewal failures.
+     */
+    public void incrementIpRenewalFailure() {
+        synchronized (mLock) {
+            mWifiLogProto.numIpRenewalFailure++;
         }
     }
 

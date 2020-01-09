@@ -1551,6 +1551,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertEquals("DisconnectingState", getCurrentState().getName());
+        // Verify this is not counted as a IP renewal failure
+        verify(mWifiMetrics, never()).incrementIpRenewalFailure();
         // Verifies that WifiLastResortWatchdog be notified
         // by DHCP failure
         verify(mWifiLastResortWatchdog, times(2)).noteConnectionFailureAndTriggerIfNeeded(
@@ -1561,6 +1563,19 @@ public class ClientModeImplTest extends WifiBaseTest {
                 BssidBlocklistMonitor.REASON_DHCP_FAILURE);
         verify(mBssidBlocklistMonitor, never()).handleDhcpProvisioningSuccess(sBSSID, sSSID);
         verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID, sSSID);
+    }
+
+    /**
+     * Verify that a IP renewal failure is logged when IP provisioning fail in the
+     * ConnectedState.
+     */
+    @Test
+    public void testDhcpRenewalMetrics() throws Exception {
+        connect();
+        injectDhcpFailure();
+        mLooper.dispatchAll();
+
+        verify(mWifiMetrics).incrementIpRenewalFailure();
     }
 
     /**
