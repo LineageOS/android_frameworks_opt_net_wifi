@@ -125,7 +125,7 @@ public class PasspointProvisioner {
         mProvisioningStateMachine.getHandler().post(() -> {
             mWfaKeyStore.load();
             mOsuServerConnection.init(mObjectFactory.getSSLContext(TLS_VERSION),
-                    mObjectFactory.getTrustManagerImpl(mWfaKeyStore.get()));
+                    mObjectFactory.getTrustManagerFactory(mWfaKeyStore.get()));
         });
     }
 

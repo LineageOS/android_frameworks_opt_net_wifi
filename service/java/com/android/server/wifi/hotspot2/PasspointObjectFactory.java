@@ -19,7 +19,6 @@ package com.android.server.wifi.hotspot2;
 import android.content.Context;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 
-import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.WifiKeyStore;
 import com.android.server.wifi.WifiMetrics;
@@ -27,9 +26,11 @@ import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.util.TelephonyUtil;
 
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 
 /**
  * Factory class for creating Passpoint related objects. Useful for mocking object creations
@@ -167,13 +168,20 @@ public class PasspointObjectFactory{
     }
 
     /**
-     * Create an instance of {@link TrustManagerImpl}.
+     * Create an instance of {@link TrustManagerFactory}.
      *
      * @param ks KeyStore used to get root certs
-     * @return TrustManagerImpl an instance for delegating root cert validation
+     * @return TrustManagerFactory an instance for root cert validation
      */
-    public TrustManagerImpl getTrustManagerImpl(KeyStore ks) {
-        return new TrustManagerImpl(ks);
+    public TrustManagerFactory getTrustManagerFactory(KeyStore ks) {
+        try {
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory
+                    .getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            trustManagerFactory.init(ks);
+            return trustManagerFactory;
+        } catch (NoSuchAlgorithmException | KeyStoreException e) {
+            return null;
+        }
     }
 
     /**
