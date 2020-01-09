@@ -24,6 +24,7 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Process;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.util.Pair;
 
@@ -68,6 +69,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
     private static final String XML_TAG_SUGGESTOR_FEATURE_ID = "SuggestorFeatureId";
     private static final String XML_TAG_SUGGESTOR_HAS_USER_APPROVED = "SuggestorHasUserApproved";
+    private static final String XML_TAG_SUGGESTOR_CARRIER_ID = "SuggestorCarrierId";
     private static final String XML_TAG_SUGGESTOR_MAX_SIZE = "SuggestorMaxSize";
     private static final String XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION =
             "PasspointConfiguration";
@@ -166,6 +168,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             boolean hasUserApproved = entry.getValue().hasUserApproved;
             int maxSize = entry.getValue().maxSize;
             int uid = entry.getValue().uid;
+            int carrierId = entry.getValue().carrierId;
             Set<ExtendedWifiNetworkSuggestion> networkSuggestions =
                     entry.getValue().extNetworkSuggestions;
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
@@ -174,6 +177,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_HAS_USER_APPROVED, hasUserApproved);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_MAX_SIZE, maxSize);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_UID, uid);
+            XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_CARRIER_ID, carrierId);
             serializeExtNetworkSuggestions(out, networkSuggestions, encryptionUtil);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
         }
@@ -260,6 +264,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                 boolean hasUserApproved = false;
                 int maxSize = -1;
                 int uid = Process.INVALID_UID;
+                int carrierId = TelephonyManager.UNKNOWN_CARRIER_ID;
                 // Loop through and parse out all the elements from the stream within this section.
                 while (XmlUtils.nextElementWithin(in, outerTagDepth + 1)) {
                     if (in.getAttributeValue(null, "name") != null) {
@@ -282,6 +287,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                             case XML_TAG_SUGGESTOR_UID:
                                 uid = (int) value;
                                 break;
+                            case XML_TAG_SUGGESTOR_CARRIER_ID:
+                                carrierId = (int) value;
+                                break;
                             default:
                                 Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
                                 break;
@@ -302,6 +310,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                             perAppInfo = new PerAppInfo(uid, packageName, featureId);
                             perAppInfo.hasUserApproved = hasUserApproved;
                             perAppInfo.maxSize = maxSize;
+                            perAppInfo.carrierId = carrierId;
                         }
                         switch (tagName) {
                             case XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION:

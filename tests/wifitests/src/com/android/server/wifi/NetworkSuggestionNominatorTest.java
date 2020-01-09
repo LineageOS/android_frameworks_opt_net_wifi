@@ -651,7 +651,7 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
         when(mPasspointNetworkNominateHelper
                 .getPasspointNetworkCandidates(Arrays.asList(scanDetails), true))
                 .thenReturn(passpointCandidates);
-        when(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForFqfn(TEST_FQDN))
+        when(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForFqdn(TEST_FQDN))
                 .thenReturn(matchedExtSuggestions);
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
         mNetworkSuggestionNominator.nominateNetworks(
