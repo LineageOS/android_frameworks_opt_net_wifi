@@ -35,7 +35,7 @@ import android.hardware.wifi.V1_0.WifiStatusCode;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.hidl.manager.V1_2.IServiceManager;
 import android.os.Handler;
-import android.os.HwRemoteBinder;
+import android.os.IHwBinder.DeathRecipient;
 import android.os.RemoteException;
 import android.util.Log;
 import android.util.LongSparseArray;
@@ -637,7 +637,7 @@ public class HalDeviceManager {
         mRttControllerLifecycleCallbacks.clear();
     }
 
-    private class ServiceManagerDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class ServiceManagerDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {
@@ -728,7 +728,7 @@ public class HalDeviceManager {
         }
     }
 
-    private class WifiDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class WifiDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {

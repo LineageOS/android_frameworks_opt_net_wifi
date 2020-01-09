@@ -36,7 +36,7 @@ import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pGroupList;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.nsd.WifiP2pServiceInfo;
-import android.os.HwRemoteBinder;
+import android.os.IHwBinder.DeathRecipient;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
@@ -96,7 +96,7 @@ public class SupplicantP2pIfaceHal {
             }
         }
     };
-    private final HwRemoteBinder.DeathRecipient mServiceManagerDeathRecipient =
+    private final DeathRecipient mServiceManagerDeathRecipient =
             cookie -> {
                 Log.w(TAG, "IServiceManager died: cookie=" + cookie);
                 synchronized (mLock) {
@@ -104,7 +104,7 @@ public class SupplicantP2pIfaceHal {
                     mIServiceManager = null; // Will need to register a new ServiceNotification
                 }
             };
-    private final HwRemoteBinder.DeathRecipient mSupplicantDeathRecipient =
+    private final DeathRecipient mSupplicantDeathRecipient =
             cookie -> {
                 Log.w(TAG, "ISupplicant/ISupplicantStaIface died: cookie=" + cookie);
                 synchronized (mLock) {
