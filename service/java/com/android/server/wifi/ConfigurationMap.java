@@ -35,7 +35,7 @@ public class ConfigurationMap {
 
     private final UserManager mUserManager;
 
-    private int mCurrentUserId = UserHandle.USER_SYSTEM;
+    private int mCurrentUserId = UserHandle.SYSTEM.getIdentifier();
 
     ConfigurationMap(UserManager userManager) {
         mUserManager = userManager;

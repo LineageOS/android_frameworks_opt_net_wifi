@@ -295,7 +295,7 @@ public class WifiConfigManager {
     /**
      * Current logged in user ID.
      */
-    private int mCurrentUserId = UserHandle.USER_SYSTEM;
+    private int mCurrentUserId = UserHandle.SYSTEM.getIdentifier();
     /**
      * Flag to indicate that the new user's store has not yet been read since user switch.
      * Initialize this flag to |true| to trigger a read on the first user unlock after
