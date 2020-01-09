@@ -63,12 +63,6 @@ cc_library_shared {
     },
 }
 
-// These filegroups are created for wifi tests.
-filegroup {
-    name: "wifi-service-jarjar-rules",
-    srcs: [ "jarjar-rules-shared.txt"]
-}
-
 filegroup {
     name: "wifi-service-srcs",
     srcs: [
@@ -79,11 +73,10 @@ filegroup {
     ],
 }
 
-// wifi-service static library
-// ============================================================
+// pre-jarjar version of wifi-service that builds against pre-jarjar version of framework-wifi
 java_library {
-    name: "wifi-service",
-    installable: true,
+    name: "wifi-service-pre-jarjar",
+    installable: false,
     defaults: ["wifi-service-common"],
     srcs: [ ":wifi-service-srcs" ],
 
@@ -96,12 +89,16 @@ java_library {
         "services",
         // load the resources from the resources APK.
         "wifi-service-resources",
-        "framework-wifi",
+
+        // need pre-jarjar symbols so that wifi-service can reference the original class names at
+        // compile time
+        "framework-wifi-pre-jarjar",
 
         // TODO(b/135994092): Replace with framework-system-stubs once all @hide dependencies are
         // resolved.
         "framework-minus-apex",
         "unsupportedappusage",
+        "framework-annotations-lib",
     ],
 
     static_libs: [
@@ -133,6 +130,35 @@ java_library {
         "wifi_proto_metrics",
         "PlatformProperties",
     ],
+}
+
+// wifi-service static library
+// ============================================================
+java_library {
+    name: "wifi-service",
+    defaults: ["wifi-service-common"],
+    installable: true,
+    static_libs: ["wifi-service-pre-jarjar"],
+
+    // need to include `libs` so that Soong doesn't complain about missing classes after jarjaring
+    libs: [
+        "framework-wifi",
+
+        "error_prone_annotations",
+        "jsr305",
+        "services",
+        // load the resources from the resources APK.
+        "wifi-service-resources",
+
+        // TODO(b/135994092): Replace with framework-system-stubs once all @hide dependencies are
+        // resolved.
+        "framework-minus-apex",
+        "unsupportedappusage",
+    ],
+
+    // TODO(b/140299412) should be "core_current" since Wifi module is not allowed to use
+    // @CorePlatformApi's
+    sdk_version: "core_platform",
 
     required: [
         "cacerts_wfa",
@@ -141,7 +167,7 @@ java_library {
         "wifi-service-resources",
     ],
 
-    jarjar_rules: ":wifi-service-jarjar-rules",
+    jarjar_rules: ":wifi-jarjar-rules",
     optimize: {
         enabled: true,
         shrink: true,

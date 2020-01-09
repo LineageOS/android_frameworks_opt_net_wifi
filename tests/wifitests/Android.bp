@@ -66,7 +66,7 @@ android_test {
         "wifi_proto_metrics",
     ],
 
-    jarjar_rules: ":wifi-service-jarjar-rules",
+    jarjar_rules: ":wifi-jarjar-rules",
 
     libs: [
         "android.test.runner",
