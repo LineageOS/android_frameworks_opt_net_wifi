@@ -2277,11 +2277,13 @@ public class ClientModeImpl extends StateMachine {
         }
 
         if (newRssi > WifiInfo.INVALID_RSSI && newRssi < WifiInfo.MAX_RSSI) {
-            // screen out invalid values
-            /* some implementations avoid negative values by adding 256
-             * so we need to adjust for that here.
+            /*
+             * Positive RSSI is possible when devices are close(~0m apart) to each other.
+             * And there are some driver/firmware implementation, where they avoid
+             * reporting large negative rssi values by adding 256.
+             * so adjust the valid rssi reports for such implementations.
              */
-            if (newRssi > 0) {
+            if (newRssi > (WifiInfo.INVALID_RSSI + 256)) {
                 Log.wtf(TAG, "Error! +ve value RSSI: " + newRssi);
                 newRssi -= 256;
             }
