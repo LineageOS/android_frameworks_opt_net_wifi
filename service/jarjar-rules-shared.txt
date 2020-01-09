@@ -18,6 +18,7 @@ rule android.util.BackupUtils* com.android.server.x.wifi.util.BackupUtils@1
 rule android.util.LocalLog* com.android.server.x.wifi.util.LocalLog@1
 rule android.util.Rational* com.android.server.x.wifi.util.Rational@1
 
+rule android.os.BasicShellCommandHandler* com.android.server.x.wifi.os.BasicShellCommandHandler@1
 rule android.os.HandlerExecutor* com.android.server.x.wifi.os.HandlerExecutor@1
 
 # Use our statically linked bouncy castle library

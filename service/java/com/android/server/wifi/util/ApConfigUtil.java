@@ -304,7 +304,7 @@ public class ApConfigUtil {
         if (softApConfig.getBssid() != null) {
             wifiConfig.BSSID = softApConfig.getBssid().toString();
         }
-        wifiConfig.preSharedKey = softApConfig.getWpa2Passphrase();
+        wifiConfig.preSharedKey = softApConfig.getPassphrase();
         wifiConfig.hiddenSSID = softApConfig.isHiddenSsid();
         switch (softApConfig.getBand()) {
             case SoftApConfiguration.BAND_2GHZ:
@@ -348,7 +348,8 @@ public class ApConfigUtil {
             configBuilder.setBssid(MacAddress.fromString(wifiConfig.BSSID));
         }
         if (wifiConfig.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
-            configBuilder.setWpa2Passphrase(wifiConfig.preSharedKey);
+            configBuilder.setPassphrase(wifiConfig.preSharedKey,
+                    SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         }
         configBuilder.setHiddenSsid(wifiConfig.hiddenSSID);
 
@@ -390,6 +391,11 @@ public class ApConfigUtil {
             Log.d(TAG, "Update Softap capability, add client control feature support");
             features |= SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT;
         }
+
+        if (isWpa3SaeSupported(context)) {
+            Log.d(TAG, "Update Softap capability, add SAE feature support");
+            features |= SoftApCapability.SOFTAP_FEATURE_WPA3_SAE;
+        }
         SoftApCapability capability = new SoftApCapability(features);
         int hardwareSupportedMaxClient = context.getResources().getInteger(
                 R.integer.config_wifi_hardware_soft_ap_max_client_count);
@@ -399,5 +405,13 @@ public class ApConfigUtil {
         }
 
         return capability;
+    }
+
+    /**
+     * Helper function to get SAE support or not.
+     */
+    public static boolean isWpa3SaeSupported(@NonNull Context context) {
+        return context.getResources().getBoolean(
+                R.bool.config_wifi_softap_sae_supported);
     }
 }

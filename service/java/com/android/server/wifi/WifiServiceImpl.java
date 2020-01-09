@@ -83,12 +83,11 @@ import android.os.HandlerExecutor;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
-import android.os.ResultReceiver;
-import android.os.ShellCallback;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
@@ -2344,6 +2343,24 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager#allowAutojoinPasspoint(String, boolean)}
+     * @param fqdn the FQDN that identifies the passpoint configuration
+     * @param enableAutojoin true to enable auto-join, false to disable
+     */
+    @Override
+    public void allowAutojoinPasspoint(String fqdn, boolean enableAutojoin) {
+        enforceNetworkSettingsPermission();
+        if (fqdn == null) {
+            throw new IllegalArgumentException("FQDN cannot be null");
+        }
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("allowAutojoinPasspoint=% uid=%").c(enableAutojoin).c(callingUid).flush();
+        mWifiThreadRunner.post(
+                () -> mPasspointManager.enableAutojoin(fqdn, enableAutojoin));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#getConnectionInfo()}
      * @return the Wi-Fi information, contained in {@link WifiInfo}.
      */
@@ -2841,10 +2858,12 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     @Override
-    public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
-            String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        (new WifiShellCommand(mWifiInjector)).exec(this, in, out, err,
-                args, callback, resultReceiver);
+    public int handleShellCommand(@NonNull ParcelFileDescriptor in,
+            @NonNull ParcelFileDescriptor out, @NonNull ParcelFileDescriptor err,
+            @NonNull String[] args) {
+        return new WifiShellCommand(mWifiInjector, this).exec(
+                this, in.getFileDescriptor(), out.getFileDescriptor(), err.getFileDescriptor(),
+                args);
     }
 
     @Override

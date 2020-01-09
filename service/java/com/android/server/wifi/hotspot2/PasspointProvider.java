@@ -103,7 +103,6 @@ public class PasspointProvider {
     private boolean mIsShared;
     private boolean mIsFromSuggestion;
 
-
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
             TelephonyUtil telephonyUtil, long providerId, int creatorUid, String packageName,
             boolean isFromSuggestion) {
@@ -189,6 +188,17 @@ public class PasspointProvider {
 
     public boolean isFromSuggestion() {
         return mIsFromSuggestion;
+    }
+
+    /**
+     * Enable/disable the auto-join configuration of the corresponding passpoint configuration.
+     */
+    public void setAutoJoinEnabled(boolean autoJoinEnabled) {
+        mConfig.setAutoJoinEnabled(autoJoinEnabled);
+    }
+
+    public boolean isAutoJoinEnabled() {
+        return mConfig.isAutoJoinEnabled();
     }
 
     /**
@@ -542,6 +552,11 @@ public class PasspointProvider {
         StringBuilder builder = new StringBuilder();
         builder.append("ProviderId: ").append(mProviderId).append("\n");
         builder.append("CreatorUID: ").append(mCreatorUid).append("\n");
+        builder.append("Best guess Carrier ID: ").append(mBestGuessCarrierId).append("\n");
+        builder.append("Ever connected: ").append(mHasEverConnected).append("\n");
+        builder.append("Shared: ").append(mIsShared).append("\n");
+        builder.append("Suggestion: ").append(mIsFromSuggestion).append("\n");
+
         if (mPackageName != null) {
             builder.append("PackageName: ").append(mPackageName).append("\n");
         }

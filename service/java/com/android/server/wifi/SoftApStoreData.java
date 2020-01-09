@@ -44,6 +44,7 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_SECURITY_TYPE = "SecurityType";
     private static final String XML_TAG_WPA2_PASSPHRASE = "Wpa2Passphrase";
     private static final String XML_TAG_AP_BAND = "ApBand";
+    private static final String XML_TAG_PASSPHRASE = "Passphrase";
 
     private final DataSource mDataSource;
 
@@ -96,9 +97,9 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
             XmlUtil.writeNextValue(out, XML_TAG_CHANNEL, softApConfig.getChannel());
             XmlUtil.writeNextValue(out, XML_TAG_HIDDEN_SSID, softApConfig.isHiddenSsid());
             XmlUtil.writeNextValue(out, XML_TAG_SECURITY_TYPE, softApConfig.getSecurityType());
-            if (softApConfig.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
-                XmlUtil.writeNextValue(out, XML_TAG_WPA2_PASSPHRASE,
-                        softApConfig.getWpa2Passphrase());
+            if (softApConfig.getSecurityType() != SoftApConfiguration.SECURITY_TYPE_OPEN) {
+                XmlUtil.writeNextValue(out, XML_TAG_PASSPHRASE,
+                        softApConfig.getPassphrase());
             }
         }
     }
@@ -114,7 +115,7 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
         }
         SoftApConfiguration.Builder softApConfigBuilder = new SoftApConfiguration.Builder();
         int securityType = SoftApConfiguration.SECURITY_TYPE_OPEN;
-        String wpa2Passphrase = null;
+        String passphrase = null;
         String ssid = null;
         // Note that, during deserializaion, we may read the old band encoding (XML_TAG_BAND)
         // or the new band encoding (XML_TAG_AP_BAND) that is used after the introduction of the
@@ -149,7 +150,8 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
                         securityType = (int) value;
                         break;
                     case XML_TAG_WPA2_PASSPHRASE:
-                        wpa2Passphrase = (String) value;
+                    case XML_TAG_PASSPHRASE:
+                        passphrase = (String) value;
                         break;
                     default:
                         Log.w(TAG, "Ignoring unknown value name " + valueName[0]);
@@ -169,8 +171,8 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
                 Log.e(TAG, "Failed to parse SSID");
                 return;
             }
-            if (securityType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
-                softApConfigBuilder.setWpa2Passphrase(wpa2Passphrase);
+            if (securityType != SoftApConfiguration.SECURITY_TYPE_OPEN) {
+                softApConfigBuilder.setPassphrase(passphrase, securityType);
             }
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to parse configuration" + e);

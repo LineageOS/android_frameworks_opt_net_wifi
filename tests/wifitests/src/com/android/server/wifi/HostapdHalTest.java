@@ -244,7 +244,8 @@ public class HostapdHalTest extends WifiBaseTest {
         Builder configurationBuilder = new SoftApConfiguration.Builder();
         configurationBuilder.setSsid(NETWORK_SSID);
         configurationBuilder.setHiddenSsid(false);
-        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setPassphrase(NETWORK_PSK,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configurationBuilder.setChannel(apChannel, SoftApConfiguration.BAND_2GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
@@ -311,7 +312,8 @@ public class HostapdHalTest extends WifiBaseTest {
         Builder configurationBuilder = new SoftApConfiguration.Builder();
         configurationBuilder.setSsid(NETWORK_SSID);
         configurationBuilder.setHiddenSsid(true);
-        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setPassphrase(NETWORK_PSK,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configurationBuilder.setChannel(apChannel, SoftApConfiguration.BAND_5GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
@@ -349,7 +351,8 @@ public class HostapdHalTest extends WifiBaseTest {
         Builder configurationBuilder = new SoftApConfiguration.Builder();
         configurationBuilder.setSsid(NETWORK_SSID);
         configurationBuilder.setHiddenSsid(false);
-        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setPassphrase(NETWORK_PSK,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configurationBuilder.setChannel(apChannel, SoftApConfiguration.BAND_2GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
@@ -387,7 +390,8 @@ public class HostapdHalTest extends WifiBaseTest {
         Builder configurationBuilder = new SoftApConfiguration.Builder();
         configurationBuilder.setSsid(NETWORK_SSID);
         configurationBuilder.setHiddenSsid(false);
-        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setPassphrase(NETWORK_PSK,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configurationBuilder.setChannel(apChannel, SoftApConfiguration.BAND_2GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
@@ -423,7 +427,8 @@ public class HostapdHalTest extends WifiBaseTest {
         Builder configurationBuilder = new SoftApConfiguration.Builder();
         configurationBuilder.setSsid(NETWORK_SSID);
         configurationBuilder.setHiddenSsid(false);
-        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setPassphrase(NETWORK_PSK,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
@@ -459,7 +464,8 @@ public class HostapdHalTest extends WifiBaseTest {
         Builder configurationBuilder = new SoftApConfiguration.Builder();
         configurationBuilder.setSsid(NETWORK_SSID);
         configurationBuilder.setHiddenSsid(false);
-        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setPassphrase(NETWORK_PSK,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
@@ -523,7 +529,8 @@ public class HostapdHalTest extends WifiBaseTest {
         Builder configurationBuilder = new SoftApConfiguration.Builder();
         configurationBuilder.setSsid(NETWORK_SSID);
         configurationBuilder.setHiddenSsid(false);
-        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setPassphrase(NETWORK_PSK,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,

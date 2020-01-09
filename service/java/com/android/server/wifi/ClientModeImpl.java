@@ -3663,7 +3663,7 @@ public class ClientModeImpl extends StateMachine {
                             && mTargetWifiConfiguration.networkId == netId
                             && mTargetWifiConfiguration.enterpriseConfig != null
                             && mTargetWifiConfiguration.enterpriseConfig
-                                    .requireSimCredential()) {
+                                    .isAuthenticationSimBased()) {
                         // Pair<identity, encrypted identity>
                         Pair<String, String> identityPair = mTelephonyUtil
                                 .getSimIdentity(mTargetWifiConfiguration);
@@ -3773,7 +3773,7 @@ public class ClientModeImpl extends StateMachine {
                     Log.i(TAG, "Connecting with " + currentMacAddress + " as the mac address");
 
                     if (config.enterpriseConfig != null
-                            && config.enterpriseConfig.requireSimCredential()
+                            && config.enterpriseConfig.isAuthenticationSimBased()
                             && mTelephonyUtil.isImsiEncryptionInfoAvailable(
                                     mTelephonyUtil.getBestMatchSubscriptionId(config))
                             && TextUtils.isEmpty(config.enterpriseConfig.getAnonymousIdentity())) {
@@ -3899,7 +3899,7 @@ public class ClientModeImpl extends StateMachine {
 
                         // We need to get the updated pseudonym from supplicant for EAP-SIM/AKA/AKA'
                         if (config.enterpriseConfig != null
-                                && config.enterpriseConfig.requireSimCredential()) {
+                                && config.enterpriseConfig.isAuthenticationSimBased()) {
                             mLastSubId = mTelephonyUtil.getBestMatchSubscriptionId(config);
                             String anonymousIdentity =
                                     mWifiNative.getEapAnonymousIdentity(mInterfaceName);
@@ -4568,7 +4568,7 @@ public class ClientModeImpl extends StateMachine {
                         WifiConfiguration config =
                                 mWifiConfigManager.getConfiguredNetwork(mLastNetworkId);
                         if (config.enterpriseConfig != null
-                                && config.enterpriseConfig.requireSimCredential()
+                                && config.enterpriseConfig.isAuthenticationSimBased()
                                 && !mTelephonyUtil.isSimPresent(mLastSubId)) {
                             // check if the removed sim card is associated with current config
                             mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,

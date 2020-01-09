@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import static android.net.wifi.SoftApConfiguration.SECURITY_TYPE_WPA2_PSK;
+import static android.net.wifi.SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -163,6 +164,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
             boolean hiddenSSID) {
         Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid(ssid);
+        configBuilder.setPassphrase(preSharedKey, SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configBuilder.setWpa2Passphrase(preSharedKey);
         if (channel == 0) {
             configBuilder.setBand(band);
@@ -231,14 +233,15 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
 
     private void verifyApConfig(SoftApConfiguration config1, SoftApConfiguration config2) {
         assertEquals(config1.getSsid(), config2.getSsid());
-        assertEquals(config1.getWpa2Passphrase(), config2.getWpa2Passphrase());
+        assertEquals(config1.getPassphrase(), config2.getPassphrase());
         assertEquals(config1.getSecurityType(), config2.getSecurityType());
         assertEquals(config1.getBand(), config2.getBand());
         assertEquals(config1.getChannel(), config2.getChannel());
         assertEquals(config1.isHiddenSsid(), config2.isHiddenSsid());
     }
 
-    private void verifyDefaultApConfig(SoftApConfiguration config, String expectedSsid) {
+    private void verifyDefaultApConfig(SoftApConfiguration config, String expectedSsid,
+            boolean isSaeSupport) {
         String[] splitSsid = config.getSsid().split("_");
         assertEquals(2, splitSsid.length);
         assertEquals(expectedSsid, splitSsid[0]);
@@ -246,22 +249,39 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         assertFalse(config.isHiddenSsid());
         int randomPortion = Integer.parseInt(splitSsid[1]);
         assertTrue(randomPortion >= RAND_SSID_INT_MIN && randomPortion <= RAND_SSID_INT_MAX);
-        assertEquals(SECURITY_TYPE_WPA2_PSK, config.getSecurityType());
-        assertEquals(15, config.getWpa2Passphrase().length());
+        if (isSaeSupport) {
+            assertEquals(SECURITY_TYPE_WPA3_SAE_TRANSITION, config.getSecurityType());
+        } else {
+            assertEquals(SECURITY_TYPE_WPA2_PSK, config.getSecurityType());
+        }
+        assertEquals(15, config.getPassphrase().length());
+    }
+
+    private void verifyDefaultApConfig(SoftApConfiguration config, String expectedSsid) {
+        // Old test cases will just verify WPA2.
+        verifyDefaultApConfig(config, expectedSsid, false);
     }
 
     private void verifyDefaultLocalOnlyApConfig(SoftApConfiguration config, String expectedSsid,
-            int expectedApBand) {
+            int expectedApBand, boolean isSaeSupport) {
         String[] splitSsid = config.getSsid().split("_");
         assertEquals(2, splitSsid.length);
         assertEquals(expectedSsid, splitSsid[0]);
         assertEquals(expectedApBand, config.getBand());
         int randomPortion = Integer.parseInt(splitSsid[1]);
         assertTrue(randomPortion >= RAND_SSID_INT_MIN && randomPortion <= RAND_SSID_INT_MAX);
-        assertEquals(SECURITY_TYPE_WPA2_PSK, config.getSecurityType());
-        assertEquals(15, config.getWpa2Passphrase().length());
+        if (isSaeSupport) {
+            assertEquals(SECURITY_TYPE_WPA3_SAE_TRANSITION, config.getSecurityType());
+        } else {
+            assertEquals(SECURITY_TYPE_WPA2_PSK, config.getSecurityType());
+        }
+        assertEquals(15, config.getPassphrase().length());
     }
 
+    private void verifyDefaultLocalOnlyApConfig(SoftApConfiguration config, String expectedSsid,
+            int expectedApBand) {
+        verifyDefaultLocalOnlyApConfig(config, expectedSsid, expectedApBand, false);
+    }
 
     /**
      * AP Configuration is not specified in the config file,
@@ -818,31 +838,12 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         configBuilder.setSsid(TEST_DEFAULT_HOTSPOT_SSID);
         // Builder will auto check auth type and passphrase
 
-        // test too short
-        configBuilder.setWpa2Passphrase(
-                generateRandomString(WifiApConfigStore.PSK_MIN_LEN - 1));
-        assertFalse(WifiApConfigStore.validateApWifiConfiguration(configBuilder.build()));
-
-        // test too long
-        configBuilder.setWpa2Passphrase(
-                generateRandomString(WifiApConfigStore.PSK_MAX_LEN + 1));
-        assertFalse(WifiApConfigStore.validateApWifiConfiguration(configBuilder.build()));
-
-        // explicitly test min length
-        configBuilder.setWpa2Passphrase(
-                generateRandomString(WifiApConfigStore.PSK_MIN_LEN));
-        assertTrue(WifiApConfigStore.validateApWifiConfiguration(configBuilder.build()));
-
-        // explicitly test max length
-        configBuilder.setWpa2Passphrase(
-                generateRandomString(WifiApConfigStore.PSK_MAX_LEN));
-        assertTrue(WifiApConfigStore.validateApWifiConfiguration(configBuilder.build()));
-
         // test random (valid length)
         int maxLen = WifiApConfigStore.PSK_MAX_LEN;
         int minLen = WifiApConfigStore.PSK_MIN_LEN;
-        configBuilder.setWpa2Passphrase(
-                generateRandomString(mRandom.nextInt(maxLen - minLen) + minLen));
+        configBuilder.setPassphrase(
+                generateRandomString(mRandom.nextInt(maxLen - minLen) + minLen),
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         assertTrue(WifiApConfigStore.validateApWifiConfiguration(configBuilder.build()));
     }
 
@@ -860,4 +861,31 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
             assertTrue(mKnownGood2GChannelList.contains(channel));
         }
     }
+
+    /**
+     * Verify the default configuration security when SAE support.
+     */
+    @Test
+    public void testDefaultConfigurationSecurityTypeIsWpa3SaeTransitionWhenSupport() {
+        mResources.setBoolean(R.bool.config_wifi_softap_sae_supported, true);
+        WifiApConfigStore store = createWifiApConfigStore();
+        verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID, true);
+    }
+
+    /**
+     * Verify the LOHS default configuration security when SAE support.
+     */
+    @Test
+    public void testLohsDefaultConfigurationSecurityTypeIsWpa3SaeTransitionWhenSupport() {
+        mResources.setBoolean(R.bool.config_wifi_softap_sae_supported, true);
+        SoftApConfiguration config = WifiApConfigStore
+                .generateLocalOnlyHotspotConfig(mContext, SoftApConfiguration.BAND_5GHZ, null);
+        verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID,
+                SoftApConfiguration.BAND_5GHZ, true);
+
+        // verify that the config passes the validateApWifiConfiguration check
+        assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+
+    }
+
 }

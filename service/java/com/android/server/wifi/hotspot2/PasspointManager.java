@@ -466,6 +466,26 @@ public class PasspointManager {
     }
 
     /**
+     * Enable or disable the auto-join configuration. Auto-join controls whether or not the
+     * passpoint configuration is used for auto connection (network selection). Note that even
+     * when auto-join is disabled the configuration can still be used for manual connection.
+     *
+     * @param fqdn The FQDN of the configuration.
+     * @param enableAutojoin true to enable auto-join, false to disable.
+     * @return true on success, false otherwise (e.g. if no such provider exists).
+     */
+    public boolean enableAutojoin(@NonNull String fqdn, boolean enableAutojoin) {
+        PasspointProvider provider = mProviders.get(fqdn);
+        if (provider == null) {
+            Log.e(TAG, "Config doesn't exist");
+            return false;
+        }
+        provider.setAutoJoinEnabled(enableAutojoin);
+        mWifiConfigManager.saveToStore(true);
+        return true;
+    }
+
+    /**
      * Return the installed Passpoint provider configurations.
      * An empty list will be returned when no provider is installed.
      *

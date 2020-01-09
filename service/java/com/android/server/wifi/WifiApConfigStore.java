@@ -308,7 +308,8 @@ public class WifiApConfigStore {
 
             int authType = in.readInt();
             if (authType == WifiConfiguration.KeyMgmt.WPA2_PSK) {
-                configBuilder.setWpa2Passphrase(in.readUTF());
+                configBuilder.setPassphrase(in.readUTF(),
+                        SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
             }
             config = configBuilder.build();
         } catch (IOException e) {
@@ -330,7 +331,8 @@ public class WifiApConfigStore {
     }
 
     /**
-     * Generate a default WPA2 based configuration with a random password.
+     * Generate a default WPA3 SAE transition (if supported) or WPA2 based
+     * configuration with a random password.
      * We are changing the Wifi Ap configuration storage from secure settings to a
      * flat file accessible only by the system. A WPA2 based default configuration
      * will keep the device secure after the update.
@@ -340,7 +342,13 @@ public class WifiApConfigStore {
         configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
         configBuilder.setSsid(mContext.getResources().getString(
                 R.string.wifi_tether_configure_ssid_default) + "_" + getRandomIntForDefaultSsid());
-        configBuilder.setWpa2Passphrase(generatePassword());
+        if (ApConfigUtil.isWpa3SaeSupported(mContext)) {
+            configBuilder.setPassphrase(generatePassword(),
+                    SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION);
+        } else {
+            configBuilder.setPassphrase(generatePassword(),
+                    SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+        }
         return configBuilder.build();
     }
 
@@ -374,7 +382,13 @@ public class WifiApConfigStore {
             configBuilder.setSsid(generateLohsSsid(context));
         }
         if (customConfig == null) {
-            configBuilder.setWpa2Passphrase(generatePassword());
+            if (ApConfigUtil.isWpa3SaeSupported(context)) {
+                configBuilder.setPassphrase(generatePassword(),
+                        SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION);
+            } else {
+                configBuilder.setPassphrase(generatePassword(),
+                        SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+            }
         }
 
         return configBuilder.build();
@@ -462,7 +476,7 @@ public class WifiApConfigStore {
             return false;
         }
 
-        String preSharedKey = apConfig.getWpa2Passphrase();
+        String preSharedKey = apConfig.getPassphrase();
         boolean hasPreSharedKey = !TextUtils.isEmpty(preSharedKey);
         int authType;
 
@@ -479,15 +493,17 @@ public class WifiApConfigStore {
                 Log.d(TAG, "open softap network should not have a password");
                 return false;
             }
-        } else if (authType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
+        } else if (authType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK
+                || authType == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION
+                || authType == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE) {
             // this is a config that should have a password - check that first
             if (!hasPreSharedKey) {
                 Log.d(TAG, "softap network password must be set");
                 return false;
             }
-
-            if (!validateApConfigPreSharedKey(preSharedKey)) {
-                // failed preSharedKey checks
+            if (authType != SoftApConfiguration.SECURITY_TYPE_WPA3_SAE
+                    && !validateApConfigPreSharedKey(preSharedKey)) {
+                // failed preSharedKey checks for WPA2 and WPA3 SAE Transition mode.
                 return false;
             }
         } else {

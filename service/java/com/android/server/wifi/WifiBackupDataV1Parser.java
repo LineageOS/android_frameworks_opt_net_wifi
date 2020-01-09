@@ -93,7 +93,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
 
     private static final String TAG = "WifiBackupDataV1Parser";
 
-    private static final int HIGHEST_SUPPORTED_MINOR_VERSION = 1;
+    private static final int HIGHEST_SUPPORTED_MINOR_VERSION = 2;
 
     // List of tags supported for <WifiConfiguration> section in minor version 0
     private static final Set<String> WIFI_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS =
@@ -121,8 +121,15 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                 add(WifiConfigurationXmlUtil.XML_TAG_METERED_OVERRIDE);
             }};
 
+    // List of tags supported for <WifiConfiguration> section in minor version 1
+    private static final Set<String> WIFI_CONFIGURATION_MINOR_V2_SUPPORTED_TAGS =
+            new HashSet<String>() {{
+                addAll(WIFI_CONFIGURATION_MINOR_V1_SUPPORTED_TAGS);
+                add(WifiConfigurationXmlUtil.XML_TAG_IS_AUTO_JOIN);
+            }};
+
     // List of tags supported for <IpConfiguration> section in minor version 0 & 1
-    private static final Set<String> IP_CONFIGURATION_MINOR_V0_V1_SUPPORTED_TAGS =
+    private static final Set<String> IP_CONFIGURATION_MINOR_V0_V1_V2_SUPPORTED_TAGS =
             new HashSet<String>(Arrays.asList(new String[] {
                 IpConfigurationXmlUtil.XML_TAG_IP_ASSIGNMENT,
                 IpConfigurationXmlUtil.XML_TAG_LINK_ADDRESS,
@@ -372,6 +379,8 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                 return WIFI_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS;
             case 1:
                 return WIFI_CONFIGURATION_MINOR_V1_SUPPORTED_TAGS;
+            case 2:
+                return WIFI_CONFIGURATION_MINOR_V2_SUPPORTED_TAGS;
             default:
                 Log.e(TAG, "Invalid minorVersion: " + minorVersion);
                 return Collections.<String>emptySet();
@@ -598,7 +607,8 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
         switch (minorVersion) {
             case 0:
             case 1:
-                return IP_CONFIGURATION_MINOR_V0_V1_SUPPORTED_TAGS;
+            case 2:
+                return IP_CONFIGURATION_MINOR_V0_V1_V2_SUPPORTED_TAGS;
             default:
                 Log.e(TAG, "Invalid minorVersion: " + minorVersion);
                 return Collections.<String>emptySet();

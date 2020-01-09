@@ -400,7 +400,6 @@ public class SupplicantStaNetworkHal {
             }
             /** Auth Algorithm */
             if (config.allowedAuthAlgorithms.cardinality() != 0
-                    && isAuthAlgNeeded(config)
                     && !setAuthAlg(wifiConfigurationToSupplicantAuthAlgMask(
                     config.allowedAuthAlgorithms))) {
                 Log.e(TAG, "failed to set AuthAlgorithm");
@@ -464,22 +463,6 @@ public class SupplicantStaNetworkHal {
             }
             return true;
         }
-    }
-
-    /**
-     * Check if Auth Alg is needed to be sent by wificonfiguration object
-     * Supplicant internally sets auth_alg and is not needed by framework
-     * to set the same
-     */
-    private boolean isAuthAlgNeeded(WifiConfiguration config) {
-        BitSet keyMgmtMask = config.allowedKeyManagement;
-        if (keyMgmtMask.get(WifiConfiguration.KeyMgmt.SAE)) {
-            if (mVerboseLoggingEnabled) {
-                Log.d(TAG, "No need to set Auth Algorithm for SAE");
-            }
-            return false;
-        }
-        return true;
     }
 
     /**
@@ -865,6 +848,10 @@ public class SupplicantStaNetworkHal {
                 case WifiConfiguration.AuthAlgorithm.LEAP:
                     mask |= ISupplicantStaNetwork.AuthAlgMask.LEAP;
                     break;
+                case WifiConfiguration.AuthAlgorithm.SAE:
+                    mask |= android.hardware.wifi.supplicant.V1_3.ISupplicantStaNetwork.AuthAlgMask
+                            .SAE;
+                    break;
                 default:
                     throw new IllegalArgumentException(
                             "Invalid authAlgMask bit in wificonfig: " + bit);
@@ -1106,6 +1093,9 @@ public class SupplicantStaNetworkHal {
         mask = supplicantMaskValueToWifiConfigurationBitSet(
                 mask, ISupplicantStaNetwork.AuthAlgMask.LEAP, bitset,
                 WifiConfiguration.AuthAlgorithm.LEAP);
+        mask = supplicantMaskValueToWifiConfigurationBitSet(mask,
+                android.hardware.wifi.supplicant.V1_3.ISupplicantStaNetwork.AuthAlgMask
+                        .SAE, bitset, WifiConfiguration.AuthAlgorithm.SAE);
         if (mask != 0) {
             throw new IllegalArgumentException(
                     "invalid auth alg mask from supplicant: " + mask);
@@ -1400,7 +1390,13 @@ public class SupplicantStaNetworkHal {
             final String methodStr = "setAuthAlg";
             if (!checkISupplicantStaNetworkAndLogFailure(methodStr)) return false;
             try {
-                SupplicantStatus status = mISupplicantStaNetwork.setAuthAlg(authAlgMask);
+                SupplicantStatus status;
+                if (null != getV1_3StaNetwork()) {
+                    /* Support for SAE Authentication algorithm requires HAL v1.3 or higher */
+                    status = getV1_3StaNetwork().setAuthAlg_1_3(authAlgMask);
+                } else {
+                    status = mISupplicantStaNetwork.setAuthAlg(authAlgMask);
+                }
                 return checkStatusAndLogFailure(status, methodStr);
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
@@ -2162,6 +2158,9 @@ public class SupplicantStaNetworkHal {
         synchronized (mLock) {
             final String methodStr = "getAuthAlg";
             if (!checkISupplicantStaNetworkAndLogFailure(methodStr)) return false;
+            if (getV1_3StaNetwork() != null) {
+                return getAuthAlg_1_3();
+            }
             try {
                 MutableBoolean statusOk = new MutableBoolean(false);
                 mISupplicantStaNetwork.getAuthAlg((SupplicantStatus status,
@@ -2178,6 +2177,26 @@ public class SupplicantStaNetworkHal {
                 handleRemoteException(e, methodStr);
                 return false;
             }
+        }
+    }
+
+    private boolean getAuthAlg_1_3() {
+        final String methodStr = "getAuthAlg_1_3";
+        try {
+            MutableBoolean statusOk = new MutableBoolean(false);
+            getV1_3StaNetwork().getAuthAlg_1_3((SupplicantStatus status,
+                    int authAlgMaskValue) -> {
+                statusOk.value = status.code == SupplicantStatusCode.SUCCESS;
+                if (statusOk.value) {
+                    this.mAuthAlgMask = authAlgMaskValue;
+                } else {
+                    checkStatusAndLogFailure(status, methodStr);
+                }
+            });
+            return statusOk.value;
+        } catch (RemoteException e) {
+            handleRemoteException(e, methodStr);
+            return false;
         }
     }
 

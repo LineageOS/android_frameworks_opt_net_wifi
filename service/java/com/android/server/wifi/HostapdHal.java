@@ -381,8 +381,8 @@ public class HostapdHal {
             nwParams.ssid.addAll(NativeUtil.stringToByteArrayList(config.getSsid()));
             nwParams.isHidden = config.isHiddenSsid();
             nwParams.encryptionType = getEncryptionType(config);
-            nwParams.pskPassphrase = (config.getWpa2Passphrase() != null)
-                    ? config.getWpa2Passphrase() : "";
+            nwParams.pskPassphrase = (config.getPassphrase() != null)
+                    ? config.getPassphrase() : "";
             if (!checkHostapdAndLogFailure(methodStr)) return false;
             try {
                 HostapdStatus status;

@@ -98,7 +98,8 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
         SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid("TestAP");
         configBuilder.setChannel(40, SoftApConfiguration.BAND_5GHZ);
-        configBuilder.setWpa2Passphrase("TestPsk");
+        configBuilder.setPassphrase("TestPskPassphrase",
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         configBuilder.setHiddenSsid(true);
         SoftApConfiguration config = configBuilder.build();
 
@@ -144,5 +145,47 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
                 mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
 
         assertWifiConfigurationEqualSoftApConfiguration(wifiConfig, restoredConfig);
+    }
+
+    /**
+     * Verifies that the serialization/de-serialization for wpa3-sae softap config works.
+     */
+    @Test
+    public void testSoftApConfigBackupAndRestoreWithWpa3SaeConfig() throws Exception {
+        SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setSsid("TestAP");
+        configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
+        configBuilder.setChannel(40, SoftApConfiguration.BAND_5GHZ);
+        configBuilder.setPassphrase("TestPskPassphrase",
+                SoftApConfiguration.SECURITY_TYPE_WPA3_SAE);
+        configBuilder.setHiddenSsid(true);
+        SoftApConfiguration config = configBuilder.build();
+
+        byte[] data = mSoftApBackupRestore.retrieveBackupDataFromSoftApConfiguration(config);
+        SoftApConfiguration restoredConfig =
+                mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
+
+        assertThat(config).isEqualTo(restoredConfig);
+    }
+
+    /**
+     * Verifies that the serialization/de-serialization for wpa3-sae-transition softap config.
+     */
+    @Test
+    public void testSoftApConfigBackupAndRestoreWithWpa3SaeTransitionConfig() throws Exception {
+        SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setSsid("TestAP");
+        configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
+        configBuilder.setChannel(40, SoftApConfiguration.BAND_5GHZ);
+        configBuilder.setPassphrase("TestPskPassphrase",
+                SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION);
+        configBuilder.setHiddenSsid(true);
+        SoftApConfiguration config = configBuilder.build();
+
+        byte[] data = mSoftApBackupRestore.retrieveBackupDataFromSoftApConfiguration(config);
+        SoftApConfiguration restoredConfig =
+                mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
+
+        assertThat(config).isEqualTo(restoredConfig);
     }
 }
