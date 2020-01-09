@@ -40,7 +40,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Random;
 
 import javax.annotation.Nullable;
@@ -198,21 +197,6 @@ public class WifiApConfigStore {
             config = sanitizePersistentApConfig(config);
         }
         persistConfigAndTriggerBackupManagerProxy(config);
-    }
-
-    public ArrayList<Integer> getAllowed2GChannel() {
-        String ap2GChannelListStr = mContext.getResources().getString(
-                R.string.config_wifi_framework_sap_2G_channel_list);
-        Log.d(TAG, "2G band allowed channels are:" + ap2GChannelListStr);
-
-        ArrayList<Integer> allowed2GChannels = new ArrayList<>();
-        if (ap2GChannelListStr != null) {
-            String[] channelList = ap2GChannelListStr.split(",");
-            for (String tmp : channelList) {
-                allowed2GChannels.add(Integer.parseInt(tmp));
-            }
-        }
-        return allowed2GChannels;
     }
 
     private SoftApConfiguration sanitizePersistentApConfig(SoftApConfiguration config) {

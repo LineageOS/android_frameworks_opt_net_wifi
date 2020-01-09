@@ -373,9 +373,8 @@ public class SoftApManager implements ActiveModeManager {
                 SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD);
 
         result = ApConfigUtil.updateApChannelConfig(
-                mWifiNative, mCountryCode,
-                mWifiApConfigStore.getAllowed2GChannel(), localConfigBuilder, config, acsEnabled);
-
+                mWifiNative, mContext.getResources(), mCountryCode, localConfigBuilder, config,
+                acsEnabled);
         if (result != SUCCESS) {
             Log.e(TAG, "Failed to update AP band and channel");
             return result;
