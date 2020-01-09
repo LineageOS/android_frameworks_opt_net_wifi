@@ -1129,8 +1129,6 @@ public class WifiConfigManager {
      * @param configuration provided WifiConfiguration object.
      */
     private void setDefaultsInWifiConfiguration(WifiConfiguration configuration) {
-        configuration.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-
         configuration.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
         configuration.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
 

@@ -107,7 +107,7 @@ public class WifiBackupRestoreTest extends WifiBaseTest {
                     // Valid Value: 03
                     + "<byte-array name=\"AllowedProtocols\" num=\"1\">13</byte-array>"
                     // Valid Value: 01
-                    + "<byte-array name=\"AllowedAuthAlgos\" num=\"1\">09</byte-array>"
+                    + "<byte-array name=\"AllowedAuthAlgos\" num=\"1\">11</byte-array>"
                     // Valid Value: 0f
                     + "<byte-array name=\"AllowedGroupCiphers\" num=\"1\">8f</byte-array>"
                     // Valid Value: 06
