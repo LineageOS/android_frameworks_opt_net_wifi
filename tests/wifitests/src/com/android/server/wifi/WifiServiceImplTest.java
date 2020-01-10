@@ -1036,6 +1036,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertTrue(mWifiServiceImpl.setSoftApConfiguration(apConfig, TEST_PACKAGE_NAME));
         mLooper.dispatchAll();
         verify(mWifiApConfigStore).setApConfiguration(eq(apConfig));
+        verify(mActiveModeWarden).updateSoftApConfiguration(apConfig);
         verify(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
     }
@@ -1050,6 +1051,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                         eq("WifiService"));
         assertFalse(mWifiServiceImpl.setSoftApConfiguration(null, TEST_PACKAGE_NAME));
         verify(mWifiApConfigStore, never()).setApConfiguration(isNull(SoftApConfiguration.class));
+        verify(mActiveModeWarden, never()).updateSoftApConfiguration(any());
         verify(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
     }

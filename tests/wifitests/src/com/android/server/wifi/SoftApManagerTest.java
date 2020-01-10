@@ -149,7 +149,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         when(mContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
         when(mContext.getResources()).thenReturn(mResources);
-        when(mResources.getInteger(R.integer.config_wifi_framework_soft_ap_timeout_delay))
+        when(mResources.getInteger(R.integer.config_wifiFrameworkSoftApShutDownTimeoutMilliseconds))
                 .thenReturn(600000);
         when(mWifiNative.setCountryCodeHal(
                 TEST_INTERFACE_NAME, TEST_COUNTRY_CODE.toUpperCase(Locale.ROOT)))
@@ -1154,6 +1154,26 @@ public class SoftApManagerTest extends WifiBaseTest {
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null,
                 mTestSoftApCapability);
         startSoftApAndVerifyEnabled(apConfig);
+        verify(mResources)
+                .getInteger(R.integer.config_wifiFrameworkSoftApShutDownTimeoutMilliseconds);
+
+        // Verify timer is scheduled
+        verify(mAlarmManager.getAlarmManager()).setExact(anyInt(), anyLong(),
+                eq(mSoftApManager.SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG), any(), any());
+    }
+
+    @Test
+    public void schedulesTimeoutTimerOnStartWithConfigedValue() throws Exception {
+        Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+        configBuilder.setSsid(TEST_SSID);
+        configBuilder.setShutdownTimeoutMillis(50000);
+        SoftApModeConfiguration apConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED,
+                configBuilder.build(), mTestSoftApCapability);
+        startSoftApAndVerifyEnabled(apConfig);
+        verify(mResources, never())
+                .getInteger(R.integer.config_wifiFrameworkSoftApShutDownTimeoutMilliseconds);
 
         // Verify timer is scheduled
         verify(mAlarmManager.getAlarmManager()).setExact(anyInt(), anyLong(),
@@ -1669,5 +1689,107 @@ public class SoftApManagerTest extends WifiBaseTest {
         verify(mCallback).onStateChanged(WifiManager.WIFI_AP_STATE_FAILED,
                 WifiManager.SAP_START_FAILURE_UNSUPPORTED_CONFIGURATION);
         verify(mListener).onStartFailure();
+    }
+
+    @Test
+    public void testConfigurationChangedApplySinceDoesNotNeedToRestart() throws Exception {
+        Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+        configBuilder.setSsid(TEST_SSID);
+
+        SoftApModeConfiguration apConfig = new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_TETHERED, configBuilder.build(), mTestSoftApCapability);
+        startSoftApAndVerifyEnabled(apConfig);
+
+        // Verify timer is scheduled
+        verify(mAlarmManager.getAlarmManager()).setExact(anyInt(), anyLong(),
+                eq(mSoftApManager.SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG), any(), any());
+        verify(mCallback).onConnectedClientsChanged(new ArrayList<>());
+
+        mLooper.dispatchAll();
+
+        // Trigger Configuration Change
+        configBuilder.setShutdownTimeoutMillis(500000);
+        mSoftApManager.updateConfiguration(configBuilder.build());
+        mLooper.dispatchAll();
+        // Verify timer is canceled at this point since timeout changed
+        verify(mAlarmManager.getAlarmManager()).cancel(any(WakeupMessage.class));
+        // Verify timer setup again
+        verify(mAlarmManager.getAlarmManager(), times(2)).setExact(anyInt(), anyLong(),
+                eq(mSoftApManager.SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG), any(), any());
+
+    }
+
+    @Test
+    public void testConfigurationChangedDoesNotApplySinceNeedToRestart() throws Exception {
+        Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+        configBuilder.setSsid(TEST_SSID);
+
+        SoftApModeConfiguration apConfig = new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_TETHERED, configBuilder.build(), mTestSoftApCapability);
+        startSoftApAndVerifyEnabled(apConfig);
+
+        // Verify timer is scheduled
+        verify(mAlarmManager.getAlarmManager()).setExact(anyInt(), anyLong(),
+                eq(mSoftApManager.SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG), any(), any());
+
+        mLooper.dispatchAll();
+
+        // Trigger Configuration Change
+        configBuilder.setShutdownTimeoutMillis(500000);
+        configBuilder.setSsid(TEST_SSID + "new");
+        mSoftApManager.updateConfiguration(configBuilder.build());
+        mLooper.dispatchAll();
+        // Verify timer cancel will not apply since changed config need to apply via restart.
+        verify(mAlarmManager.getAlarmManager(), never()).cancel(any(WakeupMessage.class));
+    }
+
+    @Test
+    public void testConfigChangeToSmallCauseClientDisconnect() throws Exception {
+        Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+        configBuilder.setSsid(TEST_SSID);
+        configBuilder.setMaxNumberOfClients(2);
+        SoftApModeConfiguration apConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED,
+                configBuilder.build(), mTestSoftApCapability);
+        startSoftApAndVerifyEnabled(apConfig);
+
+        verify(mCallback).onConnectedClientsChanged(new ArrayList<>());
+
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT, true);
+        mLooper.dispatchAll();
+
+        verify(mCallback, times(2)).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
+
+        verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(
+                1, apConfig.getTargetMode());
+        // Verify timer is canceled at this point
+        verify(mAlarmManager.getAlarmManager()).cancel(any(WakeupMessage.class));
+
+        // Second client connect and max client set is 1.
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT_2, true);
+        mLooper.dispatchAll();
+
+        verify(mCallback, times(3)).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT_2))
+        );
+        verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(
+                2, apConfig.getTargetMode());
+
+        // Trigger Configuration Change
+        configBuilder.setMaxNumberOfClients(1);
+        mSoftApManager.updateConfiguration(configBuilder.build());
+        mLooper.dispatchAll();
+        // Verify Disconnect will trigger
+        verify(mWifiNative).forceClientDisconnect(
+                        any(), any(), anyInt());
     }
 }

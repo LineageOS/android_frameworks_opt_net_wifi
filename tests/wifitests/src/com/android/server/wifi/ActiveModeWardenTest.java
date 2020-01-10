@@ -2073,4 +2073,43 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         verify(mClientModeManager, times(2)).start();
         assertInEnabledState();
     }
+
+    @Test
+    public void testUpdateCapabilityInSoftApActiveMode() throws Exception {
+        SoftApCapability testCapability = new SoftApCapability(0);
+        enterSoftApActiveMode();
+        mActiveModeWarden.updateSoftApCapability(testCapability);
+        mLooper.dispatchAll();
+        verify(mSoftApManager).updateCapability(testCapability);
+    }
+
+    @Test
+    public void testUpdateConfigInSoftApActiveMode() throws Exception {
+        SoftApConfiguration testConfig = new SoftApConfiguration.Builder()
+                .setSsid("Test123").build();
+        enterSoftApActiveMode();
+        mActiveModeWarden.updateSoftApConfiguration(testConfig);
+        mLooper.dispatchAll();
+        verify(mSoftApManager).updateConfiguration(testConfig);
+    }
+
+    @Test
+    public void testUpdateCapabilityInNonSoftApActiveMode() throws Exception {
+        SoftApCapability testCapability = new SoftApCapability(0);
+        enterClientModeActiveState();
+        mActiveModeWarden.updateSoftApCapability(testCapability);
+        mLooper.dispatchAll();
+        verify(mSoftApManager, never()).updateCapability(any());
+    }
+
+    @Test
+    public void testUpdateConfigInNonSoftApActiveMode() throws Exception {
+        SoftApConfiguration testConfig = new SoftApConfiguration.Builder()
+                .setSsid("Test123").build();
+        enterClientModeActiveState();
+        mActiveModeWarden.updateSoftApConfiguration(testConfig);
+        mLooper.dispatchAll();
+        verify(mSoftApManager, never()).updateConfiguration(any());
+    }
+
 }

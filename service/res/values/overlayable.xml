@@ -54,7 +54,7 @@
           <item type="integer" name="config_wifiFrameworkScoreEntryRssiThreshold6ghz" />
           <item type="integer" name="config_wifiFrameworkScoreLowRssiThreshold6ghz" />
           <item type="integer" name="config_wifiFrameworkScoreGoodRssiThreshold6ghz" />
-          <item type="integer" name="config_wifi_framework_soft_ap_timeout_delay" />
+          <item type="integer" name="config_wifiFrameworkSoftApShutDownTimeoutMilliseconds" />
           <item type="string"  name="config_wifi_random_mac_oui" />
           <item type="string"  name="config_wifiSoftap2gChannelList" />
           <item type="string"  name="config_wifiSoftap5gChannelList" />
