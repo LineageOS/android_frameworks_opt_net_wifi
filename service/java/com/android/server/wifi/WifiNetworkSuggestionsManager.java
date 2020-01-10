@@ -41,11 +41,13 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
+import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -143,6 +145,10 @@ public class WifiNetworkSuggestionsManager {
          * Whether we have shown the user a notification for this app.
          */
         public boolean hasUserApproved = false;
+        /**
+         * Carrier Id of SIM which give app carrier privileges.
+         */
+        public int carrierId = TelephonyManager.UNKNOWN_CARRIER_ID;
 
         /** Stores the max size of the {@link #extNetworkSuggestions} list ever for this app */
         public int maxSize = 0;
@@ -649,8 +655,11 @@ public class WifiNetworkSuggestionsManager {
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
         }
         if (!validateNetworkSuggestions(networkSuggestions, uid, packageName)) {
+            Log.e(TAG, "bad wifi suggestion from app: " + packageName);
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED;
         }
+
+        int carrierId = mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(packageName);
         PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
         if (perAppInfo == null) {
             perAppInfo = new PerAppInfo(uid, packageName, featureId);
@@ -658,6 +667,9 @@ public class WifiNetworkSuggestionsManager {
             if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
                 Log.i(TAG, "Setting the carrier provisioning app approved");
                 perAppInfo.hasUserApproved = true;
+            } else if (carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                Log.i(TAG, "Setting the carrier privileged app approved");
+                perAppInfo.carrierId = carrierId;
             } else {
                 sendUserApprovalNotification(packageName, uid);
             }
@@ -689,8 +701,14 @@ public class WifiNetworkSuggestionsManager {
         }
         for (ExtendedWifiNetworkSuggestion ewns: extNetworkSuggestions) {
             if (ewns.wns.passpointConfiguration == null) {
+                if (carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                    ewns.wns.wifiConfiguration.carrierId = carrierId;
+                }
                 addToScanResultMatchInfoMap(ewns);
             } else {
+                if (carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                    ewns.wns.passpointConfiguration.setCarrierId(carrierId);
+                }
                 // Install Passpoint config, if failure, ignore that suggestion
                 if (!mWifiInjector.getPasspointManager().addOrUpdateProvider(
                         ewns.wns.passpointConfiguration, uid,
@@ -711,17 +729,35 @@ public class WifiNetworkSuggestionsManager {
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
     }
 
-    private boolean validateNetworkSuggestions(
-            List<WifiNetworkSuggestion> networkSuggestions, int uid, String packageName) {
-        if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
+    private boolean validateNetworkSuggestions(List<WifiNetworkSuggestion> networkSuggestions,
+            int uid, String packageName) {
+        if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)
+                || mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(packageName)
+                != TelephonyManager.UNKNOWN_CARRIER_ID) {
             return true;
         }
+        // If an app doesn't have carrier privileges or carrier provisioning permission, suggests
+        // SIM-based network and sets CarrierId are illegal.
         for (WifiNetworkSuggestion suggestion : networkSuggestions) {
-            WifiConfiguration config = suggestion.wifiConfiguration;
-            if (config != null
-                    && config.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
-                Log.e(TAG, "bad wifi suggestion from app: " + packageName);
-                return false;
+            if (suggestion.passpointConfiguration == null) {
+                WifiConfiguration config = suggestion.wifiConfiguration;
+                if (config != null
+                        && config.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                    return false;
+                }
+                if (config != null && config.enterpriseConfig != null
+                        && config.enterpriseConfig.isAuthenticationSimBased()) {
+                    return false;
+                }
+            } else {
+                PasspointConfiguration config = suggestion.passpointConfiguration;
+                if (config.getCarrierId() != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                    return false;
+                }
+                if (config.getCredential() != null
+                        && config.getCredential().getSimCredential() != null) {
+                    return false;
+                }
             }
         }
 
@@ -968,7 +1004,7 @@ public class WifiNetworkSuggestionsManager {
      * @param uid app UID
      * @return true if app is not approved and send notification.
      */
-    public boolean sendUserApprovalNotificationIfNotApproved(
+    private boolean sendUserApprovalNotificationIfNotApproved(
             @NonNull String packageName, @NonNull int uid) {
         if (!mActiveNetworkSuggestionsPerApp.containsKey(packageName)) {
             Log.wtf(TAG, "AppInfo is missing for " + packageName);
@@ -978,10 +1014,11 @@ public class WifiNetworkSuggestionsManager {
             return false; // already approved.
         }
 
-        Log.i(TAG, "Sending user approval notification for " + packageName);
-        if (!mUserApprovalNotificationActive) {
-            sendUserApprovalNotification(packageName, uid);
+        if (mUserApprovalNotificationActive) {
+            return false; // has active notification.
         }
+        Log.i(TAG, "Sending user approval notification for " + packageName);
+        sendUserApprovalNotification(packageName, uid);
         return true;
     }
 
@@ -1019,30 +1056,19 @@ public class WifiNetworkSuggestionsManager {
     /**
      * Returns a set of all network suggestions matching the provided FQDN.
      */
-    public @Nullable Set<ExtendedWifiNetworkSuggestion> getNetworkSuggestionsForFqfn(String fqdn) {
+    public @Nullable Set<ExtendedWifiNetworkSuggestion> getNetworkSuggestionsForFqdn(String fqdn) {
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
                 getNetworkSuggestionsForFqdnMatch(fqdn);
         if (extNetworkSuggestions == null) {
             return null;
         }
-        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions =
-                extNetworkSuggestions
-                        .stream()
-                        .filter(n -> n.perAppInfo.hasUserApproved)
-                        .collect(Collectors.toSet());
-        // If there is no active notification, check if we need to get approval for any of the apps
-        // & send a notification for one of them. If there are multiple packages awaiting approval,
-        // we end up picking the first one. The others will be reconsidered in the next iteration.
-        if (!mUserApprovalNotificationActive
-                && approvedExtNetworkSuggestions.size() != extNetworkSuggestions.size()) {
-            for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
-                if (sendUserApprovalNotificationIfNotApproved(
-                        extNetworkSuggestion.perAppInfo.packageName,
-                        extNetworkSuggestion.perAppInfo.uid)) {
-                    break;
-                }
+        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions = new HashSet<>();
+        for (ExtendedWifiNetworkSuggestion ewns : extNetworkSuggestions) {
+            if (isNetworkSuggestionUserApprovedAndAvailableToConnect(ewns)) {
+                approvedExtNetworkSuggestions.add(ewns);
             }
         }
+
         if (approvedExtNetworkSuggestions.isEmpty()) {
             return null;
         }
@@ -1075,41 +1101,13 @@ public class WifiNetworkSuggestionsManager {
         if (extNetworkSuggestions == null) {
             return null;
         }
-        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions = extNetworkSuggestions
-                .stream()
-                .filter(n -> {
-                    if (!n.perAppInfo.hasUserApproved) {
-                        return false;
-                    }
-                    WifiConfiguration config = n.wns.wifiConfiguration;
-                    if (config != null && config.enterpriseConfig != null
-                            && config.enterpriseConfig.isAuthenticationSimBased()) {
-                        int subId = mTelephonyUtil.getBestMatchSubscriptionId(config);
-                        if (!mTelephonyUtil.isSimPresent(subId)
-                                || (mTelephonyUtil.requiresImsiEncryption(subId)
-                                        && !mTelephonyUtil.isImsiEncryptionInfoAvailable(subId))) {
-                            if (mVerboseLoggingEnabled) {
-                                Log.v(TAG, "No SIM is matched or IMSI encryption "
-                                        + "info is required, ignore the config.");
-                            }
-                            return false;
-                        }
-                    }
-                    return true;
-                }).collect(Collectors.toSet());
-        // If there is no active notification, check if we need to get approval for any of the apps
-        // & send a notification for one of them. If there are multiple packages awaiting approval,
-        // we end up picking the first one. The others will be reconsidered in the next iteration.
-        if (!mUserApprovalNotificationActive
-                && approvedExtNetworkSuggestions.size() != extNetworkSuggestions.size()) {
-            for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
-                if (sendUserApprovalNotificationIfNotApproved(
-                        extNetworkSuggestion.perAppInfo.packageName,
-                        extNetworkSuggestion.perAppInfo.uid)) {
-                    break;
-                }
+        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions = new HashSet<>();
+        for (ExtendedWifiNetworkSuggestion ewns : extNetworkSuggestions) {
+            if (isNetworkSuggestionUserApprovedAndAvailableToConnect(ewns)) {
+                approvedExtNetworkSuggestions.add(ewns);
             }
         }
+
         if (approvedExtNetworkSuggestions.isEmpty()) {
             return null;
         }
@@ -1119,6 +1117,57 @@ public class WifiNetworkSuggestionsManager {
                     + "[" + scanResult.capabilities + "]");
         }
         return approvedExtNetworkSuggestions;
+    }
+
+    private boolean isNetworkSuggestionUserApprovedAndAvailableToConnect(
+            ExtendedWifiNetworkSuggestion ewns) {
+        if (!ewns.perAppInfo.hasUserApproved
+                && ewns.perAppInfo.carrierId == TelephonyManager.UNKNOWN_CARRIER_ID) {
+            sendUserApprovalNotificationIfNotApproved(ewns.perAppInfo.packageName,
+                    ewns.perAppInfo.uid);
+            return false;
+        }
+        WifiConfiguration config = ewns.wns.wifiConfiguration;
+        PasspointConfiguration passpointConfiguration = ewns.wns.passpointConfiguration;
+        int subId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        if (config == null) {
+            Log.e(TAG, "WifiConfiguration is missing for " + ewns);
+            return false;
+        }
+        if (passpointConfiguration != null) {
+            // If passpoint config is not SIM based return true.
+            if (passpointConfiguration.getCredential().getSimCredential() == null) {
+                return true;
+            }
+            subId = mTelephonyUtil.getMatchingSubId(passpointConfiguration.getCarrierId());
+        } else {
+            // If Wifi Config is not SIM based return true.
+            if (config.enterpriseConfig == null
+                    || !config.enterpriseConfig.isAuthenticationSimBased()) {
+                return true;
+            }
+            subId = mTelephonyUtil.getBestMatchSubscriptionId(config);
+        }
+
+        if (!mTelephonyUtil.isSimPresent(subId)) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "SIM is not present for subId: " + subId);
+            }
+            return false;
+        }
+        if (mTelephonyUtil.requiresImsiEncryption(subId)
+                && !mTelephonyUtil.isImsiEncryptionInfoAvailable(subId)) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "IMSI encryption is required but info is missing for subId: "
+                            + subId);
+            }
+            return false;
+        }
+        if (!mTelephonyUtil.requiresImsiEncryption(subId)) {
+            // TODO(142001564): sendImsiProtectionWarningNotification();
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -1405,7 +1454,6 @@ public class WifiNetworkSuggestionsManager {
             default:
                 return WifiManager.STATUS_SUGGESTION_CONNECTION_FAILURE_UNKNOWN;
         }
-
     }
 
     /**
@@ -1447,6 +1495,33 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * When SIM state changes, check if carrier privileges changes for app.
+     * If app changes from privileged to not privileged, remove all suggestions and reset state.
+     * If app changes from not privileges to privileged, set target carrier id for all suggestions.
+     */
+    public void resetCarrierPrivilegedApps() {
+        Log.w(TAG, "SIM state is changed!");
+        for (PerAppInfo appInfo : mActiveNetworkSuggestionsPerApp.values()) {
+            int carrierId = mTelephonyUtil
+                    .getCarrierIdForPackageWithCarrierPrivileges(appInfo.packageName);
+            if (carrierId == appInfo.carrierId) {
+                continue;
+            }
+            if (carrierId == TelephonyManager.UNKNOWN_CARRIER_ID) {
+                Log.v(TAG, "Carrier privilege revoked for " + appInfo.packageName);
+                removeInternal(Collections.EMPTY_LIST, appInfo.packageName, appInfo);
+                mActiveNetworkSuggestionsPerApp.remove(appInfo.packageName);
+                continue;
+            }
+            appInfo.carrierId = carrierId;
+            for (ExtendedWifiNetworkSuggestion ewns : appInfo.extNetworkSuggestions) {
+                ewns.wns.wifiConfiguration.carrierId = carrierId;
+            }
+        }
+        saveToStore();
+    }
+
+    /**
      * Dump of {@link WifiNetworkSuggestionsManager}.
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
@@ -1457,6 +1532,8 @@ public class WifiNetworkSuggestionsManager {
             pw.println("Package Name: " + networkSuggestionsEntry.getKey());
             PerAppInfo appInfo = networkSuggestionsEntry.getValue();
             pw.println("Has user approved: " + appInfo.hasUserApproved);
+            pw.println("Has carrier privileges: "
+                    + (appInfo.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID));
             for (ExtendedWifiNetworkSuggestion extNetworkSuggestion
                     : appInfo.extNetworkSuggestions) {
                 pw.println("Network: " + extNetworkSuggestion);

@@ -16,7 +16,6 @@
 
 package com.android.wifitrackerlib;
 
-import static android.net.wifi.WifiInfo.INVALID_RSSI;
 import static android.net.wifi.WifiInfo.removeDoubleQuotes;
 
 import static androidx.core.util.Preconditions.checkNotNull;
@@ -55,15 +54,9 @@ class StandardWifiEntry extends WifiEntry {
     @NonNull private final String mSsid;
     private final @Security int mSecurity;
     @Nullable private WifiConfiguration mWifiConfig;
-    @Nullable private NetworkInfo mNetworkInfo;
-    @Nullable private WifiInfo mWifiInfo;
     @Nullable private ConnectCallback mConnectCallback;
     @Nullable private DisconnectCallback mDisconnectCallback;
     @Nullable private ForgetCallback mForgetCallback;
-    private boolean mCalledConnect = false;
-    private boolean mCalledDisconnect = false;
-
-    private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
     StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull List<ScanResult> scanResults,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
@@ -114,28 +107,6 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     public String getKey() {
         return mKey;
-    }
-
-    @Override
-    @ConnectedState
-    public int getConnectedState() {
-        if (mNetworkInfo == null) {
-            return CONNECTED_STATE_DISCONNECTED;
-        }
-
-        switch (mNetworkInfo.getDetailedState()) {
-            case SCANNING:
-            case CONNECTING:
-            case AUTHENTICATING:
-            case OBTAINING_IPADDR:
-            case VERIFYING_POOR_LINK:
-            case CAPTIVE_PORTAL_CHECK:
-                return CONNECTED_STATE_CONNECTING;
-            case CONNECTED:
-                return CONNECTED_STATE_CONNECTED;
-            default:
-                return CONNECTED_STATE_DISCONNECTED;
-        }
     }
 
     @Override
@@ -208,8 +179,7 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public ConnectedInfo getConnectedInfo() {
-        // TODO(b/70983952): Fill this method in
-        return null;
+        return mConnectedInfo;
     }
 
     @Override
@@ -287,6 +257,7 @@ class StandardWifiEntry extends WifiEntry {
         }
     }
 
+    @Override
     public boolean canSignIn() {
         // TODO(b/70983952): Fill this method in
         return false;
@@ -400,8 +371,7 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean canSetPrivacy() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return isSaved();
     }
 
     @Override
@@ -420,7 +390,13 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public void setPrivacy(int privacy) {
-        // TODO(b/70983952): Fill this method in
+        if (!canSetPrivacy()) {
+            return;
+        }
+
+        mWifiConfig.macRandomizationSetting = privacy == PRIVACY_RANDOMIZED_MAC
+                ? WifiConfiguration.RANDOMIZATION_PERSISTENT : WifiConfiguration.RANDOMIZATION_NONE;
+        mWifiManager.save(mWifiConfig, null /* listener */);
     }
 
     @Override
@@ -497,42 +473,14 @@ class StandardWifiEntry extends WifiEntry {
         notifyOnUpdated();
     }
 
-    /**
-     * Updates information regarding the current network connection. If the supplied WifiInfo and
-     * NetworkInfo do not represent this WifiEntry, then the WifiEntry will update to be
-     * unconnected.
-     */
     @WorkerThread
-    void updateConnectionInfo(@Nullable WifiInfo wifiInfo, @Nullable NetworkInfo networkInfo) {
-        if (mWifiConfig != null && wifiInfo != null
-                && mWifiConfig.networkId == wifiInfo.getNetworkId()) {
-            mNetworkInfo = networkInfo;
-            mWifiInfo = wifiInfo;
-            final int wifiInfoRssi = wifiInfo.getRssi();
-            if (wifiInfoRssi != INVALID_RSSI) {
-                mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi);
-            }
-            if (mCalledConnect && getConnectedState() == CONNECTED_STATE_CONNECTED) {
-                mCalledConnect = false;
-                mCallbackHandler.post(() -> {
-                    if (mConnectCallback != null) {
-                        mConnectCallback.onConnectResult(ConnectCallback.CONNECT_STATUS_SUCCESS);
-                    }
-                });
-            }
-        } else {
-            mNetworkInfo = null;
+    protected boolean connectionInfoMatches(@NonNull WifiInfo wifiInfo,
+            @NonNull NetworkInfo networkInfo) {
+        if (wifiInfo.isPasspointAp() || wifiInfo.isOsuAp()) {
+            return false;
         }
-        if (mCalledDisconnect && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
-            mCalledDisconnect = false;
-            mCallbackHandler.post(() -> {
-                if (mDisconnectCallback != null) {
-                    mDisconnectCallback.onDisconnectResult(
-                            DisconnectCallback.DISCONNECT_STATUS_SUCCESS);
-                }
-            });
-        }
-        notifyOnUpdated();
+
+        return mWifiConfig != null && mWifiConfig.networkId == wifiInfo.getNetworkId();
     }
 
     @NonNull

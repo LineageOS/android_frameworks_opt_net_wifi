@@ -93,6 +93,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
     private static final String DATA_OPERATOR_NUMERIC = "123456";
     private static final String NON_DATA_OPERATOR_NUMERIC = "123456";
     private static final String NO_MATCH_OPERATOR_NUMERIC = "654321";
+    private static final String TEST_PACKAGE = "com.test12345";
     private static final String ANONYMOUS_IDENTITY = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
 
     @Mock
@@ -1326,5 +1327,54 @@ public class TelephonyUtilTest extends WifiBaseTest {
         assertTrue(mTelephonyUtil.isAnonymousAtRealmIdentity("1" + ANONYMOUS_IDENTITY));
         assertTrue(mTelephonyUtil.isAnonymousAtRealmIdentity("6" + ANONYMOUS_IDENTITY));
         assertFalse(mTelephonyUtil.isAnonymousAtRealmIdentity("AKA" + ANONYMOUS_IDENTITY));
+    }
+
+    /**
+     * Verify when no subscription available, get carrier id for target package will return
+     * UNKNOWN_CARRIER_ID.
+     */
+    @Test
+    public void getCarrierPrivilegeWithNoActiveSubscription() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(null);
+        assertEquals(TelephonyManager.UNKNOWN_CARRIER_ID,
+                mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE));
+
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
+        assertEquals(TelephonyManager.UNKNOWN_CARRIER_ID,
+                mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE));
+    }
+
+    /**
+     * Verify when package has no carrier privileges, get carrier id for that package will return
+     * UNKNOWN_CARRIER_ID.
+     */
+    @Test
+    public void getCarrierPrivilegeWithPackageHasNoPrivilege() {
+        SubscriptionInfo subInfo = mock(SubscriptionInfo.class);
+        when(subInfo.getSubscriptionId()).thenReturn(DATA_SUBID);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(subInfo));
+        when(mDataTelephonyManager.checkCarrierPrivilegesForPackage(TEST_PACKAGE))
+                .thenReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS);
+        assertEquals(TelephonyManager.UNKNOWN_CARRIER_ID,
+                mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE));
+    }
+
+    /**
+     * Verify when package get carrier privileges from carrier, get carrier id for that package will
+     * return the carrier id for that carrier.
+     */
+    @Test
+    public void getCarrierPrivilegeWithPackageHasPrivilege() {
+        SubscriptionInfo subInfo = mock(SubscriptionInfo.class);
+        when(subInfo.getSubscriptionId()).thenReturn(DATA_SUBID);
+        when(subInfo.getCarrierId()).thenReturn(DATA_CARRIER_ID);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(subInfo));
+        when(mDataTelephonyManager.checkCarrierPrivilegesForPackage(TEST_PACKAGE))
+                .thenReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS);
+        assertEquals(DATA_CARRIER_ID,
+                mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE));
     }
 }

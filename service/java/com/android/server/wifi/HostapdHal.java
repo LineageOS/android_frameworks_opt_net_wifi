@@ -27,9 +27,11 @@ import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.SoftApConfiguration.BandType;
 import android.os.Handler;
 import android.os.HwRemoteBinder;
 import android.os.RemoteException;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -67,6 +69,9 @@ public class HostapdHal {
     private boolean mForceApChannel = false;
     private int mForcedApBand;
     private int mForcedApChannel;
+    private String mConfig2gChannelList;
+    private String mConfig5gChannelList;
+    private String mConfig6gChannelList;
 
     // Hostapd HAL interface objects
     private IServiceManager mIServiceManager = null;
@@ -339,6 +344,62 @@ public class HostapdHal {
         mForceApChannel = false;
     }
 
+    private boolean isSendFreqRangesNeeded(@BandType int band) {
+        // Fist we check if one of the selected bands has restrictions in the overlay file.
+        // Note,
+        //   - We store the config string here for future use, hence we need to check all bands.
+        //   - If there is no OEM restriction, we store the full band
+        boolean retVal = false;
+        if ((band & SoftApConfiguration.BAND_2GHZ) != 0) {
+            mConfig2gChannelList =
+                mContext.getResources().getString(R.string.config_wifiSoftap2gChannelList);
+            if (TextUtils.isEmpty(mConfig2gChannelList)) {
+                mConfig2gChannelList = "1-14";
+            } else {
+                retVal = true;
+            }
+        }
+
+        if ((band & SoftApConfiguration.BAND_5GHZ) != 0) {
+            mConfig5gChannelList =
+                mContext.getResources().getString(R.string.config_wifiSoftap5gChannelList);
+            if (TextUtils.isEmpty(mConfig5gChannelList)) {
+                mConfig5gChannelList = "34-173";
+            } else {
+                retVal = true;
+            }
+        }
+
+        if ((band & SoftApConfiguration.BAND_6GHZ) != 0) {
+            mConfig6gChannelList =
+                mContext.getResources().getString(R.string.config_wifiSoftap6gChannelList);
+            if (TextUtils.isEmpty(mConfig6gChannelList)) {
+                mConfig6gChannelList = "1-254";
+            } else {
+                retVal = true;
+            }
+        }
+
+        // If any of the selected band has restriction in the overlay file, we return true.
+        if (retVal) {
+            return true;
+        }
+
+        // Next, if only one of 5G or 6G is selected, then we need freqList to separate them
+        // Since there is no other way.
+        if (((band & SoftApConfiguration.BAND_5GHZ) != 0)
+                && ((band & SoftApConfiguration.BAND_6GHZ) == 0)) {
+            return true;
+        }
+        if (((band & SoftApConfiguration.BAND_5GHZ) == 0)
+                && ((band & SoftApConfiguration.BAND_6GHZ) != 0)) {
+            return true;
+        }
+
+        // In all other cases, we don't need to set the freqList
+        return false;
+    }
+
     /**
      * Add and start a new access point.
      *
@@ -396,18 +457,26 @@ public class HostapdHal {
                     android.hardware.wifi.hostapd.V1_1.IHostapd.IfaceParams ifaceParams1_1 =
                             new android.hardware.wifi.hostapd.V1_1.IHostapd.IfaceParams();
                     ifaceParams1_1.V1_0 = ifaceParams;
-                    if (ifaceParams.channelParams.enableAcs) {
-                        ifaceParams1_1.channelParams.acsChannelRanges.addAll(
-                                toAcsChannelRanges(mContext.getResources().getString(
-                                        R.string.config_wifi_softap_acs_supported_channel_list)));
-                    }
-
                     if (!isV1_2()) {
+                        ifaceParams.channelParams.band = getHalBand(band);
+
+                        if (ifaceParams.channelParams.enableAcs) {
+                            if ((band & SoftApConfiguration.BAND_2GHZ) != 0) {
+                                ifaceParams1_1.channelParams.acsChannelRanges.addAll(
+                                        toAcsChannelRanges(mContext.getResources().getString(
+                                            R.string.config_wifiSoftap2gChannelList)));
+                            }
+                            if ((band & SoftApConfiguration.BAND_5GHZ) != 0) {
+                                ifaceParams1_1.channelParams.acsChannelRanges.addAll(
+                                        toAcsChannelRanges(mContext.getResources().getString(
+                                            R.string.config_wifiSoftap5gChannelList)));
+                            }
+                        }
+
                         android.hardware.wifi.hostapd.V1_1.IHostapd iHostapdV1_1 =
                                 getHostapdMockableV1_1();
                         if (iHostapdV1_1 == null) return false;
 
-                        ifaceParams.channelParams.band = getHalBand(band);
                         status = iHostapdV1_1.addAccessPoint_1_1(ifaceParams1_1, nwParams);
                         if (!checkStatusAndLogFailure(status, methodStr)) {
                             return false;
@@ -440,6 +509,23 @@ public class HostapdHal {
                                 mContext.getResources().getBoolean(
                                     R.bool.config_wifiSoftapHeTwtSupported);
                         ifaceParams1_2.channelParams.bandMask = getHalBandMask(band);
+
+                        // Prepare freq ranges/lists if needed
+                        if (ifaceParams.channelParams.enableAcs
+                                && isSendFreqRangesNeeded(band)) {
+                            if ((band & SoftApConfiguration.BAND_2GHZ) != 0) {
+                                ifaceParams1_2.channelParams.acsChannelFreqRangesMhz.addAll(
+                                        toAcsFreqRanges(SoftApConfiguration.BAND_2GHZ));
+                            }
+                            if ((band & SoftApConfiguration.BAND_5GHZ) != 0) {
+                                ifaceParams1_2.channelParams.acsChannelFreqRangesMhz.addAll(
+                                        toAcsFreqRanges(SoftApConfiguration.BAND_5GHZ));
+                            }
+                            if ((band & SoftApConfiguration.BAND_6GHZ) != 0) {
+                                ifaceParams1_2.channelParams.acsChannelFreqRangesMhz.addAll(
+                                        toAcsFreqRanges(SoftApConfiguration.BAND_6GHZ));
+                            }
+                        }
 
                         android.hardware.wifi.hostapd.V1_2.IHostapd iHostapdV1_2 =
                                 getHostapdMockableV1_2();
@@ -758,8 +844,8 @@ public class HostapdHal {
             toAcsChannelRanges(String channelListStr) {
         ArrayList<android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange> acsChannelRanges =
                 new ArrayList<>();
-        String[] channelRanges = channelListStr.split(",");
-        for (String channelRange : channelRanges) {
+
+        for (String channelRange : channelListStr.split(",")) {
             android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange acsChannelRange =
                     new android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange();
             try {
@@ -769,8 +855,8 @@ public class HostapdHal {
                         Log.e(TAG, "Unrecognized channel range, length is " + channels.length);
                         continue;
                     }
-                    int start = Integer.parseInt(channels[0]);
-                    int end = Integer.parseInt(channels[1]);
+                    int start = Integer.parseInt(channels[0].trim());
+                    int end = Integer.parseInt(channels[1].trim());
                     if (start > end) {
                         Log.e(TAG, "Invalid channel range, from " + start + " to " + end);
                         continue;
@@ -778,7 +864,7 @@ public class HostapdHal {
                     acsChannelRange.start = start;
                     acsChannelRange.end = end;
                 } else {
-                    acsChannelRange.start = Integer.parseInt(channelRange);
+                    acsChannelRange.start = Integer.parseInt(channelRange.trim());
                     acsChannelRange.end = acsChannelRange.start;
                 }
             } catch (NumberFormatException e) {
@@ -789,6 +875,67 @@ public class HostapdHal {
             acsChannelRanges.add(acsChannelRange);
         }
         return acsChannelRanges;
+    }
+
+    /**
+     * Convert channel list string like '1-6,11' to list of AcsFreqRange
+     */
+    private List<android.hardware.wifi.hostapd.V1_2.IHostapd.AcsFrequencyRange>
+            toAcsFreqRanges(@BandType int band) {
+        List<android.hardware.wifi.hostapd.V1_2.IHostapd.AcsFrequencyRange>
+                acsFrequencyRanges = new ArrayList<>();
+
+        if (!ApConfigUtil.isBandValid(band) || ApConfigUtil.isMultiband(band)) {
+            Log.e(TAG, "Invalid band : " + band);
+            return acsFrequencyRanges;
+        }
+
+        String channelListStr;
+        switch (band) {
+            case SoftApConfiguration.BAND_2GHZ:
+                channelListStr = mConfig2gChannelList;
+                break;
+            case SoftApConfiguration.BAND_5GHZ:
+                channelListStr = mConfig5gChannelList;
+                break;
+            case SoftApConfiguration.BAND_6GHZ:
+                channelListStr = mConfig6gChannelList;
+                break;
+            default:
+                return acsFrequencyRanges;
+        }
+
+        for (String channelRange : channelListStr.split(",")) {
+            android.hardware.wifi.hostapd.V1_2.IHostapd.AcsFrequencyRange acsFrequencyRange =
+                    new android.hardware.wifi.hostapd.V1_2.IHostapd.AcsFrequencyRange();
+            try {
+                if (channelRange.contains("-")) {
+                    String[] channels  = channelRange.split("-");
+                    if (channels.length != 2) {
+                        Log.e(TAG, "Unrecognized channel range, length is " + channels.length);
+                        continue;
+                    }
+                    int start = Integer.parseInt(channels[0].trim());
+                    int end = Integer.parseInt(channels[1].trim());
+                    if (start > end) {
+                        Log.e(TAG, "Invalid channel range, from " + start + " to " + end);
+                        continue;
+                    }
+                    acsFrequencyRange.start = ApConfigUtil.convertChannelToFrequency(start, band);
+                    acsFrequencyRange.end = ApConfigUtil.convertChannelToFrequency(end, band);
+                } else {
+                    int channel = Integer.parseInt(channelRange.trim());
+                    acsFrequencyRange.start = ApConfigUtil.convertChannelToFrequency(channel, band);
+                    acsFrequencyRange.end = acsFrequencyRange.start;
+                }
+            } catch (NumberFormatException e) {
+                // Ignore malformed value
+                Log.e(TAG, "Malformed channel value detected: " + e);
+                continue;
+            }
+            acsFrequencyRanges.add(acsFrequencyRange);
+        }
+        return acsFrequencyRanges;
     }
 
     /**

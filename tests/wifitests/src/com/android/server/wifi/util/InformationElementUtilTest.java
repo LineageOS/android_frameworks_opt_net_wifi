@@ -86,7 +86,7 @@ public class InformationElementUtilTest extends WifiBaseTest {
      * Expect parseInformationElement to return an empty InformationElement array.
      */
     @Test
-    public void parseInformationElements_withEmptyByteArray() {
+    public void parseInformationElements_withEmptyByteArray() throws IOException {
         byte[] emptyBytes = new byte[0];
         InformationElement[] results =
                 InformationElementUtil.parseInformationElements(emptyBytes);
@@ -95,14 +95,43 @@ public class InformationElementUtilTest extends WifiBaseTest {
 
     /**
      * Test parseInformationElements called with a null parameter.
-     * Expect parseInfomrationElement to return an empty InformationElement array.
+     * Expect parseInformationElement to return an empty InformationElement array.
      */
     @Test
-    public void parseInformationElements_withNullBytes() {
+    public void parseInformationElements_withNullBytes() throws IOException {
         byte[] nullBytes = null;
         InformationElement[] results =
                 InformationElementUtil.parseInformationElements(nullBytes);
         assertEquals("parsed results should be empty", 0, results.length);
+    }
+
+    /**
+     * Test parseInformationElements called with a zero length, and extension id.
+     * Expect parseInformationElement to return an empty InformationElement array.
+     */
+    @Test
+    public void parseInformationElements_withZeroLengthAndExtensionId() throws IOException {
+        byte[] bytes = { (byte) 0xFF, (byte) 0x00 };
+        InformationElement[] results =
+                InformationElementUtil.parseInformationElements(bytes);
+        assertEquals("parsed results should be empty", 0, results.length);
+    }
+
+    /**
+     * Test parseInformationElements called with a zero length, and extension id after
+     * other IEs.
+     * Expect parseInformationElement to parse the IEs prior to the malformed IE.
+     */
+    @Test
+    public void parseInformationElements_withZeroLengthAndExtensionIdAfterAnotherIe()
+            throws IOException {
+        byte[] malFormedIEbytes = { (byte) 0xFF, (byte) 0x00 };
+        byte[] bytes = concatenateByteArrays(TEST_BSS_LOAD_BYTES_IE, malFormedIEbytes);
+        InformationElement[] results =
+                InformationElementUtil.parseInformationElements(bytes);
+        assertEquals("parsed results should have 1 IE", 1, results.length);
+        assertEquals("Parsed element should be a BSS_LOAD tag",
+                InformationElement.EID_BSS_LOAD, results[0].id);
     }
 
     /*

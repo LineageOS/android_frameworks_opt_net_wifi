@@ -217,6 +217,7 @@ public class TelephonyUtil {
 
     /**
      * Gets the SubscriptionId of SIM card which is from the carrier specified in config.
+     *
      * @param config the instance of {@link WifiConfiguration}
      * @return the best match SubscriptionId
      */
@@ -228,7 +229,13 @@ public class TelephonyUtil {
         }
     }
 
-    private int getMatchingSubId(int carrierId) {
+    /**
+     * Gets the SubscriptionId of SIM card for given carrier Id
+     *
+     * @param carrierId carrier id for target carrier
+     * @return the matched SubscriptionId
+     */
+    public int getMatchingSubId(int carrierId) {
         List<SubscriptionInfo> subInfoList = mSubscriptionManager.getActiveSubscriptionInfoList();
         if (subInfoList == null || subInfoList.isEmpty()) {
             return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
@@ -1107,5 +1114,29 @@ public class TelephonyUtil {
         pw.println(TAG + ": ");
         pw.println("mImsiEncryptionRequired=" + mImsiEncryptionRequired);
         pw.println("mImsiEncryptionInfoAvailable=" + mImsiEncryptionInfoAvailable);
+    }
+
+    /**
+     * Get the carrier ID {@link TelephonyManager#getSimCarrierId()} of the carrier which give
+     * target package carrier privileges.
+     *
+     * @param packageName target package to check if grant privileges by any carrier.
+     * @return Carrier ID who give privilege to this package. If package isn't granted privilege
+     *         by any available carrier, will return UNKNOWN_CARRIER_ID.
+     */
+    public int getCarrierIdForPackageWithCarrierPrivileges(String packageName) {
+        List<SubscriptionInfo> subInfoList = mSubscriptionManager.getActiveSubscriptionInfoList();
+        if (subInfoList == null || subInfoList.isEmpty()) {
+            return TelephonyManager.UNKNOWN_CARRIER_ID;
+        }
+        for (SubscriptionInfo info : subInfoList) {
+            TelephonyManager specifiedTm =
+                    mTelephonyManager.createForSubscriptionId(info.getSubscriptionId());
+            if (specifiedTm.checkCarrierPrivilegesForPackage(packageName)
+                    == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
+                return info.getCarrierId();
+            }
+        }
+        return TelephonyManager.UNKNOWN_CARRIER_ID;
     }
 }

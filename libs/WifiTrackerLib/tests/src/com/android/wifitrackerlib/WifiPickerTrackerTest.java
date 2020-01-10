@@ -35,8 +35,11 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
 import android.os.test.TestLooper;
+import android.util.Pair;
 
 import androidx.lifecycle.Lifecycle;
 
@@ -50,7 +53,9 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class WifiPickerTrackerTest {
 
@@ -492,5 +497,38 @@ public class WifiPickerTrackerTest {
 
         verify(mMockCallback, atLeastOnce()).onWifiEntriesChanged();
         assertThat(wifiPickerTracker.getConnectedWifiEntry()).isNull();
+    }
+
+    /**
+     * Tests that a PasspointWifiEntry is returned when Passpoint scans are visible.
+     */
+    @Test
+    public void testGetWifiEntries_passpointInRange_returnsPasspointWifiEntry() {
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
+        final PasspointConfiguration passpointConfig = new PasspointConfiguration();
+        final HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("fqdn");
+        homeSp.setFriendlyName("friendlyName");
+        passpointConfig.setHomeSp(homeSp);
+        when(mMockWifiManager.getPasspointConfigurations())
+                .thenReturn(Collections.singletonList(passpointConfig));
+        wifiPickerTracker.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+        mTestLooper.dispatchAll();
+
+        final WifiConfiguration wifiConfig = new WifiConfiguration();
+        wifiConfig.FQDN = "fqdn";
+        final Map<Integer, List<ScanResult>> mapping = new HashMap<>();
+        mapping.put(WifiManager.PASSPOINT_HOME_NETWORK, Collections.singletonList(
+                buildScanResult("ssid", "bssid", START_MILLIS)));
+        List<Pair<WifiConfiguration, Map<Integer, List<ScanResult>>>> allMatchingWifiConfigs =
+                Collections.singletonList(new Pair<>(wifiConfig, mapping));
+        when(mMockWifiManager.getAllMatchingWifiConfigs(any())).thenReturn(allMatchingWifiConfigs);
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+
+        assertThat(wifiPickerTracker.getWifiEntries()).isNotEmpty();
+        assertThat(wifiPickerTracker.getWifiEntries().get(0).getTitle()).isEqualTo("friendlyName");
     }
 }
