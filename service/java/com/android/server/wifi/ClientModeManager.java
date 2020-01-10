@@ -20,9 +20,21 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.content.Intent;
 import android.net.wifi.WifiManager;
+import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.Looper;
 import android.os.Message;
+import android.os.PersistableBundle;
 import android.os.UserHandle;
+import android.telephony.CarrierConfigManager;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
+import android.telephony.ims.ImsException;
+import android.telephony.ims.ImsMmTelManager;
+import android.telephony.ims.ImsReasonInfo;
+import android.telephony.ims.RegistrationManager;
+import android.telephony.ims.feature.MmTelFeature;
+import android.telephony.ims.stub.ImsRegistrationImplBase;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -31,6 +43,7 @@ import com.android.internal.util.Preconditions;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.wifi.WifiNative.InterfaceCallback;
+import com.android.server.wifi.util.WifiHandler;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -54,6 +67,7 @@ public class ClientModeManager implements ActiveModeManager {
     private String mClientInterfaceName;
     private boolean mIfaceIsUp = false;
     private @Role int mRole = ROLE_UNSPECIFIED;
+    private DeferStopHandler mDeferStopHandler;
 
     ClientModeManager(Context context, @NonNull Looper looper, WifiNative wifiNative,
             Listener listener, WifiMetrics wifiMetrics, SarManager sarManager,
@@ -66,6 +80,7 @@ public class ClientModeManager implements ActiveModeManager {
         mWakeupController = wakeupController;
         mClientModeImpl = clientModeImpl;
         mStateMachine = new ClientModeStateMachine(looper);
+        mDeferStopHandler = new DeferStopHandler(TAG, looper);
     }
 
     /**
@@ -89,7 +104,125 @@ public class ClientModeManager implements ActiveModeManager {
             updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
                     WifiManager.WIFI_STATE_ENABLING);
         }
-        mStateMachine.quitNow();
+        mDeferStopHandler.start(
+                getWifiOffDeferringTimeMs(),
+                () -> mStateMachine.quitNow());
+    }
+
+    private class DeferStopHandler extends WifiHandler {
+        private boolean mIsDeferring = false;
+        private ImsMmTelManager mImsMmTelManager = null;
+        private Looper mLooper = null;
+        private Runnable mStopRunnable = null;
+        private final Runnable mRunnable = () -> continueToStopWifi();
+
+        private RegistrationManager.RegistrationCallback mImsRegistrationCallback =
+                new RegistrationManager.RegistrationCallback() {
+                    @Override
+                    public void onRegistered(int imsRadioTech) {
+                        if (mIsDeferring) continueToStopWifi();
+                    }
+
+                    @Override
+                    public void onUnregistered(ImsReasonInfo imsReasonInfo) {
+                        if (mIsDeferring) continueToStopWifi();
+                    }
+                };
+
+        DeferStopHandler(String tag, Looper looper) {
+            super(tag, looper);
+            mLooper = looper;
+        }
+
+        public void start(int delayMs, @NonNull Runnable stopRunnable) {
+            if (mIsDeferring) return;
+
+            if (stopRunnable == null) {
+                Log.w(TAG, "Invalid stop runnable.");
+                return;
+            }
+            mStopRunnable = stopRunnable;
+
+            // Most cases don't need delay, check it first to avoid unnecessary work.
+            if (delayMs == 0) {
+                continueToStopWifi();
+                return;
+            }
+
+            mImsMmTelManager = ImsMmTelManager.createForSubscriptionId(
+                    SubscriptionManager.getDefaultVoiceSubscriptionId());
+            if (mImsMmTelManager == null || !postDelayed(mRunnable, delayMs)) {
+                // if no delay or failed to add runnable, stop Wifi immediately.
+                continueToStopWifi();
+                return;
+            }
+
+            mIsDeferring = true;
+            Log.d(TAG, "Start DeferWifiOff handler with deferring time "
+                    + delayMs + " ms.");
+            try {
+                mImsMmTelManager.registerImsRegistrationCallback(
+                        new HandlerExecutor(new Handler(mLooper)),
+                        mImsRegistrationCallback);
+            } catch (RuntimeException | ImsException e) {
+                Log.e(TAG, "registerImsRegistrationCallback failed", e);
+                continueToStopWifi();
+            }
+        }
+
+        private void continueToStopWifi() {
+            Log.d(TAG, "Continue to stop wifi");
+            if (mStopRunnable != null) {
+                mStopRunnable.run();
+            }
+
+            if (!mIsDeferring) return;
+
+            Log.d(TAG, "Stop DeferWifiOff handler.");
+            removeCallbacks(mRunnable);
+            if (mImsMmTelManager != null) {
+                try {
+                    mImsMmTelManager.unregisterImsRegistrationCallback(mImsRegistrationCallback);
+                } catch (RuntimeException e) {
+                    Log.e(TAG, "unregisterImsRegistrationCallback failed", e);
+                }
+            }
+            mIsDeferring = false;
+        }
+    }
+
+    /**
+     * Get deferring time before turning off WiFi.
+     */
+    private int getWifiOffDeferringTimeMs() {
+        int defaultVoiceSubId = SubscriptionManager.getDefaultVoiceSubscriptionId();
+        if (defaultVoiceSubId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            return 0;
+        }
+
+        ImsMmTelManager imsMmTelManager = ImsMmTelManager.createForSubscriptionId(
+                defaultVoiceSubId);
+        // If no wifi calling, no delay
+        if (!imsMmTelManager.isAvailable(
+                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_VOICE,
+                    ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN)) {
+            return 0;
+        }
+
+        TelephonyManager defaultVoiceTelephonyManager =
+                TelephonyManager.from(mContext).createForSubscriptionId(defaultVoiceSubId);
+        // if LTE is available, no delay needed as IMS will be registered over LTE
+        if (defaultVoiceTelephonyManager.getVoiceNetworkType()
+                == TelephonyManager.NETWORK_TYPE_LTE) {
+            return 0;
+        }
+
+        CarrierConfigManager configManager =
+                (CarrierConfigManager) mContext.getSystemService(Context.CARRIER_CONFIG_SERVICE);
+        PersistableBundle config = configManager.getConfigForSubId(defaultVoiceSubId);
+        return (config != null)
+                ? config.getInt(CarrierConfigManager.Ims.KEY_WIFI_OFF_DEFERRING_TIME_INT)
+                : 0;
     }
 
     @Override
@@ -290,11 +423,16 @@ public class ClientModeManager implements ActiveModeManager {
                     case CMD_SWITCH_TO_SCAN_ONLY_MODE:
                         updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
                                 WifiManager.WIFI_STATE_ENABLED);
-                        if (!mWifiNative.switchClientInterfaceToScanMode(mClientInterfaceName)) {
-                            mModeListener.onStartFailure();
-                            break;
-                        }
-                        transitionTo(mScanOnlyModeState);
+                        mDeferStopHandler.start(
+                                getWifiOffDeferringTimeMs(),
+                                () -> {
+                                    if (!mWifiNative.switchClientInterfaceToScanMode(
+                                                mClientInterfaceName)) {
+                                        mModeListener.onStartFailure();
+                                        return;
+                                    }
+                                    transitionTo(mScanOnlyModeState);
+                                });
                         break;
                     case CMD_INTERFACE_DOWN:
                         Log.e(TAG, "Detected an interface down, reporting failure to "
