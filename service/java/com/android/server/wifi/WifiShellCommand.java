@@ -182,6 +182,63 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                     pw.println(hasUserApproved ? "yes" : "no");
                     return 0;
                 }
+                case "imsi-protection-exemption-set-user-approved-for-carrier": {
+                    String arg1 = getNextArgRequired();
+                    String arg2 = getNextArgRequired();
+                    int carrierId = -1;
+                    boolean approved;
+                    try {
+                        carrierId = Integer.parseInt(arg1);
+                    } catch (NumberFormatException e) {
+                        pw.println("Invalid argument to "
+                                + "'imsi-protection-exemption-set-user-approved-for-carrier' "
+                                + "- carrierId must be an Integer");
+                        return -1;
+                    }
+                    if ("yes".equals(arg2)) {
+                        approved = true;
+                    } else if ("no".equals(arg2)) {
+                        approved = false;
+                    } else {
+                        pw.println("Invalid argument to "
+                                + "'imsi-protection-exemption-set-user-approved-for-carrier' "
+                                + "- must be 'yes' or 'no'");
+                        return -1;
+                    }
+                    mWifiNetworkSuggestionsManager
+                            .setHasUserApprovedImsiPrivacyExemptionForCarrier(approved, carrierId);
+                    return 0;
+                }
+                case "imsi-protection-exemption-has-user-approved-for-carrier": {
+                    String arg1 = getNextArgRequired();
+                    int carrierId = -1;
+                    try {
+                        carrierId = Integer.parseInt(arg1);
+                    } catch (NumberFormatException e) {
+                        pw.println("Invalid argument to "
+                                + "'imsi-protection-exemption-has-user-approved-for-carrier' "
+                                + "- 'carrierId' must be an Integer");
+                        return -1;
+                    }
+                    boolean hasUserApproved = mWifiNetworkSuggestionsManager
+                            .hasUserApprovedImsiPrivacyExemptionForCarrier(carrierId);
+                    pw.println(hasUserApproved ? "yes" : "no");
+                    return 0;
+                }
+                case "imsi-protection-exemption-clear-user-approved-for-carrier": {
+                    String arg1 = getNextArgRequired();
+                    int carrierId = -1;
+                    try {
+                        carrierId = Integer.parseInt(arg1);
+                    } catch (NumberFormatException e) {
+                        pw.println("Invalid argument to "
+                                + "'imsi-protection-exemption-clear-user-approved-for-carrier' "
+                                + "- 'carrierId' must be an Integer");
+                        return -1;
+                    }
+                    mWifiNetworkSuggestionsManager.clearImsiPrivacyExemptionForCarrier(carrierId);
+                    return 0;
+                }
                 case "network-requests-remove-user-approved-access-points": {
                     String packageName = getNextArgRequired();
                     mClientModeImpl.removeNetworkRequestUserApprovedAccessPointsForApp(packageName);
@@ -398,6 +455,12 @@ public class WifiShellCommand extends BasicShellCommandHandler {
         pw.println("    Sets whether network suggestions from the app is approved or not.");
         pw.println("  network-suggestions-has-user-approved <package name>");
         pw.println("    Queries whether network suggestions from the app is approved or not.");
+        pw.println("  imsi-protection-exemption-set-user-approved-for-carrier <carrier id> yes|no");
+        pw.println("    Sets whether Imsi protection exemption for carrier is approved or not");
+        pw.println("  imsi-protection-exemption-has-user-approved-for-carrier <carrier id>");
+        pw.println("    Queries whether Imsi protection exemption for carrier is approved or not");
+        pw.println("  imsi-protection-exemption-clear-user-approved-for-carrier <carrier id>");
+        pw.println("    Clear the user choice on Imsi protection exemption for carrier");
         pw.println("  network-requests-remove-user-approved-access-points <package name>");
         pw.println("    Removes all user approved network requests for the app.");
         pw.println("  clear-deleted-ephemeral-networks");
