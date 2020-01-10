@@ -33,12 +33,14 @@ import android.annotation.Nullable;
 import android.app.AppOpsManager;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
+import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
 import android.net.DhcpInfo;
 import android.net.DhcpResults;
@@ -3111,9 +3113,23 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     private void notifyFactoryReset() {
         Intent intent = new Intent(WifiManager.ACTION_NETWORK_SETTINGS_RESET);
-        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
-                android.Manifest.permission.NETWORK_CARRIER_PROVISIONING);
+
+        // Retrieve list of broadcast receivers for this broadcast & send them directed broadcasts
+        // to wake them up (if they're in background).
+        List<ResolveInfo> resolveInfos =
+                mContext.getPackageManager().queryBroadcastReceiversAsUser(
+                        intent, 0,
+                        UserHandle.of(mWifiInjector.getWifiPermissionsWrapper().getCurrentUser()));
+        if (resolveInfos == null || resolveInfos.isEmpty()) return; // No need to send broadcast.
+
+        for (ResolveInfo resolveInfo : resolveInfos) {
+            Intent intentToSend = new Intent(intent);
+            intentToSend.setComponent(new ComponentName(
+                    resolveInfo.activityInfo.applicationInfo.packageName,
+                    resolveInfo.activityInfo.name));
+            mContext.sendBroadcastAsUser(intentToSend, UserHandle.ALL,
+                    android.Manifest.permission.NETWORK_CARRIER_PROVISIONING);
+        }
     }
 
     @Override
