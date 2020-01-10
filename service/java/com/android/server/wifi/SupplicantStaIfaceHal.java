@@ -43,7 +43,7 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.Handler;
-import android.os.HwRemoteBinder;
+import android.os.IHwBinder.DeathRecipient;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
@@ -137,7 +137,7 @@ public class SupplicantStaIfaceHal {
             }
         }
     };
-    private class ServiceManagerDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class ServiceManagerDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {
@@ -149,7 +149,7 @@ public class SupplicantStaIfaceHal {
             });
         }
     }
-    private class SupplicantDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class SupplicantDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {
@@ -263,7 +263,7 @@ public class SupplicantStaIfaceHal {
     }
 
     private boolean linkToSupplicantDeath(
-            HwRemoteBinder.DeathRecipient deathRecipient, long cookie) {
+            DeathRecipient deathRecipient, long cookie) {
         synchronized (mLock) {
             if (mISupplicant == null) return false;
             try {

@@ -29,7 +29,7 @@ import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.BandType;
 import android.os.Handler;
-import android.os.HwRemoteBinder;
+import android.os.IHwBinder.DeathRecipient;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
@@ -100,7 +100,7 @@ public class HostapdHal {
             }
         }
     };
-    private class ServiceManagerDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class ServiceManagerDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {
@@ -112,7 +112,7 @@ public class HostapdHal {
             });
         }
     }
-    private class HostapdDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class HostapdDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {
@@ -257,7 +257,7 @@ public class HostapdHal {
      * Link to death for IHostapd object.
      * @return true on success, false otherwise.
      */
-    private boolean linkToHostapdDeath(HwRemoteBinder.DeathRecipient deathRecipient, long cookie) {
+    private boolean linkToHostapdDeath(DeathRecipient deathRecipient, long cookie) {
         synchronized (mLock) {
             if (mIHostapd == null) return false;
             try {
