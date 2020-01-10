@@ -281,7 +281,7 @@ public class WakeupControllerTest extends WifiBaseTest {
     public void startRegistersScanListener() {
         initializeWakeupController(true /* enabled */);
         mWakeupController.start();
-        verify(mWifiScanner).registerScanListener(any());
+        verify(mWifiScanner).registerScanListener(any(), any());
     }
 
     /**
@@ -492,7 +492,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results
@@ -521,7 +521,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results
@@ -545,7 +545,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results
@@ -565,7 +565,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results
@@ -592,7 +592,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results
@@ -615,7 +615,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results
@@ -642,7 +642,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results
@@ -664,7 +664,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         ArgumentCaptor<WifiScanner.ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
 
-        verify(mWifiScanner).registerScanListener(scanListenerArgumentCaptor.capture());
+        verify(mWifiScanner).registerScanListener(any(), scanListenerArgumentCaptor.capture());
         WifiScanner.ScanListener scanListener = scanListenerArgumentCaptor.getValue();
 
         // incoming scan results

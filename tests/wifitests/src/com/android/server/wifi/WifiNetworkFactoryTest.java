@@ -527,7 +527,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         validateUiStartParams(true);
 
         // Verify scan settings.
-        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
+        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(), any(),
                 mWorkSourceArgumentCaptor.capture());
         validateScanSettings(null);
 
@@ -562,7 +562,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         validateUiStartParams(true);
 
         // Verify scan settings.
-        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
+        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(), any(),
                 mWorkSourceArgumentCaptor.capture());
         validateScanSettings(specifier.ssidPatternMatcher.getPath());
 
@@ -583,7 +583,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         // Verify scan settings.
         verify(mWifiScanner, times(1)).startScan(mScanSettingsArgumentCaptor.capture(), any(),
-                mWorkSourceArgumentCaptor.capture());
+                any(), mWorkSourceArgumentCaptor.capture());
         validateScanSettings(specifier.ssidPatternMatcher.getPath());
 
         // Release request 1.
@@ -595,7 +595,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         // Verify scan settings.
         verify(mWifiScanner, times(2)).startScan(mScanSettingsArgumentCaptor.capture(), any(),
-                mWorkSourceArgumentCaptor.capture());
+                any(), mWorkSourceArgumentCaptor.capture());
         validateScanSettings(null);
 
         verify(mWifiMetrics, times(2)).incrementNetworkRequestApiNumRequest();
@@ -614,7 +614,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
 
         // Make the network request with specifier.
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
-        verify(mWifiScanner).startScan(any(), any(), any());
+        verify(mWifiScanner).startScan(any(), any(), any(), any());
 
         // Release the network request.
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
@@ -1701,7 +1701,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
 
         verify(mNetworkRequestMatchCallback).onAbort();
         verify(mWifiScanner, times(2)).getSingleScanResults();
-        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any(), any());
         verify(mConnectivityManager).declareNetworkRequestUnfulfillable(eq(mNetworkRequest));
 
         // Remove the stale request1 & ensure nothing happens.
@@ -1742,7 +1742,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
 
         verify(mNetworkRequestMatchCallback).onAbort();
         verify(mWifiScanner, times(2)).getSingleScanResults();
-        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any(), any());
         verify(mAlarmManager).cancel(mPeriodicScanListenerArgumentCaptor.getValue());
         verify(mConnectivityManager).declareNetworkRequestUnfulfillable(eq(mNetworkRequest));
 
@@ -1776,7 +1776,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         verify(mNetworkRequestMatchCallback).onAbort();
         verify(mWifiConnectivityManager, times(1)).setSpecificNetworkRequestInProgress(true);
         verify(mWifiScanner, times(2)).getSingleScanResults();
-        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any(), any());
         verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
 
         // Remove the stale request1 & ensure nothing happens.
@@ -1815,7 +1815,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
 
         verify(mWifiConnectivityManager, times(1)).setSpecificNetworkRequestInProgress(true);
         verify(mWifiScanner, times(2)).getSingleScanResults();
-        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any(), any());
         // we shouldn't disconnect until the user accepts the next request.
         verify(mClientModeImpl, times(1)).disconnectCommand();
 
@@ -1957,7 +1957,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         mWifiNetworkFactory.handleScreenStateChanged(true);
 
         // Verify that we resumed periodic scanning.
-        mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
+        mInOrder.verify(mWifiScanner).startScan(any(), any(), any(), any());
     }
 
     /**
@@ -2031,12 +2031,12 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         // set wifi off
         mWifiNetworkFactory.setWifiState(false);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
-        verify(mWifiScanner, never()).startScan(any(), any(), any());
+        verify(mWifiScanner, never()).startScan(any(), any(), any(), any());
 
         // set wifi on
         mWifiNetworkFactory.setWifiState(true);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
-        verify(mWifiScanner).startScan(any(), any(), any());
+        verify(mWifiScanner).startScan(any(), any(), any(), any());
     }
 
     /**
@@ -2053,7 +2053,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
                 TEST_CALLBACK_IDENTIFIER);
         verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(any());
 
-        verify(mWifiScanner).startScan(any(), any(), any());
+        verify(mWifiScanner).startScan(any(), any(), any(), any());
 
         // toggle wifi off & verify we aborted ongoing request.
         mWifiNetworkFactory.setWifiState(false);
@@ -2093,14 +2093,14 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         message.obj = mNetworkRequest;
         mWifiNetworkFactory.sendMessage(message);
         mLooper.dispatchAll();
-        verify(mWifiScanner, never()).startScan(any(), any(), any());
+        verify(mWifiScanner, never()).startScan(any(), any(), any(), any());
 
         // set wifi on
         mWifiNetworkFactory.setWifiState(true);
         mLooper.dispatchAll();
         // Should trigger a re-evaluation of existing requests and the pending request will be
         // processed now.
-        verify(mWifiScanner).startScan(any(), any(), any());
+        verify(mWifiScanner).startScan(any(), any(), any(), any());
     }
 
     /**
@@ -2134,7 +2134,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
         // Trigger scan results & ensure we triggered a connect.
-        verify(mWifiScanner).startScan(any(), mScanListenerArgumentCaptor.capture(), any());
+        verify(mWifiScanner).startScan(any(), any(), mScanListenerArgumentCaptor.capture(), any());
         ScanListener scanListener = mScanListenerArgumentCaptor.getValue();
         assertNotNull(scanListener);
         scanListener.onResults(mTestScanDatas);
@@ -2420,7 +2420,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         // Trigger scan results & ensure we triggered a connect.
         setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
                 TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
-        verify(mWifiScanner).startScan(any(), mScanListenerArgumentCaptor.capture(), any());
+        verify(mWifiScanner).startScan(any(), any(), mScanListenerArgumentCaptor.capture(), any());
         ScanListener scanListener = mScanListenerArgumentCaptor.getValue();
         assertNotNull(scanListener);
         scanListener.onResults(mTestScanDatas);
@@ -2496,7 +2496,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         // Verify we did not trigger the UI for the second request.
         verify(mContext, times(1)).startActivityAsUser(any(), any());
         // Verify we did not trigger a scan.
-        verify(mWifiScanner, never()).startScan(any(), any(), any());
+        verify(mWifiScanner, never()).startScan(any(), any(), any(), any());
         // Verify we did not trigger the match callback.
         verify(mNetworkRequestMatchCallback, never()).onMatch(anyList());
         // Verify that we sent a connection attempt to ClientModeImpl
@@ -2547,7 +2547,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         // Verify we did not trigger the UI for the second request.
         verify(mContext, never()).startActivityAsUser(any(), any());
         // Verify we did not trigger a scan.
-        verify(mWifiScanner, never()).startScan(any(), any(), any());
+        verify(mWifiScanner, never()).startScan(any(), any(), any(), any());
         // Verify we did not trigger the match callback.
         verify(mNetworkRequestMatchCallback, never()).onMatch(anyList());
         // Verify that we sent a connection attempt to ClientModeImpl
@@ -2606,7 +2606,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
         // Trigger scan results & ensure we triggered a connect.
-        verify(mWifiScanner).startScan(any(), mScanListenerArgumentCaptor.capture(), any());
+        verify(mWifiScanner).startScan(any(), any(), mScanListenerArgumentCaptor.capture(), any());
         ScanListener scanListener = mScanListenerArgumentCaptor.getValue();
         assertNotNull(scanListener);
         scanListener.onResults(mTestScanDatas);
@@ -2769,7 +2769,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
                 alarmListener.onAlarm();
             }
             mInOrder.verify(mWifiScanner).startScan(
-                    any(), mScanListenerArgumentCaptor.capture(), any());
+                    any(), any(), mScanListenerArgumentCaptor.capture(), any());
             scanListener = mScanListenerArgumentCaptor.getValue();
             assertNotNull(scanListener);
 
