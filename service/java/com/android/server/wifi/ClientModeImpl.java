@@ -35,7 +35,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.ContentObserver;
 import android.net.ConnectivityManager;
-import android.net.DhcpResults;
+import android.net.DhcpResultsParcelable;
 import android.net.InvalidPacketException;
 import android.net.IpConfiguration;
 import android.net.KeepalivePacketData;
@@ -325,8 +325,9 @@ public class ClientModeImpl extends StateMachine {
 
     private Context mContext;
 
-    private final Object mDhcpResultsLock = new Object();
-    private DhcpResults mDhcpResults;
+    private final Object mDhcpResultsParcelableLock = new Object();
+    @NonNull
+    private DhcpResultsParcelable mDhcpResultsParcelable = new DhcpResultsParcelable();
 
     // NOTE: Do not return to clients - see syncRequestConnectionInfo()
     private final ExtendedWifiInfo mWifiInfo;
@@ -955,7 +956,7 @@ public class ClientModeImpl extends StateMachine {
         }
 
         @Override
-        public void onNewDhcpResults(DhcpResults dhcpResults) {
+        public void onNewDhcpResults(DhcpResultsParcelable dhcpResults) {
             if (dhcpResults != null) {
                 sendMessage(CMD_IPV4_PROVISIONING_SUCCESS, dhcpResults);
             } else {
@@ -1426,11 +1427,12 @@ public class ClientModeImpl extends StateMachine {
     /**
      * Blocking call to get the current DHCP results
      *
-     * @return DhcpResults current results
+     * @return DhcpResultsParcelable current results
      */
-    public DhcpResults syncGetDhcpResults() {
-        synchronized (mDhcpResultsLock) {
-            return new DhcpResults(mDhcpResults);
+    @NonNull
+    public DhcpResultsParcelable syncGetDhcpResultsParcelable() {
+        synchronized (mDhcpResultsParcelableLock) {
+            return mDhcpResultsParcelable;
         }
     }
 
@@ -1709,13 +1711,25 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
+    private static String dhcpResultsParcelableToString(DhcpResultsParcelable dhcpResults) {
+        return new StringBuilder()
+                .append("baseConfiguration ").append(dhcpResults.baseConfiguration)
+                .append("leaseDuration ").append(dhcpResults.leaseDuration)
+                .append("mtu ").append(dhcpResults.mtu)
+                .append("serverAddress ").append(dhcpResults.serverAddress)
+                .append("serverHostName ").append(dhcpResults.serverHostName)
+                .append("vendorInfo ").append(dhcpResults.vendorInfo)
+                .toString();
+    }
+
     @Override
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         super.dump(fd, pw, args);
         mSupplicantStateTracker.dump(fd, pw, args);
         pw.println("mLinkProperties " + mLinkProperties);
         pw.println("mWifiInfo " + mWifiInfo);
-        pw.println("mDhcpResults " + mDhcpResults);
+        pw.println("mDhcpResultsParcelable "
+                + dhcpResultsParcelableToString(mDhcpResultsParcelable));
         pw.println("mNetworkInfo " + mNetworkInfo);
         pw.println("mLastSignalLevel " + mLastSignalLevel);
         pw.println("mLastBssid " + mLastBssid);
@@ -2057,7 +2071,7 @@ public class ClientModeImpl extends StateMachine {
                 break;
             case CMD_IPV4_PROVISIONING_SUCCESS:
                 sb.append(" ");
-                sb.append(/* DhcpResults */ msg.obj);
+                sb.append(/* DhcpResultsParcelable */ msg.obj);
                 break;
             case WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE:
                 BtmFrameData frameData = (BtmFrameData) msg.obj;
@@ -2375,10 +2389,8 @@ public class ClientModeImpl extends StateMachine {
     private void clearLinkProperties() {
         // Clear the link properties obtained from DHCP. The only caller of this
         // function has already called IpClient#stop(), which clears its state.
-        synchronized (mDhcpResultsLock) {
-            if (mDhcpResults != null) {
-                mDhcpResults.clear();
-            }
+        synchronized (mDhcpResultsParcelableLock) {
+            mDhcpResultsParcelable = new DhcpResultsParcelable();
         }
 
         // Now clear the merged link properties.
@@ -2802,16 +2814,16 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
-    private void handleIPv4Success(DhcpResults dhcpResults) {
+    private void handleIPv4Success(DhcpResultsParcelable dhcpResults) {
         if (mVerboseLoggingEnabled) {
             logd("handleIPv4Success <" + dhcpResults.toString() + ">");
-            logd("link address " + dhcpResults.ipAddress);
+            logd("link address " + dhcpResults.baseConfiguration.ipAddress);
         }
 
         Inet4Address addr;
-        synchronized (mDhcpResultsLock) {
-            mDhcpResults = dhcpResults;
-            addr = (Inet4Address) dhcpResults.ipAddress.getAddress();
+        synchronized (mDhcpResultsParcelableLock) {
+            mDhcpResultsParcelable = dhcpResults;
+            addr = (Inet4Address) dhcpResults.baseConfiguration.ipAddress.getAddress();
         }
 
         if (mIsAutoRoaming) {
@@ -2829,13 +2841,12 @@ public class ClientModeImpl extends StateMachine {
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
             mWifiInfo.setTrusted(config.trusted);
-            mWifiConfigManager.updateRandomizedMacExpireTime(config,
-                    dhcpResults.getLeaseDuration());
+            mWifiConfigManager.updateRandomizedMacExpireTime(config, dhcpResults.leaseDuration);
             mBssidBlocklistMonitor.handleDhcpProvisioningSuccess(mLastBssid, mWifiInfo.getSSID());
         }
 
         // Set meteredHint if DHCP result says network is metered
-        if (dhcpResults.hasMeteredHint()) {
+        if (dhcpResults.vendorInfo != null && dhcpResults.vendorInfo.contains("ANDROID_METERED")) {
             mWifiInfo.setMeteredHint(true);
         }
 
@@ -2873,10 +2884,8 @@ public class ClientModeImpl extends StateMachine {
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP,
                 WifiMetricsProto.ConnectionEvent.HLF_DHCP,
                 WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
-        synchronized (mDhcpResultsLock) {
-            if (mDhcpResults != null) {
-                mDhcpResults.clear();
-            }
+        synchronized (mDhcpResultsParcelableLock) {
+            mDhcpResultsParcelable = new DhcpResultsParcelable();
         }
         if (mVerboseLoggingEnabled) {
             logd("handleIPv4Failure");
@@ -4373,7 +4382,7 @@ public class ClientModeImpl extends StateMachine {
                     // similarly--via messages sent back from IpClient.
                     break;
                 case CMD_IPV4_PROVISIONING_SUCCESS: {
-                    handleIPv4Success((DhcpResults) message.obj);
+                    handleIPv4Success((DhcpResultsParcelable) message.obj);
                     sendNetworkStateChangeBroadcast(mLastBssid);
                     break;
                 }
