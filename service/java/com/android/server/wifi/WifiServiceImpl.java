@@ -2138,6 +2138,36 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * Returns a list of Wifi configurations for matched available WifiNetworkSuggestion
+     * corresponding to the given scan results.
+     *
+     * An empty list will be returned when no match is found or all matched suggestions is not
+     * available(not allow user manually connect, user not approved or open network).
+     *
+     * @param scanResults a list of {@link ScanResult}.
+     * @return a list of {@link WifiConfiguration} from matched {@link WifiNetworkSuggestion}.
+     */
+    @Override
+    public List<WifiConfiguration> getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(
+            List<ScanResult> scanResults) {
+        if (!isSettingsOrSuw(Binder.getCallingPid(), Binder.getCallingUid())) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getWifiConfigsForMatchedNetworkSuggestions uid=%").c(
+                    Binder.getCallingUid()).flush();
+        }
+        if (scanResults == null) {
+            Log.e(TAG, "Attempt to retrieve WifiConfiguration with null scanResult List");
+            return new ArrayList<>();
+        }
+        return mWifiThreadRunner.call(
+                () -> mWifiNetworkSuggestionsManager
+                        .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(scanResults),
+                Collections.emptyList());
+    }
+
+    /**
      * see {@link android.net.wifi.WifiManager#addOrUpdateNetwork(WifiConfiguration)}
      * @return the supplicant-assigned identifier for the new or updated
      * network if the operation succeeds, or {@code -1} if it fails

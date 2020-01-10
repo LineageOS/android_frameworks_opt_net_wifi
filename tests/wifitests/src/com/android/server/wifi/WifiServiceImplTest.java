@@ -4939,4 +4939,44 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mActiveModeWarden).updateSoftApCapability(any());
         staticMockSession.finishMocking();
     }
+
+    /**
+     * Verify that the call to getWifiConfigsForMatchedNetworkSuggestions is not redirected to
+     * specific API getWifiConfigForMatchedNetworkSuggestionsSharedWithUser when the caller doesn't
+     * have NETWORK_SETTINGS permissions and NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetWifiConfigsForMatchedNetworkSuggestionsWithoutPermissions() {
+        mWifiServiceImpl.getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(new ArrayList<>());
+    }
+
+    /**
+     * Verify that the call to getWifiConfigsForMatchedNetworkSuggestions is redirected to
+     * specific API getWifiConfigForMatchedNetworkSuggestionsSharedWithUser when the caller
+     * have NETWORK_SETTINGS.
+     */
+    @Test
+    public void testGetWifiConfigsForMatchedNetworkSuggestionsWithSettingPermissions() {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        mWifiServiceImpl.getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(new ArrayList<>());
+        mLooper.dispatchAll();
+        verify(mWifiNetworkSuggestionsManager)
+                .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(any());
+    }
+
+    /**
+     * Verify that the call to getWifiConfigsForMatchedNetworkSuggestions is redirected to
+     * specific API getWifiConfigForMatchedNetworkSuggestionsSharedWithUser when the caller
+     * have NETWORK_SETUP_WIZARD.
+     */
+    @Test
+    public void testGetWifiConfigsForMatchedNetworkSuggestionsWithSetupWizardPermissions() {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETUP_WIZARD),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        mWifiServiceImpl.getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(new ArrayList<>());
+        mLooper.dispatchAll();
+        verify(mWifiNetworkSuggestionsManager)
+                .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(any());
+    }
 }
