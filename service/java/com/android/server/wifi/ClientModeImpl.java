@@ -5159,6 +5159,10 @@ public class ClientModeImpl extends StateMachine {
                         break;
                     }
                     break;
+                case CMD_IP_CONFIGURATION_LOST:
+                    mWifiMetrics.incrementIpRenewalFailure();
+                    handleStatus = NOT_HANDLED;
+                    break;
                 default:
                     handleStatus = NOT_HANDLED;
                     break;

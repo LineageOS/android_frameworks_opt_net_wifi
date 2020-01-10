@@ -410,6 +410,7 @@ public class WifiMetricsTest extends WifiBaseTest {
     private static final int NUM_ONESHOT_SCAN_REQUESTS_WITH_DFS_CHANNELS = 4;
     private static final int NUM_ADD_OR_UPDATE_NETWORK_CALLS = 5;
     private static final int NUM_ENABLE_NETWORK_CALLS = 6;
+    private static final long NUM_IP_RENEWAL_FAILURE = 7;
 
     /** Number of notifications per "Connect to Network" notification type. */
     private static final int[] NUM_CONNECT_TO_NETWORK_NOTIFICATIONS = {0, 10, 20, 30, 40};
@@ -869,6 +870,9 @@ public class WifiMetricsTest extends WifiBaseTest {
         for (int i = 0; i < NUM_ENABLE_NETWORK_CALLS; i++) {
             mWifiMetrics.incrementNumEnableNetworkCalls();
         }
+        for (int i = 0; i < NUM_IP_RENEWAL_FAILURE; i++) {
+            mWifiMetrics.incrementIpRenewalFailure();
+        }
 
         mWifiMetrics.setWatchdogSuccessTimeDurationMs(NUM_WATCHDOG_SUCCESS_DURATION_MS);
         mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported,
@@ -1208,6 +1212,7 @@ public class WifiMetricsTest extends WifiBaseTest {
                 mDecodedProto.numOneshotHasDfsChannelScans);
         assertEquals(NUM_ADD_OR_UPDATE_NETWORK_CALLS, mDecodedProto.numAddOrUpdateNetworkCalls);
         assertEquals(NUM_ENABLE_NETWORK_CALLS, mDecodedProto.numEnableNetworkCalls);
+        assertEquals(NUM_IP_RENEWAL_FAILURE, mDecodedProto.numIpRenewalFailure);
     }
 
     /**
