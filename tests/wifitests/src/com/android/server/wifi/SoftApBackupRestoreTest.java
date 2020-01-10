@@ -57,7 +57,7 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
         assertEquals(ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(backup.apBand),
                 restore.getBand());
         assertEquals(backup.apChannel, restore.getChannel());
-        assertEquals(backup.preSharedKey, restore.getWpa2Passphrase());
+        assertEquals(backup.preSharedKey, restore.getPassphrase());
         int authType = backup.getAuthType();
         if (backup.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
             assertEquals(SoftApConfiguration.SECURITY_TYPE_WPA2_PSK, restore.getSecurityType());

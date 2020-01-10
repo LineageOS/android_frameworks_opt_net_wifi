@@ -1309,7 +1309,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(true);
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
@@ -1329,7 +1329,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(false);
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
@@ -1352,7 +1352,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_6GHZ)
                 .build();
 
@@ -1376,7 +1376,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_6GHZ)
                 .build();
 
@@ -1395,7 +1395,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(true);
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 

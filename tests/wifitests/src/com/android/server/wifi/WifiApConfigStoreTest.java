@@ -165,7 +165,6 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid(ssid);
         configBuilder.setPassphrase(preSharedKey, SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
-        configBuilder.setWpa2Passphrase(preSharedKey);
         if (channel == 0) {
             configBuilder.setBand(band);
         } else {
@@ -221,7 +220,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         assertEquals(ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(backup.apBand),
                 restore.getBand());
         assertEquals(backup.apChannel, restore.getChannel());
-        assertEquals(backup.preSharedKey, restore.getWpa2Passphrase());
+        assertEquals(backup.preSharedKey, restore.getPassphrase());
         int authType = backup.getAuthType();
         if (backup.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
             assertEquals(SoftApConfiguration.SECURITY_TYPE_WPA2_PSK, restore.getSecurityType());
