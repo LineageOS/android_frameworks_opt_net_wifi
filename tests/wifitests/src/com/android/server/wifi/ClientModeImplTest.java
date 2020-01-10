@@ -312,7 +312,8 @@ public class ClientModeImplTest {
     }
 
     private void injectDhcpFailure() {
-        mIpClientCallback.onNewDhcpResults(null);
+        // TODO: Change argument type to DhcpResultsParcelable after migration.
+        mIpClientCallback.onNewDhcpResults((DhcpResults) null);
         mIpClientCallback.onProvisioningFailure(new LinkProperties());
     }
 
