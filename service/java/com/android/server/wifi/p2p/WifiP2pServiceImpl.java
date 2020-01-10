@@ -30,7 +30,7 @@ import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
-import android.net.DhcpResults;
+import android.net.DhcpResultsParcelable;
 import android.net.InetAddresses;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
@@ -125,7 +125,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     NetdWrapper mNetdWrapper;
     private IIpClient mIpClient;
     private int mIpClientStartIndex = 0;
-    private DhcpResults mDhcpResults;
+    private DhcpResultsParcelable mDhcpResultsParcelable;
 
     private P2pStateMachine mP2pStateMachine;
     private AsyncChannel mReplyChannel = new WifiAsyncChannel(TAG);
@@ -532,7 +532,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             }
             mIpClient = null;
         }
-        mDhcpResults = null;
+        mDhcpResultsParcelable = null;
     }
 
     private void startIpClient(String ifname, Handler smHandler) {
@@ -583,7 +583,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             mP2pStateMachine.sendMessage(IPC_POST_DHCP_ACTION);
         }
         @Override
-        public void onNewDhcpResults(DhcpResults dhcpResults) {
+        public void onNewDhcpResults(DhcpResultsParcelable dhcpResults) {
             mP2pStateMachine.sendMessage(IPC_DHCP_RESULTS, dhcpResults);
         }
         @Override
@@ -2633,8 +2633,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
                 // DHCP server has already been started if I am a group owner
                 if (mGroup.isGroupOwner()) {
-                    setWifiP2pInfoOnGroupFormation(
-                            InetAddresses.parseNumericAddress(SERVER_ADDRESS));
+                    setWifiP2pInfoOnGroupFormation(SERVER_ADDRESS);
                 }
 
                 // In case of a negotiation group, connection changed is sent
@@ -2725,19 +2724,22 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         mWifiNative.setP2pPowerSave(mGroup.getInterface(), true);
                         break;
                     case IPC_DHCP_RESULTS:
-                        mDhcpResults = (DhcpResults) message.obj;
-                        if (mDhcpResults == null) {
+                        mDhcpResultsParcelable = (DhcpResultsParcelable) message.obj;
+                        if (mDhcpResultsParcelable == null) {
                             break;
                         }
 
-                        if (mVerboseLoggingEnabled) logd("mDhcpResults: " + mDhcpResults);
-                        setWifiP2pInfoOnGroupFormation(mDhcpResults.serverAddress);
+                        if (mVerboseLoggingEnabled) {
+                            logd("mDhcpResultsParcelable: " + mDhcpResultsParcelable);
+                        }
+                        setWifiP2pInfoOnGroupFormation(mDhcpResultsParcelable.serverAddress);
                         sendP2pConnectionChangedBroadcast();
                         try {
                             final String ifname = mGroup.getInterface();
-                            if (mDhcpResults != null) {
+                            if (mDhcpResultsParcelable != null) {
                                 mNetdWrapper.addInterfaceToLocalNetwork(
-                                        ifname, mDhcpResults.getRoutes(ifname));
+                                        ifname,
+                                        mDhcpResultsParcelable.baseConfiguration.getRoutes(ifname));
                             }
                         } catch (Exception e) {
                             loge("Failed to add iface to local network " + e);
@@ -3660,7 +3662,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             return true;
         }
 
-        private void setWifiP2pInfoOnGroupFormation(InetAddress serverInetAddress) {
+        private void setWifiP2pInfoOnGroupFormation(String serverAddress) {
+            InetAddress serverInetAddress = serverAddress == null
+                    ? null
+                    : InetAddresses.parseNumericAddress(serverAddress);
             mWifiP2pInfo.groupFormed = true;
             mWifiP2pInfo.isGroupOwner = mGroup.isGroupOwner();
             mWifiP2pInfo.groupOwnerAddress = serverInetAddress;

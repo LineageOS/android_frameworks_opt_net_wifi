@@ -33,15 +33,18 @@ import android.annotation.Nullable;
 import android.app.AppOpsManager;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
+import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
 import android.net.DhcpInfo;
-import android.net.DhcpResults;
+import android.net.DhcpResultsParcelable;
+import android.net.InetAddresses;
 import android.net.Network;
 import android.net.NetworkStack;
 import android.net.Uri;
@@ -2643,35 +2646,40 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getDhcpInfo uid=%").c(Binder.getCallingUid()).flush();
         }
-        DhcpResults dhcpResults = mClientModeImpl.syncGetDhcpResults();
+        DhcpResultsParcelable dhcpResults = mClientModeImpl.syncGetDhcpResultsParcelable();
 
         DhcpInfo info = new DhcpInfo();
 
-        if (dhcpResults.ipAddress != null &&
-                dhcpResults.ipAddress.getAddress() instanceof Inet4Address) {
-            info.ipAddress = Inet4AddressUtils.inet4AddressToIntHTL(
-                    (Inet4Address) dhcpResults.ipAddress.getAddress());
-        }
+        if (dhcpResults.baseConfiguration != null) {
+            if (dhcpResults.baseConfiguration.ipAddress != null
+                    && dhcpResults.baseConfiguration.ipAddress.getAddress()
+                    instanceof Inet4Address) {
+                info.ipAddress = Inet4AddressUtils.inet4AddressToIntHTL(
+                        (Inet4Address) dhcpResults.baseConfiguration.ipAddress.getAddress());
+            }
 
-        if (dhcpResults.gateway != null) {
-            info.gateway = Inet4AddressUtils.inet4AddressToIntHTL(
-                    (Inet4Address) dhcpResults.gateway);
-        }
+            if (dhcpResults.baseConfiguration.gateway != null) {
+                info.gateway = Inet4AddressUtils.inet4AddressToIntHTL(
+                        (Inet4Address) dhcpResults.baseConfiguration.gateway);
+            }
 
-        int dnsFound = 0;
-        for (InetAddress dns : dhcpResults.dnsServers) {
-            if (dns instanceof Inet4Address) {
-                if (dnsFound == 0) {
-                    info.dns1 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
-                } else {
-                    info.dns2 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
+            int dnsFound = 0;
+            for (InetAddress dns : dhcpResults.baseConfiguration.dnsServers) {
+                if (dns instanceof Inet4Address) {
+                    if (dnsFound == 0) {
+                        info.dns1 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
+                    } else {
+                        info.dns2 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
+                    }
+                    if (++dnsFound > 1) break;
                 }
-                if (++dnsFound > 1) break;
             }
         }
-        Inet4Address serverAddress = dhcpResults.serverAddress;
+        String serverAddress = dhcpResults.serverAddress;
         if (serverAddress != null) {
-            info.serverAddress = Inet4AddressUtils.inet4AddressToIntHTL(serverAddress);
+            InetAddress serverInetAddress = InetAddresses.parseNumericAddress(serverAddress);
+            info.serverAddress =
+                    Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) serverInetAddress);
         }
         info.leaseDuration = dhcpResults.leaseDuration;
 
@@ -3141,9 +3149,23 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     private void notifyFactoryReset() {
         Intent intent = new Intent(WifiManager.ACTION_NETWORK_SETTINGS_RESET);
-        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
-                android.Manifest.permission.NETWORK_CARRIER_PROVISIONING);
+
+        // Retrieve list of broadcast receivers for this broadcast & send them directed broadcasts
+        // to wake them up (if they're in background).
+        List<ResolveInfo> resolveInfos =
+                mContext.getPackageManager().queryBroadcastReceiversAsUser(
+                        intent, 0,
+                        UserHandle.of(mWifiInjector.getWifiPermissionsWrapper().getCurrentUser()));
+        if (resolveInfos == null || resolveInfos.isEmpty()) return; // No need to send broadcast.
+
+        for (ResolveInfo resolveInfo : resolveInfos) {
+            Intent intentToSend = new Intent(intent);
+            intentToSend.setComponent(new ComponentName(
+                    resolveInfo.activityInfo.applicationInfo.packageName,
+                    resolveInfo.activityInfo.name));
+            mContext.sendBroadcastAsUser(intentToSend, UserHandle.ALL,
+                    android.Manifest.permission.NETWORK_CARRIER_PROVISIONING);
+        }
     }
 
     @Override
