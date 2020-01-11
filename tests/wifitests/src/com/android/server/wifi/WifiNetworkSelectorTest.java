@@ -330,14 +330,14 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     }
 
     /**
-     * No network selection if WiFi is connected and it is too short from last
-     * network selection.
+     * No network selection if WiFi is connected and it is too short
+     * from last network selection. Instead, update scanDetailCache.
      *
      * ClientModeImpl is in connected state.
      * scanDetails contains two valid networks.
      * Perform a network selection right after the first one.
      *
-     * Expected behavior: no network recommended by Network Selector
+     * Expected behavior: no network recommended by Network Selector, update scanDetailCache instead
      */
     @Test
     public void verifyMinimumTimeGapWhenConnected() {
@@ -366,6 +366,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
 
         assertEquals("Expect null configuration", null, candidate);
         assertTrue(mWifiNetworkSelector.getConnectableScanDetails().isEmpty());
+
+        verify(mWifiConfigManager, times(2)).updateScanDetailCacheFromScanDetail(any());
     }
 
     /**
@@ -627,6 +629,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // missing from the scan results.
         assertEquals("Expect null configuration", null, candidate);
         assertTrue(mWifiNetworkSelector.getConnectableScanDetails().isEmpty());
+        verify(mWifiConfigManager, times(1)).updateScanDetailCacheFromScanDetail(any());
     }
 
     /**

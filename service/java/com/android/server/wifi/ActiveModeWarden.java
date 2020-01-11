@@ -26,6 +26,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
 import android.net.wifi.SoftApCapability;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
@@ -176,6 +177,11 @@ public class ActiveModeWarden {
         mWifiController.sendMessage(WifiController.CMD_UPDATE_AP_CAPABILITY, capability);
     }
 
+    /** Update SoftAp Configuration. */
+    public void updateSoftApConfiguration(SoftApConfiguration config) {
+        mWifiController.sendMessage(WifiController.CMD_UPDATE_AP_CONFIG, config);
+    }
+
     /** Emergency Callback Mode has changed. */
     public void emergencyCallbackModeChanged(boolean isInEmergencyCallbackMode) {
         mWifiController.sendMessage(
@@ -305,6 +311,14 @@ public class ActiveModeWarden {
             if (!(manager instanceof SoftApManager)) continue;
             SoftApManager softApManager = (SoftApManager) manager;
             softApManager.updateCapability(capability);
+        }
+    }
+
+    private void updateConfigurationToSoftApModeManager(SoftApConfiguration config) {
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (!(manager instanceof SoftApManager)) continue;
+            SoftApManager softApManager = (SoftApManager) manager;
+            softApManager.updateConfiguration(config);
         }
     }
 
@@ -550,6 +564,7 @@ public class ActiveModeWarden {
         static final int CMD_DEFERRED_RECOVERY_RESTART_WIFI         = BASE + 22;
         static final int CMD_AP_START_FAILURE                       = BASE + 23;
         static final int CMD_UPDATE_AP_CAPABILITY                   = BASE + 24;
+        static final int CMD_UPDATE_AP_CONFIG                       = BASE + 25;
 
         private final EnabledState mEnabledState = new EnabledState();
         private final DisabledState mDisabledState = new DisabledState();
@@ -709,6 +724,9 @@ public class ActiveModeWarden {
                         break;
                     case CMD_UPDATE_AP_CAPABILITY:
                         updateCapabilityToSoftApModeManager((SoftApCapability) msg.obj);
+                        break;
+                    case CMD_UPDATE_AP_CONFIG:
+                        updateConfigurationToSoftApModeManager((SoftApConfiguration) msg.obj);
                         break;
                     default:
                         throw new RuntimeException("WifiController.handleMessage " + msg.what);

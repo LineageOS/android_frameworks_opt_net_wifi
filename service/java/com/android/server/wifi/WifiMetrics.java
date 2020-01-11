@@ -2853,6 +2853,8 @@ public class WifiMetrics {
                 pw.println("mWifiLogProto.rxLinkSpeedCount5gLow=" + mRxLinkSpeedCount5gLow);
                 pw.println("mWifiLogProto.rxLinkSpeedCount5gMid=" + mRxLinkSpeedCount5gMid);
                 pw.println("mWifiLogProto.rxLinkSpeedCount5gHigh=" + mRxLinkSpeedCount5gHigh);
+                pw.println("mWifiLogProto.numIpRenewalFailure="
+                        + mWifiLogProto.numIpRenewalFailure);
             }
         }
     }
@@ -3403,8 +3405,7 @@ public class WifiMetrics {
         }
     }
 
-    private static int linkProbeFailureReasonToProto(
-            @WifiCondManager.SendMgmtFrameError int reason) {
+    private static int linkProbeFailureReasonToProto(int reason) {
         switch (reason) {
             case WifiCondManager.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_MCS_UNSUPPORTED;
@@ -4748,7 +4749,7 @@ public class WifiMetrics {
      * @param reason The error code for the failure. See {@link WifiCondManager.SendMgmtFrameError}.
      */
     public void logLinkProbeFailure(long timeSinceLastTxSuccessMs,
-            int rssi, int linkSpeed, @WifiCondManager.SendMgmtFrameError int reason) {
+            int rssi, int linkSpeed, int reason) {
         synchronized (mLock) {
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
@@ -5108,6 +5109,15 @@ public class WifiMetrics {
     public void incrementPasspointProvisionSuccess() {
         synchronized (mLock) {
             mNumProvisionSuccess++;
+        }
+    }
+
+    /**
+     * Increment number of IP renewal failures.
+     */
+    public void incrementIpRenewalFailure() {
+        synchronized (mLock) {
+            mWifiLogProto.numIpRenewalFailure++;
         }
     }
 

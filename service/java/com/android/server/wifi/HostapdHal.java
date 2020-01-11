@@ -29,7 +29,7 @@ import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.BandType;
 import android.os.Handler;
-import android.os.HwRemoteBinder;
+import android.os.IHwBinder.DeathRecipient;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
@@ -100,7 +100,7 @@ public class HostapdHal {
             }
         }
     };
-    private class ServiceManagerDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class ServiceManagerDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {
@@ -112,7 +112,7 @@ public class HostapdHal {
             });
         }
     }
-    private class HostapdDeathRecipient implements HwRemoteBinder.DeathRecipient {
+    private class HostapdDeathRecipient implements DeathRecipient {
         @Override
         public void serviceDied(long cookie) {
             mEventHandler.post(() -> {
@@ -257,7 +257,7 @@ public class HostapdHal {
      * Link to death for IHostapd object.
      * @return true on success, false otherwise.
      */
-    private boolean linkToHostapdDeath(HwRemoteBinder.DeathRecipient deathRecipient, long cookie) {
+    private boolean linkToHostapdDeath(DeathRecipient deathRecipient, long cookie) {
         synchronized (mLock) {
             if (mIHostapd == null) return false;
             try {
@@ -434,22 +434,15 @@ public class HostapdHal {
                 band = config.getBand();
             }
 
-            IHostapd.NetworkParams nwParams = new IHostapd.NetworkParams();
-            // TODO(b/67745880) Note that config.SSID is intended to be either a
-            // hex string or "double quoted".
-            // However, it seems that whatever is handing us these configurations does not obey
-            // this convention.
-            nwParams.ssid.addAll(NativeUtil.stringToByteArrayList(config.getSsid()));
-            nwParams.isHidden = config.isHiddenSsid();
-            nwParams.encryptionType = getEncryptionType(config);
-            nwParams.pskPassphrase = (config.getPassphrase() != null)
-                    ? config.getPassphrase() : "";
+            android.hardware.wifi.hostapd.V1_2.IHostapd.NetworkParams nwParamsV1_2 =
+                    prepareNetworkParams(config);
+            if (nwParamsV1_2 == null) return false;
             if (!checkHostapdAndLogFailure(methodStr)) return false;
             try {
                 HostapdStatus status;
                 if (!isV1_1() && !isV1_2()) {
                     ifaceParams.channelParams.band = getHalBand(band);
-                    status = mIHostapd.addAccessPoint(ifaceParams, nwParams);
+                    status = mIHostapd.addAccessPoint(ifaceParams, nwParamsV1_2.V1_0);
                     if (!checkStatusAndLogFailure(status, methodStr)) {
                         return false;
                     }
@@ -477,7 +470,7 @@ public class HostapdHal {
                                 getHostapdMockableV1_1();
                         if (iHostapdV1_1 == null) return false;
 
-                        status = iHostapdV1_1.addAccessPoint_1_1(ifaceParams1_1, nwParams);
+                        status = iHostapdV1_1.addAccessPoint_1_1(ifaceParams1_1, nwParamsV1_2.V1_0);
                         if (!checkStatusAndLogFailure(status, methodStr)) {
                             return false;
                         }
@@ -530,7 +523,7 @@ public class HostapdHal {
                         android.hardware.wifi.hostapd.V1_2.IHostapd iHostapdV1_2 =
                                 getHostapdMockableV1_2();
                         if (iHostapdV1_2 == null) return false;
-                        status12 = iHostapdV1_2.addAccessPoint_1_2(ifaceParams1_2, nwParams);
+                        status12 = iHostapdV1_2.addAccessPoint_1_2(ifaceParams1_2, nwParamsV1_2);
                         if (!checkStatusAndLogFailure12(status12, methodStr)) {
                             return false;
                         }
@@ -784,6 +777,34 @@ public class HostapdHal {
         }
     }
 
+    private android.hardware.wifi.hostapd.V1_2.IHostapd.NetworkParams
+            prepareNetworkParams(SoftApConfiguration config) {
+        android.hardware.wifi.hostapd.V1_2.IHostapd.NetworkParams nwParamsV1_2 =
+                new android.hardware.wifi.hostapd.V1_2.IHostapd.NetworkParams();
+        nwParamsV1_2.V1_0.ssid.addAll(NativeUtil.stringToByteArrayList(config.getSsid()));
+        nwParamsV1_2.V1_0.isHidden = config.isHiddenSsid();
+        int encryptionType = getEncryptionType(config);
+        nwParamsV1_2.encryptionType = encryptionType;
+        nwParamsV1_2.passphrase = (config.getPassphrase() != null)
+                    ? config.getPassphrase() : "";
+        if (encryptionType
+                == android.hardware.wifi.hostapd.V1_2.IHostapd.EncryptionType.WPA3_SAE
+                || encryptionType == android.hardware.wifi.hostapd.V1_2.IHostapd
+                .EncryptionType.WPA3_SAE_TRANSITION) {
+            if (!isV1_2()) {
+                // It should not happen since we should reject configuration in SoftApManager
+                Log.e(TAG, "Unsupported Configuration found: " + config);
+                return null;
+            }
+        } else {
+            // Fill old parameter for old hidl.
+            nwParamsV1_2.V1_0.encryptionType = encryptionType;
+            nwParamsV1_2.V1_0.pskPassphrase = (config.getPassphrase() != null)
+                    ? config.getPassphrase() : "";
+        }
+        return nwParamsV1_2;
+    }
+
     private static int getEncryptionType(SoftApConfiguration localConfig) {
         int encryptionType;
         switch (localConfig.getSecurityType()) {
@@ -792,6 +813,14 @@ public class HostapdHal {
                 break;
             case SoftApConfiguration.SECURITY_TYPE_WPA2_PSK:
                 encryptionType = IHostapd.EncryptionType.WPA2;
+                break;
+            case SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION:
+                encryptionType = android.hardware.wifi.hostapd.V1_2
+                        .IHostapd.EncryptionType.WPA3_SAE_TRANSITION;
+                break;
+            case SoftApConfiguration.SECURITY_TYPE_WPA3_SAE:
+                encryptionType = android.hardware.wifi.hostapd.V1_2
+                        .IHostapd.EncryptionType.WPA3_SAE;
                 break;
             default:
                 // We really shouldn't default to None, but this was how NetworkManagementService

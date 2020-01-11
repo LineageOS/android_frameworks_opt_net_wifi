@@ -285,6 +285,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiScoreReport mWifiScoreReport;
     @Mock WifiScoreCard mWifiScoreCard;
+    @Mock WifiHealthMonitor mWifiHealthMonitor;
     @Mock PasspointManager mPasspointManager;
     @Mock IDppCallback mDppCallback;
     @Mock SarManager mSarManager;
@@ -355,6 +356,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getPasspointManager()).thenReturn(mPasspointManager);
         when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
+        when(mWifiInjector.getWifiHealthMonitor()).thenReturn(mWifiHealthMonitor);
         when(mWifiInjector.getSarManager()).thenReturn(mSarManager);
         when(mWifiInjector.getWifiNetworkScoreCache())
                 .thenReturn(mock(WifiNetworkScoreCache.class));
@@ -1036,6 +1038,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertTrue(mWifiServiceImpl.setSoftApConfiguration(apConfig, TEST_PACKAGE_NAME));
         mLooper.dispatchAll();
         verify(mWifiApConfigStore).setApConfiguration(eq(apConfig));
+        verify(mActiveModeWarden).updateSoftApConfiguration(apConfig);
         verify(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
     }
@@ -1050,6 +1053,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                         eq("WifiService"));
         assertFalse(mWifiServiceImpl.setSoftApConfiguration(null, TEST_PACKAGE_NAME));
         verify(mWifiApConfigStore, never()).setApConfiguration(isNull(SoftApConfiguration.class));
+        verify(mActiveModeWarden, never()).updateSoftApConfiguration(any());
         verify(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
     }
@@ -1309,7 +1313,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(true);
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
@@ -1329,7 +1333,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(false);
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
@@ -1352,7 +1356,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_6GHZ)
                 .build();
 
@@ -1376,7 +1380,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_6GHZ)
                 .build();
 
@@ -1395,7 +1399,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(true);
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
-                .setWpa2Passphrase("thisIsABadPassword")
+                .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
@@ -3894,6 +3898,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();
         verify(mWifiScoreCard).clear();
+        verify(mWifiHealthMonitor).clear();
         verify(mPasspointManager).getProviderConfigs(anyInt(), anyBoolean());
     }
 
@@ -4936,5 +4941,45 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mActiveModeWarden).updateSoftApCapability(any());
         staticMockSession.finishMocking();
+    }
+
+    /**
+     * Verify that the call to getWifiConfigsForMatchedNetworkSuggestions is not redirected to
+     * specific API getWifiConfigForMatchedNetworkSuggestionsSharedWithUser when the caller doesn't
+     * have NETWORK_SETTINGS permissions and NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetWifiConfigsForMatchedNetworkSuggestionsWithoutPermissions() {
+        mWifiServiceImpl.getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(new ArrayList<>());
+    }
+
+    /**
+     * Verify that the call to getWifiConfigsForMatchedNetworkSuggestions is redirected to
+     * specific API getWifiConfigForMatchedNetworkSuggestionsSharedWithUser when the caller
+     * have NETWORK_SETTINGS.
+     */
+    @Test
+    public void testGetWifiConfigsForMatchedNetworkSuggestionsWithSettingPermissions() {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        mWifiServiceImpl.getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(new ArrayList<>());
+        mLooper.dispatchAll();
+        verify(mWifiNetworkSuggestionsManager)
+                .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(any());
+    }
+
+    /**
+     * Verify that the call to getWifiConfigsForMatchedNetworkSuggestions is redirected to
+     * specific API getWifiConfigForMatchedNetworkSuggestionsSharedWithUser when the caller
+     * have NETWORK_SETUP_WIZARD.
+     */
+    @Test
+    public void testGetWifiConfigsForMatchedNetworkSuggestionsWithSetupWizardPermissions() {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETUP_WIZARD),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        mWifiServiceImpl.getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(new ArrayList<>());
+        mLooper.dispatchAll();
+        verify(mWifiNetworkSuggestionsManager)
+                .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(any());
     }
 }

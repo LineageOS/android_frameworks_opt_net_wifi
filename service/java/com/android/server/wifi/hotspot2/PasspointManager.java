@@ -858,9 +858,17 @@ public class PasspointManager {
         List<WifiConfiguration> configs = new ArrayList<>();
         for (String fqdn : fqdnSet) {
             PasspointProvider provider = mProviders.get(fqdn);
-            if (provider != null) {
-                configs.add(provider.getWifiConfig());
+            if (provider == null) {
+                continue;
             }
+            WifiConfiguration config = provider.getWifiConfig();
+            // If passpoint is from suggestion, check if app share this suggestion with user.
+            if (provider.isFromSuggestion()
+                    && !mWifiInjector.getWifiNetworkSuggestionsManager()
+                    .isPasspointSuggestionSharedWithUser(config)) {
+                continue;
+            }
+            configs.add(config);
         }
         return configs;
     }

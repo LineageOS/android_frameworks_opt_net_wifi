@@ -172,7 +172,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         SoftApConfiguration softApConfig = softapConfigCaptor.getValue();
         assertNotNull(softApConfig);
         assertEquals(softApConfig.getSsid(), TEST_SSID);
-        assertEquals(softApConfig.getWpa2Passphrase(), TEST_PASSPHRASE);
+        assertEquals(softApConfig.getPassphrase(), TEST_PASSPHRASE);
         assertEquals(softApConfig.getSecurityType(), SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         assertEquals(softApConfig.isHiddenSsid(), TEST_HIDDEN);
         assertEquals(softApConfig.getBand(), TEST_BAND);

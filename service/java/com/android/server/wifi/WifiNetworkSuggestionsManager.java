@@ -1208,6 +1208,68 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Retrieve the WifiConfigurations for all matched suggestions which allow user manually connect
+     * and user already approved for non-open networks.
+     */
+    public @NonNull List<WifiConfiguration> getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(
+            List<ScanResult> scanResults) {
+        List<WifiConfiguration> sharedWifiConfigs = new ArrayList<>();
+        for (ScanResult scanResult : scanResults) {
+            ScanResultMatchInfo scanResultMatchInfo =
+                    ScanResultMatchInfo.fromScanResult(scanResult);
+            if (scanResultMatchInfo.networkType == WifiConfiguration.SECURITY_TYPE_OPEN) {
+                continue;
+            }
+            Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
+                    getNetworkSuggestionsForScanResultMatchInfo(
+                            scanResultMatchInfo,  MacAddress.fromString(scanResult.BSSID));
+            if (extNetworkSuggestions == null || extNetworkSuggestions.isEmpty()) {
+                continue;
+            }
+            Set<ExtendedWifiNetworkSuggestion> sharedNetworkSuggestions = extNetworkSuggestions
+                    .stream()
+                    .filter(ewns -> ewns.perAppInfo.hasUserApproved
+                            && ewns.wns.isUserAllowedToManuallyConnect)
+                    .collect(Collectors.toSet());
+            if (sharedNetworkSuggestions.isEmpty()) {
+                continue;
+            }
+            ExtendedWifiNetworkSuggestion ewns =
+                    sharedNetworkSuggestions.stream().findFirst().get();
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "getWifiConfigForMatchedNetworkSuggestionsSharedWithUser Found "
+                        + ewns + " for " + scanResult.SSID + "[" + scanResult.capabilities + "]");
+            }
+            WifiConfiguration config = ewns.wns.wifiConfiguration;
+            WifiConfiguration existingConfig = mWifiConfigManager
+                    .getConfiguredNetwork(config.getKey());
+            if (existingConfig == null || !existingConfig.fromWifiNetworkSuggestion) {
+                continue;
+            }
+            sharedWifiConfigs.add(existingConfig);
+        }
+        return sharedWifiConfigs;
+    }
+
+    /**
+     * Check if the given passpoint suggestion has user approval and allow user manually connect.
+     */
+    public boolean isPasspointSuggestionSharedWithUser(WifiConfiguration config) {
+        Set<ExtendedWifiNetworkSuggestion> matchedSuggestions =
+                getNetworkSuggestionsForFqdnMatch(config.FQDN)
+                        .stream().filter(ewns -> ewns.perAppInfo.uid == config.creatorUid)
+                        .collect(Collectors.toSet());
+        if (matchedSuggestions.isEmpty()) {
+            Log.e(TAG, "Matched network suggestion is missing for FQDN:" + config.FQDN);
+            return false;
+        }
+        ExtendedWifiNetworkSuggestion suggestion = matchedSuggestions
+                .stream().findAny().get();
+        return suggestion.wns.isUserAllowedToManuallyConnect
+                && suggestion.perAppInfo.hasUserApproved;
+    }
+
+    /**
      * Get hidden network from active network suggestions.
      * Todo(): Now limit by a fixed number, maybe we can try rotation?
      * @return set of WifiConfigurations

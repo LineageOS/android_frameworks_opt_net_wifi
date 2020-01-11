@@ -655,7 +655,7 @@ public class WifiNetworkSelector {
     }
 
     /**
-     * Select the best network from the ones in range.
+     * Select the best network from the ones in range. Scan detail cache is also updated here.
      *
      * @param scanDetails    List of ScanDetail for all the APs in range
      * @param bssidBlacklist Blacklisted BSSIDs
@@ -685,6 +685,9 @@ public class WifiNetworkSelector {
 
         // Shall we start network selection at all?
         if (!isNetworkSelectionNeeded(scanDetails, wifiInfo, connected, disconnected)) {
+            // If network selection is skipped, update scan detail cache before exit.
+            // Otherwise, scan detail cache will be updated in each nominator.
+            updateScanDetailCache(scanDetails);
             return null;
         }
 
@@ -700,6 +703,9 @@ public class WifiNetworkSelector {
         mFilteredNetworks = filterScanResults(scanDetails, bssidBlacklist,
                 connected && wifiInfo.getScore() >= WIFI_POOR_SCORE, currentBssid);
         if (mFilteredNetworks.size() == 0) {
+            // If network selection is skipped, update scan detail cache before exit.
+            // Otherwise, scan detail cache will be updated in each nominator.
+            updateScanDetailCache(scanDetails);
             return null;
         }
 
@@ -828,6 +834,12 @@ public class WifiNetworkSelector {
         if (config.isPasspoint()) {
             config.SSID = choice.candidateKey.matchInfo.networkSsid;
             mWifiConfigManager.addOrUpdateNetwork(config, config.creatorUid, config.creatorName);
+        }
+    }
+
+    private void updateScanDetailCache(List<ScanDetail> scanDetails) {
+        for (ScanDetail scanDetail : scanDetails) {
+            mWifiConfigManager.updateScanDetailCacheFromScanDetail(scanDetail);
         }
     }
 

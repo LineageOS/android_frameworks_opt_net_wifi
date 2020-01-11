@@ -530,4 +530,20 @@ public class ApConfigUtil {
         return context.getResources().getBoolean(
                 R.bool.config_wifi_softap_sae_supported);
     }
+
+    /**
+     * Helper function for comparing two SoftApConfiguration.
+     *
+     * Return true if the difference between the two configurations requires a restart to apply.
+     */
+    public static boolean checkConfigurationChangeNeedToRestart(
+            SoftApConfiguration currentConfig, SoftApConfiguration newConfig) {
+        return currentConfig.getSsid() != newConfig.getSsid()
+                || currentConfig.getBssid() != newConfig.getBssid()
+                || currentConfig.getSecurityType() != newConfig.getSecurityType()
+                || currentConfig.getPassphrase() != newConfig.getPassphrase()
+                || currentConfig.isHiddenSsid() != newConfig.isHiddenSsid()
+                || currentConfig.getBand() != newConfig.getBand()
+                || currentConfig.getChannel() != newConfig.getChannel();
+    }
 }

@@ -157,6 +157,7 @@ public class WifiInjector {
     private final ConnectionFailureNotificationBuilder mConnectionFailureNotificationBuilder;
     private final ThroughputPredictor mThroughputPredictor;
     private NetdWrapper mNetdWrapper;
+    private final WifiHealthMonitor mWifiHealthMonitor;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -185,8 +186,6 @@ public class WifiInjector {
         mConnectionFailureNotificationBuilder = new ConnectionFailureNotificationBuilder(
                 mContext, getWifiStackPackageName(), mFrameworkFacade);
         mBatteryStats = context.getSystemService(BatteryStatsManager.class);
-        mWifiScoreCard = new WifiScoreCard(mClock,
-                Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID));
         mSettingsStore = new WifiSettingsStore(mContext);
         mWifiPermissionsWrapper = new WifiPermissionsWrapper(mContext);
         mNetworkScoreManager = mContext.getSystemService(NetworkScoreManager.class);
@@ -260,6 +259,8 @@ public class WifiInjector {
                 new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData(mClock), new RandomizedMacStoreData(),
                 mFrameworkFacade, wifiHandler, mDeviceConfigFacade);
+        String l2KeySeed = Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID);
+        mWifiScoreCard = new WifiScoreCard(mClock, l2KeySeed);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
 
         mWifiApConfigStore = new WifiApConfigStore(
@@ -321,6 +322,8 @@ public class WifiInjector {
         SupplicantStateTracker supplicantStateTracker = new SupplicantStateTracker(
                 mContext, mWifiConfigManager, mBatteryStats, wifiHandler);
         mMboOceController = new MboOceController(makeTelephonyManager(), mWifiNative);
+        mWifiHealthMonitor = new WifiHealthMonitor(mContext, this, mClock, mWifiConfigManager,
+                mWifiScoreCard, wifiHandler, mWifiNative, l2KeySeed, mDeviceConfigFacade);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 wifiLooper, mUserManager,
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
@@ -789,5 +792,9 @@ public class WifiInjector {
 
     public WifiCondManager getWifiCondManager() {
         return mWifiCondManager;
+    }
+
+    public WifiHealthMonitor getWifiHealthMonitor() {
+        return mWifiHealthMonitor;
     }
 }

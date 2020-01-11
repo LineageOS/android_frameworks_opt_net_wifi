@@ -573,6 +573,9 @@ message WifiLog {
 
   // Histogram of Rx link speed at 5G high band
   repeated Int32Count rx_link_speed_count_5g_high = 156;
+
+  // Count of IP renewal failures.
+  optional int32 num_ip_renewal_failure = 157;
 }
 
 // Information that gets logged for every WiFi connection.
