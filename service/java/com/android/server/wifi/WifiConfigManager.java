@@ -523,7 +523,7 @@ public class WifiConfigManager {
     private MacAddress getPersistentMacAddress(WifiConfiguration config) {
         // mRandomizedMacAddressMapping had been the location to save randomized MAC addresses.
         String persistentMacString = mRandomizedMacAddressMapping.get(
-                config.getSsidAndSecurityTypeString());
+                config.getKey());
         // Use the MAC address stored in the storage if it exists and is valid. Otherwise
         // use the MAC address calculated from a hash function as the persistent MAC.
         if (persistentMacString != null) {
@@ -531,15 +531,13 @@ public class WifiConfigManager {
                 return MacAddress.fromString(persistentMacString);
             } catch (IllegalArgumentException e) {
                 Log.e(TAG, "Error creating randomized MAC address from stored value.");
-                mRandomizedMacAddressMapping.remove(config.getSsidAndSecurityTypeString());
+                mRandomizedMacAddressMapping.remove(config.getKey());
             }
         }
-        MacAddress result = mMacAddressUtil.calculatePersistentMac(
-                config.getSsidAndSecurityTypeString(),
+        MacAddress result = mMacAddressUtil.calculatePersistentMac(config.getKey(),
                 mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID));
         if (result == null) {
-            result = mMacAddressUtil.calculatePersistentMac(
-                    config.getSsidAndSecurityTypeString(),
+            result = mMacAddressUtil.calculatePersistentMac(config.getKey(),
                     mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID));
         }
         if (result == null) {
@@ -1301,7 +1299,7 @@ public class WifiConfigManager {
                 newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
-                    + "Settings " + config.getSsidAndSecurityTypeString() + ". Must have "
+                    + "Settings " + config.getKey() + ". Must have "
                     + "NETWORK_SETTINGS or NETWORK_SETUP_WIZARD.");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
