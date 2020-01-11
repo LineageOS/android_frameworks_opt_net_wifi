@@ -28,6 +28,7 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.BandType;
+import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.IHwBinder.DeathRecipient;
 import android.os.RemoteException;
@@ -585,10 +586,10 @@ public class HostapdHal {
                 byte[] clientMacByteArray = client.toByteArray();
                 short disconnectReason;
                 switch (reasonCode) {
-                    case ApConfigUtil.DISCONNECT_REASON_CODE_INVALID_AUTHENTICATION:
+                    case WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_BLOCKED_BY_USER:
                         disconnectReason = Ieee80211ReasonCode.WLAN_REASON_PREV_AUTH_NOT_VALID;
                         break;
-                    case ApConfigUtil.DISCONNECT_REASON_CODE_NO_MORE_STAS:
+                    case WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS:
                         disconnectReason = Ieee80211ReasonCode.WLAN_REASON_DISASSOC_AP_BUSY;
                         break;
                     default:
