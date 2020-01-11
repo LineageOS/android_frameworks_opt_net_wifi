@@ -285,6 +285,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiScoreReport mWifiScoreReport;
     @Mock WifiScoreCard mWifiScoreCard;
+    @Mock WifiHealthMonitor mWifiHealthMonitor;
     @Mock PasspointManager mPasspointManager;
     @Mock IDppCallback mDppCallback;
     @Mock SarManager mSarManager;
@@ -355,6 +356,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getPasspointManager()).thenReturn(mPasspointManager);
         when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
+        when(mWifiInjector.getWifiHealthMonitor()).thenReturn(mWifiHealthMonitor);
         when(mWifiInjector.getSarManager()).thenReturn(mSarManager);
         when(mWifiInjector.getWifiNetworkScoreCache())
                 .thenReturn(mock(WifiNetworkScoreCache.class));
@@ -3896,6 +3898,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();
         verify(mWifiScoreCard).clear();
+        verify(mWifiHealthMonitor).clear();
         verify(mPasspointManager).getProviderConfigs(anyInt(), anyBoolean());
     }
 

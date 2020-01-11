@@ -2384,6 +2384,19 @@ public class WifiConfigManager {
     }
 
     /**
+     * Caches the provided |scanDetail| into the corresponding scan detail cache entry
+     * {@link #mScanDetailCaches} for the retrieved network.
+     *
+     * @param scanDetail input a scanDetail from the scan result
+     */
+    public void updateScanDetailCacheFromScanDetail(ScanDetail scanDetail) {
+        WifiConfiguration network = getConfiguredNetworkForScanDetail(scanDetail);
+        if (network == null) {
+            return;
+        }
+        saveToScanDetailCacheForNetwork(network, scanDetail);
+    }
+    /**
      * Retrieves a configured network corresponding to the provided scan detail if one exists and
      * caches the provided |scanDetail| into the corresponding scan detail cache entry
      * {@link #mScanDetailCaches} for the retrieved network.
@@ -3492,4 +3505,29 @@ public class WifiConfigManager {
         }
         config.recentFailure.clear();
     }
+
+    /**
+     * Find the highest RSSI among all valid scanDetails in current network's scanDetail cache.
+     * If scanDetail is too old, it is not considered to be valid.
+     * @param netId The network ID of the config to find scan RSSI
+     * @params scanRssiValidTimeMs The valid time for scan RSSI
+     * @return The highest RSSI in dBm found with current network's scanDetail cache.
+     */
+    public int findScanRssi(int netId, int scanRssiValidTimeMs) {
+        int scanMaxRssi = WifiInfo.INVALID_RSSI;
+        ScanDetailCache scanDetailCache = getScanDetailCacheForNetwork(netId);
+        if (scanDetailCache == null || scanDetailCache.size() == 0) return scanMaxRssi;
+        long nowInMillis = mClock.getWallClockMillis();
+        for (ScanDetail scanDetail : scanDetailCache.values()) {
+            ScanResult result = scanDetail.getScanResult();
+            if (result == null) continue;
+            boolean valid = (nowInMillis - result.seen) < scanRssiValidTimeMs;
+
+            if (valid) {
+                scanMaxRssi = Math.max(scanMaxRssi, result.level);
+            }
+        }
+        return scanMaxRssi;
+    }
+
 }

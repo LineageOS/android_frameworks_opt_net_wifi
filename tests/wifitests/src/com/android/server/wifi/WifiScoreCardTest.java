@@ -16,6 +16,21 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.WifiHealthMonitor.REASON_ASSOC_REJECTION;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_ASSOC_TIMEOUT;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_AUTH_FAILURE;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_CONNECTION_FAILURE;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_DISCONNECTION_NONLOCAL;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_SHORT_CONNECTION_NONLOCAL;
+import static com.android.server.wifi.WifiScoreCard.CNT_ASSOCIATION_REJECTION;
+import static com.android.server.wifi.WifiScoreCard.CNT_ASSOCIATION_TIMEOUT;
+import static com.android.server.wifi.WifiScoreCard.CNT_AUTHENTICATION_FAILURE;
+import static com.android.server.wifi.WifiScoreCard.CNT_CONNECTION_ATTEMPT;
+import static com.android.server.wifi.WifiScoreCard.CNT_CONNECTION_DURATION_SEC;
+import static com.android.server.wifi.WifiScoreCard.CNT_CONNECTION_FAILURE;
+import static com.android.server.wifi.WifiScoreCard.CNT_DISCONNECTION_NONLOCAL;
+import static com.android.server.wifi.WifiScoreCard.CNT_SHORT_CONNECTION_NONLOCAL;
+import static com.android.server.wifi.WifiScoreCard.MIN_NUM_CONNECTION_ATTEMPT;
 import static com.android.server.wifi.util.NativeUtil.hexStringFromByteArray;
 
 import static org.junit.Assert.*;
@@ -30,10 +45,15 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiHealthMonitor.FailureStats;
+import com.android.server.wifi.WifiScoreCard.NetworkConnectionStats;
+import com.android.server.wifi.WifiScoreCard.PerNetwork;
 import com.android.server.wifi.proto.WifiScoreCardProto.AccessPoint;
+import com.android.server.wifi.proto.WifiScoreCardProto.ConnectionStats;
 import com.android.server.wifi.proto.WifiScoreCardProto.Event;
 import com.android.server.wifi.proto.WifiScoreCardProto.Network;
 import com.android.server.wifi.proto.WifiScoreCardProto.NetworkList;
+import com.android.server.wifi.proto.WifiScoreCardProto.NetworkStats;
 import com.android.server.wifi.proto.WifiScoreCardProto.Signal;
 import com.android.server.wifi.util.IntHistogram;
 
@@ -44,13 +64,11 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-
 /**
  * Unit tests for {@link com.android.server.wifi.WifiScoreCard}.
  */
 @SmallTest
 public class WifiScoreCardTest extends WifiBaseTest {
-
     static final WifiSsid TEST_SSID_1 = WifiSsid.createFromAsciiEncoded("Joe's Place");
     static final WifiSsid TEST_SSID_2 = WifiSsid.createFromAsciiEncoded("Poe's Ravn");
 
@@ -118,8 +136,8 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
         assertTrue(perBssid.id > 0);
-        assertNotNull(perBssid.l2Key);
-        assertTrue("L2Key length should be more than 16.", perBssid.l2Key.length() > 16);
+        assertNotNull(perBssid.getL2Key());
+        assertTrue("L2Key length should be more than 16.", perBssid.getL2Key().length() > 16);
 
         mWifiInfo.setBSSID(TEST_BSSID_2.toString());
 
@@ -127,7 +145,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
         assertEquals(perBssid, mWifiScoreCard.fetchByBssid(TEST_BSSID_1));
         assertNotEquals(perBssid.id, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).id);
-        assertNotEquals(perBssid.l2Key, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).l2Key);
+        assertNotEquals(perBssid.getL2Key(), mWifiScoreCard.fetchByBssid(TEST_BSSID_2).getL2Key());
     }
 
     /**
@@ -286,7 +304,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
     public void testDurationStatistics() throws Exception {
         // Start out disconnected; start connecting
         mWifiInfo.setBSSID(android.net.wifi.WifiInfo.DEFAULT_MAC_ADDRESS);
-        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
         // First poll has a bad RSSI
         millisecondsPass(111);
         mWifiInfo.setBSSID(TEST_BSSID_1.toString());
@@ -329,10 +347,10 @@ public class WifiScoreCardTest extends WifiBaseTest {
     }
 
     /**
-     * Constructs a protobuf form of an example.
+     * Constructs a protobuf form of AccessPoint example.
      */
     private byte[] makeSerializedAccessPointExample() {
-        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
         millisecondsPass(10);
         // Association completes, a NetworkAgent is created
         mWifiScoreCard.noteNetworkAgentCreated(mWifiInfo, TEST_NETWORK_AGENT_ID);
@@ -355,10 +373,12 @@ public class WifiScoreCardTest extends WifiBaseTest {
                 }
             }
         }
+        mWifiScoreCard.resetConnectionState();
+
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
         perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalMean = -42.0;
         perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalVariance = 4.0;
-        checkSerializationExample("before serialization", perBssid);
+        checkSerializationBssidExample("before serialization", perBssid);
         // Now convert to protobuf form
         byte[] serialized = perBssid.toAccessPoint().toByteArray();
         return serialized;
@@ -380,9 +400,9 @@ public class WifiScoreCardTest extends WifiBaseTest {
     }
 
     /**
-     * Checks that the fields of the serialization example are as expected
+     * Checks that the fields of the bssid serialization example are as expected
      */
-    private void checkSerializationExample(String diag, WifiScoreCard.PerBssid perBssid) {
+    private void checkSerializationBssidExample(String diag, WifiScoreCard.PerBssid perBssid) {
         assertEquals(diag, 2, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805).rssi.count);
         assertEquals(diag, -55.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
                 .rssi.minValue, TOL);
@@ -399,6 +419,21 @@ public class WifiScoreCardTest extends WifiBaseTest {
                 .rssi.historicalVariance, TOL);
         checkHistogramExample(diag, perBssid.lookupSignal(Event.SIGNAL_POLL,
                 2432).rssi.intHistogram);
+    }
+
+    /**
+     * Checks that the fields of the network are as expected with bssid serialization example
+     */
+    private void checkSerializationBssidExample(String diag, PerNetwork perNetwork) {
+        NetworkConnectionStats dailyStats = perNetwork.getRecentStats();
+        assertEquals(diag, 1, dailyStats.getCount(CNT_CONNECTION_ATTEMPT));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_CONNECTION_FAILURE));
+        assertEquals(diag, 1, dailyStats.getCount(CNT_CONNECTION_DURATION_SEC));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_SHORT_CONNECTION_NONLOCAL));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_DISCONNECTION_NONLOCAL));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_ASSOCIATION_REJECTION));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_ASSOCIATION_TIMEOUT));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_AUTHENTICATION_FAILURE));
     }
 
     /**
@@ -443,7 +478,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
     }
 
     /**
-     * Serialization should be reproducable
+     * Serialization should be reproducible
      */
     @Test
     public void testReproducableSerialization() throws Exception {
@@ -453,10 +488,10 @@ public class WifiScoreCardTest extends WifiBaseTest {
     }
 
     /**
-     * Deserialization
+     * AccessPoint Deserialization
      */
     @Test
-    public void testDeserialization() throws Exception {
+    public void testAccessPointDeserialization() throws Exception {
         byte[] serialized = makeSerializedAccessPointExample();
         setUp(); // Get back to the initial state
 
@@ -466,7 +501,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
         // Now verify
         String diag = hexStringFromByteArray(serialized);
-        checkSerializationExample(diag, perBssid);
+        checkSerializationBssidExample(diag, perBssid);
     }
 
     /**
@@ -489,7 +524,12 @@ public class WifiScoreCardTest extends WifiBaseTest {
         AccessPoint accessPoint = network.getAccessPoints(0);
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.perBssidFromAccessPoint(network.getSsid(),
                 accessPoint);
-        checkSerializationExample(diag, perBssid);
+        NetworkStats networkStats = network.getNetworkStats();
+        PerNetwork perNetwork = mWifiScoreCard.perNetworkFromNetworkStats(network.getSsid(),
+                networkStats);
+
+        checkSerializationBssidExample(diag, perBssid);
+        checkSerializationBssidExample(diag, perNetwork);
         // Leaving out the bssids should make the cleaned version shorter.
         assertTrue(cleaned.length < serialized.length);
         // Check the Base64 version
@@ -513,23 +553,24 @@ public class WifiScoreCardTest extends WifiBaseTest {
      * Merge of lazy reads
      */
     @Test
-    public void testLazyReads() throws Exception {
+    public void testLazyReads() {
         // Install our own MemoryStore object, which records read requests
         mWifiScoreCard.installMemoryStore(new WifiScoreCard.MemoryStore() {
             @Override
-            public void read(String key, WifiScoreCard.BlobListener listener) {
+            public void read(String key, String name, WifiScoreCard.BlobListener listener) {
                 mKeys.add(key);
                 mBlobListeners.add(listener);
             }
             @Override
-            public void write(String key, byte[] value) {
+            public void write(String key, String name, byte[] value) {
                 // ignore for now
             }
         });
 
         // Now make some changes
         byte[] serialized = makeSerializedAccessPointExample();
-        assertEquals(1, mKeys.size());
+        // 1 for perfBssid and 1 for perNetwork
+        assertEquals(2, mKeys.size());
 
         // Simulate the asynchronous completion of the read request
         millisecondsPass(33);
@@ -539,7 +580,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
         assertEquals(-42.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
                 .rssi.historicalMean, TOL);
-        assertEquals(2.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+        assertEquals(4.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
                 .rssi.historicalVariance, TOL);
     }
 
@@ -551,12 +592,12 @@ public class WifiScoreCardTest extends WifiBaseTest {
         // Install our own MemoryStore object, which records write requests
         mWifiScoreCard.installMemoryStore(new WifiScoreCard.MemoryStore() {
             @Override
-            public void read(String key, WifiScoreCard.BlobListener listener) {
+            public void read(String key, String name, WifiScoreCard.BlobListener listener) {
                 // Just record these, never answer
                 mBlobListeners.add(listener);
             }
             @Override
-            public void write(String key, byte[] value) {
+            public void write(String key, String name, byte[] value) {
                 mKeys.add(key);
                 mBlobs.add(value);
             }
@@ -564,7 +605,8 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
         // Make some changes
         byte[] serialized = makeSerializedAccessPointExample();
-        assertEquals(1, mBlobListeners.size());
+        // 1 for perfBssid and 1 for perNetwork
+        assertEquals(2, mBlobListeners.size());
 
         secondsPass(33);
 
@@ -601,7 +643,8 @@ public class WifiScoreCardTest extends WifiBaseTest {
     public void testReadAfterDelayedMemoryStoreInstallation() throws Exception {
         makeSerializedAccessPointExample();
         mWifiScoreCard.installMemoryStore(mMemoryStore);
-        verify(mMemoryStore).read(any(), any());
+        // 1 for requestReadBssid
+        verify(mMemoryStore, times(1)).read(any(), any(), any());
     }
 
     /**
@@ -630,9 +673,9 @@ public class WifiScoreCardTest extends WifiBaseTest {
             mWifiInfo.setBSSID(bssid.toString());
             mWifiScoreCard.noteSignalPoll(mWifiInfo);
         }
-
-        verify(mMemoryStore, times(256)).read(any(), any());
-        verify(mMemoryStore, atLeastOnce()).write(any(), any()); // Assumes target size < 256
+        // 256 for requestReadBssid() and 1 for requestReadNetwork()
+        verify(mMemoryStore, times(256 + 1)).read(any(), any(), any());
+        verify(mMemoryStore, atLeastOnce()).write(any(), any(), any()); // Assumes target size < 256
         reset(mMemoryStore);
 
         for (int i = 256 - 3; i < 256; i++) {
@@ -640,14 +683,454 @@ public class WifiScoreCardTest extends WifiBaseTest {
             mWifiInfo.setBSSID(bssid.toString());
             mWifiScoreCard.noteSignalPoll(mWifiInfo);
         }
-        verify(mMemoryStore, never()).read(any(), any()); // Assumes target size >= 3
+        verify(mMemoryStore, never()).read(any(), any(), any()); // Assumes target size >= 3
 
         for (int i = 0; i < 3; i++) {
             MacAddress bssid = MacAddress.fromBytes(new byte[]{2, 2, 2, 2, 2, (byte) i});
             mWifiInfo.setBSSID(bssid.toString());
             mWifiScoreCard.noteSignalPoll(mWifiInfo);
         }
-        verify(mMemoryStore, times(3)).read(any(), any()); // Assumes target size < 253
+        verify(mMemoryStore, times(3)).read(any(), any(), any()); // Assumes target size < 253
     }
 
+    private void makeAssocTimeOutExample() {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(1000);
+        mWifiScoreCard.noteConnectionFailure(mWifiInfo, -53, mWifiInfo.getSSID(),
+                BssidBlocklistMonitor.REASON_ASSOCIATION_TIMEOUT);
+    }
+
+    /**
+     * Check network stats after association timeout.
+     */
+    @Test
+    public void testNetworkAssocTimeOut() throws Exception {
+        makeAssocTimeOutExample();
+
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        NetworkConnectionStats dailyStats = perNetwork.getRecentStats();
+
+        assertEquals(1, dailyStats.getCount(CNT_CONNECTION_ATTEMPT));
+        assertEquals(1, dailyStats.getCount(CNT_CONNECTION_FAILURE));
+        assertEquals(0, dailyStats.getCount(CNT_CONNECTION_DURATION_SEC));
+        assertEquals(0, dailyStats.getCount(CNT_ASSOCIATION_REJECTION));
+        assertEquals(1, dailyStats.getCount(CNT_ASSOCIATION_TIMEOUT));
+        assertEquals(0, dailyStats.getCount(CNT_AUTHENTICATION_FAILURE));
+    }
+
+    private void makeAuthFailureAndWrongPassword() {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(500);
+        mWifiScoreCard.noteConnectionFailure(mWifiInfo, -53, mWifiInfo.getSSID(),
+                BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE);
+        millisecondsPass(1000);
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(1000);
+        mWifiScoreCard.noteConnectionFailure(mWifiInfo, -53, mWifiInfo.getSSID(),
+                BssidBlocklistMonitor.REASON_WRONG_PASSWORD);
+    }
+
+    /**
+     * Check network stats after authentication failure and wrong password.
+     */
+    @Test
+    public void testNetworkAuthenticationFailureWrongPassword() throws Exception {
+        makeAuthFailureAndWrongPassword();
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        NetworkConnectionStats dailyStats = perNetwork.getRecentStats();
+
+        assertEquals(2, dailyStats.getCount(CNT_CONNECTION_ATTEMPT));
+        assertEquals(1, dailyStats.getCount(CNT_CONNECTION_FAILURE));
+        assertEquals(0, dailyStats.getCount(CNT_CONNECTION_DURATION_SEC));
+        assertEquals(0, dailyStats.getCount(CNT_ASSOCIATION_REJECTION));
+        assertEquals(0, dailyStats.getCount(CNT_ASSOCIATION_TIMEOUT));
+        assertEquals(1, dailyStats.getCount(CNT_AUTHENTICATION_FAILURE));
+    }
+
+    /**
+     * Check network stats when a new connection attempt for SSID2 is issued
+     * before disconnection of SSID1
+     */
+    @Test
+    public void testNetworkSwitchWithOverlapping() throws Exception {
+        // Connect to SSID_1
+        String ssid1 = mWifiInfo.getSSID();
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, ssid1);
+        millisecondsPass(5000);
+
+        // Attempt to connect to SSID_2
+        mWifiInfo.setSSID(TEST_SSID_2);
+        mWifiInfo.setBSSID(TEST_BSSID_2.toString());
+        String ssid2 = mWifiInfo.getSSID();
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, ssid2);
+
+        // Disconnect from SSID_1
+        millisecondsPass(100);
+        int disconnectionReason = 3;
+        mWifiScoreCard.noteNonlocalDisconnect(disconnectionReason);
+        millisecondsPass(100);
+        mWifiScoreCard.resetConnectionState();
+
+        // SSID_2 is connected and then disconnected
+        millisecondsPass(2000);
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        millisecondsPass(2000);
+        mWifiScoreCard.resetConnectionState();
+
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(ssid1);
+        assertEquals(5, perNetwork.getRecentStats().getCount(CNT_CONNECTION_DURATION_SEC));
+
+        perNetwork = mWifiScoreCard.fetchByNetwork(ssid2);
+        assertEquals(4, perNetwork.getRecentStats().getCount(CNT_CONNECTION_DURATION_SEC));
+    }
+
+    /**
+     * Check network stats after 2 connection failures at low RSSI.
+     */
+    @Test
+    public void testNetworkConnectionFailureLowRssi() throws Exception {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -83, mWifiInfo.getSSID());
+        millisecondsPass(1000);
+        mWifiScoreCard.noteConnectionFailure(mWifiInfo, -83, mWifiInfo.getSSID(),
+                BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION);
+        millisecondsPass(3000);
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -83, mWifiInfo.getSSID());
+        millisecondsPass(1000);
+        mWifiScoreCard.noteConnectionFailure(mWifiInfo, -83, mWifiInfo.getSSID(),
+                BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION);
+
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        NetworkConnectionStats dailyStats = perNetwork.getRecentStats();
+        checkShortConnectionExample(dailyStats, 0);
+    }
+
+    private void makeShortConnectionExample() {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(5000);
+        mWifiInfo.setTxLinkSpeedMbps(100);
+        mWifiInfo.setTxSuccessRate(20.0);
+        mWifiInfo.setTxRetriesRate(1.0);
+        mWifiInfo.setRssi(-80);
+        millisecondsPass(1000);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        millisecondsPass(2000);
+        int disconnectionReason = 3;
+        mWifiScoreCard.noteNonlocalDisconnect(disconnectionReason);
+        millisecondsPass(1000);
+        mWifiScoreCard.resetConnectionState();
+    }
+
+    private void checkShortConnectionExample(NetworkConnectionStats stats, int scale) {
+        assertEquals(1 * scale, stats.getCount(CNT_CONNECTION_ATTEMPT));
+        assertEquals(0, stats.getCount(CNT_CONNECTION_FAILURE));
+        assertEquals(9 * scale, stats.getCount(CNT_CONNECTION_DURATION_SEC));
+        assertEquals(0, stats.getCount(CNT_ASSOCIATION_REJECTION));
+        assertEquals(0, stats.getCount(CNT_ASSOCIATION_TIMEOUT));
+        assertEquals(0, stats.getCount(CNT_AUTHENTICATION_FAILURE));
+        assertEquals(1 * scale, stats.getCount(CNT_SHORT_CONNECTION_NONLOCAL));
+        assertEquals(1 * scale, stats.getCount(CNT_DISCONNECTION_NONLOCAL));
+    }
+
+    private void makeShortConnectionOldRssiPollingExample() {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(2000);
+        mWifiInfo.setRssi(-55);
+        millisecondsPass(1000);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        millisecondsPass(29000);
+        int disconnectionReason = 3;
+        mWifiScoreCard.noteNonlocalDisconnect(disconnectionReason);
+        millisecondsPass(1000);
+        mWifiScoreCard.resetConnectionState();
+    }
+
+    private void checkShortConnectionOldPollingExample(NetworkConnectionStats stats) {
+        assertEquals(1, stats.getCount(CNT_CONNECTION_ATTEMPT));
+        assertEquals(0, stats.getCount(CNT_CONNECTION_FAILURE));
+        assertEquals(33, stats.getCount(CNT_CONNECTION_DURATION_SEC));
+        assertEquals(0, stats.getCount(CNT_ASSOCIATION_REJECTION));
+        assertEquals(0, stats.getCount(CNT_ASSOCIATION_TIMEOUT));
+        assertEquals(0, stats.getCount(CNT_AUTHENTICATION_FAILURE));
+        assertEquals(0, stats.getCount(CNT_SHORT_CONNECTION_NONLOCAL));
+        assertEquals(0, stats.getCount(CNT_DISCONNECTION_NONLOCAL));
+    }
+
+    /**
+     * Check network stats after RSSI poll and disconnection.
+     */
+    @Test
+    public void testNetworkRssiPollShortNonlocalDisconnection() throws Exception {
+        // 1st connection session
+        makeShortConnectionExample();
+        // 2nd connection session
+        makeNormalConnectionExample();
+
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        NetworkConnectionStats dailyStats = perNetwork.getRecentStats();
+        assertEquals(2, dailyStats.getCount(CNT_CONNECTION_ATTEMPT));
+        assertEquals(0, dailyStats.getCount(CNT_CONNECTION_FAILURE));
+        assertEquals(20, dailyStats.getCount(CNT_CONNECTION_DURATION_SEC));
+        assertEquals(0, dailyStats.getCount(CNT_ASSOCIATION_REJECTION));
+        assertEquals(0, dailyStats.getCount(CNT_ASSOCIATION_TIMEOUT));
+        assertEquals(0, dailyStats.getCount(CNT_AUTHENTICATION_FAILURE));
+        assertEquals(1, dailyStats.getCount(CNT_SHORT_CONNECTION_NONLOCAL));
+        assertEquals(1, dailyStats.getCount(CNT_DISCONNECTION_NONLOCAL));
+    }
+
+    /**
+     * Check network stats after short connection with an old RSSI polling
+     */
+    @Test
+    public void testShortNonlocalDisconnectionOldRssiPolling() throws Exception {
+        makeShortConnectionOldRssiPollingExample();
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        checkShortConnectionOldPollingExample(perNetwork.getRecentStats());
+    }
+
+    private void makeNormalConnectionExample() {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(1000);
+        mWifiInfo.setRssi(-55);
+        millisecondsPass(7000);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        millisecondsPass(3000);
+        mWifiScoreCard.resetConnectionState();
+    }
+
+    /**
+     * Constructs a protobuf form of Network example.
+     */
+    private byte[] makeSerializedNetworkExample() {
+        makeNormalConnectionExample();
+
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        checkSerializationNetworkExample("before serialization", perNetwork);
+        // Now convert to protobuf form
+        byte[] serialized = perNetwork.toNetworkStats().toByteArray();
+        return serialized;
+    }
+
+    /**
+     * Checks that the fields of the network serialization example are as expected.
+     */
+    private void checkSerializationNetworkExample(String diag, PerNetwork perNetwork) {
+        NetworkConnectionStats dailyStats = perNetwork.getRecentStats();
+        assertEquals(diag, 1, dailyStats.getCount(CNT_CONNECTION_ATTEMPT));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_CONNECTION_FAILURE));
+        assertEquals(diag, 11, dailyStats.getCount(CNT_CONNECTION_DURATION_SEC));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_SHORT_CONNECTION_NONLOCAL));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_DISCONNECTION_NONLOCAL));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_ASSOCIATION_REJECTION));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_ASSOCIATION_TIMEOUT));
+        assertEquals(diag, 0, dailyStats.getCount(CNT_AUTHENTICATION_FAILURE));
+    }
+
+    /**
+     * Test NetworkStats serialization.
+     */
+    @Test
+    public void testNetworkStatsSerialization() throws Exception {
+        byte[] serialized = makeSerializedNetworkExample();
+
+        // Verify by parsing it and checking that we see the expected results
+        NetworkStats ns = NetworkStats.parseFrom(serialized);
+        ConnectionStats dailyStats = ns.getRecentStats();
+        assertEquals(1, dailyStats.getNumConnectionAttempt());
+        assertEquals(0, dailyStats.getNumConnectionFailure());
+        assertEquals(11, dailyStats.getConnectionDurationSec());
+        assertEquals(0, dailyStats.getNumDisconnectionNonlocal());
+        assertEquals(0, dailyStats.getNumShortConnectionNonlocal());
+        assertEquals(0, dailyStats.getNumAssociationRejection());
+        assertEquals(0, dailyStats.getNumAssociationTimeout());
+        assertEquals(0, dailyStats.getNumAuthenticationFailure());
+    }
+
+    /**
+     * Test NetworkStats Deserialization.
+     */
+    @Test
+    public void testNetworkStatsDeserialization() throws Exception {
+        byte[] serialized = makeSerializedNetworkExample();
+        setUp(); // Get back to the initial state
+
+        PerNetwork perNetwork = mWifiScoreCard.perNetworkFromNetworkStats(mWifiInfo.getSSID(),
+                NetworkStats.parseFrom(serialized));
+
+        // Now verify
+        String diag = hexStringFromByteArray(serialized);
+        checkSerializationNetworkExample(diag, perNetwork);
+    }
+
+    /**
+     * Check network stats after network connection and then removeNetWork().
+     */
+    @Test
+    public void testRemoveNetwork() throws Exception {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(1000);
+        mWifiScoreCard.noteConnectionFailure(mWifiInfo, -53, mWifiInfo.getSSID(),
+                BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION);
+        mWifiScoreCard.removeNetwork(mWifiInfo.getSSID());
+
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        assertNull(perNetwork);
+    }
+
+    @Test
+    public void testUpdateAfterDailyDetection() throws Exception {
+        for (int i = 0; i < MIN_NUM_CONNECTION_ATTEMPT; i++) {
+            makeShortConnectionExample();
+        }
+
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        perNetwork.updateAfterDailyDetection();
+
+        checkShortConnectionExample(perNetwork.getRecentStats(), 0);
+        checkShortConnectionExample(perNetwork.getStatsCurrBuild(), MIN_NUM_CONNECTION_ATTEMPT);
+        checkShortConnectionExample(perNetwork.getStatsPrevBuild(), 0);
+    }
+
+    @Test
+    public void testUpdateAfterSwBuildChange() throws Exception {
+        for (int i = 0; i < MIN_NUM_CONNECTION_ATTEMPT; i++) {
+            makeShortConnectionExample();
+        }
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        perNetwork.updateAfterDailyDetection();
+        perNetwork.updateAfterSwBuildChange();
+
+        checkShortConnectionExample(perNetwork.getRecentStats(), 0);
+        checkShortConnectionExample(perNetwork.getStatsCurrBuild(), 0);
+        checkShortConnectionExample(perNetwork.getStatsPrevBuild(), MIN_NUM_CONNECTION_ATTEMPT);
+    }
+
+    private void makeRecentStatsWithGoodConnection() {
+        for (int i = 0; i < MIN_NUM_CONNECTION_ATTEMPT; i++) {
+            makeNormalConnectionExample();
+        }
+    }
+
+    private void makeRecentStatsWithShortConnection() {
+        for (int i = 0; i < MIN_NUM_CONNECTION_ATTEMPT; i++) {
+            makeShortConnectionExample();
+        }
+    }
+
+    private void makeRecentStatsWithAssocTimeOut() {
+        for (int i = 0; i < MIN_NUM_CONNECTION_ATTEMPT; i++) {
+            makeAssocTimeOutExample();
+        }
+    }
+
+    private void makeRecentStatsWithAuthFailure() {
+        for (int i = 0; i < MIN_NUM_CONNECTION_ATTEMPT; i++) {
+            makeAuthFailureAndWrongPassword();
+        }
+    }
+
+    private void checkStatsDeltaExample(FailureStats stats, int scale) {
+        assertEquals(0, stats.getCount(REASON_ASSOC_REJECTION));
+        assertEquals(1 * scale, stats.getCount(REASON_ASSOC_TIMEOUT));
+        assertEquals(1 * scale, stats.getCount(REASON_AUTH_FAILURE));
+        assertEquals(1 * scale, stats.getCount(REASON_CONNECTION_FAILURE));
+        assertEquals(1 * scale, stats.getCount(REASON_DISCONNECTION_NONLOCAL));
+        assertEquals(1 * scale, stats.getCount(REASON_SHORT_CONNECTION_NONLOCAL));
+    }
+
+    /**
+     * Check if daily detection is skipped with insufficient daily stats.
+     */
+    @Test
+    public void testDailyDetectionWithInsufficientRecentStats() throws Exception {
+        PerNetwork perNetwork = mWifiScoreCard.lookupNetwork(mWifiInfo.getSSID());
+        makeShortConnectionExample();
+
+        FailureStats statsDec = new FailureStats();
+        FailureStats statsInc = new FailureStats();
+        FailureStats statsHigh = new FailureStats();
+        int detectionFlag = perNetwork.dailyDetection(statsDec, statsInc, statsHigh);
+        assertEquals(WifiScoreCard.INSUFFICIENT_RECENT_STATS, detectionFlag);
+        checkStatsDeltaExample(statsDec, 0);
+        checkStatsDeltaExample(statsInc, 0);
+        checkStatsDeltaExample(statsHigh, 0);
+        perNetwork.updateAfterDailyDetection();
+        checkShortConnectionExample(perNetwork.getRecentStats(), 1);
+        checkShortConnectionExample(perNetwork.getStatsPrevBuild(), 0);
+    }
+
+    /**
+     * Run a few days with good connection, followed by a SW build change which results
+     * in performance regression. Check if the regression is detected properly.
+     */
+    @Test
+    public void testRegressionAfterSwBuildChange() throws Exception {
+        PerNetwork perNetwork = mWifiScoreCard.lookupNetwork(mWifiInfo.getSSID());
+        int numGoodConnectionDays = 5;
+        for (int i = 0; i < numGoodConnectionDays; i++) {
+            makeRecentStatsWithGoodConnection();
+            perNetwork.updateAfterDailyDetection();
+        }
+
+        perNetwork.updateAfterSwBuildChange();
+        makeRecentStatsWithShortConnection();
+        makeRecentStatsWithAssocTimeOut();
+        makeRecentStatsWithAuthFailure();
+
+        FailureStats statsDec = new FailureStats();
+        FailureStats statsInc = new FailureStats();
+        FailureStats statsHigh = new FailureStats();
+        int detectionFlag = perNetwork.dailyDetection(statsDec, statsInc, statsHigh);
+        assertEquals(WifiScoreCard.SUFFICIENT_RECENT_PREV_STATS, detectionFlag);
+        checkStatsDeltaExample(statsDec, 0);
+        checkStatsDeltaExample(statsInc, 1);
+        checkStatsDeltaExample(statsHigh, 0);
+    }
+
+    /**
+     * Run a few days with bad connections, followed by a SW build change which results
+     * in performance improvement. Check if the improvement is detected properly.
+     */
+    @Test
+    public void testImprovementAfterSwBuildChange() throws Exception {
+        PerNetwork perNetwork = mWifiScoreCard.lookupNetwork(mWifiInfo.getSSID());
+        makeRecentStatsWithGoodConnection(); // Day 1
+        perNetwork.updateAfterDailyDetection();
+        makeRecentStatsWithAssocTimeOut();   // Day 2
+        perNetwork.updateAfterDailyDetection();
+        makeRecentStatsWithAuthFailure();    // Day 3
+        perNetwork.updateAfterDailyDetection();
+        makeRecentStatsWithShortConnection(); // Day 4
+        perNetwork.updateAfterDailyDetection();
+        makeRecentStatsWithShortConnection(); // Day 5
+        perNetwork.updateAfterDailyDetection();
+
+        perNetwork.updateAfterSwBuildChange();
+        makeRecentStatsWithGoodConnection(); // Day 6
+
+        FailureStats statsDec = new FailureStats();
+        FailureStats statsInc = new FailureStats();
+        FailureStats statsHigh = new FailureStats();
+        perNetwork.dailyDetection(statsDec, statsInc, statsHigh);
+        checkStatsDeltaExample(statsDec, 1);
+        checkStatsDeltaExample(statsInc, 0);
+        checkStatsDeltaExample(statsHigh, 0);
+    }
+
+    @Test
+    public void testPoorConnectionWithoutHistory() throws Exception {
+        PerNetwork perNetwork = mWifiScoreCard.lookupNetwork(mWifiInfo.getSSID());
+
+        makeRecentStatsWithShortConnection(); // Day 1
+        makeRecentStatsWithAssocTimeOut();
+        makeRecentStatsWithAuthFailure();
+
+        FailureStats statsDec = new FailureStats();
+        FailureStats statsInc = new FailureStats();
+        FailureStats statsHigh = new FailureStats();
+        int detectionFlag = perNetwork.dailyDetection(statsDec, statsInc, statsHigh);
+        assertEquals(WifiScoreCard.SUFFICIENT_RECENT_STATS_ONLY, detectionFlag);
+        checkStatsDeltaExample(statsDec, 0);
+        checkStatsDeltaExample(statsInc, 0);
+        checkStatsDeltaExample(statsHigh, 1);
+    }
 }

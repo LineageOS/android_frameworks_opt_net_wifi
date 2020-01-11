@@ -18,7 +18,19 @@ package com.android.server.wifi;
 
 import static android.net.wifi.WifiInfo.DEFAULT_MAC_ADDRESS;
 import static android.net.wifi.WifiInfo.INVALID_RSSI;
+import static android.net.wifi.WifiInfo.LINK_SPEED_UNKNOWN;
 
+import static com.android.server.wifi.WifiHealthMonitor.HEALTH_MONITOR_COUNT_MIN_TX_RATE;
+import static com.android.server.wifi.WifiHealthMonitor.HEALTH_MONITOR_COUNT_RSSI_MIN_DBM;
+import static com.android.server.wifi.WifiHealthMonitor.HEALTH_MONITOR_COUNT_TX_SPEED_MIN_MBPS;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_ASSOC_REJECTION;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_ASSOC_TIMEOUT;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_AUTH_FAILURE;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_CONNECTION_FAILURE;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_DISCONNECTION_NONLOCAL;
+import static com.android.server.wifi.WifiHealthMonitor.REASON_SHORT_CONNECTION_NONLOCAL;
+
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.net.MacAddress;
@@ -31,12 +43,16 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
+import com.android.server.wifi.BssidBlocklistMonitor.FailureReason;
+import com.android.server.wifi.WifiHealthMonitor.FailureStats;
 import com.android.server.wifi.proto.WifiScoreCardProto;
 import com.android.server.wifi.proto.WifiScoreCardProto.AccessPoint;
+import com.android.server.wifi.proto.WifiScoreCardProto.ConnectionStats;
 import com.android.server.wifi.proto.WifiScoreCardProto.Event;
 import com.android.server.wifi.proto.WifiScoreCardProto.HistogramBucket;
 import com.android.server.wifi.proto.WifiScoreCardProto.Network;
 import com.android.server.wifi.proto.WifiScoreCardProto.NetworkList;
+import com.android.server.wifi.proto.WifiScoreCardProto.NetworkStats;
 import com.android.server.wifi.proto.WifiScoreCardProto.SecurityType;
 import com.android.server.wifi.proto.WifiScoreCardProto.Signal;
 import com.android.server.wifi.proto.WifiScoreCardProto.UnivariateStatistic;
@@ -46,6 +62,8 @@ import com.android.server.wifi.util.NativeUtil;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -58,10 +76,10 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * Retains statistical information about the performance of various
- * access points, as experienced by this device.
+ * access points and networks, as experienced by this device.
  *
  * The purpose is to better inform future network selection and switching
- * by this device.
+ * by this device and help health monitor detect network issues.
  */
 @NotThreadSafe
 public class WifiScoreCard {
@@ -69,12 +87,50 @@ public class WifiScoreCard {
     public static final String DUMP_ARG = "WifiScoreCard";
 
     private static final String TAG = "WifiScoreCard";
-    private static final boolean DBG = false;
+    private boolean mVerboseLoggingEnabled = false;
 
     @VisibleForTesting
     boolean mPersistentHistograms = true;
 
     private static final int TARGET_IN_MEMORY_ENTRIES = 50;
+    private static final int UNKNOWN_REASON = -1;
+
+    public static final String PER_BSSID_DATA_NAME = "scorecard.proto";
+    public static final String PER_NETWORK_DATA_NAME = "perNetworkData";
+    // Maximum connection duration in seconds to qualify short connection
+    private static final int SHORT_CONNECTION_DURATION_MAX_SEC = 20;
+    // Maximum interval between last RSSI poll and disconnection to qualify
+    // disconnection stats collection.
+    private static final int LAST_RSSI_POLL_MAX_INTERVAL_MS = 3_100;
+    // Minimum number of connection attempts to qualify daily detection
+    @VisibleForTesting
+    static final int MIN_NUM_CONNECTION_ATTEMPT = 20;
+    // Minimum number of connection attempts for historical data
+    private static final int MIN_NUM_CONNECTION_ATTEMPT_PREV = 40;
+    private static final int MIN_NUM_DISCONNECTION = 20;
+    private static final int MIN_NUM_DISCONNECTION_PREV = 40;
+
+    static final int INSUFFICIENT_RECENT_STATS = 0;
+    static final int SUFFICIENT_RECENT_STATS_ONLY = 1;
+    static final int SUFFICIENT_RECENT_PREV_STATS = 2;
+
+    // High and low threshold values for connection failure rate. All of them are in percent with
+    // respect to connection attempts
+    private static final int ONE_HUNDRED_PERCENT = 100;
+    private static final int CONNECTION_FAILURE_PERCENT_HIGH_THRESHOLD = 30;
+    private static final int CONNECTION_FAILURE_PERCENT_LOW_THRESHOLD = 5;
+    private static final int ASSOC_REJECTION_PERCENT_HIGH_THRESHOLD = 10;
+    private static final int ASSOC_REJECTION_PERCENT_LOW_THRESHOLD = 1;
+    private static final int ASSOC_TIMEOUT_PERCENT_HIGH_THRESHOLD = 10;
+    private static final int ASSOC_TIMEOUT_PERCENT_LOW_THRESHOLD = 2;
+    private static final int AUTH_FAILURE_PERCENT_HIGH_THRESHOLD = 10;
+    private static final int AUTH_FAILURE_PERCENT_LOW_THRESHOLD = 2;
+    // High and low threshold values for non-local disconnection rate at high RSSI or high Tx speed
+    // with respect to CNT_DISCONNECTION count (with a recent RSSI poll)
+    private static final int SHORT_CONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD = 10;
+    private static final int SHORT_CONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD = 1;
+    private static final int DISCONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD = 15;
+    private static final int DISCONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD = 1;
 
     private final Clock mClock;
     private final String mL2KeySeed;
@@ -94,9 +150,9 @@ public class WifiScoreCard {
     /** Our view of the memory store */
     public interface MemoryStore {
         /** Requests a read, with asynchronous reply */
-        void read(String key, BlobListener blobListener);
+        void read(String key, String name, BlobListener blobListener);
         /** Requests a write, does not wait for completion */
-        void write(String key, byte[] value);
+        void write(String key, String name, byte[] value);
     }
     /** Asynchronous response to a read request */
     public interface BlobListener {
@@ -132,6 +188,15 @@ public class WifiScoreCard {
     }
 
     /**
+     * Enable/Disable verbose logging.
+     *
+     * @param verbose true to enable and false to disable.
+     */
+    public void enableVerboseLogging(boolean verbose) {
+        mVerboseLoggingEnabled = verbose;
+    }
+
+    /**
      * Timestamp of the start of the most recent connection attempt.
      *
      * Based on mClock.getElapsedSinceBootMillis().
@@ -140,7 +205,8 @@ public class WifiScoreCard {
      * Any negative value means we are not currently connected.
      */
     private long mTsConnectionAttemptStart = TS_NONE;
-    private static final long TS_NONE = -1;
+    @VisibleForTesting
+    static final long TS_NONE = -1;
 
     /**
      * Timestamp captured when we find out about a firmware roam
@@ -165,6 +231,22 @@ public class WifiScoreCard {
     private boolean mAttemptingSwitch = false;
 
     /**
+     *  SSID of currently connected or connecting network. Used during disconnection
+     */
+    private String mSsidCurr = "";
+    /**
+     *  SSID of previously connected network. Used during disconnection when connection attempt
+     *  of current network is issued before the disconnection of previous network.
+     */
+    private String mSsidPrev = "";
+    /**
+     * A flag that notes that current disconnection is not generated by wpa_supplicant
+     * which may indicate abnormal disconnection.
+     */
+    private boolean mNonlocalDisconnection = false;
+    private int mDisconnectionReason;
+
+    /**
      * @param clock is the time source
      * @param l2KeySeed is for making our L2Keys usable only on this device
      */
@@ -172,6 +254,7 @@ public class WifiScoreCard {
         mClock = clock;
         mL2KeySeed = l2KeySeed;
         mDummyPerBssid = new PerBssid("", MacAddress.fromString(DEFAULT_MAC_ADDRESS));
+        mDummyPerNetwork = new PerNetwork("");
     }
 
     /**
@@ -182,23 +265,27 @@ public class WifiScoreCard {
         if (perBssid == mDummyPerBssid) {
             return new Pair<>(null, null);
         }
-        final long groupIdHash = computeHashLong(perBssid.ssid, mDummyPerBssid.bssid);
-        return new Pair<>(perBssid.l2Key, groupHintFromLong(groupIdHash));
+        final long groupIdHash = computeHashLong(
+                perBssid.ssid, mDummyPerBssid.bssid, mL2KeySeed);
+        return new Pair<>(perBssid.getL2Key(), groupHintFromLong(groupIdHash));
     }
 
     /**
-     * Resets the connection state
+     * Handle network disconnection or shutdown event
      */
     public void resetConnectionState() {
-        if (DBG && mTsConnectionAttemptStart > TS_NONE && !mAttemptingSwitch) {
-            Log.v(TAG, "resetConnectionState", new Exception());
+        String ssidDisconnected = (mAttemptingSwitch) ? mSsidPrev : mSsidCurr;
+        updatePerNetwork(Event.DISCONNECTION, ssidDisconnected, INVALID_RSSI, LINK_SPEED_UNKNOWN,
+                UNKNOWN_REASON);
+        if (mVerboseLoggingEnabled && mTsConnectionAttemptStart > TS_NONE && !mAttemptingSwitch) {
+            Log.v(TAG, "handleNetworkDisconnect", new Exception());
         }
         resetConnectionStateInternal(true);
     }
 
     /**
      * @param calledFromResetConnectionState says the call is from outside the class,
-     *        indicating that we need to resepect the value of mAttemptingSwitch.
+     *        indicating that we need to respect the value of mAttemptingSwitch.
      */
     private void resetConnectionStateInternal(boolean calledFromResetConnectionState) {
         if (!calledFromResetConnectionState) {
@@ -210,22 +297,34 @@ public class WifiScoreCard {
         mTsRoam = TS_NONE;
         mPolled = false;
         mValidated = false;
+        mNonlocalDisconnection = false;
     }
 
     /**
-     * Updates the score card using relevant parts of WifiInfo
+     * Updates perBssid using relevant parts of WifiInfo
      *
      * @param wifiInfo object holding relevant values.
      */
-    private void update(WifiScoreCardProto.Event event, ExtendedWifiInfo wifiInfo) {
+    private void updatePerBssid(WifiScoreCardProto.Event event, ExtendedWifiInfo wifiInfo) {
         PerBssid perBssid = lookupBssid(wifiInfo.getSSID(), wifiInfo.getBSSID());
         perBssid.updateEventStats(event,
                 wifiInfo.getFrequency(),
                 wifiInfo.getRssi(),
                 wifiInfo.getLinkSpeed());
         perBssid.setNetworkConfigId(wifiInfo.getNetworkId());
+        logd("BSSID update " + event.toString() + " ID: " + perBssid.id + " " + wifiInfo);
+    }
 
-        if (DBG) Log.d(TAG, event.toString() + " ID: " + perBssid.id + " " + wifiInfo);
+    /**
+     * Updates perNetwork with SSID, current RSSI and failureReason. failureReason is  meaningful
+     * only during connection failure.
+     */
+    private void updatePerNetwork(WifiScoreCardProto.Event event, String ssid, int rssi,
+            int txSpeed, int failureReason) {
+        PerNetwork perNetwork = lookupNetwork(ssid);
+        logd("network update " + event.toString() + ((ssid == null) ? " " : " "
+                    + ssid) + " ID: " + perNetwork.id + " RSSI " + rssi + " txSpeed " + txSpeed);
+        perNetwork.updateEventStats(event, rssi, txSpeed, failureReason);
     }
 
     /**
@@ -233,21 +332,33 @@ public class WifiScoreCard {
      *
      * @param wifiInfo object holding relevant values
      */
-    public void noteSignalPoll(ExtendedWifiInfo wifiInfo) {
+    public void noteSignalPoll(@NonNull ExtendedWifiInfo wifiInfo) {
         if (!mPolled && wifiInfo.getRssi() != INVALID_RSSI) {
-            update(Event.FIRST_POLL_AFTER_CONNECTION, wifiInfo);
+            updatePerBssid(Event.FIRST_POLL_AFTER_CONNECTION, wifiInfo);
             mPolled = true;
         }
-        update(Event.SIGNAL_POLL, wifiInfo);
+        updatePerBssid(Event.SIGNAL_POLL, wifiInfo);
+        int validTxSpeed = geTxLinkSpeedWithSufficientTxRate(wifiInfo);
+        updatePerNetwork(Event.SIGNAL_POLL, wifiInfo.getSSID(), wifiInfo.getRssi(),
+                validTxSpeed, UNKNOWN_REASON);
         if (mTsRoam > TS_NONE && wifiInfo.getRssi() != INVALID_RSSI) {
             long duration = mClock.getElapsedSinceBootMillis() - mTsRoam;
             if (duration >= SUCCESS_MILLIS_SINCE_ROAM) {
-                update(Event.ROAM_SUCCESS, wifiInfo);
+                updatePerBssid(Event.ROAM_SUCCESS, wifiInfo);
                 mTsRoam = TS_NONE;
-                doWrites();
+                doWritesBssid();
             }
         }
     }
+
+    private int geTxLinkSpeedWithSufficientTxRate(@NonNull ExtendedWifiInfo wifiInfo) {
+        double txRate = wifiInfo.getTxSuccessRate() + wifiInfo.getTxBadRate()
+                + wifiInfo.getTxRetriesRate();
+        int txSpeed = wifiInfo.getTxLinkSpeedMbps();
+        logd("txRate: " + txRate + " txSpeed: " + txSpeed);
+        return (txRate >= HEALTH_MONITOR_COUNT_MIN_TX_RATE) ? txSpeed : LINK_SPEED_UNKNOWN;
+    }
+
     /** Wait a few seconds before considering the roam successful */
     private static final long SUCCESS_MILLIS_SINCE_ROAM = 4_000;
 
@@ -256,8 +367,8 @@ public class WifiScoreCard {
      *
      * @param wifiInfo object holding relevant values
      */
-    public void noteIpConfiguration(ExtendedWifiInfo wifiInfo) {
-        update(Event.IP_CONFIGURATION_SUCCESS, wifiInfo);
+    public void noteIpConfiguration(@NonNull ExtendedWifiInfo wifiInfo) {
+        updatePerBssid(Event.IP_CONFIGURATION_SUCCESS, wifiInfo);
         mAttemptingSwitch = false;
         doWrites();
     }
@@ -267,58 +378,83 @@ public class WifiScoreCard {
      *
      * @param wifiInfo object holding relevant values
      */
-    public void noteValidationSuccess(ExtendedWifiInfo wifiInfo) {
+    public void noteValidationSuccess(@NonNull ExtendedWifiInfo wifiInfo) {
         if (mValidated) return; // Only once per connection
-        update(Event.VALIDATION_SUCCESS, wifiInfo);
+        updatePerBssid(Event.VALIDATION_SUCCESS, wifiInfo);
         mValidated = true;
         doWrites();
+    }
+
+    /**
+     * Updates the score card after network validation failure
+     *
+     * @param wifiInfo object holding relevant values
+     */
+    public void noteValidationFailure(@NonNull ExtendedWifiInfo wifiInfo) {
+        mValidated = false;
     }
 
     /**
      * Records the start of a connection attempt
      *
      * @param wifiInfo may have state about an existing connection
+     * @param scanRssi is the highest RSSI of recent scan found from scanDetailCache
+     * @param ssid is the network SSID of connection attempt
      */
-    public void noteConnectionAttempt(ExtendedWifiInfo wifiInfo) {
+    public void noteConnectionAttempt(@NonNull ExtendedWifiInfo wifiInfo,
+            int scanRssi, String ssid) {
         // We may or may not be currently connected. If not, simply record the start.
         // But if we are connected, wrap up the old one first.
         if (mTsConnectionAttemptStart > TS_NONE) {
             if (mPolled) {
-                update(Event.LAST_POLL_BEFORE_SWITCH, wifiInfo);
+                updatePerBssid(Event.LAST_POLL_BEFORE_SWITCH, wifiInfo);
             }
             mAttemptingSwitch = true;
         }
         mTsConnectionAttemptStart = mClock.getElapsedSinceBootMillis();
         mPolled = false;
+        mSsidPrev = mSsidCurr;
+        mSsidCurr = ssid;
 
-        if (DBG) Log.d(TAG, "CONNECTION_ATTEMPT" + (mAttemptingSwitch ? " X " : " ") + wifiInfo);
+        updatePerNetwork(Event.CONNECTION_ATTEMPT, ssid, scanRssi, LINK_SPEED_UNKNOWN,
+                UNKNOWN_REASON);
+        logd("CONNECTION_ATTEMPT" + (mAttemptingSwitch ? " X " : " ") + wifiInfo);
     }
 
     /**
      * Records a newly assigned NetworkAgent netId.
      */
-    public void noteNetworkAgentCreated(ExtendedWifiInfo wifiInfo, int networkAgentId) {
+    public void noteNetworkAgentCreated(@NonNull ExtendedWifiInfo wifiInfo, int networkAgentId) {
         PerBssid perBssid = lookupBssid(wifiInfo.getSSID(), wifiInfo.getBSSID());
-        if (DBG) {
-            Log.d(TAG, "NETWORK_AGENT_ID: " + networkAgentId + " ID: " + perBssid.id);
-        }
+        logd("NETWORK_AGENT_ID: " + networkAgentId + " ID: " + perBssid.id);
         perBssid.mNetworkAgentId = networkAgentId;
+    }
+
+    /**
+     * Record disconnection not initiated by wpa_supplicant in connected mode
+     * @param reason is detailed disconnection reason code
+     */
+    public void noteNonlocalDisconnect(int reason) {
+        mNonlocalDisconnection = true;
+        mDisconnectionReason = reason;
+        logd("nonlocal disconnection with reason: " + reason);
     }
 
     /**
      * Updates the score card after a failed connection attempt
      *
-     * @param wifiInfo object holding relevant values
+     * @param wifiInfo object holding relevant values.
+     * @param scanRssi is the highest RSSI of recent scan found from scanDetailCache
+     * @param ssid is the network SSID.
+     * @param failureReason is connection failure reason
      */
-    public void noteConnectionFailure(ExtendedWifiInfo wifiInfo,
-                int codeMetrics, int codeMetricsProto) {
-        if (DBG) {
-            Log.d(TAG, "noteConnectionFailure(..., " + codeMetrics + ", " + codeMetricsProto + ")");
-        }
-        // TODO(b/112196799) Need to sort out the reasons better. Also, we get here
-        // when we disconnect from below, so it should sometimes get counted as a
-        // disconnection rather than a connection failure.
-        update(Event.CONNECTION_FAILURE, wifiInfo);
+    public void noteConnectionFailure(@NonNull ExtendedWifiInfo wifiInfo,
+            int scanRssi, String ssid, @FailureReason int failureReason) {
+        // TODO: add the breakdown of level2FailureReason
+        updatePerBssid(Event.CONNECTION_FAILURE, wifiInfo);
+
+        updatePerNetwork(Event.CONNECTION_FAILURE, ssid, scanRssi, LINK_SPEED_UNKNOWN,
+                failureReason);
         resetConnectionStateInternal(false);
     }
 
@@ -327,13 +463,14 @@ public class WifiScoreCard {
      *
      * @param wifiInfo object holding relevant values
      */
-    public void noteIpReachabilityLost(ExtendedWifiInfo wifiInfo) {
-        update(Event.IP_REACHABILITY_LOST, wifiInfo);
+    public void noteIpReachabilityLost(@NonNull ExtendedWifiInfo wifiInfo) {
+        updatePerBssid(Event.IP_REACHABILITY_LOST, wifiInfo);
         if (mTsRoam > TS_NONE) {
             mTsConnectionAttemptStart = mTsRoam; // just to update elapsed
-            update(Event.ROAM_FAILURE, wifiInfo);
+            updatePerBssid(Event.ROAM_FAILURE, wifiInfo);
         }
-        resetConnectionStateInternal(false);
+        // No need to call resetConnectionStateInternal() because
+        // resetConnectionState() will be called after WifiNative.disconnect() in ClientModeImpl
         doWrites();
     }
 
@@ -345,8 +482,8 @@ public class WifiScoreCard {
      *
      * @param wifiInfo object holding relevant values
      */
-    public void noteRoam(ExtendedWifiInfo wifiInfo) {
-        update(Event.LAST_POLL_BEFORE_ROAM, wifiInfo);
+    public void noteRoam(@NonNull ExtendedWifiInfo wifiInfo) {
+        updatePerBssid(Event.LAST_POLL_BEFORE_ROAM, wifiInfo);
         mTsRoam = mClock.getElapsedSinceBootMillis();
     }
 
@@ -356,10 +493,9 @@ public class WifiScoreCard {
      * @param wifiInfo object holding old values
      * @param state the new supplicant state
      */
-    public void noteSupplicantStateChanging(ExtendedWifiInfo wifiInfo, SupplicantState state) {
-        if (DBG) {
-            Log.d(TAG, "Changing state to " + state + " " + wifiInfo);
-        }
+    public void noteSupplicantStateChanging(@NonNull ExtendedWifiInfo wifiInfo,
+            SupplicantState state) {
+        logd("Changing state to " + state + " " + wifiInfo);
     }
 
     /**
@@ -368,9 +504,7 @@ public class WifiScoreCard {
      * @param wifiInfo object holding old values
      */
     public void noteSupplicantStateChanged(ExtendedWifiInfo wifiInfo) {
-        if (DBG) {
-            Log.d(TAG, "STATE " + wifiInfo);
-        }
+        logd("STATE " + wifiInfo);
     }
 
     /**
@@ -378,8 +512,8 @@ public class WifiScoreCard {
      *
      * @param wifiInfo object holding relevant values
      */
-    public void noteWifiDisabled(ExtendedWifiInfo wifiInfo) {
-        update(Event.WIFI_DISABLED, wifiInfo);
+    public void noteWifiDisabled(@NonNull ExtendedWifiInfo wifiInfo) {
+        updatePerBssid(Event.WIFI_DISABLED, wifiInfo);
         resetConnectionStateInternal(false);
         doWrites();
     }
@@ -445,9 +579,8 @@ public class WifiScoreCard {
         }
     }
 
-    final class PerBssid {
+    final class PerBssid extends MemoryStoreAccessBase {
         public int id;
-        public final String l2Key;
         public final String ssid;
         public final MacAddress bssid;
         public final int[] blocklistStreakCount =
@@ -463,11 +596,10 @@ public class WifiScoreCard {
         private final Map<Pair<Event, Integer>, PerSignal>
                 mSignalForEventAndFrequency = new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
+            super(computeHashLong(ssid, bssid, mL2KeySeed));
             this.ssid = ssid;
             this.bssid = bssid;
-            final long hash = computeHashLong(ssid, bssid);
-            this.l2Key = l2KeyFromLong(hash);
-            this.id = idFromLong(hash);
+            this.id = idFromLong();
             this.changed = false;
             this.referenced = false;
         }
@@ -543,7 +675,7 @@ public class WifiScoreCard {
                 if (mSecurityType == null) {
                     mSecurityType = prev;
                 } else if (!mSecurityType.equals(prev)) {
-                    if (DBG) {
+                    if (mVerboseLoggingEnabled) {
                         Log.i(TAG, "ID: " + id
                                 + "SecurityType changed: " + prev + " to " + mSecurityType);
                     }
@@ -564,13 +696,535 @@ public class WifiScoreCard {
             }
             return this;
         }
-        String getL2Key() {
-            return l2Key.toString();
-        }
+
         /**
-         * Called when the (asynchronous) answer to a read request comes back.
+         * Handles (when convenient) the arrival of previously stored data.
+         *
+         * The response from IpMemoryStore arrives on a different thread, so we
+         * defer handling it until here, when we're on our favorite thread and
+         * in a good position to deal with it. We may have already collected some
+         * data before now, so we need to be prepared to merge the new and old together.
          */
-        void lazyMerge(byte[] serialized) {
+        void finishPendingRead() {
+            final byte[] serialized = finishPendingReadBytes();
+            if (serialized == null) return;
+            AccessPoint ap;
+            try {
+                ap = AccessPoint.parseFrom(serialized);
+            } catch (InvalidProtocolBufferException e) {
+                Log.e(TAG, "Failed to deserialize", e);
+                return;
+            }
+            merge(ap);
+        }
+    }
+
+    /**
+     * A class collecting the connection stats of one network or SSID.
+     */
+    final class PerNetwork extends MemoryStoreAccessBase {
+        public int id;
+        public final String ssid;
+        public boolean changed;
+        private int mLastRssiPoll = INVALID_RSSI;
+        private int mLastTxSpeedPoll = LINK_SPEED_UNKNOWN;
+        private long mLastRssiPollTimeMs = TS_NONE;
+        private long mConnectionSessionStartTimeMs = TS_NONE;
+        private NetworkConnectionStats mRecentStats;
+        private NetworkConnectionStats mStatsCurrBuild;
+        private NetworkConnectionStats mStatsPrevBuild;
+
+        PerNetwork(String ssid) {
+            super(computeHashLong(ssid, MacAddress.fromString(DEFAULT_MAC_ADDRESS), mL2KeySeed));
+            this.ssid = ssid;
+            this.id = idFromLong();
+            this.changed = false;
+            mRecentStats = new NetworkConnectionStats();
+            mStatsCurrBuild = new NetworkConnectionStats();
+            mStatsPrevBuild = new NetworkConnectionStats();
+        }
+
+        void updateEventStats(Event event, int rssi, int txSpeed, int failureReason) {
+            finishPendingRead();
+            long currTimeMs = mClock.getWallClockMillis();
+            switch (event) {
+                case SIGNAL_POLL:
+                    mLastRssiPoll = rssi;
+                    mLastRssiPollTimeMs = currTimeMs;
+                    mLastTxSpeedPoll = txSpeed;
+                    changed = true;
+                    break;
+                case CONNECTION_ATTEMPT:
+                    logd(" scan rssi: " + rssi);
+                    if (rssi >= HEALTH_MONITOR_COUNT_RSSI_MIN_DBM) {
+                        mRecentStats.incrementCount(CNT_CONNECTION_ATTEMPT);
+                    }
+                    mConnectionSessionStartTimeMs = currTimeMs;
+                    changed = true;
+                    break;
+                case CONNECTION_FAILURE:
+                    mConnectionSessionStartTimeMs = TS_NONE;
+                    if (rssi >= HEALTH_MONITOR_COUNT_RSSI_MIN_DBM) {
+                        if (failureReason != BssidBlocklistMonitor.REASON_WRONG_PASSWORD) {
+                            mRecentStats.incrementCount(CNT_CONNECTION_FAILURE);
+                        }
+                        switch (failureReason) {
+                            case BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA:
+                            case BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION:
+                                mRecentStats.incrementCount(CNT_ASSOCIATION_REJECTION);
+                                break;
+                            case BssidBlocklistMonitor.REASON_ASSOCIATION_TIMEOUT:
+                                mRecentStats.incrementCount(CNT_ASSOCIATION_TIMEOUT);
+                                break;
+                            case BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE:
+                            case BssidBlocklistMonitor.REASON_EAP_FAILURE:
+                                mRecentStats.incrementCount(CNT_AUTHENTICATION_FAILURE);
+                                break;
+                            case BssidBlocklistMonitor.REASON_WRONG_PASSWORD:
+                            case BssidBlocklistMonitor.REASON_DHCP_FAILURE:
+                            default:
+                                break;
+                        }
+                    }
+                    changed = true;
+                    break;
+                case WIFI_DISABLED:
+                case DISCONNECTION:
+                    handleDisconnection();
+                    changed = true;
+                    break;
+                default:
+                    break;
+            }
+            logd(this.toString());
+        }
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(" LastRssiPollTime: " + mLastRssiPollTimeMs);
+            sb.append(" LastRssiPoll: " + mLastRssiPoll);
+            sb.append(" LastTxSpeedPoll: " + mLastTxSpeedPoll);
+            sb.append("\n");
+            sb.append(" StatsRecent: " + mRecentStats.toString());
+            sb.append("\n");
+            sb.append(" StatsCurr: " + mStatsCurrBuild.toString());
+            sb.append("\n");
+            sb.append(" StatsPrev: " + mStatsPrevBuild.toString());
+            return sb.toString();
+        }
+        private void handleDisconnection() {
+            if (mConnectionSessionStartTimeMs > TS_NONE) {
+                long currTimeMs = mClock.getWallClockMillis();
+                int currSessionDurationSec = (int) ((currTimeMs
+                        - mConnectionSessionStartTimeMs) / 1000);
+                mRecentStats.accumulate(CNT_CONNECTION_DURATION_SEC, currSessionDurationSec);
+                long timeSinceLastRssiPollMs = currTimeMs - mLastRssiPollTimeMs;
+                boolean hasRecentRssiPoll = (mLastRssiPollTimeMs > TS_NONE
+                        && timeSinceLastRssiPollMs <= LAST_RSSI_POLL_MAX_INTERVAL_MS);
+                if (hasRecentRssiPoll) {
+                    mRecentStats.incrementCount(CNT_DISCONNECTION);
+                }
+                if (mNonlocalDisconnection && hasRecentRssiPoll
+                        && (mLastRssiPoll >= HEALTH_MONITOR_COUNT_RSSI_MIN_DBM
+                        || mLastTxSpeedPoll >= HEALTH_MONITOR_COUNT_TX_SPEED_MIN_MBPS)) {
+                    mRecentStats.incrementCount(CNT_DISCONNECTION_NONLOCAL);
+                    if (currSessionDurationSec <= SHORT_CONNECTION_DURATION_MAX_SEC) {
+                        mRecentStats.incrementCount(CNT_SHORT_CONNECTION_NONLOCAL);
+                    }
+                }
+            }
+            mConnectionSessionStartTimeMs = TS_NONE;
+            mLastRssiPollTimeMs = TS_NONE;
+        }
+        @NonNull NetworkConnectionStats getRecentStats() {
+            return mRecentStats;
+        }
+        @NonNull NetworkConnectionStats getStatsCurrBuild() {
+            return mStatsCurrBuild;
+        }
+        @NonNull NetworkConnectionStats getStatsPrevBuild() {
+            return mStatsPrevBuild;
+        }
+
+        /**
+        /* Detect a significant failure stats change with historical data
+        /* or high failure stats without historical data.
+        /* @return 0 if recentStats doesn't have sufficient data
+         *         1 if recentStats has sufficient data while statsPrevBuild doesn't
+         *         2 if recentStats and statsPrevBuild have sufficient data
+         */
+        int dailyDetection(FailureStats statsDec, FailureStats statsInc, FailureStats statsHigh) {
+            finishPendingRead();
+            dailyDetectionDisconnectionEvent(statsDec, statsInc, statsHigh);
+            return dailyDetectionConnectionEvent(statsDec, statsInc, statsHigh);
+        }
+
+        private int dailyDetectionConnectionEvent(FailureStats statsDec, FailureStats statsInc,
+                FailureStats statsHigh) {
+            // Skip daily detection if recentStats is not sufficient
+            if (!isRecentConnectionStatsSufficient()) return INSUFFICIENT_RECENT_STATS;
+            if (mStatsPrevBuild.getCount(CNT_CONNECTION_ATTEMPT)
+                    < MIN_NUM_CONNECTION_ATTEMPT_PREV) {
+                // don't have enough historical data,
+                // so only detect high failure stats without relying on mStatsPrevBuild.
+                // Increase low threshold so that mStatsPrevBuild is always below it
+                // statsHigh only depends on mRecentStats.
+                FailureStats statsDummy = new FailureStats();
+                statsDeltaDetectionConnection(statsDummy, statsHigh, ONE_HUNDRED_PERCENT);
+                return SUFFICIENT_RECENT_STATS_ONLY;
+            } else {
+                // mStatsPrevBuild has enough updates,
+                // detect improvement or degradation with normal threshold values.
+                statsDeltaDetectionConnection(statsDec, statsInc, /* thresholdLowOffset */ 0);
+                return SUFFICIENT_RECENT_PREV_STATS;
+            }
+        }
+
+        private void dailyDetectionDisconnectionEvent(FailureStats statsDec, FailureStats statsInc,
+                FailureStats statsHigh) {
+            // Skip daily detection if recentStats is not sufficient
+            if (mRecentStats.getCount(CNT_DISCONNECTION) < MIN_NUM_DISCONNECTION) return;
+            if (mStatsPrevBuild.getCount(CNT_DISCONNECTION) < MIN_NUM_DISCONNECTION_PREV) {
+                FailureStats statsDummy = new FailureStats();
+                statsDeltaDetectionDisconnection(statsDummy, statsHigh, ONE_HUNDRED_PERCENT);
+            } else {
+                statsDeltaDetectionDisconnection(statsDec, statsInc, /* thresholdLowOffset */ 0);
+            }
+        }
+
+        private void statsDeltaDetectionConnection(FailureStats statsDec,
+                FailureStats statsInc, int thresholdLowOffset) {
+            statsDeltaDetection(statsDec, statsInc, CNT_CONNECTION_FAILURE,
+                    REASON_CONNECTION_FAILURE,
+                    CONNECTION_FAILURE_PERCENT_HIGH_THRESHOLD,
+                    CONNECTION_FAILURE_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    CNT_CONNECTION_ATTEMPT);
+            statsDeltaDetection(statsDec, statsInc, CNT_AUTHENTICATION_FAILURE,
+                    REASON_AUTH_FAILURE,
+                    AUTH_FAILURE_PERCENT_HIGH_THRESHOLD,
+                    AUTH_FAILURE_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    CNT_CONNECTION_ATTEMPT);
+            statsDeltaDetection(statsDec, statsInc, CNT_ASSOCIATION_REJECTION,
+                    REASON_ASSOC_REJECTION,
+                    ASSOC_REJECTION_PERCENT_HIGH_THRESHOLD,
+                    ASSOC_REJECTION_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    CNT_CONNECTION_ATTEMPT);
+            statsDeltaDetection(statsDec, statsInc, CNT_ASSOCIATION_TIMEOUT,
+                    REASON_ASSOC_TIMEOUT,
+                    ASSOC_TIMEOUT_PERCENT_HIGH_THRESHOLD,
+                    ASSOC_TIMEOUT_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    CNT_CONNECTION_ATTEMPT);
+        }
+
+        private void statsDeltaDetectionDisconnection(FailureStats statsDec,
+                FailureStats statsInc, int thresholdLowOffset) {
+            statsDeltaDetection(statsDec, statsInc, CNT_SHORT_CONNECTION_NONLOCAL,
+                    REASON_SHORT_CONNECTION_NONLOCAL,
+                    SHORT_CONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD,
+                    SHORT_CONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    CNT_DISCONNECTION);
+            statsDeltaDetection(statsDec, statsInc, CNT_DISCONNECTION_NONLOCAL,
+                    REASON_DISCONNECTION_NONLOCAL,
+                    DISCONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD,
+                    DISCONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    CNT_DISCONNECTION);
+        }
+
+        private boolean statsDeltaDetection(FailureStats statsDec,
+                FailureStats statsInc, int countCode, int reasonCode,
+                int highThreshold, int lowThreshold, int refCountCode) {
+            if (isRateBelowThreshold(mStatsPrevBuild, countCode, lowThreshold, refCountCode)
+                    && isRateAboveThreshold(mRecentStats, countCode, highThreshold, refCountCode)) {
+                statsInc.incrementCount(reasonCode);
+                return true;
+            }
+            if (isRateAboveThreshold(mStatsPrevBuild, countCode, highThreshold, refCountCode)
+                    && isRateBelowThreshold(mRecentStats, countCode, lowThreshold, refCountCode)) {
+                statsDec.incrementCount(reasonCode);
+                return true;
+            }
+            return false;
+        }
+
+        private boolean isRateAboveThreshold(NetworkConnectionStats stats,
+                @ConnectionCountCode int countCode, int threshold, int refCountCode) {
+            return (stats.getCount(countCode) * ONE_HUNDRED_PERCENT)
+                    >= (threshold * stats.getCount(refCountCode));
+        }
+
+        private boolean isRateBelowThreshold(NetworkConnectionStats stats,
+                @ConnectionCountCode int countCode, int threshold, int refCountCode) {
+            return (stats.getCount(countCode) * ONE_HUNDRED_PERCENT)
+                    <= (threshold * stats.getCount(refCountCode));
+        }
+
+        private boolean isRecentConnectionStatsSufficient() {
+            return (mRecentStats.getCount(CNT_CONNECTION_ATTEMPT) >= MIN_NUM_CONNECTION_ATTEMPT);
+        }
+
+        // Update StatsCurrBuild with recentStats and clear recentStats
+        void updateAfterDailyDetection() {
+            // Skip update if recentStats is not sufficient since daily detection is also skipped
+            if (!isRecentConnectionStatsSufficient()) return;
+            mStatsCurrBuild.accumulateAll(mRecentStats);
+            mRecentStats.clear();
+            changed = true;
+        }
+
+        // Refresh StatsPrevBuild with StatsCurrBuild which is cleared afterwards
+        void updateAfterSwBuildChange() {
+            finishPendingRead();
+            mStatsPrevBuild.copy(mStatsCurrBuild);
+            mRecentStats.clear();
+            mStatsCurrBuild.clear();
+            changed = true;
+        }
+
+        NetworkStats toNetworkStats() {
+            finishPendingRead();
+            NetworkStats.Builder builder = NetworkStats.newBuilder();
+            builder.setId(id);
+            builder.setRecentStats(toConnectionStats(mRecentStats));
+            builder.setStatsCurrBuild(toConnectionStats(mStatsCurrBuild));
+            builder.setStatsPrevBuild(toConnectionStats(mStatsPrevBuild));
+            return builder.build();
+        }
+
+        private ConnectionStats toConnectionStats(NetworkConnectionStats stats) {
+            ConnectionStats.Builder builder = ConnectionStats.newBuilder();
+            builder.setNumConnectionAttempt(stats.getCount(CNT_CONNECTION_ATTEMPT));
+            builder.setNumConnectionFailure(stats.getCount(CNT_CONNECTION_FAILURE));
+            builder.setConnectionDurationSec(stats.getCount(CNT_CONNECTION_DURATION_SEC));
+            builder.setNumDisconnectionNonlocal(stats.getCount(CNT_DISCONNECTION_NONLOCAL));
+            builder.setNumDisconnection(stats.getCount(CNT_DISCONNECTION));
+            builder.setNumShortConnectionNonlocal(stats.getCount(CNT_SHORT_CONNECTION_NONLOCAL));
+            builder.setNumAssociationRejection(stats.getCount(CNT_ASSOCIATION_REJECTION));
+            builder.setNumAssociationTimeout(stats.getCount(CNT_ASSOCIATION_TIMEOUT));
+            builder.setNumAuthenticationFailure(stats.getCount(CNT_AUTHENTICATION_FAILURE));
+            return builder.build();
+        }
+
+        void finishPendingRead() {
+            final byte[] serialized = finishPendingReadBytes();
+            if (serialized == null) return;
+            NetworkStats ns;
+            try {
+                ns = NetworkStats.parseFrom(serialized);
+            } catch (InvalidProtocolBufferException e) {
+                Log.e(TAG, "Failed to deserialize", e);
+                return;
+            }
+            mergeNetworkStatsFromMemory(ns);
+            changed = true;
+        }
+
+        PerNetwork mergeNetworkStatsFromMemory(@NonNull NetworkStats ns) {
+            if (ns.hasId() && this.id != ns.getId()) {
+                return this;
+            }
+            if (ns.hasRecentStats()) {
+                ConnectionStats recentStats = ns.getRecentStats();
+                mergeConnectionStats(recentStats, mRecentStats);
+            }
+            if (ns.hasStatsCurrBuild()) {
+                ConnectionStats statsCurr = ns.getStatsCurrBuild();
+                mStatsCurrBuild.clear();
+                mergeConnectionStats(statsCurr, mStatsCurrBuild);
+            }
+            if (ns.hasStatsPrevBuild()) {
+                ConnectionStats statsPrev = ns.getStatsPrevBuild();
+                mStatsPrevBuild.clear();
+                mergeConnectionStats(statsPrev, mStatsPrevBuild);
+            }
+            return this;
+        }
+
+        private void mergeConnectionStats(ConnectionStats source, NetworkConnectionStats target) {
+            if (source.hasNumConnectionAttempt()) {
+                target.accumulate(CNT_CONNECTION_ATTEMPT, source.getNumConnectionAttempt());
+            }
+            if (source.hasNumConnectionFailure()) {
+                target.accumulate(CNT_CONNECTION_ATTEMPT, source.getNumConnectionFailure());
+            }
+            if (source.hasConnectionDurationSec()) {
+                target.accumulate(CNT_CONNECTION_DURATION_SEC, source.getConnectionDurationSec());
+            }
+            if (source.hasNumDisconnectionNonlocal()) {
+                target.accumulate(CNT_DISCONNECTION_NONLOCAL, source.getNumDisconnectionNonlocal());
+            }
+            if (source.hasNumDisconnection()) {
+                target.accumulate(CNT_DISCONNECTION, source.getNumDisconnection());
+            }
+            if (source.hasNumShortConnectionNonlocal()) {
+                target.accumulate(CNT_SHORT_CONNECTION_NONLOCAL,
+                        source.getNumShortConnectionNonlocal());
+            }
+            if (source.hasNumAssociationRejection()) {
+                target.accumulate(CNT_ASSOCIATION_REJECTION, source.getNumAssociationRejection());
+            }
+            if (source.hasNumAssociationTimeout()) {
+                target.accumulate(CNT_ASSOCIATION_TIMEOUT, source.getNumAssociationTimeout());
+            }
+            if (source.hasNumAuthenticationFailure()) {
+                target.accumulate(CNT_AUTHENTICATION_FAILURE, source.getNumAuthenticationFailure());
+            }
+        }
+    }
+
+    // Codes for various connection related counts
+    public static final int CNT_CONNECTION_ATTEMPT = 0;
+    public static final int CNT_CONNECTION_FAILURE = 1;
+    public static final int CNT_CONNECTION_DURATION_SEC = 2;
+    public static final int CNT_ASSOCIATION_REJECTION = 3;
+    public static final int CNT_ASSOCIATION_TIMEOUT = 4;
+    public static final int CNT_AUTHENTICATION_FAILURE = 5;
+    public static final int CNT_SHORT_CONNECTION_NONLOCAL = 6;
+    public static final int CNT_DISCONNECTION_NONLOCAL = 7;
+    public static final int CNT_DISCONNECTION = 8;
+    // Constant being used to keep track of how many counter there are.
+    public static final int NUMBER_CONNECTION_CNT_CODE = 9;
+    private static final String[] CONNECTION_CNT_NAME = {
+        " ConnectAttempt: ",
+        " ConnectFailure: ",
+        " ConnectDurSec: ",
+        " AssocRej: ",
+        " AssocTimeout: ",
+        " AuthFailure: ",
+        " ShortDiscNonlocal: ",
+        " DisconnectNonlocal: ",
+        " Disconnect: "
+    };
+
+    @IntDef(prefix = { "CNT_" }, value = {
+        CNT_CONNECTION_ATTEMPT,
+        CNT_CONNECTION_FAILURE,
+        CNT_CONNECTION_DURATION_SEC,
+        CNT_ASSOCIATION_REJECTION,
+        CNT_ASSOCIATION_TIMEOUT,
+        CNT_AUTHENTICATION_FAILURE,
+        CNT_SHORT_CONNECTION_NONLOCAL,
+        CNT_DISCONNECTION_NONLOCAL,
+        CNT_DISCONNECTION
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ConnectionCountCode {}
+
+    /**
+     * A class maintaining the connection related statistics of a Wifi network.
+     */
+    public static class NetworkConnectionStats {
+        private final int[] mCount = new int[NUMBER_CONNECTION_CNT_CODE];
+
+        /**
+         * Copy all values
+         * @param src is the source of copy
+         */
+        public void copy(NetworkConnectionStats src) {
+            for (int i = 0; i < NUMBER_CONNECTION_CNT_CODE; i++) {
+                mCount[i] = src.getCount(i);
+            }
+        }
+
+        /**
+         * Clear all counters
+         */
+        public void clear() {
+            for (int i = 0; i < NUMBER_CONNECTION_CNT_CODE; i++) {
+                mCount[i] = 0;
+            }
+        }
+
+        /**
+         * Get counter value
+         * @param countCode is the selected counter
+         * @return the value of selected counter
+         */
+        public int getCount(@ConnectionCountCode int countCode) {
+            return mCount[countCode];
+        }
+
+        /**
+         * Set counterer value
+         * @param countCode is the selected counter
+         * @param cnt is the value set to the selected counter
+         */
+        public void setCount(@ConnectionCountCode int countCode, int cnt) {
+            mCount[countCode] = cnt;
+        }
+
+        /**
+         * Increment count value by 1
+         * @param countCode is the selected counter
+         */
+        public void incrementCount(@ConnectionCountCode int countCode) {
+            mCount[countCode]++;
+        }
+
+        /**
+         * Decrement count value by 1
+         * @param countCode is the selected counter
+         */
+        public void decrementCount(@ConnectionCountCode int countCode) {
+            mCount[countCode]--;
+        }
+
+        /**
+         * Add and accumulate the selected counter
+         * @param countCode is the selected counter
+         * @param cnt is the value to be added to the counter
+         */
+        public void accumulate(@ConnectionCountCode int countCode, int cnt) {
+            mCount[countCode] += cnt;
+        }
+
+        /**
+         * Accumulate daily stats to historical data
+         * @param recentStats are the raw daily counts
+         */
+        public void accumulateAll(NetworkConnectionStats recentStats) {
+            // 32-bit counter in second can support connection duration up to 68 years.
+            // Similarly 32-bit counter can support up to continuous connection attempt
+            // up to 68 years with one attempt per second.
+            for (int i = 0; i < NUMBER_CONNECTION_CNT_CODE; i++) {
+                mCount[i] += recentStats.getCount(i);
+            }
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < NUMBER_CONNECTION_CNT_CODE; i++) {
+                sb.append(CONNECTION_CNT_NAME[i]);
+                sb.append(mCount[i]);
+            }
+            return sb.toString();
+        }
+    }
+    /**
+     * A base class dealing with common operations of MemoryStore.
+     */
+    public static class MemoryStoreAccessBase {
+        private final String mL2Key;
+        private final long mHash;
+        private static final String TAG = "WifiMemoryStoreAccessBase";
+        private final AtomicReference<byte[]> mPendingReadFromStore = new AtomicReference<>();
+        MemoryStoreAccessBase(long hash) {
+            mHash = hash;
+            mL2Key = l2KeyFromLong();
+        }
+        String getL2Key() {
+            return mL2Key;
+        }
+
+        private String l2KeyFromLong() {
+            return "W" + Long.toHexString(mHash);
+        }
+
+        /**
+         * Callback function when MemoryStore read is done
+         * @param serialized is the readback value
+         */
+        void readBackListener(byte[] serialized) {
             if (serialized == null) return;
             byte[] old = mPendingReadFromStore.getAndSet(serialized);
             if (old != null) {
@@ -585,21 +1239,21 @@ public class WifiScoreCard {
          * in a good position to deal with it. We may have already collected some
          * data before now, so we need to be prepared to merge the new and old together.
          */
-        void finishPendingRead() {
-            final byte[] serialized = mPendingReadFromStore.getAndSet(null);
-            if (serialized == null) return;
-            AccessPoint ap;
-            try {
-                ap = AccessPoint.parseFrom(serialized);
-            } catch (InvalidProtocolBufferException e) {
-                Log.e(TAG, "Failed to deserialize", e);
-                return;
-            }
-            merge(ap);
+        byte[] finishPendingReadBytes() {
+            return mPendingReadFromStore.getAndSet(null);
         }
-        private final AtomicReference<byte[]> mPendingReadFromStore = new AtomicReference<>();
+
+
+        int idFromLong() {
+            return (int) mHash & 0x7fffffff;
+        }
     }
 
+    private void logd(String string) {
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, string);
+        }
+    }
     // Returned by lookupBssid when the BSSID is not available,
     // for instance when we are not associated.
     private final PerBssid mDummyPerBssid;
@@ -630,7 +1284,7 @@ public class WifiScoreCard {
                 Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.id);
                 if (old.referenced) mApForBssidReferenced--;
             }
-            requestReadForPerBssid(ans);
+            requestReadBssid(ans);
         }
         if (!ans.referenced) {
             ans.referenced = true;
@@ -640,17 +1294,58 @@ public class WifiScoreCard {
         return ans;
     }
 
-    private void requestReadForPerBssid(final PerBssid perBssid) {
+    private void requestReadBssid(final PerBssid perBssid) {
         if (mMemoryStore != null) {
-            mMemoryStore.read(perBssid.getL2Key(), (value) -> perBssid.lazyMerge(value));
+            mMemoryStore.read(perBssid.getL2Key(), PER_BSSID_DATA_NAME,
+                    (value) -> perBssid.readBackListener(value));
         }
     }
 
     private void requestReadForAllChanged() {
         for (PerBssid perBssid : mApForBssid.values()) {
             if (perBssid.changed) {
-                requestReadForPerBssid(perBssid);
+                requestReadBssid(perBssid);
             }
+        }
+    }
+
+    // Returned by lookupNetwork when the network is not available,
+    // for instance when we are not associated.
+    private final PerNetwork mDummyPerNetwork;
+    private final Map<String, PerNetwork> mApForNetwork = new ArrayMap<>();
+    PerNetwork lookupNetwork(String ssid) {
+        if (ssid == null || WifiManager.UNKNOWN_SSID.equals(ssid)) {
+            return mDummyPerNetwork;
+        }
+
+        PerNetwork ans = mApForNetwork.get(ssid);
+        if (ans == null) {
+            ans = new PerNetwork(ssid);
+            mApForNetwork.put(ssid, ans);
+            requestReadNetwork(ans);
+        }
+        return ans;
+    }
+
+    /**
+     * Remove network from cache and memory store
+     * @param ssid is the network SSID
+     */
+    public void removeNetwork(String ssid) {
+        if (ssid == null || WifiManager.UNKNOWN_SSID.equals(ssid)) {
+            return;
+        }
+        mApForNetwork.remove(ssid);
+        if (mMemoryStore == null) return;
+        PerNetwork ans = new PerNetwork(ssid);
+        byte[] serialized = {};
+        mMemoryStore.write(ans.getL2Key(), PER_NETWORK_DATA_NAME, serialized);
+    }
+
+    void requestReadNetwork(final PerNetwork perNetwork) {
+        if (mMemoryStore != null) {
+            mMemoryStore.read(perNetwork.getL2Key(), PER_NETWORK_DATA_NAME,
+                    (value) -> perNetwork.readBackListener(value));
         }
     }
 
@@ -664,6 +1359,10 @@ public class WifiScoreCard {
      * @returns number of writes issued.
      */
     public int doWrites() {
+        return doWritesBssid() + doWritesNetwork();
+    }
+
+    private int doWritesBssid() {
         if (mMemoryStore == null) return 0;
         int count = 0;
         int bytes = 0;
@@ -671,13 +1370,33 @@ public class WifiScoreCard {
             if (perBssid.changed) {
                 perBssid.finishPendingRead();
                 byte[] serialized = perBssid.toAccessPoint(/* No BSSID */ true).toByteArray();
-                mMemoryStore.write(perBssid.getL2Key(), serialized);
+                mMemoryStore.write(perBssid.getL2Key(), PER_BSSID_DATA_NAME, serialized);
                 perBssid.changed = false;
                 count++;
                 bytes += serialized.length;
             }
         }
-        if (DBG && count > 0) {
+        if (mVerboseLoggingEnabled && count > 0) {
+            Log.v(TAG, "Write count: " + count + ", bytes: " + bytes);
+        }
+        return count;
+    }
+
+    private int doWritesNetwork() {
+        if (mMemoryStore == null) return 0;
+        int count = 0;
+        int bytes = 0;
+        for (PerNetwork perNetwork : mApForNetwork.values()) {
+            if (perNetwork.changed) {
+                perNetwork.finishPendingRead();
+                byte[] serialized = perNetwork.toNetworkStats().toByteArray();
+                mMemoryStore.write(perNetwork.getL2Key(), PER_NETWORK_DATA_NAME, serialized);
+                perNetwork.changed = false;
+                count++;
+                bytes += serialized.length;
+            }
+        }
+        if (mVerboseLoggingEnabled && count > 0) {
             Log.v(TAG, "Write count: " + count + ", bytes: " + bytes);
         }
         return count;
@@ -695,7 +1414,7 @@ public class WifiScoreCard {
     private void clean() {
         if (mMemoryStore == null) return;
         if (mApForBssidReferenced >= mApForBssidTargetSize) {
-            doWrites(); // Do not want to evict changed items
+            doWritesBssid(); // Do not want to evict changed items
             // Evict the unreferenced ones, and clear all the referenced bits for the next round.
             Iterator<Map.Entry<MacAddress, PerBssid>> it = mApForBssid.entrySet().iterator();
             while (it.hasNext()) {
@@ -704,17 +1423,24 @@ public class WifiScoreCard {
                     perBssid.referenced = false;
                 } else {
                     it.remove();
-                    if (DBG) Log.v(TAG, "Evict " + perBssid.id);
+                    if (mVerboseLoggingEnabled) Log.v(TAG, "Evict " + perBssid.id);
                 }
             }
             mApForBssidReferenced = 0;
         }
     }
 
-    private long computeHashLong(String ssid, MacAddress mac) {
+    /**
+     * Compute a hash value with the given SSID and MAC address
+     * @param ssid is the network SSID
+     * @param mac is the network MAC address
+     * @param l2KeySeed is the seed for hash generation
+     * @return
+     */
+    public static long computeHashLong(String ssid, MacAddress mac, String l2KeySeed) {
         byte[][] parts = {
                 // Our seed keeps the L2Keys specific to this device
-                mL2KeySeed.getBytes(),
+                l2KeySeed.getBytes(),
                 // ssid is either quoted utf8 or hex-encoded bytes; turn it into plain bytes.
                 NativeUtil.byteArrayFromArrayList(NativeUtil.decodeSsid(ssid)),
                 // And the BSSID
@@ -746,14 +1472,6 @@ public class WifiScoreCard {
         return buffer.getLong();
     }
 
-    private static int idFromLong(long hash) {
-        return (int) hash & 0x7fffffff;
-    }
-
-    private static String l2KeyFromLong(long hash) {
-        return "W" + Long.toHexString(hash);
-    }
-
     private static String groupHintFromLong(long hash) {
         return "G" + Long.toHexString(hash);
     }
@@ -764,9 +1482,19 @@ public class WifiScoreCard {
     }
 
     @VisibleForTesting
+    PerNetwork fetchByNetwork(String ssid) {
+        return mApForNetwork.get(ssid);
+    }
+
+    @VisibleForTesting
     PerBssid perBssidFromAccessPoint(String ssid, AccessPoint ap) {
         MacAddress bssid = MacAddress.fromBytes(ap.getBssid().toByteArray());
         return new PerBssid(ssid, bssid).merge(ap);
+    }
+
+    @VisibleForTesting
+    PerNetwork perNetworkFromNetworkStats(String ssid, NetworkStats ns) {
+        return new PerNetwork(ssid).mergeNetworkStatsFromMemory(ns);
     }
 
     final class PerSignal {
@@ -794,6 +1522,7 @@ public class WifiScoreCard {
                 case IP_CONFIGURATION_SUCCESS:
                 case VALIDATION_SUCCESS:
                 case CONNECTION_FAILURE:
+                case DISCONNECTION:
                 case WIFI_DISABLED:
                 case ROAM_FAILURE:
                     this.elapsedMs = new PerUnivariateStatistic();
@@ -822,8 +1551,9 @@ public class WifiScoreCard {
             if (elapsedMs != null) {
                 builder.setElapsedMs(elapsedMs.toUnivariateStatistic());
             }
-            if (DBG && rssi.intHistogram != null && rssi.intHistogram.numNonEmptyBuckets() > 0) {
-                Log.d(TAG, "Histogram " + event + " RSSI" + rssi.intHistogram);
+            if (rssi.intHistogram != null
+                    && rssi.intHistogram.numNonEmptyBuckets() > 0) {
+                logd("Histogram " + event + " RSSI" + rssi.intHistogram);
             }
             return builder.build();
         }
@@ -950,6 +1680,13 @@ public class WifiScoreCard {
             }
             network.addAccessPoints(perBssid.toAccessPoint(obfuscate));
         }
+        for (PerNetwork perNetwork: mApForNetwork.values()) {
+            String key = perNetwork.ssid;
+            Network.Builder network = networks.get(key);
+            if (network != null) {
+                network.setNetworkStats(perNetwork.toNetworkStats());
+            }
+        }
         NetworkList.Builder builder = NetworkList.newBuilder();
         for (Network.Builder network: networks.values()) {
             builder.addNetworks(network);
@@ -983,7 +1720,7 @@ public class WifiScoreCard {
      */
     public void clear() {
         mApForBssid.clear();
+        mApForNetwork.clear();
         resetConnectionStateInternal(false);
     }
-
 }
