@@ -46,6 +46,7 @@ import android.net.ConnectivityManager;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
+import android.net.NetworkProvider;
 import android.net.NetworkRequest;
 import android.net.NetworkSpecifier;
 import android.net.wifi.WifiManager;
@@ -75,7 +76,6 @@ import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.test.TestLooper;
-import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
@@ -296,7 +296,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 null, passphrase, true, 0, 5, 6);
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -334,7 +334,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 null, passphrase, false, 0, -3, 6);
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -367,7 +367,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 null, null, false, 0, 10, 6);
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -404,7 +404,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 null, null, true, 0);
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -428,7 +428,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         mDut.onRespondToDataPathSetupRequestResponse(transactionId.getValue(), true, 0);
         mMockLooper.dispatchAll();
 
-        verifyUnfullfillableDispatched(res.mReverseMessenger);
+        verifyRequestDeclaredUnfullfillable(nr);
 
         // failure if there's further activity
         verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNetdWrapper);
@@ -489,7 +489,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                     null, null, false, networkRequestId);
 
             Message reqNetworkMsg = Message.obtain();
-            reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+            reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
             reqNetworkMsg.obj = nrs[i];
             reqNetworkMsg.arg1 = 0;
             messenger.send(reqNetworkMsg);
@@ -582,7 +582,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         // (1) initialize all clients
-        Messenger messenger = initOobDataPathEndPoint(true, 2, clientId, inOrder, inOrderM).first;
+        Messenger messenger = initOobDataPathEndPoint(true, 2, clientId, inOrder, inOrderM);
         for (int i = 1; i < numRequestsPre + numRequestsPost; ++i) {
             initOobDataPathEndPoint(false, 1, clientId + i, inOrder, inOrderM);
         }
@@ -597,7 +597,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                     null, i);
 
             Message reqNetworkMsg = Message.obtain();
-            reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+            reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
             reqNetworkMsg.obj = nrs[i];
             reqNetworkMsg.arg1 = 0;
             messenger.send(reqNetworkMsg);
@@ -658,7 +658,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                     null, i);
 
             Message reqNetworkMsg = Message.obtain();
-            reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+            reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
             reqNetworkMsg.obj = nrs[i];
             reqNetworkMsg.arg1 = 0;
             messenger.send(reqNetworkMsg);
@@ -667,7 +667,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 clientId + numRequestsPre + numRequestsPost, ddepi.mSessionId, ddepi.mPeerHandle,
                 null, null, false, 11);
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nrs[numRequestsPre + numRequestsPost];
         reqNetworkMsg.arg1 = 0;
         messenger.send(reqNetworkMsg);
@@ -722,8 +722,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         // (1) initialize all clients
-        Pair<Messenger, Messenger> res = initOobDataPathEndPoint(true, numNdis, clientId, inOrder,
-                inOrderM);
+        Messenger messenger = initOobDataPathEndPoint(true, numNdis, clientId, inOrder, inOrderM);
         for (int i = 1; i < numNdis + 3; ++i) {
             initOobDataPathEndPoint(false, numNdis, clientId + i, inOrder, inOrderM);
         }
@@ -739,10 +738,10 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                     null, i);
 
             Message reqNetworkMsg = Message.obtain();
-            reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+            reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
             reqNetworkMsg.obj = nr;
             reqNetworkMsg.arg1 = 0;
-            res.first.send(reqNetworkMsg);
+            messenger.send(reqNetworkMsg);
             mMockLooper.dispatchAll();
 
             if (i < numNdis) {
@@ -770,7 +769,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 assertEquals(0, netInfo.getPort()); // uninitialized -> 0
                 assertEquals(-1, netInfo.getTransportProtocol()); // uninitialized -> -1
             } else {
-                verifyUnfullfillableDispatched(res.second);
+                verifyRequestDeclaredUnfullfillable(nr);
             }
         }
 
@@ -1165,7 +1164,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         nr.networkCapabilities.setNetworkSpecifier(ns);
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -1174,7 +1173,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         // consequences of failure:
         //   Responder (publisher): responds with a rejection to any data-path requests
         //   Initiator (subscribe): doesn't initiate (i.e. no HAL requests)
-        verifyUnfullfillableDispatched(res.mReverseMessenger);
+        verifyRequestDeclaredUnfullfillable(nr);
         if (doPublish) {
             // (2) get request & respond
             mDut.onDataPathRequestNotification(pubSubId, peerDiscoveryMac, ndpId, null);
@@ -1225,7 +1224,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
 
         // (3) request network
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -1234,7 +1233,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         // consequences of failure:
         //   Responder (publisher): responds with a rejection to any data-path requests
         //   Initiator (subscribe): doesn't initiate (i.e. no HAL requests)
-        verifyUnfullfillableDispatched(res.mReverseMessenger);
+        verifyRequestDeclaredUnfullfillable(nr);
         if (doPublish) {
             // (2) get request & respond
             mDut.onDataPathRequestNotification(pubSubId, peerDiscoveryMac, ndpId, null);
@@ -1309,7 +1308,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         }
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -1323,7 +1322,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             // short-circuit the rest of this test
             inOrderM.verify(mAwareMetricsMock).recordNdpStatus(eq(NanStatusType.INTERNAL_FAILURE),
                     eq(useDirect), anyLong());
-            verifyUnfullfillableDispatched(res.mReverseMessenger);
+            verifyRequestDeclaredUnfullfillable(nr);
             verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock);
             return;
         }
@@ -1369,7 +1368,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             }
 
             if (timedout) {
-                verifyUnfullfillableDispatched(res.mReverseMessenger);
+                verifyRequestDeclaredUnfullfillable(nr);
                 inOrder.verify(mMockNative).endDataPath(transactionId.capture(), eq(ndpId));
                 mDut.onEndDataPathResponse(transactionId.getValue(), true, 0);
             } else {
@@ -1387,7 +1386,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             assertTrue(mAlarmManager.dispatch(
                     WifiAwareStateManager.HAL_DATA_PATH_CONFIRM_TIMEOUT_TAG));
             mMockLooper.dispatchAll();
-            verifyUnfullfillableDispatched(res.mReverseMessenger);
+            verifyRequestDeclaredUnfullfillable(nr);
             inOrder.verify(mMockNative).endDataPath(transactionId.capture(), eq(ndpId));
             mDut.onEndDataPathResponse(transactionId.getValue(), true, 0);
             mMockLooper.dispatchAll();
@@ -1465,7 +1464,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         }
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
@@ -1503,7 +1502,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 assertTrue(mAlarmManager.dispatch(
                         WifiAwareStateManager.HAL_DATA_PATH_CONFIRM_TIMEOUT_TAG));
                 mMockLooper.dispatchAll();
-                verifyUnfullfillableDispatched(res.mReverseMessenger);
+                verifyRequestDeclaredUnfullfillable(nr);
                 inOrder.verify(mMockNative).endDataPath(transactionId.capture(), eq(ndpId));
                 mDut.onEndDataPathResponse(transactionId.getValue(), true, 0);
                 mMockLooper.dispatchAll();
@@ -1531,7 +1530,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 inOrderM.verify(mAwareMetricsMock).recordNdpSessionDuration(anyLong());
             }
         } else {
-            verifyUnfullfillableDispatched(res.mReverseMessenger);
+            verifyRequestDeclaredUnfullfillable(nr);
             inOrder.verify(mMockNative).respondToDataPathRequest(transactionId.capture(), eq(false),
                     eq(ndpId), eq(""), eq(null), eq(null), eq(null), eq(false), any());
             mDut.onRespondToDataPathSetupRequestResponse(transactionId.getValue(), true, 0);
@@ -1694,8 +1693,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         ArgumentCaptor<Integer> sessionId = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> peerIdCaptor = ArgumentCaptor.forClass(Integer.class);
 
-        Pair<Messenger, Messenger> res = initOobDataPathEndPoint(isFirstIteration, 1, clientId,
-                inOrder, inOrderM);
+        Messenger messenger = initOobDataPathEndPoint(isFirstIteration, 1, clientId, inOrder,
+                inOrderM);
 
         if (doPublish) {
             mDut.publish(clientId, publishConfig, mMockSessionCallback);
@@ -1724,10 +1723,10 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 eq(someMsg.getBytes()));
 
         return new DataPathEndPointInfo(sessionId.getValue(), peerIdCaptor.getValue(),
-                isFirstIteration ? res.first : null, isFirstIteration ? res.second : null);
+                isFirstIteration ? messenger : null);
     }
 
-    private Pair<Messenger, Messenger> initOobDataPathEndPoint(boolean startUpSequence,
+    private Messenger initOobDataPathEndPoint(boolean startUpSequence,
             int maxNdiInterfaces, int clientId, InOrder inOrder, InOrder inOrderM)
             throws Exception {
         final int pid = 2000;
@@ -1737,6 +1736,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
 
         ArgumentCaptor<Short> transactionId = ArgumentCaptor.forClass(Short.class);
         ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
+        ArgumentCaptor<NetworkProvider> networkProviderCaptor =
+                ArgumentCaptor.forClass(NetworkProvider.class);
         ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
 
         Capabilities capabilities = new Capabilities();
@@ -1744,10 +1745,9 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
 
         if (startUpSequence) {
             // (0) start/registrations
-            inOrder.verify(mMockCm).registerNetworkFactory(messengerCaptor.capture(),
-                    strCaptor.capture());
+            inOrder.verify(mMockCm).registerNetworkProvider(networkProviderCaptor.capture());
             collector.checkThat("factory name", "WIFI_AWARE_FACTORY",
-                    equalTo(strCaptor.getValue()));
+                    equalTo(networkProviderCaptor.getValue().getName()));
 
             // (1) get capabilities
             mDut.queryCapabilities();
@@ -1787,20 +1787,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 mDut.onCreateDataPathInterfaceResponse(transactionId.getValue(), true, 0);
                 mMockLooper.dispatchAll();
             }
-            Messenger messenger = messengerCaptor.getValue();
-
-            Messenger reverseMessenger = null;
-            if (messenger != null) {
-                reverseMessenger = mock(Messenger.class);
-
-                Message fullConnectionMessage = Message.obtain();
-                fullConnectionMessage.what = AsyncChannel.CMD_CHANNEL_FULL_CONNECTION;
-                fullConnectionMessage.replyTo = reverseMessenger;
-                messenger.send(fullConnectionMessage);
-                mMockLooper.dispatchAll();
-            }
-
-            return Pair.create(messenger, reverseMessenger);
+            Messenger messenger = networkProviderCaptor.getValue().getMessenger();
+            return messenger;
         }
 
         return null;
@@ -1852,25 +1840,20 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         int mSessionId;
         PeerHandle mPeerHandle;
         Messenger mMessenger;
-        Messenger mReverseMessenger;
 
-        DataPathEndPointInfo(int sessionId, int peerId, Messenger messenger,
-                Messenger reverseMessenger) {
+        DataPathEndPointInfo(int sessionId, int peerId, Messenger messenger) {
             mSessionId = sessionId;
             mPeerHandle = new PeerHandle(peerId);
             mMessenger = messenger;
-            mReverseMessenger = reverseMessenger;
         }
     }
 
     /**
-     * Verify that an EVENT_UNFULFILLABLE_REQUEST was dispatched on the (mock) messenger.
+     * Verify that declareNetworkRequestUnfulfillable was called.
      */
-    private void verifyUnfullfillableDispatched(Messenger messenger) throws Exception {
-        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-
-        verify(messenger, atLeastOnce()).send(messageCaptor.capture());
-        assertEquals(NetworkFactory.EVENT_UNFULFILLABLE_REQUEST, messageCaptor.getValue().what);
+    private void verifyRequestDeclaredUnfullfillable(NetworkRequest request) throws Exception {
+        mMockLooper.dispatchAll();
+        verify(mMockCm, atLeastOnce()).declareNetworkRequestUnfulfillable(any());
     }
 
     // copy of the method in WifiAwareDataPathStateManager - but without error checking (so we can

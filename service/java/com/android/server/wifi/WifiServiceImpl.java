@@ -1127,6 +1127,27 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
             }
         }
+
+        /**
+         * Called when client trying to connect but device blocked the client with specific reason.
+         *
+         * @param client the currently blocked client.
+         * @param blockedReason one of blocked reason from
+         * {@link WifiManager.SapClientBlockedReason}
+         */
+        @Override
+        public void onBlockedClientConnecting(WifiClient client, int blockedReason) {
+            Iterator<ISoftApCallback> iterator =
+                    mRegisteredSoftApCallbacks.getCallbacks().iterator();
+            while (iterator.hasNext()) {
+                ISoftApCallback callback = iterator.next();
+                try {
+                    callback.onBlockedClientConnecting(client, blockedReason);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "onBlockedClientConnecting: remote exception -- " + e);
+                }
+            }
+        }
     }
 
     /**
@@ -1483,6 +1504,18 @@ public class WifiServiceImpl extends BaseWifiService {
         public void onCapabilityChanged(SoftApCapability capability) {
             // Nothing to do
         }
+
+        /**
+         * Called when client trying to connect but device blocked the client with specific reason.
+         *
+         * @param client the currently blocked client.
+         * @param blockedReason one of blocked reason from
+         * {@link WifiManager.SapClientBlockedReason}
+         */
+        @Override
+        public void onBlockedClientConnecting(WifiClient client, int blockedReason) {
+            // Nothing to do
+        }
     }
 
     /**
@@ -1507,6 +1540,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (callback == null) {
             throw new IllegalArgumentException("Callback must not be null");
         }
+
 
         enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {

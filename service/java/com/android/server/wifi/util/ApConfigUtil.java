@@ -50,11 +50,6 @@ public class ApConfigUtil {
     public static final int ERROR_GENERIC = 2;
     public static final int ERROR_UNSUPPORTED_CONFIGURATION = 3;
 
-    /* Reason code in IEEE Std 802.11-2016, 9.4.1.7, Table 9-45. */
-    public static final int DISCONNECT_REASON_CODE_UNSPECIFIED_REASON = 1;
-    public static final int DISCONNECT_REASON_CODE_INVALID_AUTHENTICATION = 2;
-    public static final int DISCONNECT_REASON_CODE_NO_MORE_STAS = 5;
-
     /* Random number generator used for AP channel selection. */
     private static final Random sRandom = new Random();
 
@@ -410,6 +405,9 @@ public class ApConfigUtil {
      * Helper function for converting SoftapConfiguration to WifiConfiguration.
      * Note that WifiConfiguration only Supports 2GHz, 5GHz, 2GHz+5GHz bands,
      * so conversion is limited to these bands.
+     *
+     * @param softApConfig the SoftApConfiguration which need to convert.
+     * @return the WifiConfiguration which convert from SoftApConfiguration.
      */
     @NonNull
     public static WifiConfiguration convertToWifiConfiguration(
@@ -454,6 +452,9 @@ public class ApConfigUtil {
      * Only Support None and WPA2 configuration conversion.
      * Note that WifiConfiguration only Supports 2GHz, 5GHz, 2GHz+5GHz bands,
      * so conversion is limited to these bands.
+     *
+     * @param wifiConfig the WifiConfiguration which need to convert.
+     * @return the SoftApConfiguration which convert from WifiConfiguration.
      */
     @NonNull
     public static SoftApConfiguration fromWifiConfiguration(
@@ -492,6 +493,9 @@ public class ApConfigUtil {
 
     /**
      * Helper function to creating SoftApCapability instance with initial field from resource file.
+     *
+     * @param context the caller context used to get value from resource file.
+     * @return SoftApCapability which updated the feature support or not from resource.
      */
     @NonNull
     public static SoftApCapability updateCapabilityFromResource(@NonNull Context context) {
@@ -525,6 +529,9 @@ public class ApConfigUtil {
 
     /**
      * Helper function to get SAE support or not.
+     *
+     * @param context the caller context used to get value from resource file.
+     * @return true if supported, false otherwise.
      */
     public static boolean isWpa3SaeSupported(@NonNull Context context) {
         return context.getResources().getBoolean(
@@ -534,7 +541,10 @@ public class ApConfigUtil {
     /**
      * Helper function for comparing two SoftApConfiguration.
      *
-     * Return true if the difference between the two configurations requires a restart to apply.
+     * @param currentConfig the original configuration.
+     * @param newConfig the new configuration which plan to apply.
+     * @return true if the difference between the two configurations requires a restart to apply,
+     *         false otherwise.
      */
     public static boolean checkConfigurationChangeNeedToRestart(
             SoftApConfiguration currentConfig, SoftApConfiguration newConfig) {
@@ -545,5 +555,32 @@ public class ApConfigUtil {
                 || currentConfig.isHiddenSsid() != newConfig.isHiddenSsid()
                 || currentConfig.getBand() != newConfig.getBand()
                 || currentConfig.getChannel() != newConfig.getChannel();
+    }
+
+
+    /**
+     * Helper function for checking all of the configuration are supported or not.
+     *
+     * @param config target configuration want to check.
+     * @param capability the capability which indicate feature support or not.
+     * @return true if supported, false otherwise.
+     */
+    public static boolean checkSupportAllConfiguration(SoftApConfiguration config,
+            SoftApCapability capability) {
+        if (!capability.isFeatureSupported(
+                SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT)
+                && (config.getMaxNumberOfClients() != 0 || config.isClientControlByUserEnabled())) {
+            Log.d(TAG, "Error, Client control requires HAL support");
+            return false;
+        }
+
+        if (!capability.isFeatureSupported(SoftApCapability.SOFTAP_FEATURE_WPA3_SAE)
+                && (config.getSecurityType()
+                == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION
+                || config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE)) {
+            Log.d(TAG, "Error, SAE requires HAL support");
+            return false;
+        }
+        return true;
     }
 }
