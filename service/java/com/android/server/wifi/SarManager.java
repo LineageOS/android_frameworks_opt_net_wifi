@@ -24,8 +24,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioAttributes;
+import android.media.AudioDeviceAddress;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.media.AudioSystem;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.HandlerExecutor;
@@ -39,6 +41,7 @@ import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.List;
 
 /**
  * This class provides the Support for SAR to control WiFi TX power limits.
@@ -72,6 +75,7 @@ public class SarManager {
      */
     private final Context mContext;
     private final TelephonyManager mTelephonyManager;
+    private final AudioManager mAudioManager;
     private final WifiPhoneStateListener mPhoneStateListener;
     private final WifiNative mWifiNative;
     private final Handler mHandler;
@@ -88,6 +92,7 @@ public class SarManager {
         mTelephonyManager = telephonyManager;
         mWifiNative = wifiNative;
         mLooper = looper;
+        mAudioManager = mContext.getSystemService(AudioManager.class);
         mHandler = new WifiHandler(TAG, looper);
         mPhoneStateListener = new WifiPhoneStateListener(looper);
     }
@@ -134,15 +139,21 @@ public class SarManager {
     }
 
     private boolean isVoiceCallOnEarpiece() {
-        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
-
-        return (audioManager.getDevicesForStream(AudioManager.STREAM_VOICE_CALL)
-                == AudioManager.DEVICE_OUT_EARPIECE);
+        final AudioAttributes voiceCallAttr = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .build();
+        List<AudioDeviceAddress> devices = mAudioManager.getDevicesForAttributes(voiceCallAttr);
+        for (AudioDeviceAddress device : devices) {
+            if (device.getRole() == AudioDeviceAddress.ROLE_OUTPUT
+                    && device.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isVoiceCallStreamActive() {
-        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
-        int mode = audioManager.getMode();
+        int mode = mAudioManager.getMode();
         return mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_IN_CALL;
     }
 
