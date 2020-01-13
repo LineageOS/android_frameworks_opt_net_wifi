@@ -100,7 +100,7 @@ public class ClientModeManagerTest extends WifiBaseTest {
      * from the context.
      */
     private void setUpSystemServiceForContext() {
-        when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
+        when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mTelephonyManager);
         when(mContext.getSystemService(Context.CARRIER_CONFIG_SERVICE))
                 .thenReturn(mCarrierConfigManager);
     }

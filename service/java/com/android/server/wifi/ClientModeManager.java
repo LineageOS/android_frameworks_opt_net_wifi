@@ -210,7 +210,8 @@ public class ClientModeManager implements ActiveModeManager {
         }
 
         TelephonyManager defaultVoiceTelephonyManager =
-                TelephonyManager.from(mContext).createForSubscriptionId(defaultVoiceSubId);
+                mContext.getSystemService(TelephonyManager.class)
+                        .createForSubscriptionId(defaultVoiceSubId);
         // if LTE is available, no delay needed as IMS will be registered over LTE
         if (defaultVoiceTelephonyManager.getVoiceNetworkType()
                 == TelephonyManager.NETWORK_TYPE_LTE) {
