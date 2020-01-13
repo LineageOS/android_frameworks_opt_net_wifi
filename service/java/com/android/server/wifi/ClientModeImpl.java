@@ -47,7 +47,6 @@ import android.net.MatchAllNetworkSpecifier;
 import android.net.NattKeepalivePacketData;
 import android.net.Network;
 import android.net.NetworkAgent;
-import android.net.NetworkAgentConfig;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkInfo.DetailedState;
@@ -429,9 +428,6 @@ public class ClientModeImpl extends StateMachine {
 
     // Used to filter out requests we couldn't possibly satisfy.
     private final NetworkCapabilities mNetworkCapabilitiesFilter = new NetworkCapabilities();
-
-    // Provide packet filter capabilities to ConnectivityService.
-    private final NetworkAgentConfig mNetworkAgentConfig = new NetworkAgentConfig();
 
     private final ExternalCallbackTracker<IActionListener> mProcessingActionListeners;
     private final ExternalCallbackTracker<ITxPacketCountListener> mProcessingTxPacketCountListeners;
@@ -4183,8 +4179,8 @@ public class ClientModeImpl extends StateMachine {
 
     private class WifiNetworkAgent extends NetworkAgent {
         WifiNetworkAgent(Looper l, Context c, String tag, NetworkInfo ni,
-                NetworkCapabilities nc, LinkProperties lp, int score, NetworkAgentConfig config) {
-            super(l, c, tag, ni, nc, lp, score, config);
+                NetworkCapabilities nc, LinkProperties lp, int score) {
+            super(l, c, tag, ni, nc, lp, score);
         }
         private int mLastNetworkStatus = -1; // To detect when the status really changes
 
@@ -4336,7 +4332,7 @@ public class ClientModeImpl extends StateMachine {
             final NetworkCapabilities nc = getCapabilities(getCurrentWifiConfiguration());
             synchronized (mNetworkAgentLock) {
                 mNetworkAgent = new WifiNetworkAgent(getHandler().getLooper(), mContext,
-                    "WifiNetworkAgent", mNetworkInfo, nc, mLinkProperties, 60, mNetworkAgentConfig);
+                    "WifiNetworkAgent", mNetworkInfo, nc, mLinkProperties, 60);
             }
 
             // We must clear the config BSSID, as the wifi chipset may decide to roam
