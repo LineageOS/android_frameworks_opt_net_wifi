@@ -952,11 +952,9 @@ public class ScanRequestProxyTest extends WifiBaseTest {
         assertEquals(userHandleCaptor.getValue(), UserHandle.ALL);
 
         Intent intent = intentCaptor.getValue();
-        assertEquals(WifiManager.WIFI_SCAN_AVAILABLE, intent.getAction());
+        assertEquals(WifiManager.ACTION_WIFI_SCAN_AVAILABLE, intent.getAction());
         assertEquals(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT, intent.getFlags());
-        int scanState = intent.getIntExtra(WifiManager.EXTRA_SCAN_AVAILABLE,
-                WifiManager.WIFI_STATE_DISABLED);
-        boolean scanAvailable = scanState == WifiManager.WIFI_STATE_ENABLED;
+        boolean scanAvailable = intent.getBooleanExtra(WifiManager.EXTRA_SCAN_AVAILABLE, false);
         assertEquals(expectedScanAvailable, scanAvailable);
     }
 
