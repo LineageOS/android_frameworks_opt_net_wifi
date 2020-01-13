@@ -126,8 +126,8 @@ java_library {
         "libnanohttpd",
         "netd_aidl_interface-V2-java",
         "services.net",
-        "wifi_proto_scorecard",
-        "wifi_proto_metrics",
+        "wifi-lite-protos",
+        "wifi-nano-protos",
         "PlatformProperties",
     ],
 }
