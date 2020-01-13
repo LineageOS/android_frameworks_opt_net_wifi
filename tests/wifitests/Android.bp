@@ -66,9 +66,18 @@ android_test {
         "wifi_proto_metrics",
     ],
 
-    jarjar_rules: ":wifi-service-jarjar-rules",
+    jarjar_rules: ":wifi-jarjar-rules",
 
+    sdk_version: "core_platform", // tests can use @CorePlatformApi's
     libs: [
+        // order matters: classes in framework-wifi are resolved before framework, meaning
+        // @hide APIs in framework-wifi are resolved before @SystemApi stubs in framework
+        "framework-wifi-pre-jarjar",
+        "framework",
+
+        // if sdk_version="" this gets automatically included, but here we need to add manually.
+        "framework-res",
+
         "android.test.runner",
         "android.test.base",
         "android.test.mock",
@@ -101,7 +110,6 @@ android_test {
     ],
 
     min_sdk_version: "29",
-    platform_apis: true,
     privileged: true,
     test_suites: [
         "device-tests",
