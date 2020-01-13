@@ -35,8 +35,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.internal.util.XmlUtils;
-
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
@@ -111,7 +109,7 @@ public class XmlUtil {
      */
     public static void gotoDocumentStart(XmlPullParser in, String headerName)
             throws XmlPullParserException, IOException {
-        XmlUtils.beginDocument(in, headerName);
+        XmlUtilHelper.beginDocument(in, headerName);
     }
 
     /**
@@ -130,7 +128,7 @@ public class XmlUtil {
     public static boolean gotoNextSectionOrEnd(
             XmlPullParser in, String[] headerName, int outerDepth)
             throws XmlPullParserException, IOException {
-        if (XmlUtils.nextElementWithin(in, outerDepth)) {
+        if (XmlUtilHelper.nextElementWithin(in, outerDepth)) {
             headerName[0] = in.getName();
             return true;
         }
@@ -197,7 +195,7 @@ public class XmlUtil {
      */
     public static boolean isNextSectionEnd(XmlPullParser in, int sectionDepth)
             throws XmlPullParserException, IOException {
-        return !XmlUtils.nextElementWithin(in, sectionDepth);
+        return !XmlUtilHelper.nextElementWithin(in, sectionDepth);
     }
 
     /**
@@ -215,7 +213,7 @@ public class XmlUtil {
      */
     public static Object readCurrentValue(XmlPullParser in, String[] valueName)
             throws XmlPullParserException, IOException {
-        Object value = XmlUtils.readValueXml(in, valueName);
+        Object value = XmlUtilHelper.readValueXml(in, valueName);
         // XmlUtils.readValue does not always move the stream to the end of the tag. So, move
         // it to the end tag before returning from here.
         gotoEndTag(in);
@@ -237,7 +235,7 @@ public class XmlUtil {
     public static Object readNextValueWithName(XmlPullParser in, String expectedName)
             throws XmlPullParserException, IOException {
         String[] valueName = new String[1];
-        XmlUtils.nextElement(in);
+        XmlUtilHelper.nextElement(in);
         Object value = readCurrentValue(in, valueName);
         if (valueName[0].equals(expectedName)) {
             return value;
@@ -301,7 +299,7 @@ public class XmlUtil {
      */
     public static void writeNextValue(XmlSerializer out, String name, Object value)
             throws XmlPullParserException, IOException {
-        XmlUtils.writeValueXml(value, name, out);
+        XmlUtilHelper.writeValueXml(value, name, out);
     }
 
     /**
@@ -1211,7 +1209,7 @@ public class XmlUtil {
             WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
 
             // Loop through and parse out all the elements from the stream within this section.
-            while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
+            while (XmlUtilHelper.nextElementWithin(in, outerTagDepth)) {
                 if (in.getAttributeValue(null, "name") != null) {
                     // Value elements.
                     String[] valueName = new String[1];
@@ -1388,6 +1386,11 @@ public class XmlUtil {
             }
             return new EncryptedData(encryptedData, iv);
         }
+    }
+
+    public static boolean nextElementWithin(XmlPullParser parser, int outerDepth)
+            throws IOException, XmlPullParserException {
+        return XmlUtilHelper.nextElementWithin(parser, outerDepth);
     }
 }
 

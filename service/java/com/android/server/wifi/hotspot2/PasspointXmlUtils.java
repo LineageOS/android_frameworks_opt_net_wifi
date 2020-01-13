@@ -22,7 +22,6 @@ import android.net.wifi.hotspot2.pps.HomeSp;
 import android.net.wifi.hotspot2.pps.Policy;
 import android.net.wifi.hotspot2.pps.UpdateParameter;
 
-import com.android.internal.util.XmlUtils;
 import com.android.server.wifi.util.XmlUtil;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -164,7 +163,7 @@ public class PasspointXmlUtils {
     public static PasspointConfiguration deserializePasspointConfiguration(XmlPullParser in,
             int outerTagDepth) throws XmlPullParserException, IOException {
         PasspointConfiguration config = new PasspointConfiguration();
-        while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
+        while (XmlUtil.nextElementWithin(in, outerTagDepth)) {
             if (isValueElement(in)) {
                 // Value elements.
                 String[] name = new String[1];
@@ -531,7 +530,7 @@ public class PasspointXmlUtils {
     private static Credential deserializeCredential(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
         Credential credential = new Credential();
-        while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
+        while (XmlUtil.nextElementWithin(in, outerTagDepth)) {
             if (isValueElement(in)) {
                 // Value elements.
                 String[] name = new String[1];
@@ -589,7 +588,7 @@ public class PasspointXmlUtils {
     private static Policy deserializePolicy(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
         Policy policy = new Policy();
-        while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
+        while (XmlUtil.nextElementWithin(in, outerTagDepth)) {
             if (isValueElement(in)) {
                 // Value elements.
                 String[] name = new String[1];

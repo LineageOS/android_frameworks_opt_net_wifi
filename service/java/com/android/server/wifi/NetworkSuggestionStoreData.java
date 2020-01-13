@@ -28,7 +28,6 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.internal.util.XmlUtils;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.hotspot2.PasspointXmlUtils;
@@ -266,7 +265,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                 int uid = Process.INVALID_UID;
                 int carrierId = TelephonyManager.UNKNOWN_CARRIER_ID;
                 // Loop through and parse out all the elements from the stream within this section.
-                while (XmlUtils.nextElementWithin(in, outerTagDepth + 1)) {
+                while (XmlUtil.nextElementWithin(in, outerTagDepth + 1)) {
                     if (in.getAttributeValue(null, "name") != null) {
                         // Value elements.
                         String[] valueName = new String[1];
@@ -369,7 +368,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         int suggestorUid = Process.INVALID_UID;
 
         // Loop through and parse out all the elements from the stream within this section.
-        while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
+        while (XmlUtil.nextElementWithin(in, outerTagDepth)) {
             if (in.getAttributeValue(null, "name") != null) {
                 // Value elements.
                 String[] valueName = new String[1];
