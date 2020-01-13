@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.util.BackupUtils;
@@ -28,6 +29,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Class used to backup/restore data using the SettingsBackupAgent.
@@ -43,7 +47,9 @@ public class SoftApBackupRestore {
     /**
      * Current backup data version.
      */
-    private static final int CURRENT_SAP_BACKUP_DATA_VERSION = 4;
+    private static final int CURRENT_SAP_BACKUP_DATA_VERSION = 5;
+
+    private static final int ETHER_ADDR_LEN = 6; // Byte array size of MacAddress
 
     public SoftApBackupRestore() {
     }
@@ -71,6 +77,11 @@ public class SoftApBackupRestore {
             BackupUtils.writeString(out, config.getPassphrase());
             out.writeInt(config.getSecurityType());
             out.writeBoolean(config.isHiddenSsid());
+            out.writeInt(config.getMaxNumberOfClients());
+            out.writeInt(config.getShutdownTimeoutMillis());
+            out.writeBoolean(config.isClientControlByUserEnabled());
+            writeMacAddressList(out, config.getBlockedClientList());
+            writeMacAddressList(out, config.getAllowedClientList());
         } catch (IOException io) {
             Log.e(TAG, "Invalid configuration received, IOException " + io);
             return new byte[0];
@@ -124,6 +135,18 @@ public class SoftApBackupRestore {
             if (version >= 3) {
                 configBuilder.setHiddenSsid(in.readBoolean());
             }
+            if (version >= 5) {
+                configBuilder.setMaxNumberOfClients(in.readInt());
+                configBuilder.setShutdownTimeoutMillis(in.readInt());
+                configBuilder.enableClientControlByUser(in.readBoolean());
+                int numberOfBlockedClient = in.readInt();
+                List<MacAddress> blockedList = new ArrayList<>(
+                        macAddressListFromByteArray(in, numberOfBlockedClient));
+                int numberOfAllowedClient = in.readInt();
+                List<MacAddress> allowedList = new ArrayList<>(
+                        macAddressListFromByteArray(in, numberOfAllowedClient));
+                configBuilder.setClientList(blockedList, allowedList);
+            }
         } catch (IOException io) {
             Log.e(TAG, "Invalid backup data received, IOException: " + io);
             return null;
@@ -135,5 +158,26 @@ public class SoftApBackupRestore {
             return null;
         }
         return configBuilder.build();
+    }
+
+    private void writeMacAddressList(DataOutputStream out, List<MacAddress> macList)
+            throws IOException {
+        out.writeInt(macList.size());
+        Iterator<MacAddress> iterator = macList.iterator();
+        while (iterator.hasNext()) {
+            byte[] mac = iterator.next().toByteArray();
+            out.write(mac, 0, ETHER_ADDR_LEN);
+        }
+    }
+
+    private List<MacAddress> macAddressListFromByteArray(DataInputStream in, int numberOfClients)
+            throws IOException {
+        List<MacAddress> macList = new ArrayList<>();
+        for (int i = 0; i < numberOfClients; i++) {
+            byte[] mac = new byte[ETHER_ADDR_LEN];
+            in.read(mac, 0, ETHER_ADDR_LEN);
+            macList.add(MacAddress.fromBytes(mac));
+        }
+        return macList;
     }
 }
