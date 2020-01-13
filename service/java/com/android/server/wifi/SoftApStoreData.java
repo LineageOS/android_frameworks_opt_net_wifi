@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import android.annotation.Nullable;
+import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.text.TextUtils;
 import android.util.Log;
@@ -30,6 +31,8 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Store data for SoftAp
@@ -45,6 +48,12 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_WPA2_PASSPHRASE = "Wpa2Passphrase";
     private static final String XML_TAG_AP_BAND = "ApBand";
     private static final String XML_TAG_PASSPHRASE = "Passphrase";
+    private static final String XML_TAG_MAX_NUMBER_OF_CLIENTS = "MaxNumberOfClients";
+    private static final String XML_TAG_SHUTDOWN_TIMEOUT_MILLIS = "ShutdownTimeoutMillis";
+    private static final String XML_TAG_CLIENT_CONTROL_BY_USER = "ClientControlByUser";
+    private static final String XML_TAG_BLOCKED_CLIENT_LIST = "BlockedClientList";
+    private static final String XML_TAG_ALLOWED_CLIENT_LIST = "AllowedClientList";
+
 
     private final DataSource mDataSource;
 
@@ -101,6 +110,22 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
                 XmlUtil.writeNextValue(out, XML_TAG_PASSPHRASE,
                         softApConfig.getPassphrase());
             }
+
+            XmlUtil.writeNextValue(out, XML_TAG_MAX_NUMBER_OF_CLIENTS,
+                    softApConfig.getMaxNumberOfClients());
+            XmlUtil.writeNextValue(out, XML_TAG_CLIENT_CONTROL_BY_USER,
+                    softApConfig.isClientControlByUserEnabled());
+            XmlUtil.writeNextValue(out, XML_TAG_SHUTDOWN_TIMEOUT_MILLIS,
+                    softApConfig.getShutdownTimeoutMillis());
+            XmlUtil.writeNextSectionStart(out, XML_TAG_BLOCKED_CLIENT_LIST);
+            XmlUtil.SoftApConfigurationXmlUtil.writeClientListToXml(out,
+                    softApConfig.getBlockedClientList());
+            XmlUtil.writeNextSectionEnd(out, XML_TAG_BLOCKED_CLIENT_LIST);
+
+            XmlUtil.writeNextSectionStart(out, XML_TAG_ALLOWED_CLIENT_LIST);
+            XmlUtil.SoftApConfigurationXmlUtil.writeClientListToXml(out,
+                    softApConfig.getAllowedClientList());
+            XmlUtil.writeNextSectionEnd(out, XML_TAG_ALLOWED_CLIENT_LIST);
         }
     }
 
@@ -122,43 +147,80 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
         // 6GHz band. If the old encoding is found, a conversion is done.
         int channel = -1;
         int apBand = -1;
+        List<MacAddress> blockedList = new ArrayList<>();
+        List<MacAddress> allowedList = new ArrayList<>();
         try {
             while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
-                String[] valueName = new String[1];
-                Object value = XmlUtil.readCurrentValue(in, valueName);
-                if (TextUtils.isEmpty(valueName[0])) {
-                    throw new XmlPullParserException("Missing value name");
-                }
-                switch (valueName[0]) {
-                    case XML_TAG_SSID:
-                        ssid = (String) value;
-                        softApConfigBuilder.setSsid((String) value);
-                        break;
-                    case XML_TAG_BAND:
-                        apBand = ApConfigUtil.convertWifiConfigBandToSoftApConfigBand((int) value);
-                        break;
-                    case XML_TAG_AP_BAND:
-                        apBand = (int) value;
-                        break;
-                    case XML_TAG_CHANNEL:
-                        channel = (int) value;
-                        break;
-                    case XML_TAG_HIDDEN_SSID:
-                        softApConfigBuilder.setHiddenSsid((boolean) value);
-                        break;
-                    case XML_TAG_SECURITY_TYPE:
-                        securityType = (int) value;
-                        break;
-                    case XML_TAG_WPA2_PASSPHRASE:
-                    case XML_TAG_PASSPHRASE:
-                        passphrase = (String) value;
-                        break;
-                    default:
-                        Log.w(TAG, "Ignoring unknown value name " + valueName[0]);
-                        break;
+                if (in.getAttributeValue(null, "name") != null) {
+                    String[] valueName = new String[1];
+                    Object value = XmlUtil.readCurrentValue(in, valueName);
+                    if (TextUtils.isEmpty(valueName[0])) {
+                        throw new XmlPullParserException("Missing value name");
+                    }
+                    switch (valueName[0]) {
+                        case XML_TAG_SSID:
+                            ssid = (String) value;
+                            softApConfigBuilder.setSsid((String) value);
+                            break;
+                        case XML_TAG_BAND:
+                            apBand = ApConfigUtil.convertWifiConfigBandToSoftApConfigBand(
+                                    (int) value);
+                            break;
+                        case XML_TAG_AP_BAND:
+                            apBand = (int) value;
+                            break;
+                        case XML_TAG_CHANNEL:
+                            channel = (int) value;
+                            break;
+                        case XML_TAG_HIDDEN_SSID:
+                            softApConfigBuilder.setHiddenSsid((boolean) value);
+                            break;
+                        case XML_TAG_SECURITY_TYPE:
+                            securityType = (int) value;
+                            break;
+                        case XML_TAG_WPA2_PASSPHRASE:
+                        case XML_TAG_PASSPHRASE:
+                            passphrase = (String) value;
+                            break;
+                        case XML_TAG_MAX_NUMBER_OF_CLIENTS:
+                            softApConfigBuilder.setMaxNumberOfClients((int) value);
+                            break;
+                        case XML_TAG_SHUTDOWN_TIMEOUT_MILLIS:
+                            softApConfigBuilder.setShutdownTimeoutMillis((int) value);
+                            break;
+                        case XML_TAG_CLIENT_CONTROL_BY_USER:
+                            softApConfigBuilder.enableClientControlByUser((boolean) value);
+                            break;
+                        default:
+                            Log.w(TAG, "Ignoring unknown value name " + valueName[0]);
+                            break;
+                    }
+                } else {
+                    String tagName = in.getName();
+                    List<MacAddress> parseredList;
+                    if (tagName == null) {
+                        throw new XmlPullParserException("Unexpected null tag found");
+                    }
+                    switch (tagName) {
+                        case XML_TAG_BLOCKED_CLIENT_LIST:
+                            parseredList =
+                                    XmlUtil.SoftApConfigurationXmlUtil.parseClientListFromXml(
+                                    in, outerTagDepth + 1);
+                            if (parseredList != null) blockedList = new ArrayList<>(parseredList);
+                            break;
+                        case XML_TAG_ALLOWED_CLIENT_LIST:
+                            parseredList =
+                                    XmlUtil.SoftApConfigurationXmlUtil.parseClientListFromXml(
+                                    in, outerTagDepth + 1);
+                            if (parseredList != null) allowedList = new ArrayList<>(parseredList);
+                            break;
+                        default:
+                            Log.w(TAG, "Ignoring unknown tag found: " + tagName);
+                            break;
+                    }
                 }
             }
-
+            softApConfigBuilder.setClientList(blockedList, allowedList);
             // Set channel and band
             if (channel == 0) {
                 softApConfigBuilder.setBand(apBand);
