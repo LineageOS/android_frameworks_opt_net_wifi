@@ -30,8 +30,6 @@ import android.net.TrafficStats;
 import android.net.Uri;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientUtil;
-import android.os.IBinder;
-import android.os.ServiceManager;
 import android.provider.Settings;
 import android.sysprop.WifiProperties;
 import android.telephony.CarrierConfigManager;
@@ -142,10 +140,6 @@ public class FrameworkFacade {
      */
     public void unregisterContentObserver(Context context, ContentObserver contentObserver) {
         getContentResolver(context).unregisterContentObserver(contentObserver);
-    }
-
-    public IBinder getService(String serviceName) {
-        return ServiceManager.getService(serviceName);
     }
 
     public PendingIntent getBroadcast(Context context, int requestCode, Intent intent, int flags) {

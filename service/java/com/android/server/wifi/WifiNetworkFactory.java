@@ -44,6 +44,7 @@ import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PatternMatcher;
@@ -1084,7 +1085,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         }
         // Create a worksource using the caller's UID.
         WorkSource workSource = new WorkSource(mActiveSpecificNetworkRequestSpecifier.requestorUid);
-        mWifiScanner.startScan(mScanSettings, mScanListener, workSource);
+        mWifiScanner.startScan(
+                mScanSettings, new HandlerExecutor(mHandler), mScanListener, workSource);
     }
 
     private boolean doesScanResultMatchWifiNetworkSpecifier(
