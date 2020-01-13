@@ -2831,13 +2831,13 @@ public class ClientModeImpl extends StateMachine {
     private void handleIPv4Success(DhcpResultsParcelable dhcpResults) {
         if (mVerboseLoggingEnabled) {
             logd("handleIPv4Success <" + dhcpResults.toString() + ">");
-            logd("link address " + dhcpResults.baseConfiguration.ipAddress);
+            logd("link address " + dhcpResults.baseConfiguration.getIpAddress());
         }
 
         Inet4Address addr;
         synchronized (mDhcpResultsParcelableLock) {
             mDhcpResultsParcelable = dhcpResults;
-            addr = (Inet4Address) dhcpResults.baseConfiguration.ipAddress.getAddress();
+            addr = (Inet4Address) dhcpResults.baseConfiguration.getIpAddress().getAddress();
         }
 
         if (mIsAutoRoaming) {
@@ -5561,10 +5561,10 @@ public class ClientModeImpl extends StateMachine {
         if (lp.hasIpv4Address()) {
             attributes.add("v4");
         }
-        if (lp.hasIPv4DefaultRoute()) {
+        if (lp.hasIpv4DefaultRoute()) {
             attributes.add("v4r");
         }
-        if (lp.hasIPv4DnsServer()) {
+        if (lp.hasIpv4DnsServer()) {
             attributes.add("v4dns");
         }
         if (lp.hasGlobalIpv6Address()) {
@@ -5573,7 +5573,7 @@ public class ClientModeImpl extends StateMachine {
         if (lp.hasIpv6DefaultRoute()) {
             attributes.add("v6r");
         }
-        if (lp.hasIPv6DnsServer()) {
+        if (lp.hasIpv6DnsServer()) {
             attributes.add("v6dns");
         }
 

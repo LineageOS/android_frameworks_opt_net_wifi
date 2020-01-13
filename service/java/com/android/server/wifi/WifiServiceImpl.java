@@ -2698,20 +2698,20 @@ public class WifiServiceImpl extends BaseWifiService {
         DhcpInfo info = new DhcpInfo();
 
         if (dhcpResults.baseConfiguration != null) {
-            if (dhcpResults.baseConfiguration.ipAddress != null
-                    && dhcpResults.baseConfiguration.ipAddress.getAddress()
+            if (dhcpResults.baseConfiguration.getIpAddress() != null
+                    && dhcpResults.baseConfiguration.getIpAddress().getAddress()
                     instanceof Inet4Address) {
                 info.ipAddress = Inet4AddressUtils.inet4AddressToIntHTL(
-                        (Inet4Address) dhcpResults.baseConfiguration.ipAddress.getAddress());
+                        (Inet4Address) dhcpResults.baseConfiguration.getIpAddress().getAddress());
             }
 
-            if (dhcpResults.baseConfiguration.gateway != null) {
+            if (dhcpResults.baseConfiguration.getGateway() != null) {
                 info.gateway = Inet4AddressUtils.inet4AddressToIntHTL(
-                        (Inet4Address) dhcpResults.baseConfiguration.gateway);
+                        (Inet4Address) dhcpResults.baseConfiguration.getGateway());
             }
 
             int dnsFound = 0;
-            for (InetAddress dns : dhcpResults.baseConfiguration.dnsServers) {
+            for (InetAddress dns : dhcpResults.baseConfiguration.getDnsServers()) {
                 if (dns instanceof Inet4Address) {
                     if (dnsFound == 0) {
                         info.dns1 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
