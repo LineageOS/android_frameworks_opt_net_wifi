@@ -131,6 +131,19 @@ class Utils {
         return filteredScanResultList;
     }
 
+    static CharSequence getAppLabel(Context context, String packageName) {
+        try {
+            ApplicationInfo appInfo = context.getPackageManager().getApplicationInfoAsUser(
+                    packageName,
+                    0 /* flags */,
+                    UserHandle.getUserId(UserHandle.USER_CURRENT));
+            return appInfo.loadLabel(context.getPackageManager());
+        } catch (PackageManager.NameNotFoundException e) {
+            // Do nothing.
+        }
+        return "";
+    }
+
     static CharSequence getAppLabelForSavedNetwork(@NonNull Context context,
             @NonNull WifiEntry wifiEntry) {
         final WifiConfiguration config = wifiEntry.getWifiConfiguration();

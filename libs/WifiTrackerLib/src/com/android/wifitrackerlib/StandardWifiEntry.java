@@ -20,6 +20,7 @@ import static android.net.wifi.WifiInfo.removeDoubleQuotes;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
+import static com.android.wifitrackerlib.Utils.getAppLabel;
 import static com.android.wifitrackerlib.Utils.getAppLabelForSavedNetwork;
 import static com.android.wifitrackerlib.Utils.getAutoConnectDescription;
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
@@ -30,7 +31,12 @@ import static com.android.wifitrackerlib.Utils.getSpeedDescription;
 import static com.android.wifitrackerlib.Utils.getVerboseLoggingDescription;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
+import android.net.NetworkInfo.DetailedState;
+import android.net.NetworkScoreManager;
+import android.net.NetworkScorerAppData;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
@@ -64,6 +70,7 @@ class StandardWifiEntry extends WifiEntry {
     @Nullable private ConnectCallback mConnectCallback;
     @Nullable private DisconnectCallback mDisconnectCallback;
     @Nullable private ForgetCallback mForgetCallback;
+    @Nullable private String mRecommendationServiceLabel;
 
     StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
             @NonNull List<ScanResult> scanResults,
@@ -81,6 +88,7 @@ class StandardWifiEntry extends WifiEntry {
         mSsid = firstScan.SSID;
         mSecurity = getSecurityFromScanResult(firstScan);
         updateScanResultInfo(scanResults);
+        updateRecommendationServiceLabel();
     }
 
     StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
@@ -96,6 +104,7 @@ class StandardWifiEntry extends WifiEntry {
         mSsid = removeDoubleQuotes(config.SSID);
         mSecurity = getSecurityFromWifiConfiguration(config);
         mWifiConfig = config;
+        updateRecommendationServiceLabel();
     }
 
     StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
@@ -115,6 +124,7 @@ class StandardWifiEntry extends WifiEntry {
         } catch (StringIndexOutOfBoundsException | NumberFormatException e) {
             throw new IllegalArgumentException("Malformed key: " + key);
         }
+        updateRecommendationServiceLabel();
     }
 
     @Override
@@ -148,12 +158,7 @@ class StandardWifiEntry extends WifiEntry {
             }
         }
 
-        if (getConnectedState() == CONNECTED_STATE_CONNECTED) {
-            final String connectedDescription = getConnectedStateDescription();
-            if (!TextUtils.isEmpty(connectedDescription)) {
-                sj.add(connectedDescription);
-            }
-        } else if (getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
+        if (getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
             String disconnectDescription = getDisconnectedStateDescription();
             if (TextUtils.isEmpty(disconnectDescription)) {
                 if (concise) {
@@ -163,6 +168,11 @@ class StandardWifiEntry extends WifiEntry {
                 }
             } else {
                 sj.add(disconnectDescription);
+            }
+        } else {
+            final String connectDescription = getConnectStateDescription();
+            if (!TextUtils.isEmpty(connectDescription)) {
+                sj.add(connectDescription);
             }
         }
 
@@ -186,9 +196,61 @@ class StandardWifiEntry extends WifiEntry {
         return sj.toString();
     }
 
-    private String getConnectedStateDescription() {
-        // TODO(b/70983952): Fill this method in.
-        return "Connected";
+    private String getConnectStateDescription() {
+        if (getConnectedState() == CONNECTED_STATE_CONNECTED) {
+            if (!isSaved()) {
+                // For ephemeral networks.
+                final String suggestionOrSpecifierPackageName = mWifiInfo != null
+                        ? mWifiInfo.getAppPackageName() : null;
+                if (!TextUtils.isEmpty(suggestionOrSpecifierPackageName)) {
+                    return mContext.getString(R.string.connected_via_app,
+                            getAppLabel(mContext, suggestionOrSpecifierPackageName));
+                }
+
+                // Special case for connected + ephemeral networks.
+                if (!TextUtils.isEmpty(mRecommendationServiceLabel)) {
+                    return String.format(mContext.getString(R.string.connected_via_network_scorer),
+                            mRecommendationServiceLabel);
+                }
+                return mContext.getString(R.string.connected_via_network_scorer_default);
+            }
+
+            // Check NetworkCapabilities.
+            final ConnectivityManager cm =
+                    (ConnectivityManager) mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            final NetworkCapabilities nc =
+                    cm.getNetworkCapabilities(mWifiManager.getCurrentNetwork());
+            if (nc != null) {
+                if (nc.hasCapability(nc.NET_CAPABILITY_CAPTIVE_PORTAL)) {
+                    return mContext.getString(mContext.getResources()
+                            .getIdentifier("network_available_sign_in", "string", "android"));
+                }
+
+                if (nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_PARTIAL_CONNECTIVITY)) {
+                    return mContext.getString(R.string.wifi_limited_connection);
+                }
+
+                if (!nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    if (nc.isPrivateDnsBroken()) {
+                        return mContext.getString(R.string.private_dns_broken);
+                    }
+                    return mContext.getString(R.string.wifi_connected_no_internet);
+                }
+            }
+        }
+
+        if (mNetworkInfo == null) {
+            return "";
+        }
+        final DetailedState detailState = mNetworkInfo.getDetailedState();
+        if (detailState == null) {
+            return "";
+        }
+
+        final String[] wifiStatusArray = mContext.getResources()
+                .getStringArray(R.array.wifi_status);
+        final int index = detailState.ordinal();
+        return index >= wifiStatusArray.length ? "" : wifiStatusArray[index];
     }
 
     private String getDisconnectedStateDescription() {
@@ -580,6 +642,14 @@ class StandardWifiEntry extends WifiEntry {
         }
 
         return mWifiConfig != null && mWifiConfig.networkId == wifiInfo.getNetworkId();
+    }
+
+    private void updateRecommendationServiceLabel() {
+        final NetworkScorerAppData scorer = ((NetworkScoreManager) mContext
+                .getSystemService(Context.NETWORK_SCORE_SERVICE)).getActiveScorer();
+        if (scorer != null) {
+            mRecommendationServiceLabel = scorer.getRecommendationServiceLabel();
+        }
     }
 
     @NonNull
