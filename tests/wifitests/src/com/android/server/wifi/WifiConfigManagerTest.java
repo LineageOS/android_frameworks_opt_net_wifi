@@ -292,6 +292,28 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verify that a randomized MAC address is generated even if the KeyStore operation fails.
+     */
+    @Test
+    public void testRandomizedMacIsGeneratedEvenIfKeyStoreFails() {
+        when(WifiConfigurationUtil.calculatePersistentMacForConfiguration(
+                any(), any())).thenReturn(null);
+
+        // Try adding a network.
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(openNetwork);
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+
+        // Verify that despite KeyStore returning null, we are still getting a valid MAC address.
+        assertEquals(1, retrievedNetworks.size());
+        assertNotEquals(WifiInfo.DEFAULT_MAC_ADDRESS,
+                retrievedNetworks.get(0).getRandomizedMacAddress().toString());
+    }
+
+    /**
      * Verifies the addition of a single network using
      * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)}
      */
