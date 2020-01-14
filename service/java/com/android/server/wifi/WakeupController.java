@@ -23,6 +23,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.Process;
 import android.provider.Settings;
 import android.util.Log;
@@ -226,7 +227,8 @@ public class WakeupController {
      */
     public void start() {
         Log.d(TAG, "start()");
-        mWifiInjector.getWifiScanner().registerScanListener(mScanListener);
+        mWifiInjector.getWifiScanner().registerScanListener(
+                new HandlerExecutor(mHandler), mScanListener);
 
         // If already active, we don't want to restart the session, so return early.
         if (mIsActive) {

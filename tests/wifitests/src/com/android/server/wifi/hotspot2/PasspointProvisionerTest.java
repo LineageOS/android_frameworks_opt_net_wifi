@@ -62,7 +62,6 @@ import android.telephony.TelephonyManager;
 import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
-import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
@@ -101,6 +100,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 
 /**
  * Unit tests for {@link PasspointProvisioner}.
@@ -165,7 +165,7 @@ public class PasspointProvisionerTest extends WifiBaseTest {
             ArgumentCaptor.forClass(RedirectListener.RedirectCallback.class);
     private ArgumentCaptor<Handler> mHandlerCaptor = ArgumentCaptor.forClass(Handler.class);
     private OsuProvider mOsuProvider;
-    private TrustManagerImpl mDelegate;
+    private TrustManagerFactory mDelegate;
     private URL mTestUrl;
     private MockitoSession mSession;
 
@@ -215,7 +215,6 @@ public class PasspointProvisionerTest extends WifiBaseTest {
         when(mWfaKeyStore.get()).thenReturn(mKeyStore);
         when(mObjectFactory.makeWfaKeyStore()).thenReturn(mWfaKeyStore);
         when(mObjectFactory.getSSLContext(any(String.class))).thenReturn(mTlsContext);
-        when(mObjectFactory.getTrustManagerImpl(any(KeyStore.class))).thenReturn(mDelegate);
         when(mObjectFactory.getSystemInfo(any(Context.class), any(WifiNative.class))).thenReturn(
                 mSystemInfo);
         doReturn(mWifiManager).when(mContext)
@@ -229,8 +228,9 @@ public class PasspointProvisionerTest extends WifiBaseTest {
         when(mOsuServerConnection.canValidateServer()).thenReturn(true);
         mPasspointProvisioner.enableVerboseLogging(1);
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
-        mDelegate = new TrustManagerImpl(PasspointProvisioningTestUtil.createFakeKeyStore());
-        when(mObjectFactory.getTrustManagerImpl(any(KeyStore.class))).thenReturn(mDelegate);
+        mDelegate = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        mDelegate.init(PasspointProvisioningTestUtil.createFakeKeyStore());
+        when(mObjectFactory.getTrustManagerFactory(any(KeyStore.class))).thenReturn(mDelegate);
         when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mTelephonyManager);
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(mSystemInfo.getDeviceModel()).thenReturn(TEST_MODEL);

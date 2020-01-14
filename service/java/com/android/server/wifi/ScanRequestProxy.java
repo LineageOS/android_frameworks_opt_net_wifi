@@ -27,6 +27,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -80,6 +81,7 @@ public class ScanRequestProxy {
     public static final int SCAN_REQUEST_THROTTLE_INTERVAL_BG_APPS_MS = 30 * 60 * 1000;
 
     private final Context mContext;
+    private final Handler mHandler;
     private final AppOpsManager mAppOps;
     private final ActivityManager mActivityManager;
     private final WifiInjector mWifiInjector;
@@ -241,6 +243,7 @@ public class ScanRequestProxy {
                      WifiPermissionsUtil wifiPermissionUtil, WifiMetrics wifiMetrics, Clock clock,
                      FrameworkFacade frameworkFacade, Handler handler) {
         mContext = context;
+        mHandler = handler;
         mAppOps = appOpsManager;
         mActivityManager = activityManager;
         mWifiInjector = wifiInjector;
@@ -271,7 +274,8 @@ public class ScanRequestProxy {
             mThrottleEnabledSettingObserver.initialize();
             // Register the global scan listener.
             if (mWifiScanner != null) {
-                mWifiScanner.registerScanListener(new GlobalScanListener());
+                mWifiScanner.registerScanListener(
+                        new HandlerExecutor(mHandler), new GlobalScanListener());
             }
         }
         return mWifiScanner != null;
@@ -285,13 +289,9 @@ public class ScanRequestProxy {
      */
     private void sendScanAvailableBroadcast(Context context, boolean available) {
         Log.d(TAG, "Sending scan available broadcast: " + available);
-        final Intent intent = new Intent(WifiManager.WIFI_SCAN_AVAILABLE);
+        final Intent intent = new Intent(WifiManager.ACTION_WIFI_SCAN_AVAILABLE);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-        if (available) {
-            intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, WifiManager.WIFI_STATE_ENABLED);
-        } else {
-            intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, WifiManager.WIFI_STATE_DISABLED);
-        }
+        intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, available);
         context.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
     }
 
@@ -498,7 +498,8 @@ public class ScanRequestProxy {
             settings.hiddenNetworks.addAll(
                     mWifiInjector.getWifiNetworkSuggestionsManager().retrieveHiddenNetworkList());
         }
-        mWifiScanner.startScan(settings, new ScanRequestProxyScanListener(), workSource);
+        mWifiScanner.startScan(settings, new HandlerExecutor(mHandler),
+                new ScanRequestProxyScanListener(), workSource);
         return true;
     }
 

@@ -26,7 +26,6 @@ import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
-import android.net.wifi.IWifiScanner;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.wificond.WifiCondManager;
@@ -34,7 +33,6 @@ import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.HandlerThread;
-import android.os.IBinder;
 import android.os.Looper;
 import android.os.Process;
 import android.os.SystemProperties;
@@ -568,9 +566,7 @@ public class WifiInjector {
      */
     public synchronized WifiScanner getWifiScanner() {
         if (mWifiScanner == null) {
-            IBinder binder = mFrameworkFacade.getService(Context.WIFI_SCANNING_SERVICE);
-            IWifiScanner service = IWifiScanner.Stub.asInterface(binder);
-            mWifiScanner = new WifiScanner(mContext, service, mWifiHandlerThread.getLooper());
+            mWifiScanner = mContext.getSystemService(WifiScanner.class);
         }
         return mWifiScanner;
     }

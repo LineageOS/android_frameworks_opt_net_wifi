@@ -21,7 +21,6 @@ import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.android.internal.util.XmlUtils;
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiKeyStore;
 import com.android.server.wifi.util.TelephonyUtil;
@@ -277,7 +276,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         boolean isFromSuggestion = false;
         boolean shared = false;
         PasspointConfiguration config = null;
-        while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
+        while (XmlUtil.nextElementWithin(in, outerTagDepth)) {
             if (in.getAttributeValue(null, "name") != null) {
                 // Value elements.
                 String[] name = new String[1];
