@@ -103,7 +103,7 @@ public class WifiScoreReport {
         int netId = 0;
 
         if (networkAgent != null) {
-            netId = networkAgent.netId;
+            netId = networkAgent.network.netId;
         }
 
         mAggressiveConnectedScore.updateUsingWifiInfo(wifiInfo, millis);

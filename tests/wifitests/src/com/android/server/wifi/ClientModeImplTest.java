@@ -43,6 +43,7 @@ import android.net.InetAddresses;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.MacAddress;
+import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
@@ -485,6 +486,8 @@ public class ClientModeImplTest extends WifiBaseTest {
             mIpClientCallback.onQuit();
             return null;
         }).when(mIpClient).shutdown();
+        when(mConnectivityManager.registerNetworkAgent(any(), any(), any(), any(), anyInt(), any(),
+                anyInt())).thenReturn(mock(Network.class));
         List<SubscriptionInfo> subList = new ArrayList<>() {{
                 add(mock(SubscriptionInfo.class));
             }};
