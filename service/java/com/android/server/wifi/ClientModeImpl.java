@@ -51,7 +51,6 @@ import android.net.NetworkAgentConfig;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkInfo.DetailedState;
-import android.net.RouteInfo;
 import android.net.SocketKeepalive;
 import android.net.StaticIpConfiguration;
 import android.net.TcpKeepalivePacketData;
@@ -60,6 +59,7 @@ import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientManager;
 import android.net.shared.Inet4AddressUtils;
 import android.net.shared.ProvisioningConfiguration;
+import android.net.util.NetUtils;
 import android.net.wifi.IActionListener;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ITxPacketCountListener;
@@ -1260,7 +1260,7 @@ public class ClientModeImpl extends StateMachine {
     private byte[] getDstMacForKeepalive(KeepalivePacketData packetData)
             throws InvalidPacketException {
         try {
-            InetAddress gateway = RouteInfo.selectBestRoute(
+            InetAddress gateway = NetUtils.selectBestRoute(
                     mLinkProperties.getRoutes(), packetData.dstAddress).getGateway();
             String dstMacStr = macAddressFromRoute(gateway.getHostAddress());
             return NativeUtil.macAddressToByteArray(dstMacStr);
