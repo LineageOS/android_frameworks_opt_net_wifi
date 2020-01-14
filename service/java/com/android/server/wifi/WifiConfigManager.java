@@ -76,8 +76,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.crypto.Mac;
-
 /**
  * This class provides the APIs to manage configured Wi-Fi networks.
  * It deals with the following:
@@ -268,7 +266,6 @@ public class WifiConfigManager {
      */
     private final Context mContext;
     private final Clock mClock;
-    private final Mac mMac;
     private final UserManager mUserManager;
     private final BackupManagerProxy mBackupManagerProxy;
     private final TelephonyManager mTelephonyManager;
@@ -449,11 +446,6 @@ public class WifiConfigManager {
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Unable to resolve SystemUI's UID.");
         }
-        mMac = WifiConfigurationUtil.obtainMacRandHashFunction(Process.WIFI_UID);
-        if (mMac == null) {
-            Log.wtf(TAG, "Failed to obtain secret for MAC randomization."
-                    + " All randomized MAC addresses are lost!");
-        }
     }
 
     /**
@@ -505,7 +497,18 @@ public class WifiConfigManager {
                 mRandomizedMacAddressMapping.remove(config.getSsidAndSecurityTypeString());
             }
         }
-        return WifiConfigurationUtil.calculatePersistentMacForConfiguration(config, mMac);
+        MacAddress result = WifiConfigurationUtil.calculatePersistentMacForConfiguration(config,
+                WifiConfigurationUtil.obtainMacRandHashFunction(Process.WIFI_UID));
+        if (result == null) {
+            result = WifiConfigurationUtil.calculatePersistentMacForConfiguration(config,
+                    WifiConfigurationUtil.obtainMacRandHashFunction(Process.WIFI_UID));
+        }
+        if (result == null) {
+            Log.wtf(TAG, "Failed to generate MAC address from KeyStore even after retrying. "
+                    + "Using locally generated MAC address instead.");
+            result = MacAddress.createRandomUnicastAddress();
+        }
+        return result;
     }
 
     /**

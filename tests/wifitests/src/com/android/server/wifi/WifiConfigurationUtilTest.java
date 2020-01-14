@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import android.content.pm.UserInfo;
 import android.net.IpConfiguration;
@@ -34,6 +35,7 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.Test;
 
+import java.security.ProviderException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -988,6 +990,22 @@ public class WifiConfigurationUtilTest {
             MacAddress macAddress2 = WifiConfigurationUtil.calculatePersistentMacForConfiguration(
                     config, hashFunction2);
             assertEquals(macAddress, macAddress2);
+        }
+    }
+
+    /**
+     * Verify the java.security.ProviderException is caught.
+     */
+    @Test
+    public void testCalculatePersistentMacCatchesException() {
+        Mac hashFunction = mock(Mac.class);
+        when(hashFunction.doFinal(any())).thenThrow(new ProviderException("error occurred"));
+        try {
+            WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+            assertNull(WifiConfigurationUtil.calculatePersistentMacForConfiguration(config,
+                    hashFunction));
+        } catch (Exception e) {
+            fail("Exception not caught.");
         }
     }
 
