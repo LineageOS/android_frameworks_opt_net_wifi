@@ -189,7 +189,7 @@ public class WifiInjector {
         mNetworkScoreManager = mContext.getSystemService(NetworkScoreManager.class);
         mWifiNetworkScoreCache = new WifiNetworkScoreCache(mContext);
         mNetworkScoreManager.registerNetworkScoreCallback(NetworkKey.TYPE_WIFI,
-                NetworkScoreManager.CACHE_FILTER_NONE,
+                NetworkScoreManager.SCORE_FILTER_NONE,
                 new HandlerExecutor(wifiHandler), mWifiNetworkScoreCache);
         mUserManager = mContext.getSystemService(UserManager.class);
         mWifiPermissionsUtil = new WifiPermissionsUtil(mWifiPermissionsWrapper, mContext,
