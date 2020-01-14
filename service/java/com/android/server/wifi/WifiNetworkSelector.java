@@ -531,8 +531,6 @@ public class WifiNetworkSelector {
     private boolean setLegacyUserConnectChoice(@NonNull final WifiConfiguration selected) {
         boolean change = false;
         String key = selected.getKey();
-        // This is only used for setting the connect choice timestamp for debugging purposes.
-        long currentTime = mClock.getWallClockMillis();
         List<WifiConfiguration> configuredNetworks = mWifiConfigManager.getConfiguredNetworks();
 
         for (WifiConfiguration network : configuredNetworks) {
@@ -540,8 +538,7 @@ public class WifiNetworkSelector {
             if (network.networkId == selected.networkId) {
                 if (status.getConnectChoice() != null) {
                     localLog("Remove user selection preference of " + status.getConnectChoice()
-                            + " Set Time: " + status.getConnectChoiceTimestamp() + " from "
-                            + network.SSID + " : " + network.networkId);
+                            + " from " + network.SSID + " : " + network.networkId);
                     mWifiConfigManager.clearNetworkConnectChoice(network.networkId);
                     change = true;
                 }
@@ -550,9 +547,9 @@ public class WifiNetworkSelector {
 
             if (status.getSeenInLastQualifiedNetworkSelection()
                         && !key.equals(status.getConnectChoice())) {
-                localLog("Add key: " + key + " Set Time: " + currentTime + " to "
+                localLog("Add key: " + key + " to "
                         + toNetworkString(network));
-                mWifiConfigManager.setNetworkConnectChoice(network.networkId, key, currentTime);
+                mWifiConfigManager.setNetworkConnectChoice(network.networkId, key);
                 change = true;
             }
         }

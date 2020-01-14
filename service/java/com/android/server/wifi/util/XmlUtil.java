@@ -345,7 +345,6 @@ public class XmlUtil {
         public static final String XML_TAG_NUM_ASSOCIATION = "NumAssociation";
         public static final String XML_TAG_CREATOR_UID = "CreatorUid";
         public static final String XML_TAG_CREATOR_NAME = "CreatorName";
-        public static final String XML_TAG_CREATION_TIME = "CreationTime";
         public static final String XML_TAG_LAST_UPDATE_UID = "LastUpdateUid";
         public static final String XML_TAG_LAST_UPDATE_NAME = "LastUpdateName";
         public static final String XML_TAG_LAST_CONNECT_UID = "LastConnectUid";
@@ -507,7 +506,6 @@ public class XmlUtil {
             XmlUtil.writeNextValue(out, XML_TAG_NUM_ASSOCIATION, configuration.numAssociation);
             XmlUtil.writeNextValue(out, XML_TAG_CREATOR_UID, configuration.creatorUid);
             XmlUtil.writeNextValue(out, XML_TAG_CREATOR_NAME, configuration.creatorName);
-            XmlUtil.writeNextValue(out, XML_TAG_CREATION_TIME, configuration.creationTime);
             XmlUtil.writeNextValue(out, XML_TAG_LAST_UPDATE_UID, configuration.lastUpdateUid);
             XmlUtil.writeNextValue(out, XML_TAG_LAST_UPDATE_NAME, configuration.lastUpdateName);
             XmlUtil.writeNextValue(out, XML_TAG_LAST_CONNECT_UID, configuration.lastConnectUid);
@@ -684,9 +682,6 @@ public class XmlUtil {
                             break;
                         case XML_TAG_CREATOR_NAME:
                             configuration.creatorName = (String) value;
-                            break;
-                        case XML_TAG_CREATION_TIME:
-                            configuration.creationTime = (String) value;
                             break;
                         case XML_TAG_LAST_UPDATE_UID:
                             configuration.lastUpdateUid = (int) value;
@@ -1003,7 +998,6 @@ public class XmlUtil {
         public static final String XML_TAG_SELECTION_STATUS = "SelectionStatus";
         public static final String XML_TAG_DISABLE_REASON = "DisableReason";
         public static final String XML_TAG_CONNECT_CHOICE = "ConnectChoice";
-        public static final String XML_TAG_CONNECT_CHOICE_TIMESTAMP = "ConnectChoiceTimeStamp";
         public static final String XML_TAG_HAS_EVER_CONNECTED = "HasEverConnected";
 
         /**
@@ -1020,9 +1014,6 @@ public class XmlUtil {
             XmlUtil.writeNextValue(
                     out, XML_TAG_DISABLE_REASON, selectionStatus.getNetworkDisableReasonString());
             XmlUtil.writeNextValue(out, XML_TAG_CONNECT_CHOICE, selectionStatus.getConnectChoice());
-            XmlUtil.writeNextValue(
-                    out, XML_TAG_CONNECT_CHOICE_TIMESTAMP,
-                    selectionStatus.getConnectChoiceTimestamp());
             XmlUtil.writeNextValue(
                     out, XML_TAG_HAS_EVER_CONNECTED, selectionStatus.getHasEverConnected());
         }
@@ -1057,9 +1048,6 @@ public class XmlUtil {
                         break;
                     case XML_TAG_CONNECT_CHOICE:
                         selectionStatus.setConnectChoice((String) value);
-                        break;
-                    case XML_TAG_CONNECT_CHOICE_TIMESTAMP:
-                        selectionStatus.setConnectChoiceTimestamp((long) value);
                         break;
                     case XML_TAG_HAS_EVER_CONNECTED:
                         selectionStatus.setHasEverConnected((boolean) value);
