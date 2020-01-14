@@ -60,7 +60,13 @@ public class MacAddressUtil {
         if (key == null || hashFunction == null) {
             return null;
         }
-        byte[] hashedBytes = hashFunction.doFinal(key.getBytes(StandardCharsets.UTF_8));
+        byte[] hashedBytes;
+        try {
+            hashedBytes = hashFunction.doFinal(key.getBytes(StandardCharsets.UTF_8));
+        } catch (ProviderException | IllegalStateException e) {
+            Log.e(TAG, "Failure in calculatePersistentMac", e);
+            return null;
+        }
         ByteBuffer bf = ByteBuffer.wrap(hashedBytes);
         long longFromSsid = bf.getLong();
         /**
