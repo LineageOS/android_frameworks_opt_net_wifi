@@ -300,7 +300,7 @@ public class WifiAwareDataPathStateManagerTest {
                 null, false, 0);
 
         Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
+        reqNetworkMsg.what = NetworkProvider.CMD_REQUEST_NETWORK;
         reqNetworkMsg.obj = nr;
         reqNetworkMsg.arg1 = 0;
         res.mMessenger.send(reqNetworkMsg);
