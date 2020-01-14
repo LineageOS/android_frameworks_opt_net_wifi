@@ -2520,7 +2520,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setBSSID(stateChangeResult.BSSID);
             mWifiInfo.setSSID(stateChangeResult.wifiSsid);
             if (state == SupplicantState.ASSOCIATED) {
-                mWifiInfo.setWifiStandard(mWifiNative.getWifiStandard(mInterfaceName));
+                updateWifiInfoAfterAssociation();
             }
         } else {
             // Reset parameters according to WifiInfo.reset()
@@ -2559,6 +2559,24 @@ public class ClientModeImpl extends StateMachine {
         }
         mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         return state;
+    }
+
+    private void updateWifiInfoAfterAssociation() {
+        WifiNative.ConnectionCapabilities capabilities =
+                mWifiNative.getConnectionCapabilities(mInterfaceName);
+        ThroughputPredictor throughputPredictor = mWifiInjector.getThroughputPredictor();
+        int maxTxLinkSpeedMbps = throughputPredictor.predictMaxTxThroughput(capabilities);
+        int maxRxLinkSpeedMbps = throughputPredictor.predictMaxRxThroughput(capabilities);
+        mWifiInfo.setWifiStandard(capabilities.wifiStandard);
+        mWifiInfo.setMaxSupportedTxLinkSpeedMbps(maxTxLinkSpeedMbps);
+        mWifiInfo.setMaxSupportedRxLinkSpeedMbps(maxRxLinkSpeedMbps);
+        if (mVerboseLoggingEnabled) {
+            StringBuilder sb = new StringBuilder();
+            logd(sb.append("WifiStandard: ").append(capabilities.wifiStandard)
+                    .append(" maxTxSpeed: ").append(maxTxLinkSpeedMbps)
+                    .append(" maxRxSpeed: ").append(maxRxLinkSpeedMbps)
+                    .toString());
+        }
     }
 
     /**

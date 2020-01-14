@@ -25,6 +25,7 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
 
 import android.annotation.NonNull;
 import android.content.Context;
+import android.hardware.wifi.V1_0.WifiChannelWidthInMhz;
 import android.hardware.wifi.supplicant.V1_0.ISupplicant;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantNetwork;
@@ -2815,20 +2816,37 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    private int getChannelBandwidthFromCap(ConnectionCapabilities cap) {
+        switch(cap.channelBandwidth) {
+            case WifiChannelWidthInMhz.WIDTH_20:
+                return ScanResult.CHANNEL_WIDTH_20MHZ;
+            case WifiChannelWidthInMhz.WIDTH_40:
+                return ScanResult.CHANNEL_WIDTH_40MHZ;
+            case WifiChannelWidthInMhz.WIDTH_80:
+                return ScanResult.CHANNEL_WIDTH_80MHZ;
+            case WifiChannelWidthInMhz.WIDTH_160:
+                return ScanResult.CHANNEL_WIDTH_160MHZ;
+            case WifiChannelWidthInMhz.WIDTH_80P80:
+                return ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ;
+            default:
+                return ScanResult.CHANNEL_WIDTH_20MHZ;
+        }
+    }
+
     /**
-     * Returns wifi standard for connected network
+     * Returns connection capabilities of the current network
      *
      *  This is a v1.3+ HAL feature.
-     *  On error, or if these features are not supported, 0 is returned.
+     * @param ifaceName Name of the interface.
+     * @return connection capabilities of the current network
      */
-    public @ScanResult.WifiStandard int getWifiStandard(@NonNull String ifaceName) {
-        final String methodStr = "getWifiStandard";
-        MutableInt wifiStandard = new MutableInt(ScanResult.WIFI_STANDARD_UNKNOWN);
-
+    public WifiNative.ConnectionCapabilities getConnectionCapabilities(@NonNull String ifaceName) {
+        final String methodStr = "getConnectionCapabilities";
+        WifiNative.ConnectionCapabilities capOut = new WifiNative.ConnectionCapabilities();
         if (isV1_3()) {
             ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
             if (iface == null) {
-                return ScanResult.WIFI_STANDARD_UNKNOWN;
+                return capOut;
             }
 
             // Get a v1.3 supplicant STA Interface
@@ -2838,16 +2856,17 @@ public class SupplicantStaIfaceHal {
             if (staIfaceV13 == null) {
                 Log.e(TAG, methodStr
                         + ": SupplicantStaIface is null, cannot get Connection Capabilities");
-                return ScanResult.WIFI_STANDARD_UNKNOWN;
+                return capOut;
             }
 
             try {
                 staIfaceV13.getConnectionCapabilities(
-                        (SupplicantStatus statusInternal,
-                         ConnectionCapabilities connCapabilitiesInternal) -> {
+                        (SupplicantStatus statusInternal, ConnectionCapabilities cap) -> {
                             if (statusInternal.code == SupplicantStatusCode.SUCCESS) {
-                                wifiStandard.value =
-                                        getWifiStandardFromCap(connCapabilitiesInternal);
+                                capOut.wifiStandard = getWifiStandardFromCap(cap);
+                                capOut.channelBandwidth = getChannelBandwidthFromCap(cap);
+                                capOut.maxNumberTxSpatialStreams = cap.maxNumberTxSpatialStreams;
+                                capOut.maxNumberRxSpatialStreams = cap.maxNumberRxSpatialStreams;
                             }
                             checkStatusAndLogFailure(statusInternal, methodStr);
                         });
@@ -2857,8 +2876,7 @@ public class SupplicantStaIfaceHal {
         } else {
             Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
         }
-
-        return wifiStandard.value;
+        return capOut;
     }
 
     /**

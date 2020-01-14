@@ -51,6 +51,7 @@ import static org.mockito.Mockito.when;
 import android.annotation.NonNull;
 import android.app.test.MockAnswerUtil;
 import android.content.Context;
+import android.hardware.wifi.V1_0.WifiChannelWidthInMhz;
 import android.hardware.wifi.supplicant.V1_0.ISupplicant;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIface;
@@ -1803,23 +1804,27 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     }
 
     /**
-     * Test getWifiStandard
+     * Test getConnectionCapabilities
      * Should fail if running HAL lower than V1_3
      */
     @Test
-    public void testGetWifiStandardV1_2() throws Exception {
+    public void testGetConnectionCapabilitiesV1_2() throws Exception {
         setupMocksForHalV1_2();
         executeAndValidateInitializationSequenceV1_2();
-
-        assertEquals(ScanResult.WIFI_STANDARD_UNKNOWN, mDut.getWifiStandard(WLAN0_IFACE_NAME));
+        WifiNative.ConnectionCapabilities cap = mDut.getConnectionCapabilities(WLAN0_IFACE_NAME);
+        assertEquals(ScanResult.WIFI_STANDARD_UNKNOWN, cap.wifiStandard);
     }
 
     private class GetConnCapabilitiesAnswer extends MockAnswerUtil.AnswerWithArguments {
         private ConnectionCapabilities mConnCapabilities;
 
-        GetConnCapabilitiesAnswer(int wifiTechnology) {
+        GetConnCapabilitiesAnswer(int wifiTechnology, int channelBandwidth,
+                int maxNumberTxSpatialStreams, int maxNumberRxSpatialStreams) {
             mConnCapabilities = new ConnectionCapabilities();
             mConnCapabilities.technology = wifiTechnology;
+            mConnCapabilities.channelBandwidth = channelBandwidth;
+            mConnCapabilities.maxNumberTxSpatialStreams = maxNumberTxSpatialStreams;
+            mConnCapabilities.maxNumberRxSpatialStreams = maxNumberRxSpatialStreams;
         }
 
         public void answer(android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface
@@ -1829,22 +1834,30 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     }
 
     /**
-     * Test getWifiStandard if running with HAL V1_3
+     * Test getConnectionCapabilities if running with HAL V1_3
      */
     @Test
-    public void testGetWifiStandardV1_3() throws Exception {
+    public void testGetConnectionCapabilitiesV1_3() throws Exception {
         setupMocksForHalV1_3();
 
         executeAndValidateInitializationSequenceV1_3();
         int testWifiTechnologyHal = WifiTechnology.VHT;
         int testWifiStandardWifiInfo = ScanResult.WIFI_STANDARD_11AC;
+        int testChannelBandwidthHal = WifiChannelWidthInMhz.WIDTH_80P80;
+        int testChannelBandwidth = ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ;
+        int maxNumberTxSpatialStreams = 3;
+        int maxNumberRxSpatialStreams = 1;
 
-        doAnswer(new GetConnCapabilitiesAnswer(testWifiTechnologyHal))
+        doAnswer(new GetConnCapabilitiesAnswer(testWifiTechnologyHal, testChannelBandwidthHal,
+                maxNumberTxSpatialStreams, maxNumberRxSpatialStreams))
                 .when(mISupplicantStaIfaceMockV13).getConnectionCapabilities(any(
                 android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface
                         .getConnectionCapabilitiesCallback.class));
-
-        assertEquals(testWifiStandardWifiInfo, mDut.getWifiStandard(WLAN0_IFACE_NAME));
+        WifiNative.ConnectionCapabilities cap = mDut.getConnectionCapabilities(WLAN0_IFACE_NAME);
+        assertEquals(testWifiStandardWifiInfo, cap.wifiStandard);
+        assertEquals(testChannelBandwidth, cap.channelBandwidth);
+        assertEquals(maxNumberTxSpatialStreams, cap.maxNumberTxSpatialStreams);
+        assertEquals(maxNumberRxSpatialStreams, cap.maxNumberRxSpatialStreams);
     }
 
     private WifiConfiguration createTestWifiConfiguration() {
