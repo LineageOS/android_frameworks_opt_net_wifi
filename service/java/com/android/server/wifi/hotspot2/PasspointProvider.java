@@ -202,6 +202,20 @@ public class PasspointProvider {
     }
 
     /**
+     * Enable/disable mac randomization for this passpoint profile.
+     */
+    public void setMacRandomizationEnabled(boolean enabled) {
+        mConfig.setMacRandomizationEnabled(enabled);
+    }
+
+    /**
+     * Get whether mac randomization is enabled for this passpoint profile.
+     */
+    public boolean isMacRandomizationEnabled() {
+        return mConfig.isMacRandomizationEnabled();
+    }
+
+    /**
      * Install certificates and key based on current configuration.
      * Note: the certificates and keys in the configuration will get cleared once
      * they're installed in the keystore.
@@ -447,6 +461,7 @@ public class PasspointProvider {
         wifiConfig.ephemeral = mIsFromSuggestion;
         wifiConfig.creatorName = mPackageName;
         wifiConfig.creatorUid = mCreatorUid;
+        // TODO b/145209638 plumb whether mac randomization is enabled down and handle from below.
         return wifiConfig;
     }
 
