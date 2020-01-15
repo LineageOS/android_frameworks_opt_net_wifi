@@ -547,7 +547,7 @@ public class WifiConfigManager {
                     + "Using locally generated MAC address instead.");
             result = config.getRandomizedMacAddress();
             if (DEFAULT_MAC_ADDRESS.equals(result)) {
-                result = MacAddress.createRandomUnicastAddress();
+                result = MacAddressUtils.createRandomUnicastAddress();
             }
         }
         return result;
