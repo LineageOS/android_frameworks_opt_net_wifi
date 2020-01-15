@@ -609,6 +609,28 @@ public class WifiServiceImpl extends BaseWifiService {
                 "WifiService");
     }
 
+    private boolean checkAnyPermissionOf(String... permissions) {
+        for (String permission : permissions) {
+            if (mContext.checkCallingOrSelfPermission(permission) == PERMISSION_GRANTED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void enforceAnyPermissionOf(String... permissions) {
+        if (!checkAnyPermissionOf(permissions)) {
+            throw new SecurityException("Requires one of the following permissions: "
+                    + String.join(", ", permissions) + ".");
+        }
+    }
+
+    private void enforceNetworkStackOrSettingsPermission() {
+        enforceAnyPermissionOf(
+                android.Manifest.permission.NETWORK_SETTINGS,
+                NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK);
+    }
+
     private void enforceNetworkStackPermission() {
         // TODO(b/142554155): Only check for MAINLINE_NETWORK_STACK permission
         boolean granted = mContext.checkCallingOrSelfPermission(
@@ -1540,8 +1562,8 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new IllegalArgumentException("Callback must not be null");
         }
 
+        enforceNetworkStackOrSettingsPermission();
 
-        enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("registerSoftApCallback uid=%").c(Binder.getCallingUid()).flush();
         }
@@ -1574,7 +1596,8 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     @Override
     public void unregisterSoftApCallback(int callbackIdentifier) {
-        enforceNetworkSettingsPermission();
+        enforceNetworkStackOrSettingsPermission();
+
         if (mVerboseLoggingEnabled) {
             mLog.info("unregisterSoftApCallback uid=%").c(Binder.getCallingUid()).flush();
         }
