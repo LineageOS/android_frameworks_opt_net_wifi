@@ -83,14 +83,16 @@ public class WifiPickerTracker extends BaseWifiTracker {
     @GuardedBy("mLock") private final List<WifiEntry> mWifiEntries = new ArrayList<>();
     // Reference to the WifiEntry representing the network that is currently connected to
     private WifiEntry mConnectedWifiEntry;
+
+    // Cache containing saved WifiConfigurations mapped by StandardWifiEntry key
+    private final Map<String, WifiConfiguration> mWifiConfigCache = new HashMap<>();
     // Cache containing visible StandardWifiEntries. Must be accessed only by the worker thread.
     private final Map<String, StandardWifiEntry> mStandardWifiEntryCache = new HashMap<>();
-    // Cache containing visible PasspointWifiEntries. Must be accessed only by the worker thread.
-    private final Map<String, PasspointWifiEntry> mPasspointWifiEntryCache = new HashMap<>();
+
     // Cache containing saved PasspointConfigurations mapped by PasspointWifiEntry key.
     private final Map<String, PasspointConfiguration> mPasspointConfigCache = new HashMap<>();
-
-    private int mNumSavedNetworks = 0;
+    // Cache containing visible PasspointWifiEntries. Must be accessed only by the worker thread.
+    private final Map<String, PasspointWifiEntry> mPasspointWifiEntryCache = new HashMap<>();
 
     /**
      * Constructor for WifiPickerTracker.
@@ -149,7 +151,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
      */
     @AnyThread
     public int getNumSavedNetworks() {
-        return mNumSavedNetworks;
+        return mWifiConfigCache.size();
     }
 
     /**
@@ -163,14 +165,13 @@ public class WifiPickerTracker extends BaseWifiTracker {
     @WorkerThread
     @Override
     protected void handleOnStart() {
+        updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());
+        updatePasspointWifiEntryConfigs(mWifiManager.getPasspointConfigurations());
         mScanResultUpdater.update(Utils.filterScanResultsByCapabilities(
                 mWifiManager.getScanResults(),
                 mWifiManager.isWpa3SaeSupported(),
                 mWifiManager.isWpa3SuiteBSupported(),
                 mWifiManager.isEnhancedOpenSupported()));
-        // PasspointConfigurations should be populated before ScanResults, so that the scan results
-        // have a PasspointConfiguration to map to.
-        updatePasspointWifiEntryConfigs(mWifiManager.getPasspointConfigurations());
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
         final WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
         final NetworkInfo networkInfo = mConnectivityManager.getActiveNetworkInfo();
@@ -294,11 +295,12 @@ public class WifiPickerTracker extends BaseWifiTracker {
 
         // Create new StandardWifiEntry objects for each leftover group of scan results.
         for (Map.Entry<String, List<ScanResult>> e: scanResultsByKey.entrySet()) {
-            mStandardWifiEntryCache.put(e.getKey(),
-                    new StandardWifiEntry(mMainHandler, e.getValue(), mWifiManager));
+            final StandardWifiEntry newEntry =
+                    new StandardWifiEntry(mMainHandler, e.getValue(), mWifiManager);
+            // Populate with a saved config, if available
+            newEntry.updateConfig(mWifiConfigCache.get(newEntry.getKey()));
+            mStandardWifiEntryCache.put(newEntry.getKey(), newEntry);
         }
-
-        updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());
     }
 
     @WorkerThread
@@ -380,12 +382,11 @@ public class WifiPickerTracker extends BaseWifiTracker {
 
         if (entry != null) {
             if (changeReason == WifiManager.CHANGE_REASON_REMOVED) {
-                mNumSavedNetworks--;
-                entry.updateConfig(null);
+                mWifiConfigCache.remove(key);
             } else { // CHANGE_REASON_ADDED || CHANGE_REASON_CONFIG_CHANGE
-                if (changeReason == WifiManager.CHANGE_REASON_ADDED) mNumSavedNetworks++;
-                entry.updateConfig(config);
+                mWifiConfigCache.put(key, config);
             }
+            entry.updateConfig(mWifiConfigCache.get(key));
         }
     }
 
@@ -397,19 +398,16 @@ public class WifiPickerTracker extends BaseWifiTracker {
     @WorkerThread
     private void updateStandardWifiEntryConfigs(@NonNull List<WifiConfiguration> configs) {
         checkNotNull(configs, "Config list should not be null!");
-        mNumSavedNetworks = configs.size();
-
-        // Group configs by StandardWifiEntry key
-        final Map<String, WifiConfiguration> wifiConfigsByKey =
-                configs.stream().collect(Collectors.toMap(
-                        StandardWifiEntry::wifiConfigToStandardWifiEntryKey,
-                        Function.identity()));
+        mWifiConfigCache.clear();
+        mWifiConfigCache.putAll(configs.stream().collect(Collectors.toMap(
+                StandardWifiEntry::wifiConfigToStandardWifiEntryKey,
+                Function.identity())));
 
         // Iterate through current entries and update each entry's config
         mStandardWifiEntryCache.entrySet().forEach((entry) -> {
             final StandardWifiEntry wifiEntry = entry.getValue();
             final String key = wifiEntry.getKey();
-            wifiEntry.updateConfig(wifiConfigsByKey.get(key));
+            wifiEntry.updateConfig(mWifiConfigCache.get(key));
         });
     }
 
@@ -439,7 +437,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
     private void conditionallyCreateConnectedStandardWifiEntry(@Nullable WifiInfo wifiInfo,
             @Nullable NetworkInfo networkInfo) {
         final int connectedNetId = wifiInfo.getNetworkId();
-        mWifiManager.getConfiguredNetworks().stream()
+        mWifiConfigCache.values().stream()
                 .filter(config ->
                     config.networkId == connectedNetId && !mStandardWifiEntryCache.containsKey(
                         wifiConfigToStandardWifiEntryKey(config)))
