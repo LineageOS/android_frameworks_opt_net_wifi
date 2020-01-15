@@ -25,11 +25,11 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.net.wifi.WifiInfo;
-import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -41,8 +41,11 @@ import org.mockito.MockitoAnnotations;
  */
 @SmallTest
 public class WifiDataStallTest extends WifiBaseTest {
+    private static final int TEST_MIN_TX_BAD = 1;
+    private static final int TEST_MIN_TX_SUCCESS_WITHOUT_RX = 1;
 
     @Mock Context mContext;
+    MockResources mMockResources = new MockResources();
     @Mock FrameworkFacade mFacade;
     @Mock WifiMetrics mWifiMetrics;
     WifiDataStall mWifiDataStall;
@@ -59,14 +62,13 @@ public class WifiDataStallTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        when(mFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_DATA_STALL_MIN_TX_BAD,
-                WifiDataStall.MIN_TX_BAD_DEFAULT))
-                .thenReturn(WifiDataStall.MIN_TX_BAD_DEFAULT);
-        when(mFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX,
-                WifiDataStall.MIN_TX_SUCCESS_WITHOUT_RX_DEFAULT))
-                .thenReturn(WifiDataStall.MIN_TX_SUCCESS_WITHOUT_RX_DEFAULT);
+        when(mContext.getResources()).thenReturn(mMockResources);
+
+        mMockResources.setInteger(
+                R.integer.config_wifiDataStallMinTxBad, TEST_MIN_TX_BAD);
+        mMockResources.setInteger(
+                R.integer.config_wifiDataStallMinTxSuccessWithoutRx,
+                TEST_MIN_TX_SUCCESS_WITHOUT_RX);
         when(mDeviceConfigFacade.getDataStallDurationMs()).thenReturn(
                 DeviceConfigFacade.DEFAULT_DATA_STALL_DURATION_MS);
         when(mDeviceConfigFacade.getDataStallTxTputThrKbps()).thenReturn(
@@ -263,7 +265,7 @@ public class WifiDataStallTest extends WifiBaseTest {
      */
     @Test
     public void verifyNoDataStallBigTimeGap() throws Exception {
-        mNewLlStats.lostmpdu_be = mOldLlStats.lostmpdu_be + WifiDataStall.MIN_TX_BAD_DEFAULT;
+        mNewLlStats.lostmpdu_be = mOldLlStats.lostmpdu_be + TEST_MIN_TX_BAD;
         mNewLlStats.timeStampInMs = mOldLlStats.timeStampInMs
                 + WifiDataStall.MAX_MS_DELTA_FOR_DATA_STALL + 1;
         assertEquals(WifiIsUnusableEvent.TYPE_UNKNOWN,

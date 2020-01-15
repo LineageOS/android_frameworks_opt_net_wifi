@@ -59,6 +59,7 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.WifiPermissionsUtil;
+import com.android.wifi.resources.R;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -90,7 +91,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     private WifiPermissionsUtil mWifiPermissionsUtil;
     private ActivityManager mActivityManager;
     private PowerManager mPowerManager;
-    private long mBackgroundProcessExecGapMs;
+    private int mBackgroundProcessExecGapMs;
 
     private RttServiceSynchronized mRttServiceSynchronized;
 
@@ -285,17 +286,8 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
                     Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0));
 
-            frameworkFacade.registerContentObserver(mContext,
-                    Settings.Global.getUriFor(Settings.Global.WIFI_RTT_BACKGROUND_EXEC_GAP_MS),
-                    true,
-                    new ContentObserver(mRttServiceSynchronized.mHandler) {
-                        @Override
-                        public void onChange(boolean selfChange) {
-                            updateBackgroundThrottlingInterval(frameworkFacade);
-                        }
-                    });
-
-            updateBackgroundThrottlingInterval(frameworkFacade);
+            mBackgroundProcessExecGapMs = mContext.getResources().getInteger(
+                    R.integer.config_wifiRttBackgroundExecGapMs);
 
             intentFilter = new IntentFilter();
             intentFilter.addAction(LocationManager.MODE_CHANGED_ACTION);
@@ -326,12 +318,6 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         }
         mRttNative.mDbg = mDbg;
         mRttMetrics.mDbg = mDbg;
-    }
-
-    private void updateBackgroundThrottlingInterval(FrameworkFacade frameworkFacade) {
-        mBackgroundProcessExecGapMs = frameworkFacade.getLongSetting(mContext,
-            Settings.Global.WIFI_RTT_BACKGROUND_EXEC_GAP_MS,
-            DEFAULT_BACKGROUND_PROCESS_EXEC_GAP_MS);
     }
 
     /*

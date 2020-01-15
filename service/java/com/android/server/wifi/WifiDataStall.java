@@ -18,7 +18,6 @@ package com.android.server.wifi;
 
 import android.content.Context;
 import android.net.wifi.WifiInfo;
-import android.provider.Settings;
 
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
 
@@ -27,11 +26,6 @@ import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
  */
 public class WifiDataStall {
 
-    // Default minimum number of txBadDelta to trigger data stall
-    public static final int MIN_TX_BAD_DEFAULT = 1;
-    // Default minimum number of txSuccessDelta to trigger data stall
-    // when rxSuccessDelta is 0
-    public static final int MIN_TX_SUCCESS_WITHOUT_RX_DEFAULT = 50;
     // Maximum time gap between two WifiLinkLayerStats to trigger a data stall
     public static final long MAX_MS_DELTA_FOR_DATA_STALL = 60 * 1000; // 1 minute
     // Maximum time that a data stall start time stays valid.
@@ -46,8 +40,6 @@ public class WifiDataStall {
     private final FrameworkFacade mFacade;
     private final WifiMetrics mWifiMetrics;
 
-    private int mMinTxBad;
-    private int mMinTxSuccessWithoutRx;
     private int mLastFrequency = -1;
     private String mLastBssid;
     private long mLastTotalRadioOnFreqTimeMs = -1;
@@ -64,20 +56,6 @@ public class WifiDataStall {
         mFacade = facade;
         mWifiMetrics = wifiMetrics;
         mClock = clock;
-        loadSettings();
-    }
-
-    /**
-     * Load setting values related to wifi data stall.
-     */
-    public void loadSettings() {
-        mMinTxBad = mFacade.getIntegerSetting(
-                mContext, Settings.Global.WIFI_DATA_STALL_MIN_TX_BAD, MIN_TX_BAD_DEFAULT);
-        mMinTxSuccessWithoutRx = mFacade.getIntegerSetting(
-                mContext, Settings.Global.WIFI_DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX,
-                MIN_TX_SUCCESS_WITHOUT_RX_DEFAULT);
-        mWifiMetrics.setWifiDataStallMinTxBad(mMinTxBad);
-        mWifiMetrics.setWifiDataStallMinRxWithoutTx(mMinTxSuccessWithoutRx);
     }
 
     /**

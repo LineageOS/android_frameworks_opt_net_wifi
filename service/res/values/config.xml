@@ -301,4 +301,30 @@
 
     <!-- Indicates that hidden networks are to be scanned during scan only mode -->
     <bool translatable="false" name="config_wifiScanHiddenNetworksScanOnlyMode">false</bool>
+
+    <!-- Enable logging WifiIsUnusableEvent in metrics which gets triggered when wifi becomes unusable. -->
+    <bool translatable="false" name="config_wifiIsUnusableEventMetricsEnabled">true</bool>
+
+    <!-- The minimum number of txBad the framework has to observe to trigger a wifi data stall. -->
+    <integer translatable="false" name="config_wifiDataStallMinTxBad">1</integer>
+
+    <!-- The minimum number of txSuccess the framework has to observe
+         to trigger a wifi data stall when rxSuccess is 0. -->
+    <integer translatable="false" name="config_wifiDataStallMinTxSuccessWithoutRx">50</integer>
+
+    <!-- Enable logging Wifi LinkSpeedCounts in metrics. -->
+    <bool translatable="false" name="config_wifiLinkSpeedMetricsEnabled">true</bool>
+
+    <!-- Enable the PNO frequency culling optimization. -->
+    <bool translatable="false" name="config_wifiPnoFrequencyCullingEnabled">true</bool>
+
+    <!-- Enable the PNO frequency culling optimization. -->
+    <bool translatable="false" name="config_wifiPnoRecencySortingEnabled">true</bool>
+
+    <!-- Suspend optimization. -->
+    <bool translatable="false" name="config_wifiSuspendOptimizationsEnabled">true</bool>
+
+    <!-- The interval in milliseconds at which wifi rtt ranging requests will be throttled when
+         they are coming from the background apps (default = 30 mins). -->
+    <integer translatable="false" name="config_wifiRttBackgroundExecGapMs">1800000</integer>
 </resources>
