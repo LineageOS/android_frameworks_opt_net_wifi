@@ -496,9 +496,6 @@ public class HostapdHal {
                         ifaceParams1_2.hwModeParams.enableHeMultiUserBeamformer =
                                 mContext.getResources().getBoolean(
                                     R.bool.config_wifiSoftapHeMuBeamformerSupported);
-                        ifaceParams1_2.hwModeParams.heBssColor =
-                                mContext.getResources().getInteger(
-                                    R.integer.config_wifiSoftapHeBssColor);
                         ifaceParams1_2.hwModeParams.enableHeTargetWakeTime =
                                 mContext.getResources().getBoolean(
                                     R.bool.config_wifiSoftapHeTwtSupported);
