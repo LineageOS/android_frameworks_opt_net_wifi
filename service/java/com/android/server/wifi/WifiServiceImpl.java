@@ -106,7 +106,6 @@ import android.util.MutableBoolean;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvider;
@@ -2698,20 +2697,20 @@ public class WifiServiceImpl extends BaseWifiService {
         DhcpInfo info = new DhcpInfo();
 
         if (dhcpResults.baseConfiguration != null) {
-            if (dhcpResults.baseConfiguration.ipAddress != null
-                    && dhcpResults.baseConfiguration.ipAddress.getAddress()
+            if (dhcpResults.baseConfiguration.getIpAddress() != null
+                    && dhcpResults.baseConfiguration.getIpAddress().getAddress()
                     instanceof Inet4Address) {
                 info.ipAddress = Inet4AddressUtils.inet4AddressToIntHTL(
-                        (Inet4Address) dhcpResults.baseConfiguration.ipAddress.getAddress());
+                        (Inet4Address) dhcpResults.baseConfiguration.getIpAddress().getAddress());
             }
 
-            if (dhcpResults.baseConfiguration.gateway != null) {
+            if (dhcpResults.baseConfiguration.getGateway() != null) {
                 info.gateway = Inet4AddressUtils.inet4AddressToIntHTL(
-                        (Inet4Address) dhcpResults.baseConfiguration.gateway);
+                        (Inet4Address) dhcpResults.baseConfiguration.getGateway());
             }
 
             int dnsFound = 0;
-            for (InetAddress dns : dhcpResults.baseConfiguration.dnsServers) {
+            for (InetAddress dns : dhcpResults.baseConfiguration.getDnsServers()) {
                 if (dns instanceof Inet4Address) {
                     if (dnsFound == 0) {
                         info.dns1 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
@@ -2853,11 +2852,12 @@ public class WifiServiceImpl extends BaseWifiService {
                 mClientModeImpl.sendBluetoothAdapterStateChange(state);
             } else if (action.equals(TelephonyManager.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
                 boolean emergencyMode =
-                        intent.getBooleanExtra(PhoneConstants.PHONE_IN_ECM_STATE, false);
+                        intent.getBooleanExtra(TelephonyManager.EXTRA_PHONE_IN_ECM_STATE, false);
                 mActiveModeWarden.emergencyCallbackModeChanged(emergencyMode);
             } else if (action.equals(TelephonyManager.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
                 boolean inCall =
-                        intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
+                        intent.getBooleanExtra(
+                                TelephonyManager.EXTRA_PHONE_IN_EMERGENCY_CALL, false);
                 mActiveModeWarden.emergencyCallStateChanged(inCall);
             } else if (action.equals(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)) {
                 handleIdleModeChanged();
