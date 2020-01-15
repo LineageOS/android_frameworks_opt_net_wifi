@@ -261,6 +261,7 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
                 TEST_HAS_EVER_CONNECTED, TEST_SHARED);
         provider2.setAutoJoinEnabled(false);
         provider2.setMacRandomizationEnabled(false);
+        provider2.setTrusted(false);
         providerList.add(provider1);
         providerList.add(provider2);
 

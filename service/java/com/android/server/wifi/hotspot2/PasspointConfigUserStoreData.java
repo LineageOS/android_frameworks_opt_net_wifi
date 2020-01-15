@@ -74,6 +74,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
 
     private static final String XML_TAG_HAS_EVER_CONNECTED = "HasEverConnected";
     private static final String XML_TAG_IS_FROM_SUGGESTION = "IsFromSuggestion";
+    private static final String XML_TAG_IS_TRUSTED = "IsTrusted";
 
     private final WifiKeyStore mKeyStore;
     private final TelephonyUtil mTelephonyUtil;
@@ -202,6 +203,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                 provider.getClientPrivateKeyAndCertificateAlias());
         XmlUtil.writeNextValue(out, XML_TAG_HAS_EVER_CONNECTED, provider.getHasEverConnected());
         XmlUtil.writeNextValue(out, XML_TAG_IS_FROM_SUGGESTION, provider.isFromSuggestion());
+        XmlUtil.writeNextValue(out, XML_TAG_IS_TRUSTED, provider.isTrusted());
         if (provider.getConfig() != null) {
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION);
             PasspointXmlUtils.serializePasspointConfiguration(out, provider.getConfig());
@@ -275,6 +277,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         boolean hasEverConnected = false;
         boolean isFromSuggestion = false;
         boolean shared = false;
+        boolean isTrusted = true;
         PasspointConfiguration config = null;
         while (XmlUtil.nextElementWithin(in, outerTagDepth)) {
             if (in.getAttributeValue(null, "name") != null) {
@@ -311,6 +314,8 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                     case XML_TAG_IS_FROM_SUGGESTION:
                         isFromSuggestion = (boolean) value;
                         break;
+                    case XML_TAG_IS_TRUSTED:
+                        isTrusted = (boolean) value;
                     default:
                         Log.w(TAG, "Ignoring unknown value name found " + name[0]);
                         break;
@@ -342,10 +347,12 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         if (config == null) {
             throw new XmlPullParserException("Missing Passpoint configuration");
         }
-        return new PasspointProvider(config, mKeyStore, mTelephonyUtil, providerId, creatorUid,
-                packageName, isFromSuggestion, caCertificateAliases,
+        PasspointProvider provider =  new PasspointProvider(config, mKeyStore, mTelephonyUtil,
+                providerId, creatorUid, packageName, isFromSuggestion, caCertificateAliases,
                 clientPrivateKeyAndCertificateAlias, remediationCaCertificateAlias,
                 hasEverConnected, shared);
+        provider.setTrusted(isTrusted);
+        return provider;
     }
 }
 
