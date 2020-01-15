@@ -2942,6 +2942,7 @@ public class WifiMetrics {
     public void updateSavedNetworks(List<WifiConfiguration> networks) {
         synchronized (mLock) {
             mWifiLogProto.numSavedNetworks = networks.size();
+            mWifiLogProto.numSavedNetworksWithMacRandomization = 0;
             mWifiLogProto.numOpenNetworks = 0;
             mWifiLogProto.numLegacyPersonalNetworks = 0;
             mWifiLogProto.numLegacyEnterpriseNetworks = 0;
@@ -3790,9 +3791,11 @@ public class WifiMetrics {
         mLastScore = -1;
         mLastWifiUsabilityScore = -1;
         mLastPredictionHorizonSec = -1;
-        mStaEventList.add(new StaEventWithTime(staEvent, mClock.getWallClockMillis()));
-        // Prune StaEventList if it gets too long
-        if (mStaEventList.size() > MAX_STA_EVENTS) mStaEventList.remove();
+        synchronized (mLock) {
+            mStaEventList.add(new StaEventWithTime(staEvent, mClock.getWallClockMillis()));
+            // Prune StaEventList if it gets too long
+            if (mStaEventList.size() > MAX_STA_EVENTS) mStaEventList.remove();
+        }
     }
 
     private ConfigInfo createConfigInfo(WifiConfiguration config) {
@@ -4624,6 +4627,7 @@ public class WifiMetrics {
                 }
             }
             mWifiUsabilityStatsCounter = 0;
+            mWifiUsabilityStatsEntriesList.clear();
         }
     }
 
