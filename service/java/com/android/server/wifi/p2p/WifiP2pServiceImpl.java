@@ -32,7 +32,6 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.DhcpResultsParcelable;
 import android.net.InetAddresses;
-import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.NetworkInfo;
 import android.net.ip.IIpClient;
@@ -460,25 +459,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         mClientHandler = new ClientHandler(TAG, wifiP2pThread.getLooper());
         mP2pStateMachine = new P2pStateMachine(TAG, wifiP2pThread.getLooper(), mP2pSupported);
         mP2pStateMachine.start();
-    }
-
-    /**
-     * If wifi p2p interface name pattern is defined,
-     * {@link com.android.server.connectivity.Tethering} listens to
-     * {@link android.net.wifi.p2p.WifiP2pManager#WIFI_P2P_CONNECTION_CHANGED_ACTION}
-     * events and takes over the DHCP server management automatically.
-     */
-    private boolean isDhcpServerHostedByDnsmasq() {
-        try {
-            String[] tetherableWifiP2pRegexs = mContext.getResources().getStringArray(
-                    com.android.internal.R.array.config_tether_wifi_p2p_regexs);
-            return (tetherableWifiP2pRegexs == null || tetherableWifiP2pRegexs.length == 0);
-        } catch (Resources.NotFoundException e404) {
-            if (mVerboseLoggingEnabled) {
-                Log.d(TAG, "No P2P tetherable interface pattern");
-            }
-        }
-        return true;
     }
 
     /**
@@ -2433,7 +2413,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                                 mWifiNative.setP2pGroupIdle(mGroup.getInterface(),
                                         GROUP_IDLE_TIME_S);
                             }
-                            startDhcpServer(mGroup.getInterface());
+                            // {@link com.android.server.connectivity.Tethering} listens to
+                            // {@link WifiP2pManager#WIFI_P2P_CONNECTION_CHANGED_ACTION}
+                            // events and takes over the DHCP server management automatically.
                         } else {
                             mWifiNative.setP2pGroupIdle(mGroup.getInterface(), GROUP_IDLE_TIME_S);
                             startIpClient(mGroup.getInterface(), getHandler());
@@ -3099,52 +3081,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
         }
 
-        private void startDhcpServer(String intf) {
-            if (!isDhcpServerHostedByDnsmasq()) return;
-
-            try {
-                mNetdWrapper.setInterfaceLinkAddress(
-                        intf,
-                        new LinkAddress(InetAddresses.parseNumericAddress(SERVER_ADDRESS), 24));
-                // This starts the dnsmasq server
-                ConnectivityManager cm = (ConnectivityManager) mContext.getSystemService(
-                        Context.CONNECTIVITY_SERVICE);
-                String[] tetheringDhcpRanges = cm.getTetheredDhcpRanges();
-                if (mNetdWrapper.isTetheringStarted()) {
-                    if (mVerboseLoggingEnabled) logd("Stop existing tethering and restart it");
-                    mNetdWrapper.stopTethering();
-                }
-                mNetdWrapper.tetherInterface(intf);
-                mNetdWrapper.startTethering(tetheringDhcpRanges);
-            } catch (Exception e) {
-                loge("Error configuring interface " + intf + ", :" + e);
-                return;
-            }
-
-            logd("Started Dhcp server on " + intf);
-        }
-
-        private void stopDhcpServer(String intf) {
-            if (!isDhcpServerHostedByDnsmasq()) return;
-
-            try {
-                mNetdWrapper.untetherInterface(intf);
-                for (String temp : mNetdWrapper.listTetheredInterfaces()) {
-                    logd("List all interfaces " + temp);
-                    if (temp.compareTo(intf) != 0) {
-                        logd("Found other tethering interfaces, so keep tethering alive");
-                        return;
-                    }
-                }
-                mNetdWrapper.stopTethering();
-            } catch (Exception e) {
-                loge("Error stopping Dhcp server" + e);
-                return;
-            } finally {
-                logd("Stopped Dhcp server");
-            }
-        }
-
         private void addRowToDialog(ViewGroup group, int stringId, String value) {
             Resources r = mContext.getResources();
             View row = LayoutInflater.from(mContext).cloneInContext(mContext)
@@ -3791,7 +3727,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void handleGroupRemoved() {
             if (mGroup.isGroupOwner()) {
-                stopDhcpServer(mGroup.getInterface());
+                // {@link com.android.server.connectivity.Tethering} listens to
+                // {@link WifiP2pManager#WIFI_P2P_CONNECTION_CHANGED_ACTION}
+                // events and takes over the DHCP server management automatically.
             } else {
                 if (mVerboseLoggingEnabled) logd("stop IpClient");
                 stopIpClient();
