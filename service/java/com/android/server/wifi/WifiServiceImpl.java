@@ -2454,7 +2454,7 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             WifiInfo result = mClientModeImpl.syncRequestConnectionInfo();
             boolean hideDefaultMacAddress = true;
-            boolean hideBssidSsidAndNetworkId = true;
+            boolean hideBssidSsidNetworkIdAndFqdn = true;
 
             try {
                 if (mWifiInjector.getWifiPermissionsWrapper().getLocalMacAddressPermission(uid)
@@ -2463,20 +2463,24 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
                 mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, callingFeatureId,
                         uid, null);
-                hideBssidSsidAndNetworkId = false;
+                hideBssidSsidNetworkIdAndFqdn = false;
             } catch (SecurityException ignored) {
             }
             if (hideDefaultMacAddress) {
                 result.setMacAddress(WifiInfo.DEFAULT_MAC_ADDRESS);
             }
-            if (hideBssidSsidAndNetworkId) {
+            if (hideBssidSsidNetworkIdAndFqdn) {
                 result.setBSSID(WifiInfo.DEFAULT_MAC_ADDRESS);
                 result.setSSID(WifiSsid.createFromHex(null));
                 result.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
+                result.setFQDN(null);
+                result.setProviderFriendlyName(null);
             }
-            if (mVerboseLoggingEnabled && (hideBssidSsidAndNetworkId || hideDefaultMacAddress)) {
+
+            if (mVerboseLoggingEnabled
+                    && (hideBssidSsidNetworkIdAndFqdn || hideDefaultMacAddress)) {
                 mLog.v("getConnectionInfo: hideBssidSsidAndNetworkId="
-                        + hideBssidSsidAndNetworkId
+                        + hideBssidSsidNetworkIdAndFqdn
                         + ", hideDefaultMacAddress="
                         + hideDefaultMacAddress);
             }

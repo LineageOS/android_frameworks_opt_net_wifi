@@ -199,6 +199,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private static final String TEST_FACTORY_MAC = "10:22:34:56:78:92";
     private static final MacAddress TEST_FACTORY_MAC_ADDR = MacAddress.fromString(TEST_FACTORY_MAC);
     private static final String TEST_FQDN = "testfqdn";
+    private static final String TEST_FRIENDLY_NAME = "testfriendlyname";
     private static final List<WifiConfiguration> TEST_WIFI_CONFIGURATION_LIST = Arrays.asList(
             WifiConfigurationTestUtil.generateWifiConfig(
                     0, 1000000, "\"red\"", true, true, null, null),
@@ -1526,6 +1527,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         wifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(TEST_SSID));
         wifiInfo.setBSSID(TEST_BSSID);
         wifiInfo.setNetworkId(TEST_NETWORK_ID);
+        wifiInfo.setFQDN(TEST_FQDN);
+        wifiInfo.setProviderFriendlyName(TEST_FRIENDLY_NAME);
         when(mClientModeImpl.syncRequestConnectionInfo()).thenReturn(wifiInfo);
     }
 
@@ -1545,6 +1548,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(WifiManager.UNKNOWN_SSID, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
+        assertNull(connectionInfo.getPasspointFqdn());
+        assertNull(connectionInfo.getPasspointProviderFriendlyName());
     }
 
     /**
@@ -1563,6 +1568,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(WifiManager.UNKNOWN_SSID, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
+        assertNull(connectionInfo.getPasspointFqdn());
+        assertNull(connectionInfo.getPasspointProviderFriendlyName());
     }
 
     /**
@@ -1578,6 +1585,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(TEST_SSID_WITH_QUOTES, connectionInfo.getSSID());
         assertEquals(TEST_BSSID, connectionInfo.getBSSID());
         assertEquals(TEST_NETWORK_ID, connectionInfo.getNetworkId());
+        assertEquals(TEST_FQDN, connectionInfo.getPasspointFqdn());
+        assertEquals(TEST_FRIENDLY_NAME, connectionInfo.getPasspointProviderFriendlyName());
     }
 
     /**
