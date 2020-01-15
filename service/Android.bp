@@ -178,7 +178,7 @@ java_library {
         app_image: false,
     },
 
-    init_rc: ["wifi.rc"],
+    init_rc: [":wifi-init-rc"],
 
     plugins: ["java_api_finder"],
 
@@ -215,4 +215,9 @@ android_app {
     sdk_version: "system_current",
     export_package_resources: true,
     manifest: "AndroidManifest_Resources.xml",
+}
+
+filegroup {
+    name: "wifi-init-rc",
+    srcs: ["wifi.rc"],
 }

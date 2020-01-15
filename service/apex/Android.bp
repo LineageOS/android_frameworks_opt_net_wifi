@@ -22,7 +22,7 @@ apex_defaults {
         "wifi-service",
         "framework-wifi",
     ],
-    init_rc: ["../wifi.rc"],
+    init_rc: [":wifi-init-rc"],
     key: "com.android.wifi.key",
     certificate: ":com.android.wifi.certificate",
     apps: ["wifi-service-resources"],
