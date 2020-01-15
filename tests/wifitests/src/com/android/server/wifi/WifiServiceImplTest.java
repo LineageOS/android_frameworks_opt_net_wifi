@@ -1806,20 +1806,17 @@ public class WifiServiceImplTest {
 
     /**
      * Verify that a call to registerSoftApCallback throws a SecurityException if the caller does
-     * not have NETWORK_SETTINGS permission.
+     * not have neither NETWORK_SETTINGS nor MAINLINE_NETWORK_STACK permission.
      */
-    @Test
+    @Test(expected = SecurityException.class)
     public void registerSoftApCallbackThrowsSecurityExceptionOnMissingPermissions() {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                                                eq("WifiService"));
-        try {
-            final int callbackIdentifier = 1;
-            mWifiServiceImpl.registerSoftApCallback(mAppBinder, mClientSoftApCallback,
-                    callbackIdentifier);
-            fail("expected SecurityException");
-        } catch (SecurityException expected) {
-        }
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mContext.checkCallingOrSelfPermission(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        final int callbackIdentifier = 1;
+        mWifiServiceImpl.registerSoftApCallback(
+                mAppBinder, mClientSoftApCallback, callbackIdentifier);
     }
 
     /**
@@ -1838,19 +1835,16 @@ public class WifiServiceImplTest {
 
     /**
      * Verify that a call to unregisterSoftApCallback throws a SecurityException if the caller does
-     * not have NETWORK_SETTINGS permission.
+     * not have neither NETWORK_SETTINGS nor MAINLINE_NETWORK_STACK permission.
      */
-    @Test
+    @Test(expected = SecurityException.class)
     public void unregisterSoftApCallbackThrowsSecurityExceptionOnMissingPermissions() {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                                                eq("WifiService"));
-        try {
-            final int callbackIdentifier = 1;
-            mWifiServiceImpl.unregisterSoftApCallback(callbackIdentifier);
-            fail("expected SecurityException");
-        } catch (SecurityException expected) {
-        }
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mContext.checkCallingOrSelfPermission(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        final int callbackIdentifier = 1;
+        mWifiServiceImpl.unregisterSoftApCallback(callbackIdentifier);
     }
 
     /**
