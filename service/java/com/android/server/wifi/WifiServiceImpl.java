@@ -2863,8 +2863,13 @@ public class WifiServiceImpl extends BaseWifiService {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action.equals(Intent.ACTION_USER_REMOVED)) {
-                int userHandle = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
-                mWifiThreadRunner.post(() -> mWifiConfigManager.removeNetworksForUser(userHandle));
+                UserHandle userHandle = intent.getParcelableExtra(Intent.EXTRA_USER);
+                if (userHandle == null) {
+                    Log.e(TAG, "User removed broadcast received with no user handle");
+                    return;
+                }
+                mWifiThreadRunner.post(() ->
+                        mWifiConfigManager.removeNetworksForUser(userHandle.getIdentifier()));
             } else if (action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
                 int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE,
                         BluetoothAdapter.STATE_DISCONNECTED);
