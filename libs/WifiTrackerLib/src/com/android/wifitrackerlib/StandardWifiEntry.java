@@ -42,6 +42,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
@@ -49,8 +50,10 @@ import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 /**
  * WifiEntry representation of a logical Wi-Fi network, uniquely identified by SSID and security.
@@ -710,5 +713,61 @@ class StandardWifiEntry extends WifiEntry {
                 }
             });
         }
+    }
+
+    @Override
+    String getScanResultDescription() {
+        if (mCurrentScanResults.size() == 0) {
+            return "";
+        }
+
+        final StringBuilder description = new StringBuilder();
+        description.append("[");
+        description.append(getScanResultDescription(MIN_FREQ_24GHZ, MAX_FREQ_24GHZ)).append(";");
+        description.append(getScanResultDescription(MIN_FREQ_5GHZ, MAX_FREQ_5GHZ)).append(";");
+        description.append(getScanResultDescription(MIN_FREQ_6GHZ, MAX_FREQ_6GHZ));
+        description.append("]");
+        return description.toString();
+    }
+
+    private String getScanResultDescription(int minFrequency, int maxFrequency) {
+        final List<ScanResult> scanResults = mCurrentScanResults.stream()
+                .filter(scanResult -> scanResult.frequency >= minFrequency
+                        && scanResult.frequency <= maxFrequency)
+                .sorted(Comparator.comparingInt(scanResult -> -1 * scanResult.level))
+                .collect(Collectors.toList());
+
+        final int scanResultCount = scanResults.size();
+        if (scanResultCount == 0) {
+            return "";
+        }
+
+        final StringBuilder description = new StringBuilder();
+        description.append("(").append(scanResultCount).append(")");
+        if (scanResultCount > MAX_VERBOSE_LOG_DISPLAY_SCANRESULT_COUNT) {
+            final int maxLavel = scanResults.stream()
+                    .mapToInt(scanResult -> scanResult.level).max().getAsInt();
+            description.append("max=").append(maxLavel).append(",");
+        }
+        final long nowMs = SystemClock.elapsedRealtime();
+        scanResults.forEach(scanResult ->
+                description.append(getScanResultDescription(scanResult, nowMs)));
+        return description.toString();
+    }
+
+    private String getScanResultDescription(ScanResult scanResult, long nowMs) {
+        final StringBuilder description = new StringBuilder();
+        description.append(" \n{");
+        description.append(scanResult.BSSID);
+        if (mWifiInfo != null && scanResult.BSSID.equals(mWifiInfo.getBSSID())) {
+            description.append("*");
+        }
+        description.append("=").append(scanResult.frequency);
+        description.append(",").append(scanResult.level);
+        // TODO(b/70983952): Append speed of the ScanResult here.
+        final int ageSeconds = (int) (nowMs - scanResult.timestamp / 1000) / 1000;
+        description.append(",").append(ageSeconds).append("s");
+        description.append("}");
+        return description.toString();
     }
 }

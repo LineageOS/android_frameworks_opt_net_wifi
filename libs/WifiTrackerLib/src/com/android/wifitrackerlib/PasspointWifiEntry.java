@@ -341,4 +341,10 @@ class PasspointWifiEntry extends WifiEntry {
         checkNotNull(fqdn, "Cannot create key with null fqdn!");
         return KEY_PREFIX + fqdn;
     }
+
+    @Override
+    String getScanResultDescription() {
+        // TODO(b/70983952): Fill this method in.
+        return "";
+    }
 }
