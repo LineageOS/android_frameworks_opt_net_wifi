@@ -2418,7 +2418,6 @@ public class ClientModeImpl extends StateMachine {
         Intent intent = new Intent(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
         NetworkInfo networkInfo = new NetworkInfo(mNetworkInfo);
-        networkInfo.setExtraInfo(null);
         intent.putExtra(WifiManager.EXTRA_NETWORK_INFO, networkInfo);
         //TODO(b/69974497) This should be non-sticky, but settings needs fixing first.
         mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
