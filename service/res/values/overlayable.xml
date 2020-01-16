@@ -155,6 +155,13 @@
           <item type="string" name="notification_channel_network_status" />
           <item type="string" name="notification_channel_network_alerts" />
           <item type="string" name="notification_channel_network_available" />
+          <item type="string" name="wifi_eap_error_message_code_32760" />
+          <item type="string" name="wifi_eap_error_message_code_32761" />
+          <item type="string" name="wifi_eap_error_message_code_32762" />
+          <item type="string" name="wifi_eap_error_message_code_32763" />
+          <item type="string" name="wifi_eap_error_message_code_32764" />
+          <item type="string" name="wifi_eap_error_message_code_32765" />
+          <item type="string" name="wifi_eap_error_message_code_32766" />
           <!-- Params from strings.xml that can be overlayed -->
 
           <!-- Params from styles.xml that can be overlayed -->
