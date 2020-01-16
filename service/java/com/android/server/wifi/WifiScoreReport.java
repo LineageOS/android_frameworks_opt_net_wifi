@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
+import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.wifi.IScoreChangeCallback;
 import android.net.wifi.IWifiConnectedNetworkScorer;
@@ -151,7 +152,10 @@ public class WifiScoreReport {
         int netId = 0;
 
         if (networkAgent != null) {
-            netId = networkAgent.network.netId;
+            final Network network = networkAgent.getNetwork();
+            if (network != null) {
+                netId = network.netId;
+            }
         }
 
         mAggressiveConnectedScore.updateUsingWifiInfo(wifiInfo, millis);
