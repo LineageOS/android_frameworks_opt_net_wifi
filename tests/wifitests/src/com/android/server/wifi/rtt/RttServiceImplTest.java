@@ -27,7 +27,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeastOnce;
@@ -68,16 +67,17 @@ import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
-import android.provider.Settings;
 import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
+import com.android.server.wifi.MockResources;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.WifiPermissionsUtil;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -101,7 +101,7 @@ import java.util.Set;
 @SmallTest
 public class RttServiceImplTest extends WifiBaseTest {
 
-    private static final long BACKGROUND_PROCESS_EXEC_GAP_MS = 10 * 60 * 1000;  // 10 minutes.
+    private static final int BACKGROUND_PROCESS_EXEC_GAP_MS = 10 * 60 * 1000;  // 10 minutes.
 
     private RttServiceImplSpy mDut;
     private TestLooper mMockLooper;
@@ -109,6 +109,7 @@ public class RttServiceImplTest extends WifiBaseTest {
     private PowerManager mMockPowerManager;
     private BroadcastReceiver mPowerBcastReceiver;
     private BroadcastReceiver mLocationModeReceiver;
+    private MockResources mMockResources = new MockResources();
 
     private final String mPackageName = "some.package.name.for.rtt.app";
     private final String mFeatureId = "some.feature.name.for.rtt.app";
@@ -190,14 +191,13 @@ public class RttServiceImplTest extends WifiBaseTest {
                 android.Manifest.permission.LOCATION_HARDWARE)).thenReturn(
                 PackageManager.PERMISSION_GRANTED);
 
+        when(mockContext.getResources()).thenReturn(mMockResources);
+        mMockResources.setInteger(
+                R.integer.config_wifiRttBackgroundExecGapMs, BACKGROUND_PROCESS_EXEC_GAP_MS);
+
         mAlarmManager = new TestAlarmManager();
         doNothing().when(mFrameworkFacade).registerContentObserver(eq(mockContext), any(),
                 anyBoolean(), any());
-        when(mFrameworkFacade.getLongSetting(
-            eq(mockContext),
-            eq(Settings.Global.WIFI_RTT_BACKGROUND_EXEC_GAP_MS),
-            anyLong()))
-            .thenReturn(BACKGROUND_PROCESS_EXEC_GAP_MS);
         when(mockContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
         mInOrder = inOrder(mAlarmManager.getAlarmManager(), mockContext);

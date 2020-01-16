@@ -195,6 +195,64 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
                     + "</WifiEnterpriseConfiguration>\n"
                     + "</Network>\n";
 
+    private static final String SINGLE_SAE_NETWORK_DATA_XML_STRING_FORMAT =
+            "<Network>\n"
+                    + "<WifiConfiguration>\n"
+                    + "<string name=\"ConfigKey\">%s</string>\n"
+                    + "<string name=\"SSID\">%s</string>\n"
+                    + "<null name=\"BSSID\" />\n"
+                    + "<string name=\"PreSharedKey\">&quot;WifiConfigurationTestUtilPsk&quot;"
+                    + "</string>\n"
+                    + "<null name=\"SaePasswordId\" />\n"
+                    + "<null name=\"WEPKeys\" />\n"
+                    + "<int name=\"WEPTxKeyIndex\" value=\"0\" />\n"
+                    + "<boolean name=\"HiddenSSID\" value=\"false\" />\n"
+                    + "<boolean name=\"RequirePMF\" value=\"true\" />\n"
+                    + "<byte-array name=\"AllowedKeyMgmt\" num=\"2\">0001</byte-array>\n"
+                    + "<byte-array name=\"AllowedProtocols\" num=\"1\">02</byte-array>\n"
+                    + "<byte-array name=\"AllowedAuthAlgos\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedGroupCiphers\" num=\"1\">08</byte-array>\n"
+                    + "<byte-array name=\"AllowedPairwiseCiphers\" num=\"1\">04</byte-array>\n"
+                    + "<byte-array name=\"AllowedGroupMgmtCiphers\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedSuiteBCiphers\" num=\"0\"></byte-array>\n"
+                    + "<boolean name=\"Shared\" value=\"%s\" />\n"
+                    + "<boolean name=\"AutoJoinEnabled\" value=\"true\" />\n"
+                    + "<int name=\"Status\" value=\"2\" />\n"
+                    + "<null name=\"FQDN\" />\n"
+                    + "<null name=\"ProviderFriendlyName\" />\n"
+                    + "<null name=\"LinkedNetworksList\" />\n"
+                    + "<null name=\"DefaultGwMacAddress\" />\n"
+                    + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
+                    + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
+                    + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
+                    + "<int name=\"MeteredOverride\" value=\"0\" />\n"
+                    + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"
+                    + "<int name=\"NumAssociation\" value=\"0\" />\n"
+                    + "<int name=\"CreatorUid\" value=\"%d\" />\n"
+                    + "<string name=\"CreatorName\">%s</string>\n"
+                    + "<null name=\"CreationTime\" />\n"
+                    + "<int name=\"LastUpdateUid\" value=\"-1\" />\n"
+                    + "<null name=\"LastUpdateName\" />\n"
+                    + "<int name=\"LastConnectUid\" value=\"0\" />\n"
+                    + "<boolean name=\"IsLegacyPasspointConfig\" value=\"false\" />\n"
+                    + "<long-array name=\"RoamingConsortiumOIs\" num=\"0\" />\n"
+                    + "<string name=\"RandomizedMacAddress\">%s</string>\n"
+                    + "<int name=\"MacRandomizationSetting\" value=\"1\" />\n"
+                    + "<int name=\"CarrierId\" value=\"-1\" />\n"
+                    + "</WifiConfiguration>\n"
+                    + "<NetworkStatus>\n"
+                    + "<string name=\"SelectionStatus\">NETWORK_SELECTION_ENABLED</string>\n"
+                    + "<string name=\"DisableReason\">NETWORK_SELECTION_ENABLE</string>\n"
+                    + "<null name=\"ConnectChoice\" />\n"
+                    + "<long name=\"ConnectChoiceTimeStamp\" value=\"-1\" />\n"
+                    + "<boolean name=\"HasEverConnected\" value=\"false\" />\n"
+                    + "</NetworkStatus>\n"
+                    + "<IpConfiguration>\n"
+                    + "<string name=\"IpAssignment\">DHCP</string>\n"
+                    + "<string name=\"ProxySettings\">NONE</string>\n"
+                    + "</IpConfiguration>\n"
+                    + "</Network>\n";
+
     // We use {@link NetworkListSharedStoreData} instance because {@link NetworkListStoreData} is
     // abstract.
     private NetworkListSharedStoreData mNetworkListSharedStoreData;
@@ -243,7 +301,7 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
 
     /**
      * Helper function for generating a network list for testing purpose.  The network list
-     * will contained an open and an EAP network.
+     * will contained an open, an EAP and an SAE networks.
      *
      * @param shared Flag indicating shared network
      * @return List of WifiConfiguration
@@ -262,9 +320,19 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
         eapNetwork.setIpConfiguration(
                 WifiConfigurationTestUtil.createDHCPIpConfigurationWithNoProxy());
         eapNetwork.setRandomizedMacAddress(TEST_RANDOMIZED_MAC);
+        WifiConfiguration saeNetwork = WifiConfigurationTestUtil.createSaeNetwork();
+        saeNetwork.shared = shared;
+        saeNetwork.creatorName = TEST_CREATOR_NAME;
+        saeNetwork.setIpConfiguration(
+                WifiConfigurationTestUtil.createDHCPIpConfigurationWithNoProxy());
+        saeNetwork.setRandomizedMacAddress(TEST_RANDOMIZED_MAC);
+        saeNetwork.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+        saeNetwork.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
+        saeNetwork.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
         List<WifiConfiguration> networkList = new ArrayList<>();
         networkList.add(openNetwork);
         networkList.add(eapNetwork);
+        networkList.add(saeNetwork);
         return networkList;
     }
 
@@ -274,10 +342,11 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
      *
      * @param openNetwork The WifiConfiguration for an open network
      * @param eapNetwork The WifiConfiguration for an EAP network
+     * @param saeNetwork The WifiConfiguration for an SAE network
      * @return byte[] of the XML data
      */
     private byte[] getTestNetworksXmlBytes(WifiConfiguration openNetwork,
-            WifiConfiguration eapNetwork) {
+            WifiConfiguration eapNetwork, WifiConfiguration saeNetwork) {
         String openNetworkXml = String.format(SINGLE_OPEN_NETWORK_DATA_XML_STRING_FORMAT,
                 openNetwork.getKey().replaceAll("\"", "&quot;"),
                 openNetwork.SSID.replaceAll("\"", "&quot;"),
@@ -288,7 +357,12 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
                 eapNetwork.SSID.replaceAll("\"", "&quot;"),
                 eapNetwork.shared, eapNetwork.creatorUid,
                 eapNetwork.creatorName, eapNetwork.getRandomizedMacAddress());
-        return (openNetworkXml + eapNetworkXml).getBytes(StandardCharsets.UTF_8);
+        String saeNetworkXml = String.format(SINGLE_SAE_NETWORK_DATA_XML_STRING_FORMAT,
+                saeNetwork.getKey().replaceAll("\"", "&quot;"),
+                saeNetwork.SSID.replaceAll("\"", "&quot;"),
+                saeNetwork.shared, saeNetwork.creatorUid,
+                saeNetwork.creatorName, saeNetwork.getRandomizedMacAddress());
+        return (openNetworkXml + eapNetworkXml + saeNetworkXml).getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -330,8 +404,8 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that the shared configurations (containing an open and an EAP network) are serialized
-     * correctly, matching the expected XML string.
+     * Verify that the shared configurations (containing an open, an EAP and an SAE networks) are
+     * serialized correctly, matching the expected XML string.
      *
      * @throws Exception
      */
@@ -339,7 +413,9 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     public void serializeSharedConfigurations() throws Exception {
         List<WifiConfiguration> networkList = getTestNetworksConfig(true /* shared */);
         mNetworkListSharedStoreData.setConfigurations(networkList);
-        byte[] expectedData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1));
+        byte[] expectedData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1),
+                networkList.get(2));
+        byte[] serializedData = serializeData();
         assertArrayEquals(expectedData, serializeData());
     }
 
@@ -351,7 +427,8 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     @Test
     public void deserializeSharedConfigurations() throws Exception {
         List<WifiConfiguration> networkList = getTestNetworksConfig(true /* shared */);
-        byte[] xmlData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1));
+        byte[] xmlData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1),
+                networkList.get(2));
         WifiConfigurationTestUtil.assertConfigurationsEqualForConfigStore(
                 networkList, deserializeData(xmlData));
     }
@@ -453,7 +530,8 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     public void parseNetworkListWithOneNetworkIllegalArgException() throws Exception {
         WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
         WifiConfiguration eapNetwork = WifiConfigurationTestUtil.createEapNetwork();
-        String xmlString = new String(getTestNetworksXmlBytes(openNetwork, eapNetwork));
+        WifiConfiguration saeNetwork = WifiConfigurationTestUtil.createSaeNetwork();
+        String xmlString = new String(getTestNetworksXmlBytes(openNetwork, eapNetwork, saeNetwork));
         // Manipulate the XML data to set the EAP method to None, this should raise an Illegal
         // argument exception in WifiEnterpriseConfig.setEapMethod().
         xmlString = xmlString.replaceAll(
@@ -464,7 +542,7 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
         List<WifiConfiguration> retrievedNetworkList =
                 deserializeData(xmlString.getBytes(StandardCharsets.UTF_8));
         // Retrieved network should not contain the eap network.
-        assertEquals(1, retrievedNetworkList.size());
+        assertEquals(2, retrievedNetworkList.size());
         for (WifiConfiguration network : retrievedNetworkList) {
             assertNotEquals(eapNetwork.SSID, network.SSID);
         }
@@ -568,5 +646,47 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
         assertEquals(openNetwork.getKey(), deserializedNetworks.get(0).getKey());
         assertEquals(openNetwork.creatorUid, deserializedNetworks.get(0).creatorUid);
         assertEquals(TEST_CREATOR_NAME, deserializedNetworks.get(0).creatorName);
+    }
+
+    /**
+     * Verify that an SAE saved network config with legacy security settings is cleared from them
+     * when deserializing it.
+     */
+    @Test
+    public void fixSaeNetworkWithLegacySecurity() throws Exception {
+        WifiConfiguration saeNetwork = WifiConfigurationTestUtil.createSaeNetwork();
+        saeNetwork.shared = false;
+        saeNetwork.creatorName = TEST_CREATOR_NAME;
+        saeNetwork.setIpConfiguration(
+                WifiConfigurationTestUtil.createDHCPIpConfigurationWithNoProxy());
+        saeNetwork.setRandomizedMacAddress(TEST_RANDOMIZED_MAC);
+
+        String saeNetworkWithOpenAuthXml = String.format(SINGLE_SAE_NETWORK_DATA_XML_STRING_FORMAT,
+                saeNetwork.getKey().replaceAll("\"", "&quot;"),
+                saeNetwork.SSID.replaceAll("\"", "&quot;"),
+                saeNetwork.shared, saeNetwork.creatorUid,
+                saeNetwork.creatorName, saeNetwork.getRandomizedMacAddress());
+
+        saeNetworkWithOpenAuthXml.replaceAll("name=\"AllowedAuthAlgos\" num=\"0\"></byte-array>",
+                "<name=\"AllowedAuthAlgos\" num=\"1\">01</byte-array>");
+
+        saeNetworkWithOpenAuthXml.replaceAll("name=\"AllowedProtocols\" num=\"1\">02</byte-array>",
+                "name=\"AllowedProtocols\" num=\"1\">03</byte-array>");
+
+        saeNetworkWithOpenAuthXml.replaceAll(
+                "name=\"AllowedGroupCiphers\" num=\"1\">08</byte-array>",
+                "name=\"AllowedGroupCiphers\" num=\"1\">0f</byte-array>");
+
+        saeNetworkWithOpenAuthXml.replaceAll(
+                "name=\"AllowedPairwiseCiphers\" num=\"1\">04</byte-array>",
+                "name=\"AllowedPairwiseCiphers\" num=\"1\">06</byte-array>");
+
+        List<WifiConfiguration> retrievedNetworkList =
+                deserializeData(saeNetworkWithOpenAuthXml.getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(1, retrievedNetworkList.size());
+
+        assertFalse(retrievedNetworkList.get(0).allowedAuthAlgorithms
+                .get(WifiConfiguration.AuthAlgorithm.OPEN));
     }
 }

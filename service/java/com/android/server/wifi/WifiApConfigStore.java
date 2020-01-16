@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.net.MacAddress;
+import android.net.util.MacAddressUtils;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.os.Environment;
@@ -390,7 +391,7 @@ public class WifiApConfigStore {
             if (macAddress == null) {
                 Log.e(TAG, "Failed to calculate MAC from SSID. "
                         + "Generating new random MAC instead.");
-                macAddress = MacAddress.createRandomUnicastAddress();
+                macAddress = MacAddressUtils.createRandomUnicastAddress();
             }
             configBuilder.setBssid(macAddress);
         }

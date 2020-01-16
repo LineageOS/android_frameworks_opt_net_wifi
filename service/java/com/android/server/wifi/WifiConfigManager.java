@@ -26,11 +26,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.database.ContentObserver;
 import android.net.IpConfiguration;
 import android.net.MacAddress;
 import android.net.ProxyInfo;
 import android.net.StaticIpConfiguration;
+import android.net.util.MacAddressUtils;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
@@ -76,8 +76,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import javax.crypto.Mac;
 
 /**
  * This class provides the APIs to manage configured Wi-Fi networks.
@@ -187,9 +185,6 @@ public class WifiConfigManager {
     @VisibleForTesting
     public static final long MAX_PNO_SCAN_FREQUENCY_AGE_MS = (long) 1000 * 3600 * 24 * 30;
 
-    private static final int WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT = 1; // 0 = disabled
-    private static final int WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT = 1; // 0 = disabled:
-
     /**
      * Enforce a minimum time to wait after the last disconnect to generate a new randomized MAC,
      * since IPv6 networks don't provide the DHCP lease duration.
@@ -248,7 +243,6 @@ public class WifiConfigManager {
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiInjector mWifiInjector;
     private final MacAddressUtil mMacAddressUtil;
-    private Mac mMac;
     private final TelephonyUtil mTelephonyUtil;
 
     /**
@@ -339,10 +333,6 @@ public class WifiConfigManager {
     private final DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
     private final RandomizedMacStoreData mRandomizedMacStoreData;
 
-
-    private boolean mPnoFrequencyCullingEnabled = false;
-    private boolean mPnoRecencySortingEnabled = false;
-
     /**
      * Create new instance of WifiConfigManager.
      */
@@ -387,24 +377,6 @@ public class WifiConfigManager {
         mWifiConfigStore.registerStoreData(mRandomizedMacStoreData);
 
         mFrameworkFacade = frameworkFacade;
-        mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
-                Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED), false,
-                new ContentObserver(handler) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        updatePnoFrequencyCullingSetting();
-                    }
-                });
-        updatePnoFrequencyCullingSetting();
-        mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
-                Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED), false,
-                new ContentObserver(handler) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        updatePnoRecencySortingSetting();
-                    }
-                });
-        updatePnoRecencySortingSetting();
         mDeviceConfigFacade = deviceConfigFacade;
 
         mLocalLog = new LocalLog(
@@ -536,7 +508,23 @@ public class WifiConfigManager {
                 mRandomizedMacAddressMapping.remove(config.getSsidAndSecurityTypeString());
             }
         }
-        return mMacAddressUtil.calculatePersistentMac(config.getSsidAndSecurityTypeString(), mMac);
+        MacAddress result = mMacAddressUtil.calculatePersistentMac(
+                config.getSsidAndSecurityTypeString(),
+                mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID));
+        if (result == null) {
+            result = mMacAddressUtil.calculatePersistentMac(
+                    config.getSsidAndSecurityTypeString(),
+                    mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID));
+        }
+        if (result == null) {
+            Log.wtf(TAG, "Failed to generate MAC address from KeyStore even after retrying. "
+                    + "Using locally generated MAC address instead.");
+            result = config.getRandomizedMacAddress();
+            if (DEFAULT_MAC_ADDRESS.equals(result)) {
+                result = MacAddressUtils.createRandomUnicastAddress();
+            }
+        }
+        return result;
     }
 
     /**
@@ -585,7 +573,7 @@ public class WifiConfigManager {
             return config.getRandomizedMacAddress();
         }
         WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
-        internalConfig.setRandomizedMacAddress(MacAddress.createRandomUnicastAddress());
+        internalConfig.setRandomizedMacAddress(MacAddressUtils.createRandomUnicastAddress());
         return internalConfig.getRandomizedMacAddress();
     }
 
@@ -614,20 +602,6 @@ public class WifiConfigManager {
         }
         mWifiConfigStore.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiKeyStore.enableVerboseLogging(mVerboseLoggingEnabled);
-    }
-
-    private void updatePnoFrequencyCullingSetting() {
-        int flag = mFrameworkFacade.getIntegerSetting(
-                mContext, Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED,
-                WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT);
-        mPnoFrequencyCullingEnabled = (flag == 1);
-    }
-
-    private void updatePnoRecencySortingSetting() {
-        int flag = mFrameworkFacade.getIntegerSetting(
-                mContext, Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED,
-                WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT);
-        mPnoRecencySortingEnabled = (flag == 1);
     }
 
     /**
@@ -2814,7 +2788,7 @@ public class WifiConfigManager {
 
         // Sort the networks with the most frequent ones at the front of the network list.
         Collections.sort(networks, sScanListComparator);
-        if (mPnoRecencySortingEnabled) {
+        if (mContext.getResources().getBoolean(R.bool.config_wifiPnoRecencySortingEnabled)) {
             // Find the most recently connected network and add it to the front of the network list.
             WifiConfiguration lastConnectedNetwork =
                     networks.stream()
@@ -2831,7 +2805,7 @@ public class WifiConfigManager {
             WifiScanner.PnoSettings.PnoNetwork pnoNetwork =
                     WifiConfigurationUtil.createPnoNetwork(config);
             pnoList.add(pnoNetwork);
-            if (!mPnoFrequencyCullingEnabled) {
+            if (!mContext.getResources().getBoolean(R.bool.config_wifiPnoFrequencyCullingEnabled)) {
                 continue;
             }
             Set<Integer> channelSet = fetchChannelSetForNetworkForPnoScan(config.networkId,
@@ -3208,7 +3182,7 @@ public class WifiConfigManager {
      */
     private void initRandomizedMacForInternalConfig(WifiConfiguration internalConfig) {
         MacAddress randomizedMac = shouldUseAggressiveRandomization(internalConfig)
-                ? MacAddress.createRandomUnicastAddress()
+                ? MacAddressUtils.createRandomUnicastAddress()
                 : getPersistentMacAddress(internalConfig);
         if (randomizedMac != null) {
             internalConfig.setRandomizedMacAddress(randomizedMac);
@@ -3275,12 +3249,6 @@ public class WifiConfigManager {
      * @return true on success or not needed (fresh install), false otherwise.
      */
     public boolean loadFromStore() {
-        // Get the hashfunction that is used to generate randomized MACs from the KeyStore
-        mMac = mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID);
-        if (mMac == null) {
-            Log.wtf(TAG, "Failed to obtain secret for MAC randomization."
-                    + " All randomized MAC addresses are lost!");
-        }
         // If the user unlock comes in before we load from store, which means the user store have
         // not been setup yet for the current user. Setup the user store before the read so that
         // configurations for the current user will also being loaded.
@@ -3442,9 +3410,9 @@ public class WifiConfigManager {
         pw.println("WifiConfigManager - Next network ID to be allocated " + mNextNetworkId);
         pw.println("WifiConfigManager - Last selected network ID " + mLastSelectedNetworkId);
         pw.println("WifiConfigManager - PNO scan frequency culling enabled = "
-                + mPnoFrequencyCullingEnabled);
+                + mContext.getResources().getBoolean(R.bool.config_wifiPnoFrequencyCullingEnabled));
         pw.println("WifiConfigManager - PNO scan recency sorting enabled = "
-                + mPnoRecencySortingEnabled);
+                + mContext.getResources().getBoolean(R.bool.config_wifiPnoRecencySortingEnabled));
         mWifiConfigStore.dump(fd, pw, args);
         mTelephonyUtil.dump(fd, pw, args);
     }

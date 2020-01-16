@@ -43,7 +43,7 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.net.MacAddress;
+import android.net.util.MacAddressUtils;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -778,7 +778,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
         // Now change the bssid of the scan result to a different value, now only the general
         // (without bssid) suggestion.
-        scanDetail.getScanResult().BSSID = MacAddress.createRandomUnicastAddress().toString();
+        scanDetail.getScanResult().BSSID = MacAddressUtils.createRandomUnicastAddress().toString();
         matchingExtNetworkSuggestions =
                 mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
         expectedMatchingNetworkSuggestions =
@@ -2385,7 +2385,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     private ScanDetail createScanDetailForNetwork(WifiConfiguration configuration) {
         return WifiConfigurationTestUtil.createScanDetailForNetwork(configuration,
-                MacAddress.createRandomUnicastAddress().toString(), -45, 0, 0, 0);
+                MacAddressUtils.createRandomUnicastAddress().toString(), -45, 0, 0, 0);
     }
 
     private void validatePostConnectionBroadcastSent(

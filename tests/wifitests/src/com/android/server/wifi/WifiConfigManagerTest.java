@@ -26,7 +26,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.database.ContentObserver;
 import android.net.IpConfiguration;
 import android.net.MacAddress;
 import android.net.wifi.ScanResult;
@@ -41,7 +40,6 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
-import android.provider.Settings;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -147,8 +145,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     private WifiConfigManager mWifiConfigManager;
     private boolean mStoreReadTriggered = false;
     private TestLooper mLooper = new TestLooper();
-    private ContentObserver mContentObserverPnoChannelCulling;
-    private ContentObserver mContentObserverPnoRecencySorting;
     private MockitoSession mSession;
     private TelephonyUtil mTelephonyUtil;
 
@@ -228,16 +224,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 mock(FrameworkFacade.class), mock(Context.class), mock(Handler.class));
         createWifiConfigManager();
         mWifiConfigManager.addOnNetworkUpdateListener(mWcmListener);
-        ArgumentCaptor<ContentObserver> observerCaptor =
-                ArgumentCaptor.forClass(ContentObserver.class);
-        verify(mFrameworkFacade).registerContentObserver(eq(mContext), eq(Settings.Global.getUriFor(
-                Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED)), eq(false),
-                observerCaptor.capture());
-        mContentObserverPnoChannelCulling = observerCaptor.getValue();
-        verify(mFrameworkFacade).registerContentObserver(eq(mContext), eq(Settings.Global.getUriFor(
-                Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED)), eq(false),
-                observerCaptor.capture());
-        mContentObserverPnoRecencySorting = observerCaptor.getValue();
         // static mocking
         mSession = ExtendedMockito.mockitoSession()
                 .mockStatic(WifiConfigStore.class, withSettings().lenient())
@@ -299,13 +285,27 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that the Mac randomization secret hashfunction is obtained after |loadFromStore|.
+     * Verify that a randomized MAC address is generated even if the KeyStore operation fails.
      */
     @Test
-    public void testMacHashIsObtainedAfterLoadFromStore() {
-        verify(mMacAddressUtil, never()).obtainMacRandHashFunction(anyInt());
-        assertTrue(mWifiConfigManager.loadFromStore());
-        verify(mMacAddressUtil).obtainMacRandHashFunction(anyInt());
+    public void testRandomizedMacIsGeneratedEvenIfKeyStoreFails() {
+        when(mMacAddressUtil.calculatePersistentMac(any(), any())).thenReturn(null);
+
+        // Try adding a network.
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(openNetwork);
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+
+        // Verify that we have attempted to generate the MAC address twice (1 retry)
+        verify(mMacAddressUtil, times(2)).calculatePersistentMac(any(), any());
+        assertEquals(1, retrievedNetworks.size());
+
+        // Verify that despite KeyStore returning null, we are still getting a valid MAC address.
+        assertNotEquals(WifiInfo.DEFAULT_MAC_ADDRESS,
+                retrievedNetworks.get(0).getRandomizedMacAddress().toString());
     }
 
     /**
@@ -2377,10 +2377,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testRetrievePnoListFrequencies() {
-        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
-                eq(Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED),
-                anyInt())).thenReturn(1);
-        mContentObserverPnoChannelCulling.onChange(false);
+        mResources.setBoolean(R.bool.config_wifiPnoFrequencyCullingEnabled, true);
         // Create and add 3 networks.
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
@@ -2444,10 +2441,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testRetrievePnoListFrequenciesFlagDisabled() {
-        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
-                eq(Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED),
-                anyInt())).thenReturn(0);
-        mContentObserverPnoChannelCulling.onChange(false);
+        mResources.setBoolean(R.bool.config_wifiPnoFrequencyCullingEnabled, false);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         verifyAddNetworkToWifiConfigManager(network1);
         assertTrue(mWifiConfigManager.enableNetwork(
@@ -2469,10 +2463,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testRetrievePnoListPrefersLastConnectedNetwork() {
-        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
-                eq(Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED),
-                anyInt())).thenReturn(1);
-        mContentObserverPnoRecencySorting.onChange(false);
+        mResources.setBoolean(R.bool.config_wifiPnoRecencySortingEnabled, true);
         // Create and add 3 networks.
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
@@ -2515,10 +2506,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testRetrievePnoListPrefersLastConnectedNetworkThenMostConnectedNetworks() {
-        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
-                eq(Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED),
-                anyInt())).thenReturn(1);
-        mContentObserverPnoRecencySorting.onChange(false);
+        mResources.setBoolean(R.bool.config_wifiPnoRecencySortingEnabled, true);
         // Create and add 3 networks.
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
@@ -2575,10 +2563,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testRetrievePnoListRecencyFlagDisabled() {
-        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
-                eq(Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED),
-                anyInt())).thenReturn(0);
-        mContentObserverPnoRecencySorting.onChange(false);
+        mResources.setBoolean(R.bool.config_wifiPnoRecencySortingEnabled, false);
         // Create and add 3 networks.
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
