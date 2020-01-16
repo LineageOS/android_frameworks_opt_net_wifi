@@ -138,6 +138,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     @Mock private DeviceConfigFacade mDeviceConfigFacade;
     @Mock private MacAddressUtil mMacAddressUtil;
     @Mock private BssidBlocklistMonitor mBssidBlocklistMonitor;
+    @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
 
     private MockResources mResources;
     private InOrder mContextConfigStoreMockOrder;
@@ -213,6 +214,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsUtil.isDeviceOwner(anyInt(), any())).thenReturn(false);
         when(mWifiPermissionsUtil.isProfileOwner(anyInt(), any())).thenReturn(false);
+        when(mWifiInjector.getWifiNetworkSuggestionsManager())
+                .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.getBssidBlocklistMonitor()).thenReturn(mBssidBlocklistMonitor);
         when(mWifiInjector.getWifiLastResortWatchdog()).thenReturn(mWifiLastResortWatchdog);
         when(mWifiInjector.getWifiLastResortWatchdog().shouldIgnoreSsidUpdate())
@@ -1308,7 +1311,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
     /**
      * Verifies the allowance/disallowance of autojoin to a network using
-     * {@link WifiConfigManager.allowAutojoin(int, boolean)}
+     * {@link WifiConfigManager#allowAutojoin(int, boolean)}
      */
     @Test
     public void testAllowDisallowAutojoin() throws Exception {

@@ -64,6 +64,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_IS_USER_INTERACTION_REQUIRED = "IsUserInteractionRequired";
     private static final String XML_TAG_IS_USER_ALLOWED_TO_MANUALLY_CONNECT =
             "IsUserAllowedToManuallyConnect";
+    private static final String XML_TAG_IS_INITIALIZED_AUTO_JOIN = "InitializedAutoJoinEnabled";
+    private static final String XML_TAG_IS_AUTO_JOIN = "AutoJoinEnabled";
     private static final String XML_TAG_SUGGESTOR_UID = "SuggestorUid";
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
     private static final String XML_TAG_SUGGESTOR_FEATURE_ID = "SuggestorFeatureId";
@@ -193,7 +195,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
-            serializeNetworkSuggestion(out, extNetworkSuggestion.wns, encryptionUtil);
+            serializeNetworkSuggestion(out, extNetworkSuggestion, encryptionUtil);
         }
     }
 
@@ -204,9 +206,11 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private void serializeNetworkSuggestion(XmlSerializer out,
-            final WifiNetworkSuggestion suggestion,
+            final ExtendedWifiNetworkSuggestion extSuggestion,
             @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
+        WifiNetworkSuggestion suggestion = extSuggestion.wns;
+
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
 
         // Serialize WifiConfiguration.
@@ -238,6 +242,10 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                 suggestion.isUserInteractionRequired);
         XmlUtil.writeNextValue(out, XML_TAG_IS_USER_ALLOWED_TO_MANUALLY_CONNECT,
                 suggestion.isUserAllowedToManuallyConnect);
+        XmlUtil.writeNextValue(out, XML_TAG_IS_INITIALIZED_AUTO_JOIN,
+                suggestion.isInitialAutoJoinEnabled);
+        XmlUtil.writeNextValue(out, XML_TAG_IS_AUTO_JOIN,
+                extSuggestion.isAutoJoinEnabled);
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
     }
 
@@ -313,13 +321,14 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         }
                         switch (tagName) {
                             case XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION:
-                                WifiNetworkSuggestion networkSuggestion =
+                                Pair<WifiNetworkSuggestion, Boolean> networkSuggestionData =
                                         parseNetworkSuggestion(
                                                 in, outerTagDepth + 2, version, encryptionUtil,
                                                 perAppInfo);
                                 perAppInfo.extNetworkSuggestions.add(
                                         ExtendedWifiNetworkSuggestion.fromWns(
-                                                networkSuggestion, perAppInfo));
+                                                networkSuggestionData.first, perAppInfo,
+                                                networkSuggestionData.second));
                                 break;
                             default:
                                 Log.w(TAG, "Ignoring unknown tag under "
@@ -355,8 +364,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private WifiNetworkSuggestion parseNetworkSuggestion(XmlPullParser in, int outerTagDepth,
-            @WifiConfigStore.Version int version,
+    private Pair<WifiNetworkSuggestion, Boolean> parseNetworkSuggestion(XmlPullParser in,
+            int outerTagDepth, @WifiConfigStore.Version int version,
             @Nullable WifiConfigStoreEncryptionUtil encryptionUtil, PerAppInfo perAppInfo)
             throws XmlPullParserException, IOException {
         Pair<String, WifiConfiguration> parsedConfig = null;
@@ -365,6 +374,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         boolean isAppInteractionRequired = false;
         boolean isUserInteractionRequired = false;
         boolean isUserAllowedToManuallyConnect = false; // Backward compatibility.
+        boolean isInitializedAutoJoinEnabled = true; // backward compat
+        boolean isAutoJoinEnabled = true; // backward compat
         int suggestorUid = Process.INVALID_UID;
 
         // Loop through and parse out all the elements from the stream within this section.
@@ -382,6 +393,12 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         break;
                     case XML_TAG_IS_USER_ALLOWED_TO_MANUALLY_CONNECT:
                         isUserAllowedToManuallyConnect = (boolean) value;
+                        break;
+                    case XML_TAG_IS_INITIALIZED_AUTO_JOIN:
+                        isInitializedAutoJoinEnabled = (boolean) value;
+                        break;
+                    case XML_TAG_IS_AUTO_JOIN:
+                        isAutoJoinEnabled = (boolean) value;
                         break;
                     case XML_TAG_SUGGESTOR_UID:
                         // Only needed for migration of data from Q to R.
@@ -440,13 +457,13 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         // ExtWifiNetworkSuggestion to the top level PerAppInfo. This block of code helps
         // with migration of data for devices upgrading from Q to R.
         perAppInfo.setUid(suggestorUid);
-        WifiConfiguration wifiConfiguration =  parsedConfig.second;
+        WifiConfiguration wifiConfiguration = parsedConfig.second;
         if (enterpriseConfig != null) {
             wifiConfiguration.enterpriseConfig = enterpriseConfig;
         }
-        return new WifiNetworkSuggestion(
-                wifiConfiguration, passpointConfiguration, isAppInteractionRequired,
-                isUserInteractionRequired, isUserAllowedToManuallyConnect);
+        return Pair.create(new WifiNetworkSuggestion(wifiConfiguration, passpointConfiguration,
+                isAppInteractionRequired, isUserInteractionRequired, isUserAllowedToManuallyConnect,
+                isInitializedAutoJoinEnabled), isAutoJoinEnabled);
     }
 }
 

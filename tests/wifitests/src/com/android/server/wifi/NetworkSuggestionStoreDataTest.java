@@ -284,10 +284,10 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
         configuration.enterpriseConfig =
                 WifiConfigurationTestUtil.createPEAPWifiEnterpriseConfigWithGTCPhase2();
         WifiNetworkSuggestion networkSuggestion =
-                new WifiNetworkSuggestion(configuration, null, false, false, true);
+                new WifiNetworkSuggestion(configuration, null, false, false, true, true);
         appInfo.hasUserApproved = false;
         appInfo.extNetworkSuggestions.add(
-                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion, appInfo));
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion, appInfo, true));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo);
 
         Map<String, PerAppInfo> deserializedPerAppInfoMap =
@@ -313,18 +313,18 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
         PerAppInfo appInfo1 = new PerAppInfo(TEST_UID_1, TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, true);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, true, true);
         appInfo1.hasUserApproved = false;
         appInfo1.extNetworkSuggestions.add(
-                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1));
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1, true));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
 
         PerAppInfo appInfo2 = new PerAppInfo(TEST_UID_2, TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true, true);
         appInfo2.hasUserApproved = true;
         appInfo2.extNetworkSuggestions.add(
-                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo2));
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo2, true));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_2, appInfo2);
 
         assertSerializeDeserialize(networkSuggestionsMap);
@@ -339,26 +339,26 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
         PerAppInfo appInfo1 = new PerAppInfo(TEST_UID_1, TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true, true);
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true, true);
         appInfo1.hasUserApproved = true;
         appInfo1.extNetworkSuggestions.add(
-                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1));
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1, true));
         appInfo1.extNetworkSuggestions.add(
-                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo1));
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo1, true));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
 
         PerAppInfo appInfo2 = new PerAppInfo(TEST_UID_2, TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion3 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true, true);
         WifiNetworkSuggestion networkSuggestion4 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true, true);
         appInfo2.hasUserApproved = true;
         appInfo2.extNetworkSuggestions.add(
-                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion3, appInfo2));
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion3, appInfo2, true));
         appInfo2.extNetworkSuggestions.add(
-                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion4, appInfo2));
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion4, appInfo2, true));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_2, appInfo2);
 
         assertSerializeDeserialize(networkSuggestionsMap);

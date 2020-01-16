@@ -4701,6 +4701,61 @@ public class WifiServiceImplTest extends WifiBaseTest {
         }
     }
 
+    @Test
+    public void testAllowAutojoinOnSuggestionNetwork() {
+        WifiConfiguration config = new WifiConfiguration();
+        config.fromWifiNetworkSuggestion = true;
+        when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
+        when(mWifiNetworkSuggestionsManager.allowNetworkSuggestionAutojoin(any(), anyBoolean()))
+                .thenReturn(true);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager).allowNetworkSuggestionAutojoin(any(), anyBoolean());
+        verify(mWifiConfigManager).allowAutojoin(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testAllowAutojoinOnSavedNetwork() {
+        WifiConfiguration config = new WifiConfiguration();
+        config.fromWifiNetworkSuggestion = false;
+        config.fromWifiNetworkSpecifier = false;
+        when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager, never())
+                .allowNetworkSuggestionAutojoin(any(), anyBoolean());
+        verify(mWifiConfigManager).allowAutojoin(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testAllowAutojoinOnWifiNetworkSpecifier() {
+        WifiConfiguration config = new WifiConfiguration();
+        config.fromWifiNetworkSpecifier = true;
+        when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager, never())
+                .allowNetworkSuggestionAutojoin(config, true);
+        verify(mWifiConfigManager, never()).allowAutojoin(0, true);
+    }
+
+    @Test
+    public void testAllowAutojoinOnSavedPasspointNetwork() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPasspointNetwork();
+        when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
+        when(mWifiNetworkSuggestionsManager.allowNetworkSuggestionAutojoin(any(), anyBoolean()))
+                .thenReturn(true);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager, never())
+                .allowNetworkSuggestionAutojoin(config, true);
+        verify(mWifiConfigManager, never()).allowAutojoin(0, true);
+    }
+
     /**
      * Test handle boot completed sequence.
      */
