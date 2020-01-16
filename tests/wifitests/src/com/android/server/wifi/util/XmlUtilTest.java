@@ -233,7 +233,6 @@ public class XmlUtilTest extends WifiBaseTest {
         configuration.numAssociation = 5;
         configuration.lastUpdateUid = configuration.lastConnectUid = configuration.creatorUid;
         configuration.creatorName = configuration.lastUpdateName = TEST_PACKAGE_NAME;
-        configuration.creationTime = "04-04-2016";
         configuration.setRandomizedMacAddress(MacAddressUtils.createRandomUnicastAddress());
         configuration.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
 
@@ -266,7 +265,6 @@ public class XmlUtilTest extends WifiBaseTest {
         status.setNetworkSelectionStatus(NetworkSelectionStatus.NETWORK_SELECTION_ENABLED);
         status.setNetworkSelectionDisableReason(NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
         status.setConnectChoice(TEST_DUMMY_CONFIG_KEY);
-        status.setConnectChoiceTimestamp(867889);
         status.setHasEverConnected(true);
         serializeDeserializeNetworkSelectionStatus(status);
     }
@@ -304,7 +302,6 @@ public class XmlUtilTest extends WifiBaseTest {
         status.setNetworkSelectionDisableReason(
                 NetworkSelectionStatus.DISABLED_DHCP_FAILURE);
         status.setConnectChoice(TEST_DUMMY_CONFIG_KEY);
-        status.setConnectChoiceTimestamp(867889);
         status.setHasEverConnected(true);
 
         // Serialize this to XML string.
@@ -353,7 +350,6 @@ public class XmlUtilTest extends WifiBaseTest {
         status.setNetworkSelectionDisableReason(
                 NetworkSelectionStatus.DISABLED_DHCP_FAILURE);
         status.setConnectChoice(TEST_DUMMY_CONFIG_KEY);
-        status.setConnectChoiceTimestamp(867889);
         status.setHasEverConnected(true);
 
         // Serialize this to XML string.

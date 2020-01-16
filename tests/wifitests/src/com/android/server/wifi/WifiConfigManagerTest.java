@@ -1529,7 +1529,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // Copy over the updated debug params to the original network config before comparison.
         originalNetwork.lastUpdateUid = network.lastUpdateUid;
         originalNetwork.lastUpdateName = network.lastUpdateName;
-        originalNetwork.updateTime = network.updateTime;
 
         // Now verify that there was no change to the network configurations.
         WifiConfigurationTestUtil.assertConfigurationEqualForConfigManagerAddOrUpdate(
@@ -3961,7 +3960,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // Set connect choice of network 2 over network 1.
         assertTrue(
                 mWifiConfigManager.setNetworkConnectChoice(
-                        network1.networkId, network2.getKey(), 78L));
+                        network1.networkId, network2.getKey()));
 
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(network1.networkId);
@@ -4836,7 +4835,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // Set connect choice of passpoint network over saved network.
         assertTrue(
                 mWifiConfigManager.setNetworkConnectChoice(
-                        savedNetwork.networkId, passpointNetwork.getKey(), 78L));
+                        savedNetwork.networkId, passpointNetwork.getKey()));
 
         WifiConfiguration retrievedSavedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(savedNetwork.networkId);
@@ -4966,27 +4965,20 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Modifies the provided configuration with creator uid, package name
-     * and time.
+     * Modifies the provided configuration with creator uid and package name.
      */
     private void setCreationDebugParams(WifiConfiguration configuration, int uid,
                                         String packageName) {
         configuration.creatorUid = configuration.lastUpdateUid = uid;
         configuration.creatorName = configuration.lastUpdateName = packageName;
-        configuration.creationTime = configuration.updateTime =
-                WifiConfigManager.createDebugTimeStampString(
-                        TEST_WALLCLOCK_CREATION_TIME_MILLIS);
     }
 
     /**
-     * Modifies the provided configuration with update uid, package name
-     * and time.
+     * Modifies the provided configuration with update uid and package name.
      */
     private void setUpdateDebugParams(WifiConfiguration configuration) {
         configuration.lastUpdateUid = TEST_UPDATE_UID;
         configuration.lastUpdateName = TEST_UPDATE_NAME;
-        configuration.updateTime =
-                WifiConfigManager.createDebugTimeStampString(TEST_WALLCLOCK_UPDATE_TIME_MILLIS);
     }
 
     /**
