@@ -130,6 +130,7 @@ import android.os.Message;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.connectivity.WifiActivityEnergyInfo;
 import android.os.test.TestLooper;
@@ -3575,14 +3576,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
 
-        int userHandle = TEST_USER_HANDLE;
+        UserHandle userHandle = UserHandle.of(TEST_USER_HANDLE);
         // Send the broadcast
         Intent intent = new Intent(Intent.ACTION_USER_REMOVED);
-        intent.putExtra(Intent.EXTRA_USER_HANDLE, userHandle);
+        intent.putExtra(Intent.EXTRA_USER, userHandle);
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
         mLooper.dispatchAll();
 
-        verify(mWifiConfigManager).removeNetworksForUser(userHandle);
+        verify(mWifiConfigManager).removeNetworksForUser(userHandle.getIdentifier());
     }
 
     @Test
@@ -3597,10 +3598,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
 
-        int userHandle = TEST_USER_HANDLE;
+        UserHandle userHandle = UserHandle.of(TEST_USER_HANDLE);
         // Send the broadcast with wrong action
         Intent intent = new Intent(Intent.ACTION_USER_FOREGROUND);
-        intent.putExtra(Intent.EXTRA_USER_HANDLE, userHandle);
+        intent.putExtra(Intent.EXTRA_USER, userHandle);
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
 
         verify(mWifiConfigManager, never()).removeNetworksForUser(anyInt());

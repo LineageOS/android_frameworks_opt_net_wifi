@@ -125,6 +125,8 @@ java_library {
         "libprotobuf-java-lite",
         "libnanohttpd",
         "netd_aidl_interface-V2-java",
+        "net-utils-framework-common",
+        "net-utils-services-common",
         "services.net",
         "wifi-lite-protos",
         "wifi-nano-protos",
