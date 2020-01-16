@@ -2489,6 +2489,26 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager
+     * #setMacRandomizationSettingPasspointEnabled(String, boolean)}
+     * @param fqdn the FQDN that identifies the passpoint configuration
+     * @param enable true to enable mac randomization, false to disable
+     */
+    @Override
+    public void setMacRandomizationSettingPasspointEnabled(String fqdn, boolean enable) {
+        enforceNetworkSettingsPermission();
+        if (fqdn == null) {
+            throw new IllegalArgumentException("FQDN cannot be null");
+        }
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("setMacRandomizationSettingPasspointEnabled=% uid=%")
+                .c(enable).c(callingUid).flush();
+        mWifiThreadRunner.post(
+                () -> mPasspointManager.enableMacRandomization(fqdn, enable));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#getConnectionInfo()}
      * @return the Wi-Fi information, contained in {@link WifiInfo}.
      */

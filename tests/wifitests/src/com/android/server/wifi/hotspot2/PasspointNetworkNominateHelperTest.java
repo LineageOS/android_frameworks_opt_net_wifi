@@ -80,8 +80,8 @@ public class PasspointNetworkNominateHelperTest {
     private static final String TEST_FQDN2 = "test2.com";
     private static final int TEST_UID = 5555;
     private static final String TEST_PACKAGE = "test.package.com";
-    private static final WifiConfiguration TEST_CONFIG1 = generateWifiConfig(TEST_FQDN1);;
-    private static final WifiConfiguration TEST_CONFIG2 = generateWifiConfig(TEST_FQDN2);;
+    private static final WifiConfiguration TEST_CONFIG1 = generateWifiConfig(TEST_FQDN1);
+    private static final WifiConfiguration TEST_CONFIG2 = generateWifiConfig(TEST_FQDN2);
     private static PasspointProvider sTestProvider1;
     private static PasspointProvider sTestProvider2;
 

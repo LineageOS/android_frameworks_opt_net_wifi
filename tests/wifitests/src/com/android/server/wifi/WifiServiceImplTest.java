@@ -4757,6 +4757,34 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
+     * Test that setMacRandomizationSettingPasspointEnabled is protected by NETWORK_SETTINGS
+     * permission.
+     */
+    @Test
+    public void testSetMacRandomizationSettingPasspointEnabledFailureNoNetworkSettingsPermission()
+            throws Exception {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.setMacRandomizationSettingPasspointEnabled("TEST_FQDN", true);
+            fail("Expected SecurityException");
+        } catch (SecurityException e) {
+            // Test succeeded
+        }
+    }
+
+    /**
+     * Test that setMacRandomizationSettingPasspointEnabled makes the appropriate calls.
+     */
+    @Test
+    public void testSetMacRandomizationSettingPasspointEnabled() throws Exception {
+        mWifiServiceImpl.setMacRandomizationSettingPasspointEnabled("TEST_FQDN", true);
+        mLooper.dispatchAll();
+        verify(mPasspointManager).enableMacRandomization("TEST_FQDN", true);
+    }
+
+    /**
      * Test handle boot completed sequence.
      */
     @Test
