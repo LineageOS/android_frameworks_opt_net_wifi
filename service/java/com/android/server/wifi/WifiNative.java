@@ -29,6 +29,7 @@ import android.net.wifi.WifiAnnotations;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
+import android.net.wifi.wificond.DeviceWiphyCapabilities;
 import android.net.wifi.wificond.NativeScanResult;
 import android.net.wifi.wificond.RadioChainInfo;
 import android.net.wifi.wificond.WifiCondManager;
@@ -160,6 +161,7 @@ public class WifiNative {
         public NetworkObserverInternal networkObserver;
         /** Interface feature set / capabilities */
         public long featureSet;
+        public DeviceWiphyCapabilities phyCapabilities;
 
         Iface(int id, @Iface.IfaceType int type) {
             this.id = id;
@@ -1041,6 +1043,7 @@ public class WifiNative {
             Log.i(TAG, "Successfully setup " + iface);
 
             iface.featureSet = getSupportedFeatureSetInternal(iface.name);
+            iface.phyCapabilities = getPhyCapabilities(iface.name);
             return iface.name;
         }
     }
@@ -1184,6 +1187,7 @@ public class WifiNative {
             iface.type = Iface.IFACE_TYPE_STA_FOR_SCAN;
             stopSupplicantIfNecessary();
             iface.featureSet = getSupportedFeatureSetInternal(iface.name);
+            iface.phyCapabilities = null;
             Log.i(TAG, "Successfully switched to scan mode on iface=" + iface);
             return true;
         }
@@ -1224,6 +1228,7 @@ public class WifiNative {
             }
             iface.type = Iface.IFACE_TYPE_STA_FOR_CONNECTIVITY;
             iface.featureSet = getSupportedFeatureSetInternal(iface.name);
+            iface.phyCapabilities = getPhyCapabilities(iface.name);
             Log.i(TAG, "Successfully switched to connectivity mode on iface=" + iface);
             return true;
         }
@@ -3444,6 +3449,13 @@ public class WifiNative {
     public void setMboCellularDataStatus(@NonNull String ifaceName, boolean available) {
         mSupplicantStaIfaceHal.setMboCellularDataStatus(ifaceName, available);
         return;
+    }
+
+    /**
+     * Get device phy capabilities
+     */
+    public DeviceWiphyCapabilities getPhyCapabilities(@NonNull String ifaceName) {
+        return mWifiCondManager.getDeviceWiphyCapabilities(ifaceName);
     }
 
     /********************************************************
