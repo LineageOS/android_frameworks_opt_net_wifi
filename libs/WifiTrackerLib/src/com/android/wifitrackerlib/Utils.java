@@ -28,8 +28,15 @@ import static com.android.wifitrackerlib.WifiEntry.SECURITY_WEP;
 
 import static java.util.Comparator.comparingInt;
 
+import android.app.AppGlobals;
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.IPackageManager;
+import android.content.pm.PackageManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.os.RemoteException;
+import android.os.UserHandle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -122,5 +129,77 @@ class Utils {
             filteredScanResultList.add(scanResult);
         }
         return filteredScanResultList;
+    }
+
+    static CharSequence getAppLabelForSavedNetwork(@NonNull Context context,
+            @NonNull WifiEntry wifiEntry) {
+        final WifiConfiguration config = wifiEntry.getWifiConfiguration();
+        if (context == null || wifiEntry == null || config == null) {
+            return "";
+        }
+
+        final PackageManager pm = context.getPackageManager();
+        final String systemName = pm.getNameForUid(android.os.Process.SYSTEM_UID);
+        final int userId = UserHandle.getUserId(config.creatorUid);
+        ApplicationInfo appInfo = null;
+        if (config.creatorName != null && config.creatorName.equals(systemName)) {
+            appInfo = context.getApplicationInfo();
+        } else {
+            try {
+                final IPackageManager ipm = AppGlobals.getPackageManager();
+                appInfo = ipm.getApplicationInfo(config.creatorName, 0 /* flags */, userId);
+            } catch (RemoteException rex) {
+                // Do nothing.
+            }
+        }
+        if (appInfo != null
+                && !appInfo.packageName.equals(context.getString(R.string.settings_package))
+                && !appInfo.packageName.equals(
+                context.getString(R.string.certinstaller_package))) {
+            return appInfo.loadLabel(pm);
+        } else {
+            return "";
+        }
+    }
+
+    static String getAutoConnectDescription(@NonNull Context context,
+            @NonNull WifiEntry wifiEntry) {
+        if (context == null || wifiEntry == null || !wifiEntry.isSaved()) {
+            return "";
+        }
+
+        return wifiEntry.isAutoJoinEnabled()
+                ? "" : context.getString(R.string.auto_connect_disable);
+    }
+
+    static String getMeteredDescription(@NonNull Context context, @Nullable WifiEntry wifiEntry) {
+        final WifiConfiguration config = wifiEntry.getWifiConfiguration();
+        if (context == null || wifiEntry == null || config == null) {
+            return "";
+        }
+
+        if (wifiEntry.getMeteredChoice() == WifiEntry.METERED_CHOICE_METERED) {
+            return context.getString(R.string.wifi_metered_label);
+        } else if (wifiEntry.getMeteredChoice() == WifiEntry.METERED_CHOICE_UNMETERED) {
+            return context.getString(R.string.wifi_unmetered_label);
+        } else { // METERED_CHOICE_AUTO
+            return wifiEntry.isMetered() ? context.getString(R.string.wifi_metered_label) : "";
+        }
+    }
+
+    static String getSpeedDescription(@NonNull Context context, @NonNull WifiEntry wifiEntry) {
+        // TODO(b/70983952): Fill this method in.
+        if (context == null || wifiEntry == null) {
+            return "";
+        }
+        return "";
+    }
+
+    static String getVerboseLoggingDescription(@NonNull WifiEntry wifiEntry) {
+        // TODO(b/70983952): Fill this method in.
+        if (!BaseWifiTracker.isVerboseLoggingEnabled() || wifiEntry == null) {
+            return "";
+        }
+        return "Verbose log";
     }
 }

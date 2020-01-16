@@ -20,10 +20,16 @@ import static android.net.wifi.WifiInfo.removeDoubleQuotes;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
+import static com.android.wifitrackerlib.Utils.getAppLabelForSavedNetwork;
+import static com.android.wifitrackerlib.Utils.getAutoConnectDescription;
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
+import static com.android.wifitrackerlib.Utils.getMeteredDescription;
 import static com.android.wifitrackerlib.Utils.getSecurityFromScanResult;
 import static com.android.wifitrackerlib.Utils.getSecurityFromWifiConfiguration;
+import static com.android.wifitrackerlib.Utils.getSpeedDescription;
+import static com.android.wifitrackerlib.Utils.getVerboseLoggingDescription;
 
+import android.content.Context;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -52,17 +58,21 @@ class StandardWifiEntry extends WifiEntry {
 
     @NonNull private final String mKey;
     @NonNull private final String mSsid;
+    @NonNull private final Context mContext;
     private final @Security int mSecurity;
     @Nullable private WifiConfiguration mWifiConfig;
     @Nullable private ConnectCallback mConnectCallback;
     @Nullable private DisconnectCallback mDisconnectCallback;
     @Nullable private ForgetCallback mForgetCallback;
 
-    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull List<ScanResult> scanResults,
+    StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
+            @NonNull List<ScanResult> scanResults,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
         super(callbackHandler, false /* forSavedNetworksPage */, wifiManager);
 
         checkNotNull(scanResults, "Cannot construct with null ScanResult list!");
+
+        mContext = context;
         if (scanResults.isEmpty()) {
             throw new IllegalArgumentException("Cannot construct with empty ScanResult list!");
         }
@@ -73,27 +83,30 @@ class StandardWifiEntry extends WifiEntry {
         updateScanResultInfo(scanResults);
     }
 
-    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull WifiConfiguration config,
+    StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
+            @NonNull WifiConfiguration config,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
         super(callbackHandler, true /* forSavedNetworksPage */, wifiManager);
 
         checkNotNull(config, "Cannot construct with null config!");
         checkNotNull(config.SSID, "Supplied config must have an SSID!");
 
+        mContext = context;
         mKey = wifiConfigToStandardWifiEntryKey(config);
         mSsid = removeDoubleQuotes(config.SSID);
         mSecurity = getSecurityFromWifiConfiguration(config);
         mWifiConfig = config;
     }
 
-    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull String key,
-            @NonNull WifiManager wifiManager) {
+    StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
+            @NonNull String key, @NonNull WifiManager wifiManager) {
         // TODO: second argument (isSaved = false) is bogus in this context
         super(callbackHandler, false, wifiManager);
 
         if (!key.startsWith(KEY_PREFIX)) {
             throw new IllegalArgumentException("Key does not start with correct prefix!");
         }
+        mContext = context;
         mKey = key;
         try {
             final int securityDelimiter = key.lastIndexOf(",");
@@ -116,14 +129,100 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public String getSummary() {
-        // TODO(b/70983952): Fill this method in and replace placeholders with resource strings
-        StringJoiner sj = new StringJoiner(" / ");
-        // Placeholder text
-        if (getConnectedState() == CONNECTED_STATE_CONNECTING) sj.add("Connecting...");
-        if (getConnectedState() == CONNECTED_STATE_CONNECTED) sj.add("Connected");
-        if (isSaved() && !mForSavedNetworksPage) sj.add("Saved");
+        return getSummary(true /* concise */);
+    }
+
+    @Override
+    public String getSummary(boolean concise) {
+        StringJoiner sj = new StringJoiner(mContext.getString(R.string.summary_separator));
+
+        final String speedDescription = getSpeedDescription(mContext, this);
+        if (!TextUtils.isEmpty(speedDescription)) {
+            sj.add(speedDescription);
+        }
+
+        if (!concise && mForSavedNetworksPage && isSaved()) {
+            final CharSequence appLabel = getAppLabelForSavedNetwork(mContext, this);
+            if (!TextUtils.isEmpty(appLabel)) {
+                sj.add(mContext.getString(R.string.saved_network, appLabel));
+            }
+        }
+
+        if (getConnectedState() == CONNECTED_STATE_CONNECTED) {
+            final String connectedDescription = getConnectedStateDescription();
+            if (!TextUtils.isEmpty(connectedDescription)) {
+                sj.add(connectedDescription);
+            }
+        } else if (getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
+            String disconnectDescription = getDisconnectedStateDescription();
+            if (TextUtils.isEmpty(disconnectDescription)) {
+                if (concise) {
+                    sj.add(mContext.getString(R.string.wifi_disconnected));
+                } else if (!mForSavedNetworksPage && isSaved()) {
+                    sj.add(mContext.getString(R.string.wifi_remembered));
+                }
+            } else {
+                sj.add(disconnectDescription);
+            }
+        }
+
+        final String autoConnectDescription = getAutoConnectDescription(mContext, this);
+        if (!TextUtils.isEmpty(autoConnectDescription)) {
+            sj.add(autoConnectDescription);
+        }
+
+        final String meteredDescription = getMeteredDescription(mContext, this);
+        if (!TextUtils.isEmpty(meteredDescription)) {
+            sj.add(meteredDescription);
+        }
+
+        if (!concise) {
+            final String verboseLoggingDescription = getVerboseLoggingDescription(this);
+            if (!TextUtils.isEmpty(verboseLoggingDescription)) {
+                sj.add(verboseLoggingDescription);
+            }
+        }
+
         return sj.toString();
     }
+
+    private String getConnectedStateDescription() {
+        // TODO(b/70983952): Fill this method in.
+        return "Connected";
+    }
+
+    private String getDisconnectedStateDescription() {
+        if (isSaved() && mWifiConfig.hasNoInternetAccess()) {
+            final int messageID =
+                    mWifiConfig.getNetworkSelectionStatus().isNetworkPermanentlyDisabled()
+                    ? R.string.wifi_no_internet_no_reconnect : R.string.wifi_no_internet;
+            return mContext.getString(messageID);
+        } else if (isSaved() && !mWifiConfig.getNetworkSelectionStatus().isNetworkEnabled()) {
+            final WifiConfiguration.NetworkSelectionStatus networkStatus =
+                    mWifiConfig.getNetworkSelectionStatus();
+            switch (networkStatus.getNetworkSelectionDisableReason()) {
+                case WifiConfiguration.NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE:
+                    return mContext.getString(R.string.wifi_disabled_password_failure);
+                case WifiConfiguration.NetworkSelectionStatus.DISABLED_BY_WRONG_PASSWORD:
+                    return mContext.getString(R.string.wifi_check_password_try_again);
+                case WifiConfiguration.NetworkSelectionStatus.DISABLED_DHCP_FAILURE:
+                    return mContext.getString(R.string.wifi_disabled_network_failure);
+                case WifiConfiguration.NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION:
+                    return mContext.getString(R.string.wifi_disabled_generic);
+                default:
+                    break;
+            }
+        } else if (getLevel() == WIFI_LEVEL_UNREACHABLE) {
+            // Do nothing because users know it by signal icon.
+        } else { // In range, not disabled.
+            if (mWifiConfig != null && mWifiConfig.recentFailure.getAssociationStatus()
+                    == WifiConfiguration.RecentFailure.STATUS_AP_UNABLE_TO_HANDLE_NEW_STA) {
+                return mContext.getString(R.string.wifi_ap_unable_to_handle_new_sta);
+            }
+        }
+        return "";
+    }
+
 
     @Override
     public int getLevel() {
