@@ -3044,8 +3044,7 @@ public class WifiServiceImpl extends BaseWifiService {
             pw.println();
             mWifiBackupRestore.dump(fd, pw, args);
             pw.println();
-            pw.println("ScoringParams: settings put global " + Settings.Global.WIFI_SCORE_PARAMS
-                       + " " + mWifiInjector.getScoringParams());
+            pw.println("ScoringParams: " + mWifiInjector.getScoringParams());
             pw.println();
             pw.println("WifiScoreReport:");
             WifiScoreReport wifiScoreReport = mClientModeImpl.getWifiScoreReport();

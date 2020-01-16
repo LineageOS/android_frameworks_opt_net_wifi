@@ -17,12 +17,10 @@
 package com.android.server.wifi;
 
 import android.content.Context;
-import android.database.ContentObserver;
 import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.wificond.WifiCondManager;
 import android.os.Handler;
-import android.provider.Settings;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -74,7 +72,6 @@ public class LinkProbeManager {
     private final Context mContext;
 
     private Boolean mLinkProbingSupported = null;
-    private boolean mLinkProbingEnabled = false;
 
     private boolean mVerboseLoggingEnabled = false;
 
@@ -123,28 +120,11 @@ public class LinkProbeManager {
             mLinkProbingSupported = mContext.getResources()
                     .getBoolean(R.bool.config_wifi_link_probing_supported);
             if (mLinkProbingSupported) {
-                mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
-                        Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
-                        new ContentObserver(mHandler) {
-                            @Override
-                            public void onChange(boolean selfChange) {
-                                updateLinkProbeSetting();
-                            }
-                        });
-                updateLinkProbeSetting();
-
                 resetOnNewConnection();
                 resetOnScreenTurnedOn();
             }
         }
         return mLinkProbingSupported;
-    }
-
-    private void updateLinkProbeSetting() {
-        int flag = mFrameworkFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_LINK_PROBING_ENABLED,
-                WIFI_LINK_PROBING_ENABLED_DEFAULT);
-        mLinkProbingEnabled = (flag == 1);
     }
 
     /** enables/disables wifi verbose logging */
@@ -157,7 +137,6 @@ public class LinkProbeManager {
         pw.println("Dump of LinkProbeManager");
         pw.println("LinkProbeManager - link probing supported by device: "
                 + isLinkProbingSupported());
-        pw.println("LinkProbeManager - link probing feature flag enabled: " + mLinkProbingEnabled);
         pw.println("LinkProbeManager - mLastLinkProbeTimestampMs: " + mLastLinkProbeTimestampMs);
         pw.println("LinkProbeManager - mLastTxSuccessIncreaseTimestampMs: "
                 + mLastTxSuccessIncreaseTimestampMs);
@@ -240,43 +219,40 @@ public class LinkProbeManager {
             return;
         }
 
-        if (mLinkProbingEnabled) {
-            if (mVerboseLoggingEnabled) {
-                Log.d(TAG, String.format(
-                        "link probing triggered with conditions: timeSinceLastLinkProbeMs=%d "
-                                + "timeSinceLastTxSuccessIncreaseMs=%d rssi=%d linkSpeed=%s",
-                        timeSinceLastLinkProbeMs, timeSinceLastTxSuccessIncreaseMs,
-                        rssi, linkSpeed));
-            }
-
-            // TODO(b/112029045): also report MCS rate to metrics when supported by driver
-            mWifiNative.probeLink(
-                    interfaceName,
-                    MacAddress.fromString(wifiInfo.getBSSID()),
-                    new WifiCondManager.SendMgmtFrameCallback() {
-                        @Override
-                        public void onAck(int elapsedTimeMs) {
-                            if (mVerboseLoggingEnabled) {
-                                Log.d(TAG, "link probing success, elapsedTimeMs="
-                                        + elapsedTimeMs);
-                            }
-                            mWifiMetrics.logLinkProbeSuccess(
-                                    timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed,
-                                    elapsedTimeMs);
-                        }
-
-                        @Override
-                        public void onFailure(int reason) {
-                            if (mVerboseLoggingEnabled) {
-                                Log.d(TAG, "link probing failure, reason=" + reason);
-                            }
-                            mWifiMetrics.logLinkProbeFailure(
-                                    timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed, reason);
-                        }
-                    },
-                    -1); // placeholder, lets driver determine MCS rate
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, String.format(
+                    "link probing triggered with conditions: timeSinceLastLinkProbeMs=%d "
+                            + "timeSinceLastTxSuccessIncreaseMs=%d rssi=%d linkSpeed=%s",
+                    timeSinceLastLinkProbeMs, timeSinceLastTxSuccessIncreaseMs,
+                    rssi, linkSpeed));
         }
 
+        // TODO(b/112029045): also report MCS rate to metrics when supported by driver
+        mWifiNative.probeLink(
+                interfaceName,
+                MacAddress.fromString(wifiInfo.getBSSID()),
+                new WifiCondManager.SendMgmtFrameCallback() {
+                    @Override
+                    public void onAck(int elapsedTimeMs) {
+                        if (mVerboseLoggingEnabled) {
+                            Log.d(TAG, "link probing success, elapsedTimeMs="
+                                    + elapsedTimeMs);
+                        }
+                        mWifiMetrics.logLinkProbeSuccess(
+                                timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed,
+                                elapsedTimeMs);
+                    }
+
+                    @Override
+                    public void onFailure(int reason) {
+                        if (mVerboseLoggingEnabled) {
+                            Log.d(TAG, "link probing failure, reason=" + reason);
+                        }
+                        mWifiMetrics.logLinkProbeFailure(
+                                timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed, reason);
+                    }
+                },
+                -1); // placeholder, lets driver determine MCS rate
         mLastLinkProbeTimestampMs = mClock.getElapsedSinceBootMillis();
     }
 

@@ -81,6 +81,7 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.DppMetrics;
 import com.android.server.wifi.FakeWifiLog;
 import com.android.server.wifi.FrameworkFacade;
+import com.android.server.wifi.MockResources;
 import com.android.server.wifi.ScanResults;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiInjector;
@@ -154,6 +155,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         mAlarmManager = new TestAlarmManager();
         when(mContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
+        when(mContext.getResources()).thenReturn(new MockResources());
         when(mWifiInjector.getWifiPermissionsUtil())
                 .thenReturn(mWifiPermissionsUtil);
 

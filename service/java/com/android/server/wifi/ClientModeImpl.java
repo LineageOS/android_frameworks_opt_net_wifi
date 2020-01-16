@@ -35,7 +35,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.database.ContentObserver;
 import android.net.ConnectivityManager;
 import android.net.DhcpResultsParcelable;
 import android.net.InvalidPacketException;
@@ -636,9 +635,6 @@ public class ClientModeImpl extends StateMachine {
     @VisibleForTesting
     public static final int LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS = 30 * 1000;
 
-    /* Tracks if user has enabled suspend optimizations through settings */
-    private AtomicBoolean mUserWantsSuspendOpt = new AtomicBoolean(true);
-
     /* Tracks if user has enabled Connected Mac Randomization through settings */
 
     /**
@@ -808,19 +804,6 @@ public class ClientModeImpl extends StateMachine {
                         }
                     }
                 }, filter);
-
-        mFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
-                        Settings.Global.WIFI_SUSPEND_OPTIMIZATIONS_ENABLED), false,
-                new ContentObserver(getHandler()) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        mUserWantsSuspendOpt.set(mFacade.getIntegerSetting(mContext,
-                                Settings.Global.WIFI_SUSPEND_OPTIMIZATIONS_ENABLED, 1) == 1);
-                    }
-                });
-
-        mUserWantsSuspendOpt.set(mFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_SUSPEND_OPTIMIZATIONS_ENABLED, 1) == 1);
 
         PowerManager powerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
 
@@ -1738,7 +1721,8 @@ public class ClientModeImpl extends StateMachine {
         pw.println("mLastNetworkId " + mLastNetworkId);
         pw.println("mLastSubId " + mLastSubId);
         pw.println("mOperationalMode " + mOperationalMode);
-        pw.println("mUserWantsSuspendOpt " + mUserWantsSuspendOpt);
+        pw.println("mSuspendOptimizationsEnabled " + mContext.getResources().getBoolean(
+                R.bool.config_wifiSuspendOptimizationsEnabled));
         pw.println("mSuspendOptNeedsDisabled " + mSuspendOptNeedsDisabled);
         mCountryCode.dump(fd, pw, args);
         mNetworkFactory.dump(fd, pw, args);
@@ -2179,11 +2163,13 @@ public class ClientModeImpl extends StateMachine {
         mScreenOn = screenOn;
         if (mVerboseLoggingEnabled) {
             logd(" handleScreenStateChanged Enter: screenOn=" + screenOn
-                    + " mUserWantsSuspendOpt=" + mUserWantsSuspendOpt
+                    + " mSuspendOptimizationsEnabled="
+                    + mContext.getResources().getBoolean(
+                            R.bool.config_wifiSuspendOptimizationsEnabled)
                     + " state " + getCurrentState().getName());
         }
         enableRssiPolling(screenOn);
-        if (mUserWantsSuspendOpt.get()) {
+        if (mContext.getResources().getBoolean(R.bool.config_wifiSuspendOptimizationsEnabled)) {
             int shouldReleaseWakeLock = 0;
             if (screenOn) {
                 sendMessage(CMD_SET_SUSPEND_OPT_ENABLED, 0, shouldReleaseWakeLock);
@@ -2232,7 +2218,8 @@ public class ClientModeImpl extends StateMachine {
     private void setSuspendOptimizationsNative(int reason, boolean enabled) {
         if (mVerboseLoggingEnabled) {
             log("setSuspendOptimizationsNative: " + reason + " " + enabled
-                    + " -want " + mUserWantsSuspendOpt.get()
+                    + " -want " + mContext.getResources().getBoolean(
+                            R.bool.config_wifiSuspendOptimizationsEnabled)
                     + " stack:" + Thread.currentThread().getStackTrace()[2].getMethodName()
                     + " - " + Thread.currentThread().getStackTrace()[3].getMethodName()
                     + " - " + Thread.currentThread().getStackTrace()[4].getMethodName()
@@ -2243,7 +2230,9 @@ public class ClientModeImpl extends StateMachine {
         if (enabled) {
             mSuspendOptNeedsDisabled &= ~reason;
             /* None of dhcp, screen or highperf need it disabled and user wants it enabled */
-            if (mSuspendOptNeedsDisabled == 0 && mUserWantsSuspendOpt.get()) {
+            if (mSuspendOptNeedsDisabled == 0
+                    && mContext.getResources().getBoolean(
+                            R.bool.config_wifiSuspendOptimizationsEnabled)) {
                 if (mVerboseLoggingEnabled) {
                     log("setSuspendOptimizationsNative do it " + reason + " " + enabled
                             + " stack:" + Thread.currentThread().getStackTrace()[2].getMethodName()
@@ -3374,7 +3363,8 @@ public class ClientModeImpl extends StateMachine {
 
         // Set the right suspend mode settings
         mWifiNative.setSuspendOptimizations(mInterfaceName, mSuspendOptNeedsDisabled == 0
-                && mUserWantsSuspendOpt.get());
+                && mContext.getResources().getBoolean(
+                        R.bool.config_wifiSuspendOptimizationsEnabled));
 
         setPowerSave(true);
 
