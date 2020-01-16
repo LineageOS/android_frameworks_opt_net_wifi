@@ -1392,5 +1392,61 @@ public class XmlUtil {
             throws IOException, XmlPullParserException {
         return XmlUtilHelper.nextElementWithin(parser, outerDepth);
     }
+
+    /**
+     * Utility class to serialize and deseriaize {@link SoftApConfiguration} object to XML
+     * & vice versa. This is used by both {@link com.android.server.wifi.SoftApStore}  modules.
+     */
+    public static class SoftApConfigurationXmlUtil {
+        /**
+         * List of XML tags corresponding to SoftApConfiguration object elements.
+         */
+        public static final String XML_TAG_CLIENT_MACADDRESS = "ClientMacAddress";
+
+        /**
+         * Parses the client list from the provided XML stream to a ArrayList object.
+         *
+         * @param in            XmlPullParser instance pointing to the XML stream.
+         * @param outerTagDepth depth of the outer tag in the XML document.
+         * @return ArrayList object if parsing is successful, null otherwise.
+         */
+        public static List<MacAddress> parseClientListFromXml(XmlPullParser in,
+                int outerTagDepth) throws XmlPullParserException, IOException,
+                IllegalArgumentException {
+            List<MacAddress> clientList = new ArrayList<>();
+            // Loop through and parse out all the elements from the stream within this section.
+            while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
+                String[] valueName = new String[1];
+                Object value = XmlUtil.readCurrentValue(in, valueName);
+                if (valueName[0] == null) {
+                    throw new XmlPullParserException("Missing value name");
+                }
+                switch (valueName[0]) {
+                    case XML_TAG_CLIENT_MACADDRESS:
+                        MacAddress client = MacAddress.fromString((String) value);
+                        clientList.add(client);
+                        break;
+                    default:
+                        Log.e(TAG, "Unknown value name found: " + valueName[0]);
+                        break;
+                }
+            }
+            return clientList;
+        }
+
+        /**
+         * Write the SoftApConfiguration client control list data elements
+         * from the provided list to the XML stream.
+         *
+         * @param out           XmlSerializer instance pointing to the XML stream.
+         * @param clientList Client list object to be serialized.
+         */
+        public static void writeClientListToXml(XmlSerializer out, List<MacAddress> clientList)
+                throws XmlPullParserException, IOException {
+            for (MacAddress mac: clientList) {
+                XmlUtil.writeNextValue(out, XML_TAG_CLIENT_MACADDRESS, mac.toString());
+            }
+        }
+    }
 }
 

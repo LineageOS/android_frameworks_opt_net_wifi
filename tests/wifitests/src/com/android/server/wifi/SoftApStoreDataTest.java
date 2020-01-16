@@ -24,6 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.util.Xml;
@@ -33,6 +34,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -44,6 +46,7 @@ import org.xmlpull.v1.XmlSerializer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 /**
  * Unit tests for {@link com.android.server.wifi.SoftApStoreData}.
@@ -59,6 +62,13 @@ public class SoftApStoreDataTest extends WifiBaseTest {
             | SoftApConfiguration.BAND_5GHZ;
     private static final int TEST_OLD_BAND = WifiConfiguration.AP_BAND_ANY;
     private static final int TEST_SECURITY = SoftApConfiguration.SECURITY_TYPE_WPA2_PSK;
+    private static final boolean TEST_CLIENT_CONTROL_BY_USER = false;
+    private static final int TEST_MAX_NUMBER_OF_CLIENTS = 10;
+    private static final int TEST_SHUTDOWN_TIMEOUT_MILLIS = 600_000;
+    private static final ArrayList<MacAddress> TEST_BLOCKEDLIST = new ArrayList<>();
+    private static final String TEST_BLOCKED_CLIENT = "11:22:33:44:55:66";
+    private static final ArrayList<MacAddress> TEST_ALLOWEDLIST = new ArrayList<>();
+    private static final String TEST_ALLOWED_CLIENT = "aa:bb:cc:dd:ee:ff";
 
     private static final String TEST_SOFTAP_CONFIG_XML_STRING =
             "<string name=\"SSID\">" + TEST_SSID + "</string>\n"
@@ -76,6 +86,26 @@ public class SoftApStoreDataTest extends WifiBaseTest {
                     + "<int name=\"SecurityType\" value=\"" + TEST_SECURITY + "\" />\n"
                     + "<string name=\"Passphrase\">" + TEST_PASSPHRASE + "</string>\n";
 
+    private static final String TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG =
+            "<string name=\"SSID\">" + TEST_SSID + "</string>\n"
+                    + "<int name=\"ApBand\" value=\"" + TEST_BAND + "\" />\n"
+                    + "<int name=\"Channel\" value=\"" + TEST_CHANNEL + "\" />\n"
+                    + "<boolean name=\"HiddenSSID\" value=\"" + TEST_HIDDEN + "\" />\n"
+                    + "<int name=\"SecurityType\" value=\"" + TEST_SECURITY + "\" />\n"
+                    + "<string name=\"Passphrase\">" + TEST_PASSPHRASE + "</string>\n"
+                    + "<int name=\"MaxNumberOfClients\" value=\""
+                    + TEST_MAX_NUMBER_OF_CLIENTS + "\" />\n"
+                    + "<boolean name=\"ClientControlByUser\" value=\""
+                    + TEST_CLIENT_CONTROL_BY_USER + "\" />\n"
+                    + "<int name=\"ShutdownTimeoutMillis\" value=\""
+                    + TEST_SHUTDOWN_TIMEOUT_MILLIS + "\" />\n"
+                    + "<BlockedClientList>\n"
+                    + "<string name=\"ClientMacAddress\">" + TEST_BLOCKED_CLIENT + "</string>\n"
+                    + "</BlockedClientList>\n"
+                    + "<AllowedClientList>\n"
+                    + "<string name=\"ClientMacAddress\">" + TEST_ALLOWED_CLIENT + "</string>\n"
+                    + "</AllowedClientList>\n";
+
     @Mock SoftApStoreData.DataSource mDataSource;
     SoftApStoreData mSoftApStoreData;
 
@@ -83,6 +113,17 @@ public class SoftApStoreDataTest extends WifiBaseTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mSoftApStoreData = new SoftApStoreData(mDataSource);
+        TEST_BLOCKEDLIST.add(MacAddress.fromString(TEST_BLOCKED_CLIENT));
+        TEST_ALLOWEDLIST.add(MacAddress.fromString(TEST_ALLOWED_CLIENT));
+    }
+
+    /**
+     * Called after each test
+     */
+    @After
+    public void cleanup() {
+        TEST_BLOCKEDLIST.clear();
+        TEST_ALLOWEDLIST.clear();
     }
 
     /**
@@ -151,10 +192,14 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         softApConfigBuilder.setPassphrase(TEST_PASSPHRASE,
                 SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         softApConfigBuilder.setBand(TEST_BAND);
+        softApConfigBuilder.enableClientControlByUser(TEST_CLIENT_CONTROL_BY_USER);
+        softApConfigBuilder.setMaxNumberOfClients(TEST_MAX_NUMBER_OF_CLIENTS);
+        softApConfigBuilder.setShutdownTimeoutMillis(TEST_SHUTDOWN_TIMEOUT_MILLIS);
+        softApConfigBuilder.setClientList(TEST_BLOCKEDLIST, TEST_ALLOWEDLIST);
 
         when(mDataSource.toSerialize()).thenReturn(softApConfigBuilder.build());
         byte[] actualData = serializeData();
-        assertEquals(TEST_SOFTAP_CONFIG_XML_STRING_WITH_NEW_BAND_DESIGN, new String(actualData));
+        assertEquals(TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG, new String(actualData));
     }
 
     /**
@@ -164,7 +209,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
      */
     @Test
     public void deserializeSoftAp() throws Exception {
-        deserializeData(TEST_SOFTAP_CONFIG_XML_STRING_WITH_NEW_BAND_DESIGN.getBytes());
+        deserializeData(TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG.getBytes());
 
         ArgumentCaptor<SoftApConfiguration> softapConfigCaptor =
                 ArgumentCaptor.forClass(SoftApConfiguration.class);
@@ -176,6 +221,11 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         assertEquals(softApConfig.getSecurityType(), SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         assertEquals(softApConfig.isHiddenSsid(), TEST_HIDDEN);
         assertEquals(softApConfig.getBand(), TEST_BAND);
+        assertEquals(softApConfig.isClientControlByUserEnabled(), TEST_CLIENT_CONTROL_BY_USER);
+        assertEquals(softApConfig.getMaxNumberOfClients(), TEST_MAX_NUMBER_OF_CLIENTS);
+        assertEquals(softApConfig.getShutdownTimeoutMillis(), TEST_SHUTDOWN_TIMEOUT_MILLIS);
+        assertEquals(softApConfig.getBlockedClientList(), TEST_BLOCKEDLIST);
+        assertEquals(softApConfig.getAllowedClientList(), TEST_ALLOWEDLIST);
     }
 
     /**
@@ -195,6 +245,28 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         assertNotNull(softApConfig);
         assertEquals(softApConfig.getSsid(), TEST_SSID);
         assertEquals(softApConfig.getPassphrase(), TEST_WPA2_PASSPHRASE);
+        assertEquals(softApConfig.getSecurityType(), SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+        assertEquals(softApConfig.isHiddenSsid(), TEST_HIDDEN);
+        assertEquals(softApConfig.getBand(), TEST_BAND);
+    }
+
+    /**
+     * Verify that the old format is deserialized correctly.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void deserializeNewBandSoftApButNoNewConfig() throws Exception {
+        // Start with the old serialized data
+        deserializeData(TEST_SOFTAP_CONFIG_XML_STRING_WITH_NEW_BAND_DESIGN.getBytes());
+
+        ArgumentCaptor<SoftApConfiguration> softapConfigCaptor =
+                ArgumentCaptor.forClass(SoftApConfiguration.class);
+        verify(mDataSource).fromDeserialized(softapConfigCaptor.capture());
+        SoftApConfiguration softApConfig = softapConfigCaptor.getValue();
+        assertNotNull(softApConfig);
+        assertEquals(softApConfig.getSsid(), TEST_SSID);
+        assertEquals(softApConfig.getPassphrase(), TEST_PASSPHRASE);
         assertEquals(softApConfig.getSecurityType(), SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         assertEquals(softApConfig.isHiddenSsid(), TEST_HIDDEN);
         assertEquals(softApConfig.getBand(), TEST_BAND);
