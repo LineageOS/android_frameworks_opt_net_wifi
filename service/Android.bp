@@ -99,6 +99,7 @@ java_library {
         "framework-minus-apex",
         "unsupportedappusage",
         "framework-annotations-lib",
+        "framework-telephony",
     ],
 
     static_libs: [
@@ -153,6 +154,7 @@ java_library {
         // TODO(b/135994092): Replace with framework-system-stubs once all @hide dependencies are
         // resolved.
         "framework-minus-apex",
+        "framework-telephony",
         "unsupportedappusage",
     ],
 
