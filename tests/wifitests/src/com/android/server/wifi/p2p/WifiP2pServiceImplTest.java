@@ -3110,8 +3110,6 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
         mWifiP2pServiceImpl.setMiracastMode(0);
         mLooper.dispatchAll();
-        verify(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.CONNECTIVITY_INTERNAL), eq("WifiP2pService"));
         verify(mWifiInjector).getWifiPermissionsWrapper();
         verify(mWifiPermissionsWrapper).getUidPermission(
                 eq(android.Manifest.permission.CONFIGURE_WIFI_DISPLAY), anyInt());
@@ -3128,8 +3126,6 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
         mWifiP2pServiceImpl.setMiracastMode(0);
         mLooper.dispatchAll();
-        verify(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.CONNECTIVITY_INTERNAL), eq("WifiP2pService"));
         verify(mWifiInjector).getWifiPermissionsWrapper();
         verify(mWifiPermissionsWrapper).getUidPermission(
                 eq(android.Manifest.permission.CONFIGURE_WIFI_DISPLAY), anyInt());
@@ -3137,29 +3133,14 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify the call setMiracastMode when CONNECTIVITY_INTERNAL permission denied.
-     */
-    @Test(expected = SecurityException.class)
-    public void testSetMiracastModeWhenPermissionDeined1() throws Exception {
-        doThrow(SecurityException.class).when(mContext)
-                .enforceCallingOrSelfPermission(anyString(), anyString());
-        mWifiP2pServiceImpl.setMiracastMode(0);
-        verify(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.CONNECTIVITY_INTERNAL), eq("WifiP2pService"));
-        verify(mWifiNative, never()).setMiracastMode(anyInt());
-    }
-
-    /**
      * Verify the call setMiracastMode when CONFIGURE_WIFI_DISPLAY permission denied.
      */
     @Test(expected = SecurityException.class)
-    public void testSetMiracastModeWhenPermissionDeined2() throws Exception {
+    public void testSetMiracastModeWhenPermissionDeined() throws Exception {
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiPermissionsWrapper.getUidPermission(anyString(), anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
         mWifiP2pServiceImpl.setMiracastMode(0);
-        verify(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.CONNECTIVITY_INTERNAL), eq("WifiP2pService"));
         verify(mWifiInjector).getWifiPermissionsWrapper();
         verify(mWifiPermissionsWrapper).getUidPermission(
                 eq(android.Manifest.permission.CONFIGURE_WIFI_DISPLAY), anyInt());
