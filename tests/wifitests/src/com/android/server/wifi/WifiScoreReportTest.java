@@ -22,10 +22,12 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.AdditionalAnswers.answerVoid;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -41,8 +43,13 @@ import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
+import android.net.wifi.IScoreChangeCallback;
+import android.net.wifi.IWifiConnectedNetworkScorer;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
@@ -52,6 +59,7 @@ import com.android.wifi.resources.R;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -62,8 +70,6 @@ import java.io.PrintWriter;
  */
 @SmallTest
 public class WifiScoreReportTest extends WifiBaseTest {
-
-
     class FakeClock extends Clock {
         long mWallClockMillis = 1500000000000L;
         int mStepMillis = 1001;
@@ -86,6 +92,26 @@ public class WifiScoreReportTest extends WifiBaseTest {
     @Mock Resources mResources;
     @Mock WifiMetrics mWifiMetrics;
     @Mock PrintWriter mPrintWriter;
+    @Mock IBinder mAppBinder;
+    @Mock IWifiConnectedNetworkScorer mWifiConnectedNetworkScorer;
+    private TestLooper mLooper;
+
+    public class WifiConnectedNetworkScorerImpl extends IWifiConnectedNetworkScorer.Stub {
+        public IScoreChangeCallback mScoreChangeCallback;
+        public int mSessionId = -1;
+
+        @Override
+        public void start(int sessionId) {
+            mSessionId = sessionId;
+        }
+        @Override
+        public void stop(int sessionId) {
+        }
+        @Override
+        public void setScoreChangeCallback(IScoreChangeCallback cbImpl) {
+            mScoreChangeCallback = cbImpl;
+        }
+    }
 
     // NetworkAgent is abstract, so a subclass is necessary
     private static class TestNetworkAgent extends NetworkAgent {
@@ -152,6 +178,7 @@ public class WifiScoreReportTest extends WifiBaseTest {
         setUpResources(mResources);
         mWifiInfo = new WifiInfo();
         mWifiInfo.setFrequency(2412);
+        mLooper = new TestLooper();
         when(mContext.getResources()).thenReturn(mResources);
         final ConnectivityManager cm = mock(ConnectivityManager.class);
         when(mContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(cm);
@@ -160,7 +187,8 @@ public class WifiScoreReportTest extends WifiBaseTest {
         mNetworkAgent = spy(new TestNetworkAgent(mContext));
         mClock = new FakeClock();
         mScoringParams = new ScoringParams(mContext);
-        mWifiScoreReport = new WifiScoreReport(mScoringParams, mClock);
+        mWifiScoreReport = new WifiScoreReport(mScoringParams, mClock,
+                new Handler(mLooper.getLooper()));
     }
 
     /**
@@ -518,5 +546,113 @@ public class WifiScoreReportTest extends WifiBaseTest {
         mWifiScoreReport.reset();
         mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
         assertTrue(mWifiInfo.getScore() > ConnectedScore.WIFI_TRANSITION_SCORE);
+    }
+
+    /**
+     * Verify that client gets ScoreChangeCallback object when client sets its scorer.
+     */
+    @Test
+    public void testClientNotification() throws RemoteException {
+        // Register Client for verification.
+        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+        // Client should get ScoreChangeCallback.
+        verify(mWifiConnectedNetworkScorer).setScoreChangeCallback(any());
+    }
+
+    /**
+     * Verify that clear client should be handled.
+     */
+    @Test
+    public void testClearClient() throws RemoteException {
+        // Register Client for verification.
+        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+        mWifiScoreReport.clearWifiConnectedNetworkScorer();
+        verify(mAppBinder).unlinkToDeath(any(), anyInt());
+
+        mWifiScoreReport.startConnectedNetworkScorer();
+        verify(mWifiConnectedNetworkScorer, never()).start(anyInt());
+    }
+
+    /**
+     * Verify that WifiScoreReport adds for death notification on setting client.
+     */
+    @Test
+    public void testAddsForBinderDeathOnSetClient() throws Exception {
+        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+    }
+
+    /**
+     * Verify that client fails to get message when scorer add failed.
+     */
+    @Test
+    public void testAddsScorerFailureOnLinkToDeath() throws Exception {
+        doThrow(new RemoteException())
+                .when(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+
+        // Client should not get any message when scorer add failed.
+        verify(mWifiConnectedNetworkScorer, never()).setScoreChangeCallback(any());
+    }
+
+    /**
+     * Verify that client gets session ID when start method is called.
+     */
+    @Test
+    public void testClientGetSessionIdOnStart() throws Exception {
+        ArgumentCaptor<Integer> startId = ArgumentCaptor.forClass(Integer.class);
+        // Register Client for verification.
+        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+        mWifiScoreReport.setSessionId(anyInt());
+        mWifiScoreReport.startConnectedNetworkScorer();
+        verify(mWifiConnectedNetworkScorer).start(startId.capture());
+        assertEquals((int) startId.getValue(), anyInt());
+    }
+
+    /**
+     * Verify that client gets session ID when stop method is called.
+     */
+    @Test
+    public void testClientGetSessionIdOnStop() throws Exception {
+        ArgumentCaptor<Integer> stopId = ArgumentCaptor.forClass(Integer.class);
+        // Register Client for verification.
+        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+        mWifiScoreReport.setSessionId(anyInt());
+        mWifiScoreReport.stopConnectedNetworkScorer();
+        verify(mWifiConnectedNetworkScorer).stop(stopId.capture());
+        assertEquals((int) stopId.getValue(), anyInt());
+    }
+
+    /**
+     * Verify that WifiScoreReport gets updated score when onScoreChange() is called by apps.
+     */
+    @Test
+    public void testFrameworkGetsUpdatesScore() throws Exception {
+        WifiConnectedNetworkScorerImpl scorerImpl = new WifiConnectedNetworkScorerImpl();
+        // Register Client for verification.
+        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, scorerImpl);
+
+        mWifiScoreReport.setSessionId(anyInt());
+        mWifiScoreReport.startConnectedNetworkScorer();
+        scorerImpl.mScoreChangeCallback.onStatusChange(scorerImpl.mSessionId, true);
+        assertEquals(mWifiScoreReport.getExternalConnectedScore(), 51);
+        scorerImpl.mScoreChangeCallback.onStatusChange(scorerImpl.mSessionId, false);
+        assertEquals(mWifiScoreReport.getExternalConnectedScore(), 49);
+
+        // TODO: Test WifiScoreReport gets notification for triggering update of
+        //  WifiUsabilityStatsEntrypl when scorerImpl calls onTriggerUpdateOfWifiUsabilityStats.
+    }
+
+    /**
+     * Verify that only a single Wi-Fi connected network scorer can be registered successfully.
+     */
+    @Test
+    public void verifyOnlyASingleScorerCanBeRegisteredSuccessively() throws Exception {
+        WifiConnectedNetworkScorerImpl scorerImpl = new WifiConnectedNetworkScorerImpl();
+        assertEquals(true, mWifiScoreReport.setWifiConnectedNetworkScorer(
+                mAppBinder, scorerImpl));
+        assertEquals(false, mWifiScoreReport.setWifiConnectedNetworkScorer(
+                mAppBinder, scorerImpl));
     }
 }

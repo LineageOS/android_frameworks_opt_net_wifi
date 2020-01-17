@@ -103,6 +103,7 @@ import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
+import android.net.wifi.IWifiConnectedNetworkScorer;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApInfo;
@@ -194,6 +195,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private static final int TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER = 17;
     private static final int TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER = 234;
     private static final int TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER = 2;
+    private static final int TEST_WIFI_CONNECTED_NETWORK_SCORER_IDENTIFIER = 1;
     private static final String WIFI_IFACE_NAME = "wlan0";
     private static final String WIFI_IFACE_NAME2 = "wlan1";
     private static final String TEST_COUNTRY_CODE = "US";
@@ -295,6 +297,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock IScanResultsCallback mScanResultsCallback;
     @Mock ISuggestionConnectionStatusListener mSuggestionConnectionStatusListener;
     @Mock IOnWifiActivityEnergyInfoListener mOnWifiActivityEnergyInfoListener;
+    @Mock IWifiConnectedNetworkScorer mWifiConnectedNetworkScorer;
 
     WifiLog mLog = new LogcatLog(TAG);
 
@@ -5084,5 +5087,73 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mWifiNetworkSuggestionsManager)
                 .getWifiConfigForMatchedNetworkSuggestionsSharedWithUser(any());
+    }
+
+    /**
+     * Verify that a call to setWifiConnectedNetworkScorer throws a SecurityException if
+     * the caller does not have WIFI_UPDATE_USABILITY_STATS_SCORE permission.
+     */
+    @Test
+    public void testSetNetworkScorerThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingPermission(
+                        eq(android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verify that a call to setWifiConnectedNetworkScorer throws an IllegalArgumentException
+     * if the parameters are not provided.
+     */
+    @Test
+    public void testSetScorerThrowsIllegalArgumentExceptionOnInvalidArguments() {
+        try {
+            mWifiServiceImpl.setWifiConnectedNetworkScorer(mAppBinder, null);
+            fail("expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+        }
+    }
+
+    /**
+     * Verify that a call to clearWifiConnectedNetworkScorer throws a SecurityException if
+     * the caller does not have WIFI_UPDATE_USABILITY_STATS_SCORE permission.
+     */
+    @Test
+    public void testClearNetworkScorerThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingPermission(
+                        eq(android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE),
+                                eq("WifiService"));
+        try {
+            mWifiServiceImpl.clearWifiConnectedNetworkScorer();
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verify that setWifiConnectedNetworkScorer sets scorer to {@link WifiScoreReport}.
+     */
+    @Test
+    public void testSetWifiConnectedNetworkScorerAndVerify() throws Exception {
+        mWifiServiceImpl.setWifiConnectedNetworkScorer(mAppBinder, mWifiConnectedNetworkScorer);
+        mLooper.dispatchAll();
+        verify(mWifiScoreReport).setWifiConnectedNetworkScorer(mAppBinder,
+                mWifiConnectedNetworkScorer);
+    }
+
+    /**
+     * Verify that clearWifiConnectedNetworkScorer clears scorer from {@link WifiScoreReport}.
+     */
+    @Test
+    public void testClearWifiConnectedNetworkScorerAndVerify() throws Exception {
+        mWifiServiceImpl.clearWifiConnectedNetworkScorer();
+        mLooper.dispatchAll();
+        verify(mWifiScoreReport).clearWifiConnectedNetworkScorer();
     }
 }

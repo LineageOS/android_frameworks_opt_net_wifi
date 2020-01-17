@@ -61,6 +61,7 @@ import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
+import android.net.wifi.IWifiConnectedNetworkScorer;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApCapability;
 import android.net.wifi.SoftApConfiguration;
@@ -4041,5 +4042,52 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public int calculateSignalLevel(int rssi) {
         return RssiUtil.calculateSignalLevel(mContext, rssi);
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#setWifiConnectedNetworkScorer(Executor,
+     * WifiConnectedNetworkScorer)}
+     *
+     * @param binder IBinder instance to allow cleanup if the app dies.
+     * @param scorer Wifi connected network scorer to set.
+     * @return true Scorer is set successfully.
+     *
+     * @throws RemoteException if remote exception happens
+     * @throws IllegalArgumentException if the arguments are null or invalid
+     */
+    @Override
+    public boolean setWifiConnectedNetworkScorer(IBinder binder,
+            IWifiConnectedNetworkScorer scorer) {
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (scorer == null) {
+            throw new IllegalArgumentException("Scorer must not be null");
+        }
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE, "WifiService");
+        if (mVerboseLoggingEnabled) {
+            mLog.info("setWifiConnectedNetworkScorer uid=%").c(Binder.getCallingUid()).flush();
+        }
+        // Post operation to handler thread
+        WifiScoreReport wifiScoreReport = mClientModeImpl.getWifiScoreReport();
+        return mWifiThreadRunner.call(() -> wifiScoreReport.setWifiConnectedNetworkScorer(
+                binder, scorer), false);
+    }
+    /**
+     * See {@link android.net.wifi.WifiManager#clearWifiConnectedNetworkScorer(
+     * WifiConnectedNetworkScorer)}
+     */
+    @Override
+    public void clearWifiConnectedNetworkScorer() {
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE, "WifiService");
+        if (mVerboseLoggingEnabled) {
+            mLog.info("clearWifiConnectedNetworkScorer uid=%").c(Binder.getCallingUid()).flush();
+        }
+        // Post operation to handler thread
+        WifiScoreReport wifiScoreReport = mClientModeImpl.getWifiScoreReport();
+        mWifiThreadRunner.post(() ->
+                wifiScoreReport.clearWifiConnectedNetworkScorer());
     }
 }
