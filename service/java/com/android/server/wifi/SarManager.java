@@ -55,6 +55,20 @@ import java.util.List;
 public class SarManager {
     // Period for checking on voice steam active (in ms)
     private static final int CHECK_VOICE_STREAM_INTERVAL_MS = 5000;
+
+    /**
+     * @hide constants copied over from {@link AudioManager}
+     * TODO(b/144250387): Migrate to public API
+     */
+    private static final String STREAM_DEVICES_CHANGED_ACTION =
+            "android.media.stream_devices_changed_action";
+    private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
+    private static final String EXTRA_VOLUME_STREAM_DEVICES =
+            "android.media.EXTRA_VOLUME_STREAM_DEVICES";
+    private static final String EXTRA_PREV_VOLUME_STREAM_DEVICES =
+            "android.media.EXTRA_PREV_VOLUME_STREAM_DEVICES";
+    private static final int DEVICE_OUT_EARPIECE = 0x1;
+
     /* For Logging */
     private static final String TAG = "WifiSarManager";
     private boolean mVerboseLoggingEnabled = true;
@@ -227,7 +241,7 @@ public class SarManager {
 
         // Register for listening to transitions of change of voice stream devices
         IntentFilter filter = new IntentFilter();
-        filter.addAction(AudioManager.STREAM_DEVICES_CHANGED_ACTION);
+        filter.addAction(STREAM_DEVICES_CHANGED_ACTION);
 
         mContext.registerReceiver(
                 new BroadcastReceiver() {
@@ -241,21 +255,19 @@ public class SarManager {
 
                         String action = intent.getAction();
                         int streamType =
-                                intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_TYPE, -1);
-                        int device = intent.getIntExtra(
-                                AudioManager.EXTRA_VOLUME_STREAM_DEVICES, -1);
-                        int oldDevice = intent.getIntExtra(
-                                AudioManager.EXTRA_PREV_VOLUME_STREAM_DEVICES, -1);
+                                intent.getIntExtra(EXTRA_VOLUME_STREAM_TYPE, -1);
+                        int device = intent.getIntExtra(EXTRA_VOLUME_STREAM_DEVICES, -1);
+                        int oldDevice = intent.getIntExtra(EXTRA_PREV_VOLUME_STREAM_DEVICES, -1);
 
                         if (streamType == AudioManager.STREAM_VOICE_CALL) {
                             boolean earPieceActive = mSarInfo.isEarPieceActive;
-                            if (device == AudioManager.DEVICE_OUT_EARPIECE) {
+                            if (device == DEVICE_OUT_EARPIECE) {
                                 if (mVerboseLoggingEnabled) {
                                     Log.d(TAG, "Switching to earpiece : HEAD ON");
                                     Log.d(TAG, "Old device = " + oldDevice);
                                 }
                                 earPieceActive = true;
-                            } else if (oldDevice == AudioManager.DEVICE_OUT_EARPIECE) {
+                            } else if (oldDevice == DEVICE_OUT_EARPIECE) {
                                 if (mVerboseLoggingEnabled) {
                                     Log.d(TAG, "Switching from earpiece : HEAD OFF");
                                     Log.d(TAG, "New device = " + device);
