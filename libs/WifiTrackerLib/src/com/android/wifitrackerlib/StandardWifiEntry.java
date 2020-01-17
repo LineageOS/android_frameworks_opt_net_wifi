@@ -344,8 +344,8 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public boolean isMetered() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return getMeteredChoice() == METERED_CHOICE_METERED
+                || (mWifiConfig != null && mWifiConfig.meteredHint);
     }
 
     @Override
@@ -763,52 +763,6 @@ class StandardWifiEntry extends WifiEntry {
         checkNotNull(config.SSID, "Cannot create key with null SSID in config!");
         return KEY_PREFIX + removeDoubleQuotes(config.SSID) + ","
                 + getSecurityTypeFromWifiConfiguration(config);
-    }
-
-    private class ConnectActionListener implements WifiManager.ActionListener {
-        @Override
-        public void onSuccess() {
-            mCalledConnect = true;
-            // If we aren't connected to the network after 10 seconds, trigger the failure callback
-            mCallbackHandler.postDelayed(() -> {
-                if (mConnectCallback != null && mCalledConnect
-                        && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
-                    mConnectCallback.onConnectResult(
-                            ConnectCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
-                    mCalledConnect = false;
-                }
-            }, 10_000 /* delayMillis */);
-        }
-
-        @Override
-        public void onFailure(int i) {
-            mCallbackHandler.post(() -> {
-                if (mConnectCallback != null) {
-                    mConnectCallback.onConnectResult(
-                            mConnectCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
-                }
-            });
-        }
-    }
-
-    class ForgetActionListener implements WifiManager.ActionListener {
-        @Override
-        public void onSuccess() {
-            mCallbackHandler.post(() -> {
-                if (mForgetCallback != null) {
-                    mForgetCallback.onForgetResult(ForgetCallback.FORGET_STATUS_SUCCESS);
-                }
-            });
-        }
-
-        @Override
-        public void onFailure(int i) {
-            mCallbackHandler.post(() -> {
-                if (mForgetCallback != null) {
-                    mForgetCallback.onForgetResult(ForgetCallback.FORGET_STATUS_FAILURE_UNKNOWN);
-                }
-            });
-        }
     }
 
     @Override
