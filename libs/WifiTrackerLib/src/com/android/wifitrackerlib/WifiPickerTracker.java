@@ -323,7 +323,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
 
             // Create PasspointWifiEntry if one doesn't exist for the seen key yet.
             if (!mPasspointWifiEntryCache.containsKey(key)) {
-                mPasspointWifiEntryCache.put(key, new PasspointWifiEntry(
+                mPasspointWifiEntryCache.put(key, new PasspointWifiEntry(mContext,
                         mMainHandler, mPasspointConfigCache.get(key), mWifiManager));
             }
             mPasspointWifiEntryCache.get(key).updateScanResultInfo(wifiConfig,

@@ -375,6 +375,8 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public abstract boolean canSetAutoJoinEnabled();
     /** Sets whether a network will be auto-joined or not */
     public abstract void setAutoJoinEnabled(boolean enabled);
+    /** Returns the string displayed for @Security */
+    public abstract String getSecurityString(boolean concise);
     /** Returns the ScanResult information of a WifiEntry */
     abstract String getScanResultDescription();
 
