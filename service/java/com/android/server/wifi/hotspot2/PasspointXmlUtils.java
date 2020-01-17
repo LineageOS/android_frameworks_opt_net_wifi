@@ -111,6 +111,7 @@ public class PasspointXmlUtils {
     private static final String XML_TAG_USAGE_LIMIT_TIME_LIMIT = "UsageLimitTimeLimit";
     private static final String XML_TAG_CARRIER_ID = "CarrierId";
     private static final String XML_TAG_IS_AUTO_JOIN = "AutoJoinEnabled";
+    private static final String XML_TAG_IS_MAC_RANDOMIZATION_ENABLED = "IsMacRandomizationEnabled";
 
     /**
      * Serialize a {@link PasspointConfiguration} to the output stream as a XML block.
@@ -149,6 +150,8 @@ public class PasspointXmlUtils {
         }
         XmlUtil.writeNextValue(out, XML_TAG_CARRIER_ID, config.getCarrierId());
         XmlUtil.writeNextValue(out, XML_TAG_IS_AUTO_JOIN, config.isAutoJoinEnabled());
+        XmlUtil.writeNextValue(out, XML_TAG_IS_MAC_RANDOMIZATION_ENABLED,
+                config.isMacRandomizationEnabled());
     }
 
     /**
@@ -207,6 +210,9 @@ public class PasspointXmlUtils {
                         break;
                     case XML_TAG_IS_AUTO_JOIN:
                         config.setAutoJoinEnabled((boolean) value);
+                        break;
+                    case XML_TAG_IS_MAC_RANDOMIZATION_ENABLED:
+                        config.setMacRandomizationEnabled((boolean) value);
                         break;
                     default:
                         throw new XmlPullParserException("Unknown value under "

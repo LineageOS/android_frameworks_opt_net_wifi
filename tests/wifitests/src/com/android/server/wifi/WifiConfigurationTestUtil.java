@@ -633,11 +633,9 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.numAssociation, actual.numAssociation);
         assertEquals(expected.creatorUid, actual.creatorUid);
         assertEquals(expected.creatorName, actual.creatorName);
-        assertEquals(expected.creationTime, actual.creationTime);
         assertEquals(expected.lastUpdateUid, actual.lastUpdateUid);
         assertEquals(expected.lastUpdateName, actual.lastUpdateName);
         assertEquals(expected.lastConnectUid, actual.lastConnectUid);
-        assertEquals(expected.updateTime, actual.updateTime);
         assertEquals(expected.isLegacyPasspointConfig, actual.isLegacyPasspointConfig);
         assertEquals(expected.getRandomizedMacAddress(), actual.getRandomizedMacAddress());
         assertEquals(expected.macRandomizationSetting, actual.macRandomizationSetting);
@@ -667,10 +665,8 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.fromWifiNetworkSpecifier, actual.fromWifiNetworkSpecifier);
         assertEquals(expected.creatorUid, actual.creatorUid);
         assertEquals(expected.creatorName, actual.creatorName);
-        assertEquals(expected.creationTime, actual.creationTime);
         assertEquals(expected.lastUpdateUid, actual.lastUpdateUid);
         assertEquals(expected.lastUpdateName, actual.lastUpdateName);
-        assertEquals(expected.updateTime, actual.updateTime);
         assertNetworkSelectionStatusEqualForConfigStore(
                 expected.getNetworkSelectionStatus(), actual.getNetworkSelectionStatus());
         assertWifiEnterpriseConfigEqualForConfigStore(
@@ -738,7 +734,6 @@ public class WifiConfigurationTestUtil {
                     actual.getNetworkSelectionDisableReason());
         }
         assertEquals(expected.getConnectChoice(), actual.getConnectChoice());
-        assertEquals(expected.getConnectChoiceTimestamp(), actual.getConnectChoiceTimestamp());
         assertEquals(expected.getHasEverConnected(), actual.getHasEverConnected());
     }
 

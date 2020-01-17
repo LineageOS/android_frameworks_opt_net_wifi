@@ -631,14 +631,10 @@ public class PasspointManagerTest extends WifiBaseTest {
         List<PasspointProvider> providers = mUserDataSource.getProviders();
         assertEquals(1, providers.size());
         assertEquals(config, providers.get(0).getConfig());
-        assertTrue(mManager.enableAutojoin(providers.get(0).getConfig().getHomeSp().getFqdn(),
-                false));
-        verify(providers.get(0)).setAutoJoinEnabled(false);
-        assertTrue(mManager.enableAutojoin(providers.get(0).getConfig().getHomeSp().getFqdn(),
-                true));
-        verify(providers.get(0)).setAutoJoinEnabled(true);
-        assertFalse(mManager.enableAutojoin(providers.get(0).getConfig().getHomeSp().getFqdn()
-                + "-XXXX", true));
+
+        // Verify calling |enableAutoJoin| and |enableMacRandomization|
+        verifyEnableAutojoin(providers.get(0));
+        verifyEnableMacRandomization(providers.get(0));
 
         // Provider index start with 0, should be 1 after adding a provider.
         assertEquals(1, mSharedDataSource.getProviderIndex());
@@ -648,7 +644,11 @@ public class PasspointManagerTest extends WifiBaseTest {
         verify(provider).uninstallCertsAndKeys();
         verify(mWifiConfigManager).removePasspointConfiguredNetwork(
                 provider.getWifiConfig().getKey());
-        verify(mWifiConfigManager, times(3)).saveToStore(true);
+        /**
+         * 1 from |removeProvider| + 2 from |setAutoJoinEnabled| + 2 from
+         * |enableMacRandomization| = 5 calls to |saveToStore|
+         */
+        verify(mWifiConfigManager, times(5)).saveToStore(true);
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallSuccess();
         verify(mAppOpsManager).stopWatchingMode(any(AppOpsManager.OnOpChangedListener.class));
@@ -658,6 +658,34 @@ public class PasspointManagerTest extends WifiBaseTest {
         assertTrue(mUserDataSource.getProviders().isEmpty());
         // Removing a provider should not change the provider index.
         assertEquals(1, mSharedDataSource.getProviderIndex());
+    }
+
+    /**
+     * Verify enable/disable autojoin on a provider.
+     * @param provider a mock provider that is already added into the PasspointManager
+     */
+    private void verifyEnableAutojoin(PasspointProvider provider) {
+        assertTrue(mManager.enableAutojoin(provider.getConfig().getHomeSp().getFqdn(), false));
+        verify(provider).setAutoJoinEnabled(false);
+        assertTrue(mManager.enableAutojoin(provider.getConfig().getHomeSp().getFqdn(), true));
+        verify(provider).setAutoJoinEnabled(true);
+        assertFalse(mManager.enableAutojoin(provider.getConfig().getHomeSp().getFqdn()
+                + "-XXXX", true));
+    }
+
+    /**
+     * Verify enable/disable mac randomization on a provider.
+     * @param provider a mock provider that is already added into the PasspointManager
+     */
+    private void verifyEnableMacRandomization(PasspointProvider provider) {
+        assertTrue(mManager.enableMacRandomization(provider.getConfig().getHomeSp().getFqdn(),
+                false));
+        verify(provider).setMacRandomizationEnabled(false);
+        assertTrue(mManager.enableMacRandomization(provider.getConfig().getHomeSp().getFqdn(),
+                true));
+        verify(provider).setMacRandomizationEnabled(true);
+        assertFalse(mManager.enableMacRandomization(provider.getConfig().getHomeSp().getFqdn()
+                + "-XXXX", false));
     }
 
     /**

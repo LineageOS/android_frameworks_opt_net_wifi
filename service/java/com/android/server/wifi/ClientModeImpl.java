@@ -689,6 +689,7 @@ public class ClientModeImpl extends StateMachine {
     private WifiStateTracker mWifiStateTracker;
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
+    private final EapFailureNotifier mEapFailureNotifier;
     private final ConnectionFailureNotifier mConnectionFailureNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     // Maximum duration to continue to log Wifi usability stats after a data stall is triggered.
@@ -706,7 +707,7 @@ public class ClientModeImpl extends StateMachine {
                             BatteryStatsManager batteryStatsManager,
                             SupplicantStateTracker supplicantStateTracker,
                             MboOceController mboOceController,
-                            TelephonyUtil telephonyUtil) {
+                            TelephonyUtil telephonyUtil, EapFailureNotifier eapFailureNotifier) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -719,6 +720,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiNative = wifiNative;
         mBackupManagerProxy = backupManagerProxy;
         mWrongPasswordNotifier = wrongPasswordNotifier;
+        mEapFailureNotifier = eapFailureNotifier;
         mSarManager = sarManager;
         mWifiTrafficPoller = wifiTrafficPoller;
         mLinkProbeManager = linkProbeManager;
@@ -3573,18 +3575,22 @@ public class ClientModeImpl extends StateMachine {
                     int disableReason = WifiConfiguration.NetworkSelectionStatus
                             .DISABLED_AUTHENTICATION_FAILURE;
                     reasonCode = message.arg1;
+                    WifiConfiguration targetedNetwork =
+                            mWifiConfigManager.getConfiguredNetwork(mTargetNetworkId);
                     // Check if this is a permanent wrong password failure.
                     if (isPermanentWrongPasswordFailure(mTargetNetworkId, reasonCode)) {
                         disableReason = WifiConfiguration.NetworkSelectionStatus
                                 .DISABLED_BY_WRONG_PASSWORD;
-                        WifiConfiguration targetedNetwork =
-                                mWifiConfigManager.getConfiguredNetwork(mTargetNetworkId);
                         if (targetedNetwork != null) {
                             mWrongPasswordNotifier.onWrongPasswordError(
                                     targetedNetwork.SSID);
                         }
                     } else if (reasonCode == WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE) {
                         int errorCode = message.arg2;
+                        if (targetedNetwork != null && targetedNetwork.enterpriseConfig != null
+                                && targetedNetwork.enterpriseConfig.isAuthenticationSimBased()) {
+                            mEapFailureNotifier.onEapFailure(errorCode, targetedNetwork);
+                        }
                         handleEapAuthFailure(mTargetNetworkId, errorCode);
                         if (errorCode == WifiNative.EAP_SIM_NOT_SUBSCRIBED) {
                             disableReason = WifiConfiguration.NetworkSelectionStatus

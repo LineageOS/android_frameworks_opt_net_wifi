@@ -1211,6 +1211,21 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     }
 
     /**
+     * Tests the handling of EAP failure notification.
+     */
+    @Test
+    public void testEapFailureCallback1_3() throws Exception {
+        int eapFailureCode = WifiNative.EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED;
+        testInitialize_successV1_3();
+        assertNotNull(mISupplicantStaIfaceCallbackV13);
+
+        mISupplicantStaIfaceCallbackV13.onEapFailure_1_3(eapFailureCode);
+        verify(mWifiMonitor).broadcastAuthenticationFailureEvent(
+                eq(WLAN0_IFACE_NAME), eq(WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE),
+                eq(eapFailureCode));
+    }
+
+    /**
      * Tests the handling of Wps success notification.
      */
     @Test

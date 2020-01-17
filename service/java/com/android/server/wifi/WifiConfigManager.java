@@ -66,7 +66,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -430,22 +429,6 @@ public class WifiConfigManager {
     }
 
     /**
-     * Construct the string to be put in the |creationTime| & |updateTime| elements of
-     * WifiConfiguration from the provided wall clock millis.
-     *
-     * @param wallClockMillis Time in milliseconds to be converted to string.
-     */
-    @VisibleForTesting
-    public static String createDebugTimeStampString(long wallClockMillis) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("time=");
-        Calendar c = Calendar.getInstance();
-        c.setTimeInMillis(wallClockMillis);
-        sb.append(String.format("%tm-%td %tH:%tM:%tS.%tL", c, c, c, c, c, c));
-        return sb.toString();
-    }
-
-    /**
      * Determine if the framework should perform "aggressive" MAC randomization when connecting
      * to the SSID in the input WifiConfiguration.
      * @param config
@@ -497,7 +480,7 @@ public class WifiConfigManager {
     private MacAddress getPersistentMacAddress(WifiConfiguration config) {
         // mRandomizedMacAddressMapping had been the location to save randomized MAC addresses.
         String persistentMacString = mRandomizedMacAddressMapping.get(
-                config.getSsidAndSecurityTypeString());
+                config.getKey());
         // Use the MAC address stored in the storage if it exists and is valid. Otherwise
         // use the MAC address calculated from a hash function as the persistent MAC.
         if (persistentMacString != null) {
@@ -505,15 +488,13 @@ public class WifiConfigManager {
                 return MacAddress.fromString(persistentMacString);
             } catch (IllegalArgumentException e) {
                 Log.e(TAG, "Error creating randomized MAC address from stored value.");
-                mRandomizedMacAddressMapping.remove(config.getSsidAndSecurityTypeString());
+                mRandomizedMacAddressMapping.remove(config.getKey());
             }
         }
-        MacAddress result = mMacAddressUtil.calculatePersistentMac(
-                config.getSsidAndSecurityTypeString(),
+        MacAddress result = mMacAddressUtil.calculatePersistentMac(config.getKey(),
                 mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID));
         if (result == null) {
-            result = mMacAddressUtil.calculatePersistentMac(
-                    config.getSsidAndSecurityTypeString(),
+            result = mMacAddressUtil.calculatePersistentMac(config.getKey(),
                     mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID));
         }
         if (result == null) {
@@ -1166,8 +1147,6 @@ public class WifiConfigManager {
         newInternalConfig.creatorUid = newInternalConfig.lastUpdateUid = uid;
         newInternalConfig.creatorName = newInternalConfig.lastUpdateName =
                 packageName != null ? packageName : mContext.getPackageManager().getNameForUid(uid);
-        newInternalConfig.creationTime = newInternalConfig.updateTime =
-                createDebugTimeStampString(mClock.getWallClockMillis());
         initRandomizedMacForInternalConfig(newInternalConfig);
         return newInternalConfig;
     }
@@ -1193,7 +1172,6 @@ public class WifiConfigManager {
         newInternalConfig.lastUpdateUid = uid;
         newInternalConfig.lastUpdateName =
                 packageName != null ? packageName : mContext.getPackageManager().getNameForUid(uid);
-        newInternalConfig.updateTime = createDebugTimeStampString(mClock.getWallClockMillis());
 
         return newInternalConfig;
     }
@@ -1261,7 +1239,7 @@ public class WifiConfigManager {
                 newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
-                    + "Settings " + config.getSsidAndSecurityTypeString() + ". Must have "
+                    + "Settings " + config.getKey() + ". Must have "
                     + "NETWORK_SETTINGS or NETWORK_SETUP_WIZARD.");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
@@ -1699,8 +1677,7 @@ public class WifiConfigManager {
         }
         localLog("setNetworkSelectionStatus: configKey=" + config.getKey()
                 + " networkStatus=" + networkStatus.getNetworkStatusString() + " disableReason="
-                + networkStatus.getNetworkDisableReasonString() + " at="
-                + createDebugTimeStampString(mClock.getWallClockMillis()));
+                + networkStatus.getNetworkDisableReasonString());
         saveToStore(false);
         return true;
     }
@@ -1923,9 +1900,12 @@ public class WifiConfigManager {
                     + " has no matching config");
             return false;
         }
+
         config.allowAutojoin = choice;
         sendConfiguredNetworkChangedBroadcast(config, WifiManager.CHANGE_REASON_CONFIG_CHANGE);
-        saveToStore(true);
+        if (!config.ephemeral) {
+            saveToStore(true);
+        }
         return true;
     }
 
@@ -2108,8 +2088,7 @@ public class WifiConfigManager {
     }
 
     /**
-     * Clear the {@link NetworkSelectionStatus#mConnectChoice} &
-     * {@link NetworkSelectionStatus#mConnectChoiceTimestamp} for the provided network.
+     * Clear the {@link NetworkSelectionStatus#mConnectChoice} for the provided network.
      *
      * @param networkId network ID corresponding to the network.
      * @return true if the network was found, false otherwise.
@@ -2123,15 +2102,12 @@ public class WifiConfigManager {
             return false;
         }
         config.getNetworkSelectionStatus().setConnectChoice(null);
-        config.getNetworkSelectionStatus().setConnectChoiceTimestamp(
-                NetworkSelectionStatus.INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP);
         saveToStore(false);
         return true;
     }
 
     /**
-     * Set the {@link NetworkSelectionStatus#mConnectChoice} &
-     * {@link NetworkSelectionStatus#mConnectChoiceTimestamp} for the provided network.
+     * Set the {@link NetworkSelectionStatus#mConnectChoice} for the provided network.
      *
      * This is invoked by Network Selector when the user overrides the currently connected network
      * choice.
@@ -2143,7 +2119,7 @@ public class WifiConfigManager {
      * @return true if the network was found, false otherwise.
      */
     public boolean setNetworkConnectChoice(
-            int networkId, String connectChoiceConfigKey, long timestamp) {
+            int networkId, String connectChoiceConfigKey) {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Set network connect choice " + connectChoiceConfigKey + " for " + networkId);
         }
@@ -2152,7 +2128,6 @@ public class WifiConfigManager {
             return false;
         }
         config.getNetworkSelectionStatus().setConnectChoice(connectChoiceConfigKey);
-        config.getNetworkSelectionStatus().setConnectChoiceTimestamp(timestamp);
         saveToStore(false);
         return true;
     }

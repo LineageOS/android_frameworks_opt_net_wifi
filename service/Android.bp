@@ -99,6 +99,7 @@ java_library {
         "framework-minus-apex",
         "unsupportedappusage",
         "framework-annotations-lib",
+        "framework-telephony",
     ],
 
     static_libs: [
@@ -153,6 +154,7 @@ java_library {
         // TODO(b/135994092): Replace with framework-system-stubs once all @hide dependencies are
         // resolved.
         "framework-minus-apex",
+        "framework-telephony",
         "unsupportedappusage",
     ],
 
@@ -178,7 +180,7 @@ java_library {
         app_image: false,
     },
 
-    init_rc: ["wifi.rc"],
+    init_rc: [":wifi-init-rc"],
 
     plugins: ["java_api_finder"],
 
@@ -215,4 +217,9 @@ android_app {
     sdk_version: "system_current",
     export_package_resources: true,
     manifest: "AndroidManifest_Resources.xml",
+}
+
+filegroup {
+    name: "wifi-init-rc",
+    srcs: ["wifi.rc"],
 }

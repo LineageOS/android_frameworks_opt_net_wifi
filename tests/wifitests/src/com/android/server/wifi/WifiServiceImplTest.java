@@ -130,6 +130,7 @@ import android.os.Message;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.connectivity.WifiActivityEnergyInfo;
 import android.os.test.TestLooper;
@@ -199,6 +200,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private static final String TEST_FACTORY_MAC = "10:22:34:56:78:92";
     private static final MacAddress TEST_FACTORY_MAC_ADDR = MacAddress.fromString(TEST_FACTORY_MAC);
     private static final String TEST_FQDN = "testfqdn";
+    private static final String TEST_FRIENDLY_NAME = "testfriendlyname";
     private static final List<WifiConfiguration> TEST_WIFI_CONFIGURATION_LIST = Arrays.asList(
             WifiConfigurationTestUtil.generateWifiConfig(
                     0, 1000000, "\"red\"", true, true, null, null),
@@ -1526,6 +1528,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         wifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(TEST_SSID));
         wifiInfo.setBSSID(TEST_BSSID);
         wifiInfo.setNetworkId(TEST_NETWORK_ID);
+        wifiInfo.setFQDN(TEST_FQDN);
+        wifiInfo.setProviderFriendlyName(TEST_FRIENDLY_NAME);
         when(mClientModeImpl.syncRequestConnectionInfo()).thenReturn(wifiInfo);
     }
 
@@ -1545,6 +1549,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(WifiManager.UNKNOWN_SSID, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
+        assertNull(connectionInfo.getPasspointFqdn());
+        assertNull(connectionInfo.getPasspointProviderFriendlyName());
     }
 
     /**
@@ -1563,6 +1569,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(WifiManager.UNKNOWN_SSID, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
+        assertNull(connectionInfo.getPasspointFqdn());
+        assertNull(connectionInfo.getPasspointProviderFriendlyName());
     }
 
     /**
@@ -1578,6 +1586,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(TEST_SSID_WITH_QUOTES, connectionInfo.getSSID());
         assertEquals(TEST_BSSID, connectionInfo.getBSSID());
         assertEquals(TEST_NETWORK_ID, connectionInfo.getNetworkId());
+        assertEquals(TEST_FQDN, connectionInfo.getPasspointFqdn());
+        assertEquals(TEST_FRIENDLY_NAME, connectionInfo.getPasspointProviderFriendlyName());
     }
 
     /**
@@ -3566,14 +3576,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
 
-        int userHandle = TEST_USER_HANDLE;
+        UserHandle userHandle = UserHandle.of(TEST_USER_HANDLE);
         // Send the broadcast
         Intent intent = new Intent(Intent.ACTION_USER_REMOVED);
-        intent.putExtra(Intent.EXTRA_USER_HANDLE, userHandle);
+        intent.putExtra(Intent.EXTRA_USER, userHandle);
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
         mLooper.dispatchAll();
 
-        verify(mWifiConfigManager).removeNetworksForUser(userHandle);
+        verify(mWifiConfigManager).removeNetworksForUser(userHandle.getIdentifier());
     }
 
     @Test
@@ -3588,10 +3598,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
 
-        int userHandle = TEST_USER_HANDLE;
+        UserHandle userHandle = UserHandle.of(TEST_USER_HANDLE);
         // Send the broadcast with wrong action
         Intent intent = new Intent(Intent.ACTION_USER_FOREGROUND);
-        intent.putExtra(Intent.EXTRA_USER_HANDLE, userHandle);
+        intent.putExtra(Intent.EXTRA_USER, userHandle);
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
 
         verify(mWifiConfigManager, never()).removeNetworksForUser(anyInt());
@@ -4689,6 +4699,89 @@ public class WifiServiceImplTest extends WifiBaseTest {
         } catch (SecurityException e) {
             // Test succeeded
         }
+    }
+
+    @Test
+    public void testAllowAutojoinOnSuggestionNetwork() {
+        WifiConfiguration config = new WifiConfiguration();
+        config.fromWifiNetworkSuggestion = true;
+        when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
+        when(mWifiNetworkSuggestionsManager.allowNetworkSuggestionAutojoin(any(), anyBoolean()))
+                .thenReturn(true);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager).allowNetworkSuggestionAutojoin(any(), anyBoolean());
+        verify(mWifiConfigManager).allowAutojoin(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testAllowAutojoinOnSavedNetwork() {
+        WifiConfiguration config = new WifiConfiguration();
+        config.fromWifiNetworkSuggestion = false;
+        config.fromWifiNetworkSpecifier = false;
+        when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager, never())
+                .allowNetworkSuggestionAutojoin(any(), anyBoolean());
+        verify(mWifiConfigManager).allowAutojoin(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testAllowAutojoinOnWifiNetworkSpecifier() {
+        WifiConfiguration config = new WifiConfiguration();
+        config.fromWifiNetworkSpecifier = true;
+        when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager, never())
+                .allowNetworkSuggestionAutojoin(config, true);
+        verify(mWifiConfigManager, never()).allowAutojoin(0, true);
+    }
+
+    @Test
+    public void testAllowAutojoinOnSavedPasspointNetwork() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPasspointNetwork();
+        when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
+        when(mWifiNetworkSuggestionsManager.allowNetworkSuggestionAutojoin(any(), anyBoolean()))
+                .thenReturn(true);
+        mWifiServiceImpl.allowAutojoin(0, true);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).getConfiguredNetwork(0);
+        verify(mWifiNetworkSuggestionsManager, never())
+                .allowNetworkSuggestionAutojoin(config, true);
+        verify(mWifiConfigManager, never()).allowAutojoin(0, true);
+    }
+
+    /**
+     * Test that setMacRandomizationSettingPasspointEnabled is protected by NETWORK_SETTINGS
+     * permission.
+     */
+    @Test
+    public void testSetMacRandomizationSettingPasspointEnabledFailureNoNetworkSettingsPermission()
+            throws Exception {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.setMacRandomizationSettingPasspointEnabled("TEST_FQDN", true);
+            fail("Expected SecurityException");
+        } catch (SecurityException e) {
+            // Test succeeded
+        }
+    }
+
+    /**
+     * Test that setMacRandomizationSettingPasspointEnabled makes the appropriate calls.
+     */
+    @Test
+    public void testSetMacRandomizationSettingPasspointEnabled() throws Exception {
+        mWifiServiceImpl.setMacRandomizationSettingPasspointEnabled("TEST_FQDN", true);
+        mLooper.dispatchAll();
+        verify(mPasspointManager).enableMacRandomization("TEST_FQDN", true);
     }
 
     /**

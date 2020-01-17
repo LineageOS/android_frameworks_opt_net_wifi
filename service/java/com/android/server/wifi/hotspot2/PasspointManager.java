@@ -486,6 +486,23 @@ public class PasspointManager {
     }
 
     /**
+     * Enable or disable MAC randomization for this passpoint profile.
+     * @param fqdn The FQDN of the configuration
+     * @param enable true to enable MAC randomization, false to disable
+     * @return true on success, false otherwise (e.g. if no such provider exists).
+     */
+    public boolean enableMacRandomization(@NonNull String fqdn, boolean enable) {
+        PasspointProvider provider = mProviders.get(fqdn);
+        if (provider == null) {
+            Log.e(TAG, "Config fqdn=\"" + fqdn + "\" doesn't exist");
+            return false;
+        }
+        provider.setMacRandomizationEnabled(enable);
+        mWifiConfigManager.saveToStore(true);
+        return true;
+    }
+
+    /**
      * Return the installed Passpoint provider configurations.
      * An empty list will be returned when no provider is installed.
      *

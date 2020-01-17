@@ -202,8 +202,14 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     /** Returns the display title. This is most commonly the SSID of a network. */
     public abstract String getTitle();
 
-    /** Returns the display summary */
+    /** Returns the display summary, it's a concise summary. */
     public abstract String getSummary();
+
+    /**
+     * Returns the display summary.
+     * @param concise Whether to show more information. e.g., verbose logging.
+     */
+    public abstract String getSummary(boolean concise);
 
     /**
      * Returns the signal strength level within [WIFI_LEVEL_MIN, WIFI_LEVEL_MAX].

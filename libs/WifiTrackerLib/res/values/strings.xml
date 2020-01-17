@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2020 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Summary text separator for short descriptions (eg. "Fast / Connected"). -->
+    <string name="summary_separator">" / "</string>
+
+    <!-- Strings for labeling Wi-Fi Auto-Connection is disabled. Wi-Fi Auto-Connection is a feature
+         for users to specify if a Wi-Fi network will be auto connected when it's reachable. [CHAR LIMIT=60] -->
+    <string name="auto_connect_disable">Auto-connection disabled</string>
+
+    <!-- Package name for Settings app-->
+    <string name="settings_package" translatable="false">com.android.settings</string>
+
+    <!-- Package name for Certinstaller app-->
+    <string name="certinstaller_package" translatable="false">com.android.certinstaller</string>
+
+    <!-- Summary for saved networks -->
+    <string name="saved_network">Saved by <xliff:g id="name">%1$s</xliff:g></string>
+
+    <!-- Summary for the network but no internet connection was detected. -->
+    <string name="wifi_no_internet_no_reconnect">Won\'t automatically connect</string>
+
+    <!-- Summary for the remembered network but no internet connection was detected. -->
+    <string name="wifi_no_internet">No internet access</string>
+
+    <!-- Status for networks disabled from authentication failure (wrong password
+         or certificate). -->
+    <string name="wifi_disabled_password_failure">Authentication problem</string>
+
+    <!-- Message shown when the user likely entered an incorrect password for a wifi network -->
+    <string name="wifi_check_password_try_again">Check password and try again</string>
+
+    <!-- Status for networked disabled from a DNS or DHCP failure -->
+    <string name="wifi_disabled_network_failure">IP configuration failure</string>
+
+    <!-- Status for networks disabled for unknown reason -->
+    <string name="wifi_disabled_generic">Disabled</string>
+
+    <!-- Summary for networks failing to connect due to association rejection status 17, AP full -->
+    <string name="wifi_ap_unable_to_handle_new_sta">Access point temporarily full</string>
+
+    <!-- Summary for the disconnected network. [CHAR LIMIT=40] -->
+    <string name="wifi_disconnected">Disconnected</string>
+
+    <!-- Summary for the remembered network. -->
+    <string name="wifi_remembered">Saved</string>
+
+    <!-- Label indicating network has been manually marked as metered -->
+    <string name="wifi_metered_label">Metered</string>
+
+    <!-- Label indicating network has been manually marked as unmetered -->
+    <string name="wifi_unmetered_label">Unmetered</string>
+</resources>

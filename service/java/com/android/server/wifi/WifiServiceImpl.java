@@ -2439,8 +2439,35 @@ public class WifiServiceImpl extends BaseWifiService {
 
         int callingUid = Binder.getCallingUid();
         mLog.info("allowAutojoin=% uid=%").c(choice).c(callingUid).flush();
-        mWifiThreadRunner.post(
-                () -> mWifiConfigManager.allowAutojoin(netId, choice));
+        mWifiThreadRunner.post(() -> {
+            WifiConfiguration config = mWifiConfigManager.getConfiguredNetwork(netId);
+            if (config == null) {
+                return;
+            }
+            if (config.fromWifiNetworkSpecifier) {
+                Log.e(TAG, "Auto-join configuration is not permitted for NetworkSpecifier "
+                        + "connections: " + config);
+                return;
+            }
+            if (config.isPasspoint() && !config.isEphemeral()) {
+                Log.e(TAG,
+                        "Auto-join configuration for a non-ephemeral Passpoint network should be "
+                                + "configured using FQDN: "
+                                + config);
+                return;
+            }
+            // If the network is a suggestion, store the auto-join configure to the
+            // WifiNetWorkSuggestionsManager.
+            if (config.fromWifiNetworkSuggestion) {
+                if (!mWifiNetworkSuggestionsManager
+                        .allowNetworkSuggestionAutojoin(config, choice)) {
+                    return;
+                }
+            }
+            // even for Suggestion, modify the current ephemeral configuration so that
+            // existing configuration auto-connection is updated correctly
+            mWifiConfigManager.allowAutojoin(netId, choice);
+        });
     }
 
     /**
@@ -2462,6 +2489,26 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager
+     * #setMacRandomizationSettingPasspointEnabled(String, boolean)}
+     * @param fqdn the FQDN that identifies the passpoint configuration
+     * @param enable true to enable mac randomization, false to disable
+     */
+    @Override
+    public void setMacRandomizationSettingPasspointEnabled(String fqdn, boolean enable) {
+        enforceNetworkSettingsPermission();
+        if (fqdn == null) {
+            throw new IllegalArgumentException("FQDN cannot be null");
+        }
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("setMacRandomizationSettingPasspointEnabled=% uid=%")
+                .c(enable).c(callingUid).flush();
+        mWifiThreadRunner.post(
+                () -> mPasspointManager.enableMacRandomization(fqdn, enable));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#getConnectionInfo()}
      * @return the Wi-Fi information, contained in {@link WifiInfo}.
      */
@@ -2476,7 +2523,7 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             WifiInfo result = mClientModeImpl.syncRequestConnectionInfo();
             boolean hideDefaultMacAddress = true;
-            boolean hideBssidSsidAndNetworkId = true;
+            boolean hideBssidSsidNetworkIdAndFqdn = true;
 
             try {
                 if (mWifiInjector.getWifiPermissionsWrapper().getLocalMacAddressPermission(uid)
@@ -2485,20 +2532,24 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
                 mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, callingFeatureId,
                         uid, null);
-                hideBssidSsidAndNetworkId = false;
+                hideBssidSsidNetworkIdAndFqdn = false;
             } catch (SecurityException ignored) {
             }
             if (hideDefaultMacAddress) {
                 result.setMacAddress(WifiInfo.DEFAULT_MAC_ADDRESS);
             }
-            if (hideBssidSsidAndNetworkId) {
+            if (hideBssidSsidNetworkIdAndFqdn) {
                 result.setBSSID(WifiInfo.DEFAULT_MAC_ADDRESS);
                 result.setSSID(WifiSsid.createFromHex(null));
                 result.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
+                result.setFQDN(null);
+                result.setProviderFriendlyName(null);
             }
-            if (mVerboseLoggingEnabled && (hideBssidSsidAndNetworkId || hideDefaultMacAddress)) {
+
+            if (mVerboseLoggingEnabled
+                    && (hideBssidSsidNetworkIdAndFqdn || hideDefaultMacAddress)) {
                 mLog.v("getConnectionInfo: hideBssidSsidAndNetworkId="
-                        + hideBssidSsidAndNetworkId
+                        + hideBssidSsidNetworkIdAndFqdn
                         + ", hideDefaultMacAddress="
                         + hideDefaultMacAddress);
             }
@@ -2863,8 +2914,13 @@ public class WifiServiceImpl extends BaseWifiService {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action.equals(Intent.ACTION_USER_REMOVED)) {
-                int userHandle = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
-                mWifiThreadRunner.post(() -> mWifiConfigManager.removeNetworksForUser(userHandle));
+                UserHandle userHandle = intent.getParcelableExtra(Intent.EXTRA_USER);
+                if (userHandle == null) {
+                    Log.e(TAG, "User removed broadcast received with no user handle");
+                    return;
+                }
+                mWifiThreadRunner.post(() ->
+                        mWifiConfigManager.removeNetworksForUser(userHandle.getIdentifier()));
             } else if (action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
                 int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE,
                         BluetoothAdapter.STATE_DISCONNECTED);

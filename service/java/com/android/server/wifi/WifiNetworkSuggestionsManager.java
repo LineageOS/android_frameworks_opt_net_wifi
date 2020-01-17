@@ -208,11 +208,14 @@ public class WifiNetworkSuggestionsManager {
         public final WifiNetworkSuggestion wns;
         // Store the pointer to the corresponding app's meta data.
         public final PerAppInfo perAppInfo;
+        public boolean isAutoJoinEnabled;
 
         public ExtendedWifiNetworkSuggestion(@NonNull WifiNetworkSuggestion wns,
-                                             @NonNull PerAppInfo perAppInfo) {
+                                             @NonNull PerAppInfo perAppInfo,
+                                             boolean isAutoJoinEnabled) {
             this.wns = wns;
             this.perAppInfo = perAppInfo;
+            this.isAutoJoinEnabled = isAutoJoinEnabled;
         }
 
         @Override
@@ -236,16 +239,18 @@ public class WifiNetworkSuggestionsManager {
 
         @Override
         public String toString() {
-            return wns.toString();
+            return new StringBuilder(wns.toString())
+                    .append(", isAutoJoinEnabled=").append(isAutoJoinEnabled)
+                    .toString();
         }
 
         /**
          * Convert from {@link WifiNetworkSuggestion} to a new instance of
          * {@link ExtendedWifiNetworkSuggestion}.
          */
-        public static ExtendedWifiNetworkSuggestion fromWns(
-                @NonNull WifiNetworkSuggestion wns, @NonNull PerAppInfo perAppInfo) {
-            return new ExtendedWifiNetworkSuggestion(wns, perAppInfo);
+        public static ExtendedWifiNetworkSuggestion fromWns(@NonNull WifiNetworkSuggestion wns,
+                @NonNull PerAppInfo perAppInfo, boolean isAutoJoinEnabled) {
+            return new ExtendedWifiNetworkSuggestion(wns, perAppInfo, isAutoJoinEnabled);
         }
     }
 
@@ -623,7 +628,8 @@ public class WifiNetworkSuggestionsManager {
         return networkSuggestions
                 .stream()
                 .collect(Collectors.mapping(
-                        n -> ExtendedWifiNetworkSuggestion.fromWns(n, perAppInfo),
+                        n -> ExtendedWifiNetworkSuggestion.fromWns(n, perAppInfo,
+                                n.isInitialAutoJoinEnabled),
                         Collectors.toSet()));
     }
 
@@ -709,6 +715,7 @@ public class WifiNetworkSuggestionsManager {
                 if (carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
                     ewns.wns.passpointConfiguration.setCarrierId(carrierId);
                 }
+                ewns.wns.passpointConfiguration.setAutoJoinEnabled(ewns.isAutoJoinEnabled);
                 // Install Passpoint config, if failure, ignore that suggestion
                 if (!mWifiInjector.getPasspointManager().addOrUpdateProvider(
                         ewns.wns.passpointConfiguration, uid,
@@ -1584,6 +1591,33 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Set auto-join enable/disable for suggestion network
+     * @param config WifiConfiguration which is to change.
+     * @param choice true to enable auto-join, false to disable.
+     * @return true on success, false otherwise (e.g. if no match suggestion exists).
+     */
+    public boolean allowNetworkSuggestionAutojoin(WifiConfiguration config, boolean choice) {
+        if (!config.fromWifiNetworkSuggestion) {
+            Log.e(TAG, "allowNetworkSuggestionAutojoin: on non-suggestion network: "
+                    + config);
+            return false;
+        }
+
+        Set<ExtendedWifiNetworkSuggestion> matchingExtendedWifiNetworkSuggestions =
+                getNetworkSuggestionsForWifiConfiguration(config, config.BSSID);
+        if (config.isPasspoint()) {
+            if (!mWifiInjector.getPasspointManager().enableAutojoin(config.FQDN, choice)) {
+                return false;
+            }
+        }
+        for (ExtendedWifiNetworkSuggestion ewns : matchingExtendedWifiNetworkSuggestions) {
+            ewns.isAutoJoinEnabled = choice;
+        }
+        saveToStore();
+        return true;
+    }
+
+    /**
      * Dump of {@link WifiNetworkSuggestionsManager}.
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
@@ -1606,4 +1640,3 @@ public class WifiNetworkSuggestionsManager {
                 + mActiveNetworkSuggestionsMatchingConnection);
     }
 }
-

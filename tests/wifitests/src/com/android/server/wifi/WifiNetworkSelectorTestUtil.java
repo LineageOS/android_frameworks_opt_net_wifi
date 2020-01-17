@@ -28,7 +28,6 @@ import android.net.ScoredNetwork;
 import android.net.WifiKey;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiSsid;
 import android.text.TextUtils;
@@ -364,23 +363,17 @@ public class WifiNetworkSelectorTestUtil {
                     public boolean answer(int netId) {
                         if (netId >= 0 && netId < configs.length) {
                             configs[netId].getNetworkSelectionStatus().setConnectChoice(null);
-                            configs[netId].getNetworkSelectionStatus()
-                                    .setConnectChoiceTimestamp(
-                                            NetworkSelectionStatus
-                                                    .INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP);
                             return true;
                         } else {
                             return false;
                         }
                     }
                 });
-        when(wifiConfigManager.setNetworkConnectChoice(anyInt(), anyString(), anyLong()))
+        when(wifiConfigManager.setNetworkConnectChoice(anyInt(), anyString()))
                 .then(new AnswerWithArguments() {
-                    public boolean answer(int netId, String configKey, long timestamp) {
+                    public boolean answer(int netId, String configKey) {
                         if (netId >= 0 && netId < configs.length) {
                             configs[netId].getNetworkSelectionStatus().setConnectChoice(configKey);
-                            configs[netId].getNetworkSelectionStatus().setConnectChoiceTimestamp(
-                                    timestamp);
                             return true;
                         } else {
                             return false;
