@@ -872,4 +872,19 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
 
     }
 
+    @Test
+    public void testResetToDefaultForUnsupportedConfig() {
+        mResources.setBoolean(R.bool.config_wifiSofapClientForceDisconnectSupported, false);
+        mResources.setBoolean(R.bool.config_wifi_softap_sae_supported, false);
+        SoftApConfiguration sae_config = new SoftApConfiguration.Builder()
+                .setPassphrase("secretsecret", SoftApConfiguration.SECURITY_TYPE_WPA3_SAE)
+                .setMaxNumberOfClients(10)
+                .enableClientControlByUser(true)
+                .build();
+        WifiApConfigStore store = createWifiApConfigStore();
+
+        SoftApConfiguration resetedConfig = store.resetToDefaultForUnsupportedConfig(sae_config);
+        assertEquals(resetedConfig.getMaxNumberOfClients(), 0);
+        assertFalse(resetedConfig.isClientControlByUserEnabled());
+    }
 }

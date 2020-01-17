@@ -506,8 +506,7 @@ public class ApConfigUtil {
             features |= SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
         }
 
-        if (context.getResources().getBoolean(
-                R.bool.config_wifiSofapClientForceDisconnectSupported)) {
+        if (isClientForceDisconnectSupported(context)) {
             Log.d(TAG, "Update Softap capability, add client control feature support");
             features |= SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT;
         }
@@ -525,6 +524,17 @@ public class ApConfigUtil {
         }
 
         return capability;
+    }
+
+    /**
+     * Helper function to get hal support client force disconnect or not.
+     *
+     * @param context the caller context used to get value from resource file.
+     * @return true if supported, false otherwise.
+     */
+    public static boolean isClientForceDisconnectSupported(@NonNull Context context) {
+        return context.getResources().getBoolean(
+                R.bool.config_wifiSofapClientForceDisconnectSupported);
     }
 
     /**

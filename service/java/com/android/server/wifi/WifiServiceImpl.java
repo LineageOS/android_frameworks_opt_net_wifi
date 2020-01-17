@@ -3433,7 +3433,8 @@ public class WifiServiceImpl extends BaseWifiService {
         SoftApConfiguration softApConfig =
                 mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
         if (softApConfig != null) {
-            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(softApConfig));
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(
+                    mWifiApConfigStore.resetToDefaultForUnsupportedConfig(softApConfig)));
             Log.d(TAG, "Restored soft ap backup data");
         }
         return softApConfig;
