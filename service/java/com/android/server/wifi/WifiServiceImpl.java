@@ -2745,6 +2745,12 @@ public class WifiServiceImpl extends BaseWifiService {
         return mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport);
     }
 
+    @Override
+    public boolean isWifiStandardSupported(@ScanResult.WifiStandard int standard) {
+        return mWifiThreadRunner.call(
+                () -> mClientModeImpl.isWifiStandardSupported(standard), false);
+    }
+
     private int getMaxApInterfacesCount() {
         //TODO (b/123227116): pull it from the HAL
         return mContext.getResources().getInteger(

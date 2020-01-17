@@ -236,7 +236,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                 R.bool.config_wifi_framework_enable_associated_network_selection);
         mMinPacketRateActiveTraffic = setupIntegerResource(
                 R.integer.config_wifiFrameworkMinPacketPerSecondActiveTraffic, 16);
-        doReturn(false).when(mResource).getBoolean(R.bool.config_wifi_11ax_supported);
+        doReturn(false).when(mResource).getBoolean(R.bool.config_wifi11axSupportOverride);
         doReturn(false).when(mResource).getBoolean(
                 R.bool.config_wifi_contiguous_160mhz_supported);
         doReturn(2).when(mResource).getInteger(

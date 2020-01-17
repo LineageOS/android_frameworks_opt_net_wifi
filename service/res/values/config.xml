@@ -30,6 +30,12 @@
     <!-- boolean indicating whether the WiFi chipset has 6GHz band support -->
     <bool translatable="false" name ="config_wifi6ghzSupport">false</bool>
 
+      <!-- Indicates that 11ax mode is supported on this device
+           Note that if this flag is set to true, then 11ax is assumed to be supported.
+           However, if it is left to the default value of false, the 11ax support will
+           be checked via NL80211 interface -->
+    <bool translatable="false" name="config_wifi11axSupportOverride">false</bool>
+
     <!-- Maximum number of concurrent WiFi interfaces in AP mode -->
     <integer translatable="false" name="config_wifi_max_ap_interfaces">1</integer>
 
@@ -230,9 +236,6 @@
 
     <!-- Indicates that wifi link probing is supported on this device -->
     <bool translatable="false" name="config_wifi_link_probing_supported">false</bool>
-
-    <!-- Indicates that 11ax mode is supported on this device -->
-    <bool translatable="false" name="config_wifi_11ax_supported">false</bool>
 
     <!-- Indicates that contiguous 160MHz mode is supported on this device -->
     <bool translatable="false" name="config_wifi_contiguous_160mhz_supported">false</bool>

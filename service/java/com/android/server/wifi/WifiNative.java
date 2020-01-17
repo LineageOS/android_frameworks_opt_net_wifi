@@ -3458,6 +3458,24 @@ public class WifiNative {
         return mWifiCondManager.getDeviceWiphyCapabilities(ifaceName);
     }
 
+    /**
+     * Query of support of Wi-Fi standard
+     *
+     * @param ifaceName name of the interface to check support on
+     * @param standard the wifi standard to check on
+     * @return true if the wifi standard is supported on this interface, false otherwise.
+     */
+    public boolean isWifiStandardSupported(@NonNull String ifaceName,
+            @ScanResult.WifiStandard int standard) {
+        synchronized (mLock) {
+            Iface iface = mIfaceMgr.getIface(ifaceName);
+            if (iface == null || iface.phyCapabilities == null) {
+                return false;
+            }
+            return iface.phyCapabilities.isWifiStandardSupported(standard);
+        }
+    }
+
     /********************************************************
      * JNI operations
      ********************************************************/
