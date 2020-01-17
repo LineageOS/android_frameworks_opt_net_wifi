@@ -258,7 +258,7 @@ public class WifiInjector {
                 new DeletedEphemeralSsidsStoreData(mClock), new RandomizedMacStoreData(),
                 mFrameworkFacade, wifiHandler, mDeviceConfigFacade);
         String l2KeySeed = Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID);
-        mWifiScoreCard = new WifiScoreCard(mClock, l2KeySeed);
+        mWifiScoreCard = new WifiScoreCard(mClock, l2KeySeed, mDeviceConfigFacade);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
 
         mWifiApConfigStore = new WifiApConfigStore(
