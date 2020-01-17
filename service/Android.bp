@@ -87,7 +87,7 @@ java_library {
     libs: [
         "error_prone_annotations",
         "jsr305",
-        "services",
+        "services-stubs",
         // load the resources from the resources APK.
         "wifi-service-resources",
 
@@ -98,9 +98,9 @@ java_library {
         // TODO(b/135994092): Replace with framework-system-stubs once all @hide dependencies are
         // resolved.
         "framework-minus-apex",
-        "unsupportedappusage",
         "framework-annotations-lib",
-        "framework-telephony",
+        "framework-telephony-stubs",
+        "unsupportedappusage",
     ],
 
     static_libs: [
@@ -145,18 +145,8 @@ java_library {
     // need to include `libs` so that Soong doesn't complain about missing classes after jarjaring
     libs: [
         "framework-wifi",
-
-        "error_prone_annotations",
-        "jsr305",
-        "services",
-        // load the resources from the resources APK.
-        "wifi-service-resources",
-
-        // TODO(b/135994092): Replace with framework-system-stubs once all @hide dependencies are
-        // resolved.
-        "framework-minus-apex",
-        "framework-telephony",
-        "unsupportedappusage",
+        "android_system_stubs_current",
+        "services-stubs",
     ],
 
     // TODO(b/140299412) should be "core_current" since Wifi module is not allowed to use

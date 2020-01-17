@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.server.SystemService;
@@ -64,18 +65,18 @@ public final class WifiService extends SystemService {
     }
 
     @Override
-    public void onSwitchUser(int userId) {
-        mImpl.handleUserSwitch(userId);
+    public void onSwitchUser(TargetUser from, TargetUser to) {
+        mImpl.handleUserSwitch(to.getUserHandle().getIdentifier());
     }
 
     @Override
-    public void onUnlockUser(int userId) {
-        mImpl.handleUserUnlock(userId);
+    public void onUnlockUser(TargetUser user) {
+        mImpl.handleUserUnlock(user.getUserHandle().getIdentifier());
     }
 
     @Override
-    public void onStopUser(int userId) {
-        mImpl.handleUserStop(userId);
+    public void onStopUser(TargetUser user) {
+        mImpl.handleUserStop(user.getUserHandle().getIdentifier());
     }
 
     // Create notification channels used by wifi.
