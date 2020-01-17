@@ -474,6 +474,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported, true);
         mResources.setIntArray(R.array.config_wifiRssiLevelThresholds,
                 RssiUtilTest.RSSI_THRESHOLDS);
+        mResources.setInteger(R.integer.config_wifiPollRssiIntervalMilliseconds, 3000);
         when(mContext.getResources()).thenReturn(mResources);
 
         when(mFrameworkFacade.getIntegerSetting(mContext,
@@ -4132,5 +4133,17 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         verify(mWifiConnectivityManager, never())
                 .forceConnectivityScan(ClientModeImpl.WIFI_WORK_SOURCE);
+    }
+
+    /**
+     * Test that the interval for poll RSSI is read from config overlay correctly.
+     */
+    @Test
+    public void testPollRssiIntervalIsSetCorrectly() throws Exception {
+        assertEquals(3000, mCmi.getPollRssiIntervalMsecs());
+        mResources.setInteger(R.integer.config_wifiPollRssiIntervalMilliseconds, 6000);
+        assertEquals(6000, mCmi.getPollRssiIntervalMsecs());
+        mResources.setInteger(R.integer.config_wifiPollRssiIntervalMilliseconds, 7000);
+        assertEquals(6000, mCmi.getPollRssiIntervalMsecs());
     }
 }

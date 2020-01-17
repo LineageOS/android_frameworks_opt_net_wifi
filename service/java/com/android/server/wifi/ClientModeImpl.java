@@ -269,7 +269,7 @@ public class ClientModeImpl extends StateMachine {
 
     private boolean mEnableRssiPolling = false;
     // Accessed via Binder thread ({get,set}PollRssiIntervalMsecs), and the main Wifi thread.
-    private volatile int mPollRssiIntervalMsecs = DEFAULT_POLL_RSSI_INTERVAL_MSECS;
+    private volatile int mPollRssiIntervalMsecs = -1;
     private int mRssiPollToken = 0;
     /* 3 operational states for STA operation: CONNECT_MODE, SCAN_ONLY_MODE, SCAN_ONLY_WIFI_OFF_MODE
     * In CONNECT_MODE, the STA can scan and connect to an access point
@@ -288,11 +288,11 @@ public class ClientModeImpl extends StateMachine {
     private PowerManager.WakeLock mSuspendWakeLock;
 
     /**
-     * Interval in milliseconds between polling for RSSI and linkspeed information.
-     * This is also used as the polling interval for WifiTrafficPoller, which updates
+     * Maximum allowable interval in milliseconds between polling for RSSI and linkspeed
+     * information. This is also used as the polling interval for WifiTrafficPoller, which updates
      * its data activity on every CMD_RSSI_POLL.
      */
-    private static final int DEFAULT_POLL_RSSI_INTERVAL_MSECS = 3000;
+    private static final int MAXIMUM_POLL_RSSI_INTERVAL_MSECS = 6000;
 
     /**
      * Interval in milliseconds between receiving a disconnect event
@@ -354,7 +354,12 @@ public class ClientModeImpl extends StateMachine {
     private WifiConfiguration mTargetWifiConfiguration = null;
 
     int getPollRssiIntervalMsecs() {
-        return mPollRssiIntervalMsecs;
+        if (mPollRssiIntervalMsecs > 0) {
+            return mPollRssiIntervalMsecs;
+        }
+        return Math.min(mContext.getResources().getInteger(
+                R.integer.config_wifiPollRssiIntervalMilliseconds),
+                        MAXIMUM_POLL_RSSI_INTERVAL_MSECS);
     }
 
     void setPollRssiIntervalMsecs(int newPollIntervalMsecs) {
@@ -4520,7 +4525,7 @@ public class ClientModeImpl extends StateMachine {
                         mLinkProbeManager.updateConnectionStats(
                                 mWifiInfo, mInterfaceName);
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
-                                mPollRssiIntervalMsecs);
+                                getPollRssiIntervalMsecs());
                         if (mVerboseLoggingEnabled) sendRssiChangeBroadcast(mWifiInfo.getRssi());
                         mWifiTrafficPoller.notifyOnDataActivity(mWifiInfo.txSuccess,
                                 mWifiInfo.rxSuccess);
@@ -4538,7 +4543,7 @@ public class ClientModeImpl extends StateMachine {
                         mLinkProbeManager.resetOnScreenTurnedOn();
                         fetchRssiLinkSpeedAndFrequencyNative();
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
-                                mPollRssiIntervalMsecs);
+                                getPollRssiIntervalMsecs());
                     }
                     break;
                 case CMD_PKT_CNT_FETCH:
