@@ -330,4 +330,10 @@ abstract class SupplicantStaIfaceCallbackV1_3Impl extends
         }
     }
 
+    @Override
+    public void onStateChanged_1_3(int newState, byte[/* 6 */] bssid, int id,
+            ArrayList<Byte> ssid, boolean filsHlpSent) {
+        mCallbackV12.onStateChanged(newState, bssid, id, ssid);
+    }
+
 }
