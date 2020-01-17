@@ -1552,7 +1552,6 @@ public class WifiNetworkSuggestionsManager {
         if (matchingExtNetworkSuggestions == null
                 || matchingExtNetworkSuggestions.isEmpty()) return;
 
-        mWifiMetrics.incrementNetworkSuggestionApiNumConnectSuccess();
         if (connectedNetwork.fromWifiNetworkSuggestion) {
             // Find subset of network suggestions from app suggested the connected network.
             matchingExtNetworkSuggestions =
@@ -1563,14 +1562,29 @@ public class WifiNetworkSuggestionsManager {
                 Log.wtf(TAG, "Current connected network suggestion is missing!");
                 return;
             }
+            // Store the set of matching network suggestions.
+            mActiveNetworkSuggestionsMatchingConnection =
+                    new HashSet<>(matchingExtNetworkSuggestions);
         } else {
-            //TODO(143173638) open user saved network should only post notification to one of
-            // carrier app.
+            if (connectedNetwork.isOpenNetwork()) {
+                // For saved open network, found the matching suggestion from carrier privileged
+                // apps. As we only expect one suggestor app to take action on post connection, if
+                // multiple apps suggested matched suggestions, framework will randomly pick one.
+                matchingExtNetworkSuggestions = matchingExtNetworkSuggestions.stream()
+                        .filter(x -> x.perAppInfo.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID
+                                || mWifiPermissionsUtil
+                                .checkNetworkCarrierProvisioningPermission(x.perAppInfo.uid))
+                        .limit(1).collect(Collectors.toSet());
+                if (matchingExtNetworkSuggestions.isEmpty()) {
+                    if (mVerboseLoggingEnabled) {
+                        Log.v(TAG, "No suggestion matched connected user saved open network.");
+                    }
+                    return;
+                }
+            }
         }
-        // Store the set of matching network suggestions.
-        mActiveNetworkSuggestionsMatchingConnection =
-                new HashSet<>(matchingExtNetworkSuggestions);
 
+        mWifiMetrics.incrementNetworkSuggestionApiNumConnectSuccess();
         // Find subset of network suggestions have set |isAppInteractionRequired|.
         Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsWithReqAppInteraction =
                 matchingExtNetworkSuggestions.stream()
