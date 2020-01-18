@@ -329,7 +329,6 @@ public class WifiConfigManager {
     // parsing data to/from the config store.
     private final NetworkListSharedStoreData mNetworkListSharedStoreData;
     private final NetworkListUserStoreData mNetworkListUserStoreData;
-    private final DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
     private final RandomizedMacStoreData mRandomizedMacStoreData;
 
     /**
@@ -344,7 +343,6 @@ public class WifiConfigManager {
             WifiInjector wifiInjector,
             NetworkListSharedStoreData networkListSharedStoreData,
             NetworkListUserStoreData networkListUserStoreData,
-            DeletedEphemeralSsidsStoreData deletedEphemeralSsidsStoreData,
             RandomizedMacStoreData randomizedMacStoreData,
             FrameworkFacade frameworkFacade, Handler handler,
             DeviceConfigFacade deviceConfigFacade) {
@@ -368,11 +366,9 @@ public class WifiConfigManager {
         // Register store data for network list and deleted ephemeral SSIDs.
         mNetworkListSharedStoreData = networkListSharedStoreData;
         mNetworkListUserStoreData = networkListUserStoreData;
-        mDeletedEphemeralSsidsStoreData = deletedEphemeralSsidsStoreData;
         mRandomizedMacStoreData = randomizedMacStoreData;
         mWifiConfigStore.registerStoreData(mNetworkListSharedStoreData);
         mWifiConfigStore.registerStoreData(mNetworkListUserStoreData);
-        mWifiConfigStore.registerStoreData(mDeletedEphemeralSsidsStoreData);
         mWifiConfigStore.registerStoreData(mRandomizedMacStoreData);
 
         mFrameworkFacade = frameworkFacade;
@@ -3129,13 +3125,8 @@ public class WifiConfigManager {
      * (file) data.
      *
      * @param configurations list of configurations retrieved from store.
-     * @param deletedEphemeralSsidsToTimeMap map of ssid's representing the ephemeral networks
-     *                                       deleted by the user to the wall clock time at which
-     *                                       it was deleted.
      */
-    private void loadInternalDataFromUserStore(
-            List<WifiConfiguration> configurations,
-            Map<String, Long> deletedEphemeralSsidsToTimeMap) {
+    private void loadInternalDataFromUserStore(List<WifiConfiguration> configurations) {
         for (WifiConfiguration configuration : configurations) {
             configuration.networkId = mNextNetworkId++;
             if (mVerboseLoggingEnabled) {
@@ -3147,7 +3138,6 @@ public class WifiConfigManager {
                 Log.e(TAG, "Failed to add network to config map", e);
             }
         }
-        mDeletedEphemeralSsidsToTimeMap.putAll(deletedEphemeralSsidsToTimeMap);
     }
 
     /**
@@ -3187,20 +3177,17 @@ public class WifiConfigManager {
      *
      * @param sharedConfigurations list of network configurations retrieved from shared store.
      * @param userConfigurations list of network configurations retrieved from user store.
-     * @param deletedEphemeralSsidsToTimeMap map of ssid's representing the ephemeral networks
-     *                                       deleted by the user to the wall clock time at which
-     *                                       it was deleted.
+     * @param macAddressMapping
      */
     private void loadInternalData(
             List<WifiConfiguration> sharedConfigurations,
             List<WifiConfiguration> userConfigurations,
-            Map<String, Long> deletedEphemeralSsidsToTimeMap,
             Map<String, String> macAddressMapping) {
         // Clear out all the existing in-memory lists and load the lists from what was retrieved
         // from the config store.
         clearInternalData();
         loadInternalDataFromSharedStore(sharedConfigurations, macAddressMapping);
-        loadInternalDataFromUserStore(userConfigurations, deletedEphemeralSsidsToTimeMap);
+        loadInternalDataFromUserStore(userConfigurations);
         generateRandomizedMacAddresses();
         if (mConfiguredNetworks.sizeForAllUsers() == 0) {
             Log.w(TAG, "No stored networks found.");
@@ -3250,7 +3237,6 @@ public class WifiConfigManager {
         }
         loadInternalData(mNetworkListSharedStoreData.getConfigurations(),
                 mNetworkListUserStoreData.getConfigurations(),
-                mDeletedEphemeralSsidsStoreData.getSsidToTimeMap(),
                 mRandomizedMacStoreData.getMacMapping());
         return true;
     }
@@ -3285,8 +3271,7 @@ public class WifiConfigManager {
                     + "lost!", e);
             return false;
         }
-        loadInternalDataFromUserStore(mNetworkListUserStoreData.getConfigurations(),
-                mDeletedEphemeralSsidsStoreData.getSsidToTimeMap());
+        loadInternalDataFromUserStore(mNetworkListUserStoreData.getConfigurations());
         return true;
     }
 
@@ -3345,7 +3330,6 @@ public class WifiConfigManager {
         // Setup store data for write.
         mNetworkListSharedStoreData.setConfigurations(sharedConfigurations);
         mNetworkListUserStoreData.setConfigurations(userConfigurations);
-        mDeletedEphemeralSsidsStoreData.setSsidToTimeMap(mDeletedEphemeralSsidsToTimeMap);
         mRandomizedMacStoreData.setMacMapping(mRandomizedMacAddressMapping);
 
         try {
