@@ -224,8 +224,13 @@ public class WifiPickerTracker extends BaseWifiTracker {
     @Override
     protected void handleNetworkStateChangedAction(@NonNull Intent intent) {
         checkNotNull(intent, "Intent cannot be null!");
-        updateConnectionInfo(mWifiManager.getConnectionInfo(),
-                (NetworkInfo) intent.getExtra(WifiManager.EXTRA_NETWORK_INFO));
+        final WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
+        final NetworkInfo networkInfo =
+                (NetworkInfo) intent.getExtra(WifiManager.EXTRA_NETWORK_INFO);
+        updateConnectionInfo(wifiInfo, networkInfo);
+        // Create a StandardWifiEntry for the current connection if there are no scan results yet.
+        conditionallyCreateConnectedStandardWifiEntry(wifiInfo, networkInfo);
+        conditionallyCreateConnectedPasspointWifiEntry(wifiInfo, networkInfo);
         updateWifiEntries();
     }
 
