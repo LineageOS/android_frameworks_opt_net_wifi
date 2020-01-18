@@ -500,6 +500,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
         mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
         mInOrder.verify(mSupplicantStaIfaceHal).getWpaDriverFeatureSet(IFACE_NAME_0);
+        mInOrder.verify(mWificondControl).getDeviceWiphyCapabilities(IFACE_NAME_0);
 
         // Execute a teardown of the interface to ensure that the new iface removal works.
         executeAndValidateTeardownClientInterface(false, false, IFACE_NAME_0, mIfaceCallback1,
@@ -1136,6 +1137,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
         mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
         mInOrder.verify(mSupplicantStaIfaceHal).getWpaDriverFeatureSet(IFACE_NAME_0);
+        mInOrder.verify(mWificondControl).getDeviceWiphyCapabilities(IFACE_NAME_0);
 
         // Now setup an AP interface.
         assertEquals(IFACE_NAME_0, mWifiNative.setupInterfaceForSoftApMode(mIfaceCallback1));
@@ -1223,6 +1225,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
         mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
         mInOrder.verify(mSupplicantStaIfaceHal).getWpaDriverFeatureSet(IFACE_NAME_0);
+        mInOrder.verify(mWificondControl).getDeviceWiphyCapabilities(IFACE_NAME_0);
     }
 
     /**
@@ -1294,6 +1297,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
         mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
         mInOrder.verify(mSupplicantStaIfaceHal).getWpaDriverFeatureSet(IFACE_NAME_0);
+        mInOrder.verify(mWificondControl).getDeviceWiphyCapabilities(IFACE_NAME_0);
     }
 
     /**
@@ -1370,6 +1374,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(ifaceName);
         mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(ifaceName);
         mInOrder.verify(mSupplicantStaIfaceHal).getWpaDriverFeatureSet(ifaceName);
+        mInOrder.verify(mWificondControl).getDeviceWiphyCapabilities(ifaceName);
     }
 
     private void executeAndValidateTeardownClientInterface(

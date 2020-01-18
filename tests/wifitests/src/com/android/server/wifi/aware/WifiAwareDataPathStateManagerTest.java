@@ -1280,7 +1280,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
 
         if (!providePmk) {
             when(mPermissionsWrapperMock.getUidPermission(
-                    eq(Manifest.permission.CONNECTIVITY_INTERNAL), anyInt())).thenReturn(
+                    eq(Manifest.permission.NETWORK_STACK), eq(Process.myUid()))).thenReturn(
                     PackageManager.PERMISSION_DENIED);
         }
 
@@ -1442,7 +1442,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
 
         if (providePmk) {
             when(mPermissionsWrapperMock.getUidPermission(
-                    eq(Manifest.permission.CONNECTIVITY_INTERNAL), anyInt())).thenReturn(
+                    eq(Manifest.permission.NETWORK_STACK), eq(Process.myUid()))).thenReturn(
                     PackageManager.PERMISSION_GRANTED);
         }
 

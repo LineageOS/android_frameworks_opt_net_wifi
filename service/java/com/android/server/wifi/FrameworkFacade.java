@@ -42,11 +42,6 @@ import com.android.server.wifi.util.WifiAsyncChannel;
  */
 public class FrameworkFacade {
     public static final String TAG = "FrameworkFacade";
-    /**
-     * NIAP global settings flag.
-     * Note: This should be added to {@link android.provider.Settings.Global}.
-     */
-    private static final String NIAP_MODE_SETTINGS_NAME = "niap_mode";
 
     private ContentResolver mContentResolver = null;
     private CarrierConfigManager mCarrierConfigManager = null;
@@ -113,7 +108,7 @@ public class FrameworkFacade {
      * Returns whether the device is in NIAP mode or not.
      */
     public boolean isNiapModeOn(Context context) {
-        return getIntegerSetting(context, NIAP_MODE_SETTINGS_NAME, 0) == 1;
+        return getIntegerSetting(context, Settings.Global.COMMON_CRITERIA_MODE, 0) == 1;
     }
 
     /**

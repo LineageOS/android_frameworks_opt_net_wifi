@@ -16,9 +16,17 @@
 
 package com.android.server.wifi;
 
+import android.annotation.NonNull;
 import android.net.NetworkAgent;
+import android.net.wifi.IScoreChangeCallback;
+import android.net.wifi.IWifiConnectedNetworkScorer;
 import android.net.wifi.WifiInfo;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.util.Log;
+
+import com.android.server.wifi.util.ExternalCallbackTracker;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -42,8 +50,13 @@ public class WifiScoreReport {
     private static final long MIN_TIME_TO_KEEP_BELOW_TRANSITION_SCORE_MILLIS = 9000;
     private long mLastDownwardBreachTimeMillis = 0;
 
+    private static final int WIFI_CONNECTED_NETWORK_SCORER_IDENTIFIER = 0;
+    private static final int INVALID_SESSION_ID = -1;
+
     // Cache of the last score
     private int mScore = ConnectedScore.WIFI_MAX_SCORE;
+    private int mExternalConnectedScore = NetworkAgent.WIFI_BASE_SCORE;
+    private int mSessionId = INVALID_SESSION_ID;
 
     private final ScoringParams mScoringParams;
     private final Clock mClock;
@@ -52,11 +65,46 @@ public class WifiScoreReport {
     ConnectedScore mAggressiveConnectedScore;
     VelocityBasedConnectedScore mVelocityBasedConnectedScore;
 
-    WifiScoreReport(ScoringParams scoringParams, Clock clock) {
+    /**
+     * Callback proxy. See {@link WifiManager#ScoreChangeCallback}.
+     */
+    private class ScoreChangeCallbackProxy extends IScoreChangeCallback.Stub {
+        @Override
+        public void onStatusChange(int sessionId, boolean isUsable) {
+            if (sessionId == INVALID_SESSION_ID || sessionId != mSessionId) {
+                return;
+            }
+            mExternalConnectedScore = isUsable ? ConnectedScore.WIFI_TRANSITION_SCORE + 1 :
+                    ConnectedScore.WIFI_TRANSITION_SCORE - 1;
+            // TODO: Refactor this class to bypass and override score provided by scorer
+            //  in framework
+            // if (mWifiConnectedNetworkScorers.getNumCallbacks() == 0) {
+            //     // donot override
+            // } else {
+            //     // bypass scorer in framework and use score from external scorer
+            // }
+        }
+        @Override
+        public void onTriggerUpdateOfWifiUsabilityStats(@NonNull int sessionId) {
+            // TODO: Fetch WifiInfo and WifiLinkLayerStats, and trigger an update of
+            // WifiUsabilityStatsEntry in WifiMetrics.
+            // mWifiMetrics.updateWifiUsabilityStatsEntries(WifiInfo, WifiLinkLayerStats);
+        }
+    }
+
+    private final ScoreChangeCallbackProxy mScoreChangeCallback = new ScoreChangeCallbackProxy();
+
+    private final ExternalCallbackTracker<IWifiConnectedNetworkScorer>
+            mWifiConnectedNetworkScorers;
+
+    WifiScoreReport(ScoringParams scoringParams, Clock clock, Handler handler) {
         mScoringParams = scoringParams;
         mClock = clock;
         mAggressiveConnectedScore = new AggressiveConnectedScore(scoringParams, clock);
         mVelocityBasedConnectedScore = new VelocityBasedConnectedScore(scoringParams, clock);
+
+        mWifiConnectedNetworkScorers =
+                new ExternalCallbackTracker<IWifiConnectedNetworkScorer>(handler);
     }
 
     /**
@@ -300,5 +348,77 @@ public class WifiScoreReport {
             pw.println(line);
         }
         history.clear();
+    }
+
+    /**
+     * Set a scorer for Wi-Fi connected network score handling.
+     */
+    public boolean setWifiConnectedNetworkScorer(IBinder binder,
+            IWifiConnectedNetworkScorer scorer) {
+        // Enforce that only a single scorer can be set successfully.
+        if (mWifiConnectedNetworkScorers.getNumCallbacks() > 0) {
+            Log.e(TAG, "Failed to set current scorer because one scorer is already set");
+            return false;
+        }
+        if (!mWifiConnectedNetworkScorers.add(
+                binder, scorer, WIFI_CONNECTED_NETWORK_SCORER_IDENTIFIER)) {
+            Log.e(TAG, "Failed to add scorer");
+            return false;
+        }
+        try {
+            scorer.setScoreChangeCallback(mScoreChangeCallback);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Unable to set score change callback " + scorer, e);
+        }
+        return true;
+    }
+
+    /**
+     * Clear an existing scorer for Wi-Fi connected network score handling.
+     */
+    public void clearWifiConnectedNetworkScorer() {
+        mWifiConnectedNetworkScorers.clear();
+    }
+
+    /**
+     * Start the registered Wi-Fi connected network scorer.
+     */
+    public void startConnectedNetworkScorer() {
+        for (IWifiConnectedNetworkScorer scorer : mWifiConnectedNetworkScorers.getCallbacks()) {
+            try {
+                scorer.start(mSessionId);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to start Wifi connected network scorer " + scorer, e);
+            }
+        }
+    }
+
+    /**
+     * Stop the registered Wi-Fi connected network scorer.
+     */
+    public void stopConnectedNetworkScorer() {
+        for (IWifiConnectedNetworkScorer scorer : mWifiConnectedNetworkScorers.getCallbacks()) {
+            try {
+                scorer.stop(mSessionId);
+                mSessionId = INVALID_SESSION_ID;
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to stop Wifi connected network scorer " + scorer, e);
+            }
+        }
+    }
+
+    /**
+     * Get external Wifi connected network score.
+     */
+    public int getExternalConnectedScore() {
+        return mExternalConnectedScore;
+    }
+
+    /**
+     * Set session ID.
+     * @param sessionId
+     */
+    public void setSessionId(int sessionId) {
+        mSessionId = sessionId;
     }
 }

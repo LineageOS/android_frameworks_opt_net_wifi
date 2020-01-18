@@ -131,7 +131,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     @Mock private WifiLastResortWatchdog mWifiLastResortWatchdog;
     @Mock private NetworkListSharedStoreData mNetworkListSharedStoreData;
     @Mock private NetworkListUserStoreData mNetworkListUserStoreData;
-    @Mock private DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
     @Mock private RandomizedMacStoreData mRandomizedMacStoreData;
     @Mock private WifiConfigManager.OnNetworkUpdateListener mWcmListener;
     @Mock private FrameworkFacade mFrameworkFacade;
@@ -209,7 +208,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .updateNetworkKeys(any(WifiConfiguration.class), any()))
                 .thenReturn(true);
 
-        setupStoreDataForRead(new ArrayList<>(), new ArrayList<>(), new HashMap<>());
+        setupStoreDataForRead(new ArrayList<>(), new ArrayList<>());
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsUtil.isDeviceOwner(anyInt(), any())).thenReturn(false);
@@ -463,7 +462,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         sharedConfigList.add(openNetwork);
 
         // Setup xml storage
-        setupStoreDataForRead(sharedConfigList, new ArrayList<>(), new HashMap<>());
+        setupStoreDataForRead(sharedConfigList, new ArrayList<>());
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
 
@@ -3161,13 +3160,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(user1Network);
             }
         };
-        Map<String, Long> deletedSsidsToTimeMap = new HashMap<String, Long>() {
-            {
-                put(TEST_SSID, currentTimeMs);
-            }
-
-        };
-        setupStoreDataForRead(sharedNetworks, user1Networks, deletedSsidsToTimeMap);
+        setupStoreDataForRead(sharedNetworks, user1Networks);
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
 
@@ -3185,7 +3178,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         }
         assertTrue(sharedNetwork1Id != WifiConfiguration.INVALID_NETWORK_ID);
         assertTrue(sharedNetwork2Id != WifiConfiguration.INVALID_NETWORK_ID);
-        assertTrue(mWifiConfigManager.wasEphemeralNetworkDeleted(TEST_SSID));
+        assertFalse(mWifiConfigManager.wasEphemeralNetworkDeleted(TEST_SSID));
 
         // Set up the user 2 store data that is loaded at user switch.
         List<WifiConfiguration> user2Networks = new ArrayList<WifiConfiguration>() {
@@ -3251,7 +3244,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(user1Network);
             }
         };
-        setupStoreDataForRead(sharedNetworks, user1Networks, new HashMap<>());
+        setupStoreDataForRead(sharedNetworks, user1Networks);
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
 
@@ -3322,7 +3315,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(sharedNetwork);
             }
         };
-        setupStoreDataForRead(sharedNetworks, new ArrayList<>(), new HashMap<>());
+        setupStoreDataForRead(sharedNetworks, new ArrayList<>());
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
 
@@ -3374,7 +3367,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(user2Network);
             }
         };
-        setupStoreDataForRead(sharedNetworks, new ArrayList<>(), new HashMap<>());
+        setupStoreDataForRead(sharedNetworks, new ArrayList<>());
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
 
@@ -3455,7 +3448,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(passpointConfig);
             }
         };
-        setupStoreDataForRead(sharedNetworks, new ArrayList<>(), new HashMap<>());
+        setupStoreDataForRead(sharedNetworks, new ArrayList<>());
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
         assertEquals(1, mWifiConfigManager.getConfiguredNetworks().size());
@@ -3584,7 +3577,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(user1Network);
             }
         };
-        setupStoreDataForRead(sharedNetworks, user1Networks, new HashMap<>());
+        setupStoreDataForRead(sharedNetworks, user1Networks);
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
 
@@ -4763,7 +4756,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(peapSimNetwork);
             }
         };
-        setupStoreDataForRead(sharedNetworks, new ArrayList<>(), new HashMap<>());
+        setupStoreDataForRead(sharedNetworks, new ArrayList<>());
 
         // read from store now
         assertTrue(mWifiConfigManager.loadFromStore());
@@ -4925,7 +4918,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                         mWifiKeyStore, mWifiConfigStore,
                         mWifiPermissionsUtil, mWifiPermissionsWrapper, mWifiInjector,
                         mNetworkListSharedStoreData, mNetworkListUserStoreData,
-                        mDeletedEphemeralSsidsStoreData, mRandomizedMacStoreData,
+                        mRandomizedMacStoreData,
                         mFrameworkFacade, new Handler(mLooper.getLooper()), mDeviceConfigFacade);
         mWifiConfigManager.enableVerboseLogging(1);
     }
@@ -5091,11 +5084,10 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      * after WifiConfigStore#read.
      */
     private void setupStoreDataForRead(List<WifiConfiguration> sharedConfigurations,
-            List<WifiConfiguration> userConfigurations, Map<String, Long> deletedEphemeralSsids) {
+            List<WifiConfiguration> userConfigurations) {
         when(mNetworkListSharedStoreData.getConfigurations())
                 .thenReturn(sharedConfigurations);
         when(mNetworkListUserStoreData.getConfigurations()).thenReturn(userConfigurations);
-        when(mDeletedEphemeralSsidsStoreData.getSsidToTimeMap()).thenReturn(deletedEphemeralSsids);
     }
 
     /**
@@ -5105,7 +5097,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     private void setupStoreDataForUserRead(List<WifiConfiguration> userConfigurations,
             Map<String, Long> deletedEphemeralSsids) {
         when(mNetworkListUserStoreData.getConfigurations()).thenReturn(userConfigurations);
-        when(mDeletedEphemeralSsidsStoreData.getSsidToTimeMap()).thenReturn(deletedEphemeralSsids);
     }
 
     /**
