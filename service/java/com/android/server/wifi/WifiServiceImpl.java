@@ -2601,6 +2601,46 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * Return the filtered ScanResults which may be authenticated by the suggested network
+     * configurations.
+     * @return The map of {@link WifiNetworkSuggestion} and the list of {@link ScanResult} which
+     * may be authenticated by the corresponding network configuration.
+     */
+    @Override
+    @NonNull
+    public Map<WifiNetworkSuggestion, List<ScanResult>> getMatchingScanResults(
+            @NonNull List<WifiNetworkSuggestion> networkSuggestions,
+            @Nullable List<ScanResult> scanResults,
+            String callingPackage, String callingFeatureId) {
+        enforceAccessPermission();
+        int uid = Binder.getCallingUid();
+        long ident = Binder.clearCallingIdentity();
+        try {
+            mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, callingFeatureId,
+                    uid, null);
+
+            return mWifiThreadRunner.call(
+                    () -> {
+                        if (scanResults == null || scanResults.isEmpty()) {
+                            return mWifiNetworkSuggestionsManager.getMatchingScanResults(
+                                    networkSuggestions, mScanRequestProxy.getScanResults());
+                        } else {
+                            return mWifiNetworkSuggestionsManager.getMatchingScanResults(
+                                    networkSuggestions, scanResults);
+                        }
+                    },
+                    Collections.emptyMap());
+        } catch (SecurityException e) {
+            Log.e(TAG, "Permission violation - getMatchingScanResults not allowed for uid="
+                    + uid + ", packageName=" + callingPackage + ", reason + e");
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+
+        return Collections.emptyMap();
+    }
+
+    /**
      * Add or update a Passpoint configuration.
      *
      * @param config The Passpoint configuration to be added

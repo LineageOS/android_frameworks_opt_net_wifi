@@ -1035,4 +1035,29 @@ public class PasspointManager {
         }
         return false;
     }
+
+    /**
+     * Get the filtered ScanResults which could be served by the {@link PasspointConfiguration}.
+     * @param passpointConfiguration The instance of {@link PasspointConfiguration}
+     * @param scanResults The list of {@link ScanResult}
+     * @return The filtered ScanResults
+     */
+    @NonNull
+    public List<ScanResult> getMatchingScanResults(
+            @NonNull PasspointConfiguration passpointConfiguration,
+            @NonNull List<ScanResult> scanResults) {
+        PasspointProvider provider = mObjectFactory.makePasspointProvider(passpointConfiguration,
+                null, mTelephonyUtil, 0, 0, null, false);
+        List<ScanResult> filteredScanResults = new ArrayList<>();
+        for (ScanResult scanResult : scanResults) {
+            PasspointMatch matchInfo = provider.match(getANQPElements(scanResult),
+                    InformationElementUtil.getRoamingConsortiumIE(scanResult.informationElements));
+            if (matchInfo == PasspointMatch.HomeProvider
+                    || matchInfo == PasspointMatch.RoamingProvider) {
+                filteredScanResults.add(scanResult);
+            }
+        }
+
+        return filteredScanResults;
+    }
 }

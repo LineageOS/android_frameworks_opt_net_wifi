@@ -1616,6 +1616,56 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Get the filtered ScanResults which may be authenticated by the suggested configurations.
+     * @param wifiNetworkSuggestions The list of {@link WifiNetworkSuggestion}
+     * @param scanResults The list of {@link ScanResult}
+     * @return The filtered ScanResults
+     */
+    @NonNull
+    public Map<WifiNetworkSuggestion, List<ScanResult>> getMatchingScanResults(
+            @NonNull List<WifiNetworkSuggestion> wifiNetworkSuggestions,
+            @NonNull List<ScanResult> scanResults) {
+        Map<WifiNetworkSuggestion, List<ScanResult>> filteredScanResults = new HashMap<>();
+        for (WifiNetworkSuggestion suggestion : wifiNetworkSuggestions) {
+            if (suggestion.passpointConfiguration != null) {
+                filteredScanResults.put(suggestion,
+                        mWifiInjector.getPasspointManager().getMatchingScanResults(
+                                suggestion.passpointConfiguration, scanResults));
+            } else {
+                filteredScanResults.put(suggestion,
+                        getMatchingScanResults(suggestion.wifiConfiguration, scanResults));
+            }
+        }
+
+        return filteredScanResults;
+    }
+
+    /**
+     * Get the filtered ScanResults which may be authenticated by the {@link WifiConfiguration}.
+     * @param wifiConfiguration The instance of {@link WifiConfiguration}
+     * @param scanResults The list of {@link ScanResult}
+     * @return The filtered ScanResults
+     */
+    @NonNull
+    private List<ScanResult> getMatchingScanResults(
+            @NonNull WifiConfiguration wifiConfiguration,
+            @NonNull List<ScanResult> scanResults) {
+        ScanResultMatchInfo matchInfoFromConfigration =
+                ScanResultMatchInfo.fromWifiConfiguration(wifiConfiguration);
+        if (matchInfoFromConfigration == null) {
+            return new ArrayList<>();
+        }
+        List<ScanResult> filteredScanResult = new ArrayList<>();
+        for (ScanResult scanResult : scanResults) {
+            if (matchInfoFromConfigration.equals(ScanResultMatchInfo.fromScanResult(scanResult))) {
+                filteredScanResult.add(scanResult);
+            }
+        }
+
+        return filteredScanResult;
+    }
+
+    /**
      * Dump of {@link WifiNetworkSuggestionsManager}.
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {

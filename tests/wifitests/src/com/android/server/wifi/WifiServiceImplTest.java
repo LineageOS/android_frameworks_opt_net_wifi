@@ -170,7 +170,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Unit tests for {@link WifiServiceImpl}.
@@ -1761,6 +1763,108 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mScanRequestProxy, never()).getScanResults();
 
         assertTrue(retrievedScanResultList.isEmpty());
+    }
+
+    /**
+     * Test fetching of matching scan results with provided WifiNetworkSuggestion, but it doesn't
+     * specify the scan results to be filtered.
+     */
+    @Test
+    public void testGetMatchingScanResultsWithoutSpecifiedScanResults() {
+        ScanResult[] scanResults =
+                ScanTestUtil.createScanDatas(new int[][]{{2417, 2427, 5180, 5170}})[0]
+                        .getResults();
+        List<ScanResult> scanResultList =
+                new ArrayList<>(Arrays.asList(scanResults));
+        when(mScanRequestProxy.getScanResults()).thenReturn(scanResultList);
+        WifiNetworkSuggestion mockSuggestion = mock(WifiNetworkSuggestion.class);
+        List<WifiNetworkSuggestion> matchingSuggestions = new ArrayList<>() {{
+                add(mockSuggestion);
+            }};
+        Map<WifiNetworkSuggestion, List<ScanResult>> result = new HashMap<>() {{
+                put(mockSuggestion, scanResultList);
+            }};
+        when(mWifiNetworkSuggestionsManager.getMatchingScanResults(eq(matchingSuggestions),
+                eq(scanResultList))).thenReturn(result);
+
+        String packageName = "test.com";
+        String featureId = "test.com.featureId";
+        mLooper.startAutoDispatch();
+        Map<WifiNetworkSuggestion, List<ScanResult>> retrievedScanResults =
+                mWifiServiceImpl.getMatchingScanResults(
+                        matchingSuggestions, null, packageName, featureId);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        ScanTestUtil.assertScanResultsEquals(scanResults,
+                retrievedScanResults.get(mockSuggestion)
+                        .toArray(new ScanResult[retrievedScanResults.size()]));
+    }
+
+    /**
+     * Test fetching of matching scan results with provided WifiNetworkSuggestion and ScanResults.
+     */
+    @Test
+    public void testGetMatchingScanResultsWithSpecifiedScanResults() {
+        ScanResult[] scanResults =
+                ScanTestUtil.createScanDatas(new int[][]{{2417, 2427, 5180, 5170}})[0]
+                        .getResults();
+        List<ScanResult> scanResultList =
+                new ArrayList<>(Arrays.asList(scanResults));
+        WifiNetworkSuggestion mockSuggestion = mock(WifiNetworkSuggestion.class);
+        List<WifiNetworkSuggestion> matchingSuggestions = new ArrayList<>() {{
+                add(mockSuggestion);
+            }};
+        Map<WifiNetworkSuggestion, List<ScanResult>> result = new HashMap<>() {{
+                put(mockSuggestion, scanResultList);
+            }};
+        when(mWifiNetworkSuggestionsManager.getMatchingScanResults(eq(matchingSuggestions),
+                eq(scanResultList))).thenReturn(result);
+
+        String packageName = "test.com";
+        String featureId = "test.com.featureId";
+        mLooper.startAutoDispatch();
+        Map<WifiNetworkSuggestion, List<ScanResult>> retrievedScanResults =
+                mWifiServiceImpl.getMatchingScanResults(
+                        matchingSuggestions, scanResultList, packageName, featureId);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        ScanTestUtil.assertScanResultsEquals(scanResults,
+                retrievedScanResults.get(mockSuggestion)
+                        .toArray(new ScanResult[retrievedScanResults.size()]));
+    }
+
+    /**
+     * Ensure that we handle failure when posting the runnable to handler fails.
+     */
+    @Test
+    public void testGetMatchingScanResultsFailureInRunWithScissors() {
+        mWifiServiceImpl = makeWifiServiceImplWithMockRunnerWhichTimesOut();
+
+        ScanResult[] scanResults =
+                ScanTestUtil.createScanDatas(new int[][]{{2417, 2427, 5180, 5170}})[0]
+                        .getResults();
+        List<ScanResult> scanResultList =
+                new ArrayList<>(Arrays.asList(scanResults));
+        when(mScanRequestProxy.getScanResults()).thenReturn(scanResultList);
+        WifiNetworkSuggestion mockSuggestion = mock(WifiNetworkSuggestion.class);
+        List<WifiNetworkSuggestion> matchingSuggestions = new ArrayList<>() {{
+                add(mockSuggestion);
+            }};
+        Map<WifiNetworkSuggestion, List<ScanResult>> result = new HashMap<>() {{
+                put(mockSuggestion, scanResultList);
+            }};
+        when(mWifiNetworkSuggestionsManager.getMatchingScanResults(eq(matchingSuggestions),
+                eq(scanResultList))).thenReturn(result);
+
+        String packageName = "test.com";
+        String featureId = "test.com.featureId";
+        mLooper.startAutoDispatch();
+        Map<WifiNetworkSuggestion, List<ScanResult>> retrievedScanResults =
+                mWifiServiceImpl.getMatchingScanResults(
+                        matchingSuggestions, null, packageName, featureId);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        assertTrue(retrievedScanResults.isEmpty());
     }
 
     private void setupLohsPermissions() {
