@@ -62,7 +62,6 @@ import java.util.List;
  */
 @SmallTest
 public class WifiNetworkSelectorTest extends WifiBaseTest {
-
     private static final int RSSI_BUMP = 1;
     private static final int DUMMY_EVALUATOR_ID_1 = -2; // lowest index
     private static final int DUMMY_EVALUATOR_ID_2 = -1;
@@ -81,7 +80,6 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         setupThresholds();
 
         mLocalLog = new LocalLog(512);
-        mThroughputPredictor = new ThroughputPredictor(mContext);
 
         mWifiNetworkSelector = new WifiNetworkSelector(mContext,
                 mWifiScoreCard,
@@ -90,8 +88,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                 mLocalLog,
                 mWifiMetrics,
                 mWifiNative,
-                mThroughputPredictor
-        );
+                mThroughputPredictor);
+
         mWifiNetworkSelector.registerNetworkNominator(mDummyEvaluator);
         mDummyEvaluator.setEvaluatorToSelectCandidate(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
@@ -210,6 +208,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     @Mock private WifiInfo mWifiInfo;
     @Mock private Clock mClock;
     @Mock private NetworkDetail mNetworkDetail;
+    @Mock private ThroughputPredictor mThroughputPredictor;
     private ScoringParams mScoringParams;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
@@ -220,7 +219,6 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     private CompatibilityScorer mCompatibilityScorer;
     private ScoreCardBasedScorer mScoreCardBasedScorer;
     private ThroughputScorer mThroughputScorer;
-    private ThroughputPredictor mThroughputPredictor;
 
     private void setupContext() {
         when(mContext.getResources()).thenReturn(mResource);
@@ -237,10 +235,6 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         mMinPacketRateActiveTraffic = setupIntegerResource(
                 R.integer.config_wifiFrameworkMinPacketPerSecondActiveTraffic, 16);
         doReturn(false).when(mResource).getBoolean(R.bool.config_wifi11axSupportOverride);
-        doReturn(false).when(mResource).getBoolean(
-                R.bool.config_wifi_contiguous_160mhz_supported);
-        doReturn(2).when(mResource).getInteger(
-                R.integer.config_wifi_max_num_spatial_stream_supported);
     }
 
     private void setupThresholds() {

@@ -269,7 +269,7 @@ public class WifiInjector {
                 mContext.getSystemService(ActivityManager.class).isLowRamDevice() ? 256 : 512);
         mScoringParams = new ScoringParams(mContext);
         mWifiMetrics.setScoringParams(mScoringParams);
-        mThroughputPredictor = new ThroughputPredictor(mContext);
+        mThroughputPredictor = new ThroughputPredictor();
         mWifiNetworkSelector = new WifiNetworkSelector(mContext, mWifiScoreCard, mScoringParams,
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiMetrics, mWifiNative,
                 mThroughputPredictor);

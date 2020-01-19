@@ -367,7 +367,7 @@ public class WifiNative {
         }
     }
 
-    private Object mLock = new Object();
+    private final Object mLock = new Object();
     private final IfaceManager mIfaceMgr = new IfaceManager();
     private HashSet<StatusListener> mStatusListeners = new HashSet<>();
 
@@ -1038,7 +1038,6 @@ public class WifiNative {
             Log.i(TAG, "Successfully setup " + iface);
 
             iface.featureSet = getSupportedFeatureSetInternal(iface.name);
-            iface.phyCapabilities = getPhyCapabilities(iface.name);
             return iface.name;
         }
     }
@@ -1223,7 +1222,6 @@ public class WifiNative {
             }
             iface.type = Iface.IFACE_TYPE_STA_FOR_CONNECTIVITY;
             iface.featureSet = getSupportedFeatureSetInternal(iface.name);
-            iface.phyCapabilities = getPhyCapabilities(iface.name);
             Log.i(TAG, "Successfully switched to connectivity mode on iface=" + iface);
             return true;
         }
@@ -3463,13 +3461,6 @@ public class WifiNative {
     }
 
     /**
-     * Get device phy capabilities
-     */
-    public DeviceWiphyCapabilities getPhyCapabilities(@NonNull String ifaceName) {
-        return mWifiCondManager.getDeviceWiphyCapabilities(ifaceName);
-    }
-
-    /**
      * Query of support of Wi-Fi standard
      *
      * @param ifaceName name of the interface to check support on
@@ -3484,6 +3475,46 @@ public class WifiNative {
                 return false;
             }
             return iface.phyCapabilities.isWifiStandardSupported(standard);
+        }
+    }
+
+    /**
+     * Get the Wiphy capabilities of a device for a given interface
+     * If the interface is not associated with one,
+     * it will be read from the device through wificond
+     *
+     * @param ifaceName name of the interface
+     * @return the device capabilities for this interface
+     */
+    public DeviceWiphyCapabilities getDeviceWiphyCapabilities(@NonNull String ifaceName) {
+        synchronized (mLock) {
+            Iface iface = mIfaceMgr.getIface(ifaceName);
+            if (iface == null) {
+                Log.e(TAG, "Failed to get device capabilities, interface not found: " + ifaceName);
+                return null;
+            }
+            if (iface.phyCapabilities == null) {
+                iface.phyCapabilities = mWifiCondManager.getDeviceWiphyCapabilities(ifaceName);
+            }
+            return iface.phyCapabilities;
+        }
+    }
+
+    /**
+     * Set the Wiphy capabilities of a device for a given interface
+     *
+     * @param ifaceName name of the interface
+     * @param capabilities the wiphy capabilities to set for this interface
+     */
+    public void setDeviceWiphyCapabilities(@NonNull String ifaceName,
+            DeviceWiphyCapabilities capabilities) {
+        synchronized (mLock) {
+            Iface iface = mIfaceMgr.getIface(ifaceName);
+            if (iface == null) {
+                Log.e(TAG, "Failed to set device capabilities, interface not found: " + ifaceName);
+                return;
+            }
+            iface.phyCapabilities = capabilities;
         }
     }
 }

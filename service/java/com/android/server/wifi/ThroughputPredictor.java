@@ -19,12 +19,10 @@ import static com.android.server.wifi.util.InformationElementUtil.BssLoad.MAX_CH
 import static com.android.server.wifi.util.InformationElementUtil.BssLoad.MIN_CHANNEL_UTILIZATION;
 
 import android.annotation.NonNull;
-import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
+import android.net.wifi.wificond.DeviceWiphyCapabilities;
 import android.util.Log;
-
-import com.android.wifi.resources.R;
 
 /**
  * A class that predicts network throughput based on RSSI, channel utilization, channel width,
@@ -97,13 +95,6 @@ public class ThroughputPredictor {
     private static final int MAX_NUM_SPATIAL_STREAM_11N = 4;
     private static final int MAX_NUM_SPATIAL_STREAM_LEGACY = 1;
 
-    private final Context mContext;
-
-    // TODO: b/144576344 get the resource values form HAL instead.
-    ThroughputPredictor(Context context) {
-        mContext = context;
-    }
-
     /**
      * Predict maximum Tx throughput supported by connected network at the highest RSSI
      * with the lowest channel utilization
@@ -126,7 +117,8 @@ public class ThroughputPredictor {
 
     /**
      * Predict network throughput given by the current channel condition and RSSI
-     * @param wifiStandard the highest wifi standard supported by AP
+     * @param deviceCapabilities Phy Capabilities of the device
+     * @param wifiStandardAp the highest wifi standard supported by AP
      * @param channelWidthAp the channel bandwidth of AP
      * @param rssiDbm the scan RSSI in dBm
      * @param frequency the center frequency of primary 20MHz channel
@@ -136,28 +128,70 @@ public class ThroughputPredictor {
      * @param isBluetoothConnected whether the bluetooth adaptor is in connected mode
      * @return predicted throughput in Mbps
      */
-    public int predictThroughput(@ScanResult.WifiStandard int wifiStandard,
+    public int predictThroughput(DeviceWiphyCapabilities deviceCapabilities,
+            @ScanResult.WifiStandard int wifiStandardAp,
             int channelWidthAp, int rssiDbm, int frequency, int maxNumSpatialStreamAp,
             int channelUtilizationBssLoad, int channelUtilizationLinkLayerStats,
             boolean isBluetoothConnected) {
 
-        int maxNumSpatialStream = Math.min(mContext.getResources().getInteger(
-                R.integer.config_wifi_max_num_spatial_stream_supported),
-                maxNumSpatialStreamAp);
-
-        // Downgrade to AC mode if 11AX AP is found but 11AX mode is not supported by the device
-        //TODO: need to read the 11ax support from
-        //WifiNative.getWifiStandard(ScanResult.WIFI_STANDARD_11AX)
-        if (!mContext.getResources().getBoolean(R.bool.config_wifi11axSupportOverride)
-                && wifiStandard == ScanResult.WIFI_STANDARD_11AX) {
-            wifiStandard = ScanResult.WIFI_STANDARD_11AC;
+        if (deviceCapabilities == null) {
+            Log.e(TAG, "Null device capabilities passed to throughput predictor");
+            return 0;
         }
 
-        int channelWidth = channelWidthAp;
-        // Downgrade to 80MHz if 160MHz AP is found but 160MHz mode is not supported by the device
-        if (!mContext.getResources().getBoolean(R.bool.config_wifi_contiguous_160mhz_supported)
-                && (channelWidth == ScanResult.CHANNEL_WIDTH_160MHZ)) {
-            channelWidth = ScanResult.CHANNEL_WIDTH_80MHZ;
+        int maxNumSpatialStreamDevice = Math.min(deviceCapabilities.getMaxNumberTxSpatialStreams(),
+                deviceCapabilities.getMaxNumberRxSpatialStreams());
+
+        int maxNumSpatialStream = Math.min(maxNumSpatialStreamDevice, maxNumSpatialStreamAp);
+
+        // Get minimum standard support between device and AP
+        int wifiStandard;
+        switch (wifiStandardAp) {
+            case ScanResult.WIFI_STANDARD_11AX:
+                if (deviceCapabilities.isWifiStandardSupported(ScanResult.WIFI_STANDARD_11AX)) {
+                    wifiStandard = ScanResult.WIFI_STANDARD_11AX;
+                    break;
+                }
+                //FALL THROUGH
+            case ScanResult.WIFI_STANDARD_11AC:
+                if (deviceCapabilities.isWifiStandardSupported(ScanResult.WIFI_STANDARD_11AC)) {
+                    wifiStandard = ScanResult.WIFI_STANDARD_11AC;
+                    break;
+                }
+                //FALL THROUGH
+            case ScanResult.WIFI_STANDARD_11N:
+                if (deviceCapabilities.isWifiStandardSupported(ScanResult.WIFI_STANDARD_11N)) {
+                    wifiStandard = ScanResult.WIFI_STANDARD_11N;
+                    break;
+                }
+                //FALL THROUGH
+            default:
+                wifiStandard = ScanResult.WIFI_STANDARD_LEGACY;
+        }
+
+        // Calculate channel width
+        int channelWidth;
+        switch (channelWidthAp) {
+            case ScanResult.CHANNEL_WIDTH_160MHZ:
+                if (deviceCapabilities.isChannelWidthSupported(ScanResult.CHANNEL_WIDTH_160MHZ)) {
+                    channelWidth = ScanResult.CHANNEL_WIDTH_160MHZ;
+                    break;
+                }
+                // FALL THROUGH
+            case ScanResult.CHANNEL_WIDTH_80MHZ:
+                if (deviceCapabilities.isChannelWidthSupported(ScanResult.CHANNEL_WIDTH_80MHZ)) {
+                    channelWidth = ScanResult.CHANNEL_WIDTH_80MHZ;
+                    break;
+                }
+                // FALL THROUGH
+            case ScanResult.CHANNEL_WIDTH_40MHZ:
+                if (deviceCapabilities.isChannelWidthSupported(ScanResult.CHANNEL_WIDTH_40MHZ)) {
+                    channelWidth = ScanResult.CHANNEL_WIDTH_40MHZ;
+                    break;
+                }
+                // FALL THROUGH
+            default:
+                channelWidth = ScanResult.CHANNEL_WIDTH_20MHZ;
         }
 
         if (DBG) {
