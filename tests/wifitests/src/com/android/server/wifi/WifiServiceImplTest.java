@@ -1132,7 +1132,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         WifiConfigurationTestUtil.assertConfigurationEqualForSoftAp(
-                ApConfigUtil.convertToWifiConfiguration(apConfig),
+                apConfig.toWifiConfiguration(),
                 mWifiServiceImpl.getWifiApConfiguration());
 
         mLooper.stopAutoDispatchAndIgnoreExceptions();
@@ -1238,8 +1238,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertTrue(result);
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
         WifiConfigurationTestUtil.assertConfigurationEqualForSoftAp(
-                config, ApConfigUtil.convertToWifiConfiguration(
-                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration()));
+                config,
+                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration().toWifiConfiguration());
     }
 
     /**
@@ -1268,8 +1268,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertTrue(result);
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
         WifiConfigurationTestUtil.assertConfigurationEqualForSoftAp(
-                config, ApConfigUtil.convertToWifiConfiguration(
-                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration()));
+                config,
+                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration().toWifiConfiguration());
         verify(mContext).enforceCallingOrSelfPermission(
                 eq(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK), any());
     }
@@ -1848,8 +1848,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertTrue(mWifiServiceImpl.startSoftAp(config));
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
         WifiConfigurationTestUtil.assertConfigurationEqualForSoftAp(
-                config, ApConfigUtil.convertToWifiConfiguration(
-                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration()));
+                config,
+                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration().toWifiConfiguration());
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
@@ -2013,8 +2013,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     private void verifyLohsBand(int expectedBand) {
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
-        final WifiConfiguration configuration = ApConfigUtil.convertToWifiConfiguration(
-                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration());
+        final WifiConfiguration configuration =
+                mSoftApModeConfigCaptor.getValue().getSoftApConfiguration().toWifiConfiguration();
         assertNotNull(configuration);
         assertEquals(expectedBand, configuration.apBand);
     }

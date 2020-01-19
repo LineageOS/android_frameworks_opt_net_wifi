@@ -1762,7 +1762,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * @throws SecurityException if the caller does not have permission to retrieve the softap
      * config
      */
-    @NonNull
+    @Nullable
     @Override
     public WifiConfiguration getWifiApConfiguration() {
         enforceAccessPermission();
@@ -1780,9 +1780,8 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // hand off work to the ClientModeImpl handler thread to sync work between calls
         // and SoftApManager starting up softap
-        return ApConfigUtil.convertToWifiConfiguration(
-                mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
-                new SoftApConfiguration.Builder().build()));
+        return (mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
+                new SoftApConfiguration.Builder().build())).toWifiConfiguration();
     }
 
     /**
