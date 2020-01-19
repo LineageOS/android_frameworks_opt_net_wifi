@@ -1276,7 +1276,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         if (mCompanionDeviceManager == null) {
             mCompanionDeviceManager = mContext.getSystemService(CompanionDeviceManager.class);
         }
-        boolean approved = mCompanionDeviceManager.isDeviceAssociated(
+        boolean approved = mCompanionDeviceManager.isDeviceAssociatedForWifiConnection(
                 requestorPackageName, MacAddress.fromString(scanResult.BSSID), requestorUserHandle);
         if (!approved) return false;
         if (mVerboseLoggingEnabled) {
