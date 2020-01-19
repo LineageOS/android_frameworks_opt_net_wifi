@@ -55,7 +55,7 @@ public class WifiScoreReport {
 
     // Cache of the last score
     private int mScore = ConnectedScore.WIFI_MAX_SCORE;
-    private int mExternalConnectedScore = NetworkAgent.WIFI_BASE_SCORE;
+    private int mExternalConnectedScore = ConnectedScore.WIFI_MAX_SCORE;
     private int mSessionId = INVALID_SESSION_ID;
 
     private final ScoringParams mScoringParams;

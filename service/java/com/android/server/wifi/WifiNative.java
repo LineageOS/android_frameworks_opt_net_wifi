@@ -1470,7 +1470,7 @@ public class WifiNative {
                 continue;
             }
             ScanResult.InformationElement[] ies =
-                    InformationElementUtil.parseInformationElements(result.infoElement);
+                    InformationElementUtil.parseInformationElements(result.getInformationElements());
             InformationElementUtil.Capabilities capabilities =
                     new InformationElementUtil.Capabilities();
             capabilities.from(ies, result.getCapabilities(), isEnhancedOpenSupported());
