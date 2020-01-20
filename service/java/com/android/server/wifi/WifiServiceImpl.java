@@ -693,7 +693,7 @@ public class WifiServiceImpl extends BaseWifiService {
 
     /**
      * Helper method to check if the app is allowed to access public API's deprecated in
-     * {@link Build.VERSION_CODES.Q}.
+     * {@link Build.VERSION_CODES#Q}.
      * Note: Invoke mAppOps.checkPackage(uid, packageName) before to ensure correct package name.
      */
     private boolean isTargetSdkLessThanQOrPrivileged(String packageName, int pid, int uid) {
@@ -702,8 +702,21 @@ public class WifiServiceImpl extends BaseWifiService {
                 // DO/PO apps should be able to add/modify saved networks.
                 || isDeviceOrProfileOwner(uid, packageName)
                 // TODO: Remove this system app bypass once Q is released.
-                || isSystem(packageName, uid)
-                || mWifiPermissionsUtil.checkSystemAlertWindowPermission(uid, packageName);
+                || isSystem(packageName, uid);
+    }
+
+    /**
+     * Helper method to check if the app is allowed to access public API's deprecated in
+     * {@link Build.VERSION_CODES#R}.
+     * Note: Invoke mAppOps.checkPackage(uid, packageName) before to ensure correct package name.
+     */
+    private boolean isTargetSdkLessThanROrPrivileged(String packageName, int pid, int uid) {
+        return mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.R, uid)
+                || isPrivileged(pid, uid)
+                // DO/PO apps should be able to add/modify saved networks.
+                || isDeviceOrProfileOwner(uid, packageName)
+                // TODO: Remove this system app bypass once R is released.
+                || isSystem(packageName, uid);
     }
 
     /**
@@ -2601,6 +2614,12 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
         int callingUid = Binder.getCallingUid();
+        if (!isTargetSdkLessThanROrPrivileged(
+                packageName, Binder.getCallingPid(), callingUid)) {
+            mLog.info("addOrUpdatePasspointConfiguration not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
+            return false;
+        }
         mLog.info("addorUpdatePasspointConfiguration uid=%").c(callingUid).flush();
         return mWifiThreadRunner.call(
                 () -> mPasspointManager.addOrUpdateProvider(config, callingUid, packageName, false),
@@ -2724,6 +2743,12 @@ public class WifiServiceImpl extends BaseWifiService {
 
     private boolean is6GhzBandSupportedInternal() {
         return mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport);
+    }
+
+    @Override
+    public boolean isWifiStandardSupported(@ScanResult.WifiStandard int standard) {
+        return mWifiThreadRunner.call(
+                () -> mClientModeImpl.isWifiStandardSupported(standard), false);
     }
 
     private int getMaxApInterfacesCount() {

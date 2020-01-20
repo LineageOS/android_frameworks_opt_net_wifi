@@ -2021,24 +2021,24 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     private static class FakeLohsCallback extends ILocalOnlyHotspotCallback.Stub {
         boolean mIsStarted = false;
-        WifiConfiguration mWifiConfig = null;
+        SoftApConfiguration mSoftApConfig = null;
 
         @Override
-        public void onHotspotStarted(WifiConfiguration wifiConfig) {
+        public void onHotspotStarted(SoftApConfiguration softApConfig) {
             mIsStarted = true;
-            this.mWifiConfig = wifiConfig;
+            this.mSoftApConfig = softApConfig;
         }
 
         @Override
         public void onHotspotStopped() {
             mIsStarted = false;
-            mWifiConfig = null;
+            mSoftApConfig = null;
         }
 
         @Override
         public void onHotspotFailed(int i) {
             mIsStarted = false;
-            mWifiConfig = null;
+            mSoftApConfig = null;
         }
     }
 
@@ -2125,9 +2125,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.SSID).isEqualTo("customSsid");
-        assertThat(callback.mWifiConfig.getAuthType()).isEqualTo(KeyMgmt.WPA2_PSK);
-        assertThat(callback.mWifiConfig.preSharedKey).isEqualTo("passphrase");
+        assertThat(callback.mSoftApConfig.getSsid()).isEqualTo("customSsid");
+        assertThat(callback.mSoftApConfig.getSecurityType())
+                .isEqualTo(SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+        assertThat(callback.mSoftApConfig.getPassphrase()).isEqualTo("passphrase");
     }
 
     @Test
@@ -2144,9 +2145,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.SSID).isEqualTo("customSsid");
-        assertThat(callback.mWifiConfig.getAuthType()).isEqualTo(KeyMgmt.NONE);
-        assertThat(callback.mWifiConfig.preSharedKey).isNull();
+        assertThat(callback.mSoftApConfig.getSsid()).isEqualTo("customSsid");
+        assertThat(callback.mSoftApConfig.getSecurityType())
+                .isEqualTo(SoftApConfiguration.SECURITY_TYPE_OPEN);
+        assertThat(callback.mSoftApConfig.getPassphrase()).isNull();
     }
 
     @Test
@@ -2163,7 +2165,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.SSID).isNotEmpty();
+        assertThat(callback.mSoftApConfig.getSsid()).isNotEmpty();
     }
 
     @Test
@@ -2180,7 +2182,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertThat(callback.mIsStarted).isTrue();
-        assertThat(callback.mWifiConfig.BSSID)
+        assertThat(callback.mSoftApConfig.getBssid().toString())
                 .ignoringCase().isEqualTo("aa:bb:cc:dd:ee:ff");
     }
 
@@ -2969,6 +2971,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(pm.getApplicationInfoAsUser(any(), anyInt(), any())).thenReturn(mApplicationInfo);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.R), anyInt())).thenReturn(true);
 
         when(mPasspointManager.addOrUpdateProvider(
                 any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME), eq(false)))
@@ -4032,30 +4036,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that add or update networks is allowed for apps holding system alert permission.
-     */
-    @Test
-    public void testAddOrUpdateNetworkIsAllowedForAppsWithSystemAlertPermission() throws Exception {
-        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
-                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-
-        when(mWifiPermissionsUtil.checkSystemAlertWindowPermission(
-                Process.myUid(), TEST_PACKAGE_NAME)).thenReturn(true);
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
-                new NetworkUpdateResult(0));
-
-        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
-        mLooper.startAutoDispatch();
-        assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatchAndIgnoreExceptions();
-
-        verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiPermissionsUtil).checkSystemAlertWindowPermission(anyInt(), anyString());
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
-        verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
-    }
-
-    /**
      * Verify that add or update networks is allowed for DeviceOwner app.
      */
     @Test
@@ -4627,11 +4607,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that addOrUpdatePasspointConfig will redirect calls to {@link PasspointManager}
-     * and returning the result that's returned from {@link PasspointManager}.
+     * Verify that addOrUpdatePasspointConfiguration is allowed for apps targeting below R SDK.
      */
     @Test
-    public void addOrUpdatePasspointConfig() throws Exception {
+    public void addOrUpdatePasspointConfigIsAllowedForAppsTargetingBelowRSdk() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.R), anyInt())).thenReturn(true);
         PasspointConfiguration config = new PasspointConfiguration();
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn("test.com");
@@ -4652,6 +4635,127 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertFalse(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
+
+    /**
+     * Verify that addOrUpdatePasspointConfiguration is not allowed for apps targeting R SDK.
+     */
+    @Test
+    public void addOrUpdatePasspointConfigIsNotAllowedForAppsTargetingRSdk() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("test.com");
+        config.setHomeSp(homeSp);
+
+        when(mPasspointManager.addOrUpdateProvider(
+                config, Binder.getCallingUid(), TEST_PACKAGE_NAME, false))
+                .thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertFalse(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mPasspointManager, never())
+                .addOrUpdateProvider(any(), anyInt(), anyString(), anyBoolean());
+
+    }
+
+    /**
+     * Verify that addOrUpdatePasspointConfiguration is allowed for Settings apps.
+     */
+    @Test
+    public void addOrUpdatePasspointConfigIsAllowedSettingsApp() throws Exception {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.R), anyInt())).thenReturn(false);
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("test.com");
+        config.setHomeSp(homeSp);
+
+        when(mPasspointManager.addOrUpdateProvider(
+                config, Binder.getCallingUid(), TEST_PACKAGE_NAME, false))
+                .thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mPasspointManager).addOrUpdateProvider(any(), anyInt(), anyString(), anyBoolean());
+    }
+
+    /**
+     * Verify that addOrUpdatePasspointConfiguration is allowed for System apps.
+     */
+    @Test
+    public void addOrUpdatePasspointConfigIsAllowedSystemApp() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.R), anyInt())).thenReturn(false);
+        mApplicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("test.com");
+        config.setHomeSp(homeSp);
+
+        when(mPasspointManager.addOrUpdateProvider(
+                config, Binder.getCallingUid(), TEST_PACKAGE_NAME, false))
+                .thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mPasspointManager).addOrUpdateProvider(any(), anyInt(), anyString(), anyBoolean());
+    }
+
+    /**
+     * Verify that addOrUpdatePasspointConfiguration is allowed for DeviceOwner apps.
+     */
+    @Test
+    public void addOrUpdatePasspointConfigIsAllowedSystemAlertDOApp() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.R), anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isDeviceOwner(Binder.getCallingUid(), TEST_PACKAGE_NAME))
+                .thenReturn(true);
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("test.com");
+        config.setHomeSp(homeSp);
+
+        when(mPasspointManager.addOrUpdateProvider(
+                config, Binder.getCallingUid(), TEST_PACKAGE_NAME, false))
+                .thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mPasspointManager).addOrUpdateProvider(any(), anyInt(), anyString(), anyBoolean());
+    }
+
+    /**
+     * Verify that addOrUpdatePasspointConfiguration is allowed for ProfileOwner apps.
+     */
+    @Test
+    public void addOrUpdatePasspointConfigIsAllowedSystemAlertPOApp() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.R), anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isProfileOwner(Binder.getCallingUid(), TEST_PACKAGE_NAME))
+                .thenReturn(true);
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("test.com");
+        config.setHomeSp(homeSp);
+
+        when(mPasspointManager.addOrUpdateProvider(
+                config, Binder.getCallingUid(), TEST_PACKAGE_NAME, false))
+                .thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mPasspointManager).addOrUpdateProvider(any(), anyInt(), anyString(), anyBoolean());
+    }
+
     /**
      * Verify that removePasspointConfiguration will redirect calls to {@link PasspointManager}
      * and returning the result that's returned from {@link PasspointManager}.

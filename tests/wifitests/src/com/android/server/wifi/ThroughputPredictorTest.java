@@ -58,7 +58,7 @@ public class ThroughputPredictorTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        doReturn(false).when(mResource).getBoolean(R.bool.config_wifi_11ax_supported);
+        doReturn(false).when(mResource).getBoolean(R.bool.config_wifi11axSupportOverride);
         doReturn(false).when(mResource).getBoolean(
                 R.bool.config_wifi_contiguous_160mhz_supported);
         doReturn(2).when(mResource).getInteger(
@@ -111,7 +111,7 @@ public class ThroughputPredictorTest extends WifiBaseTest {
 
     @Test
     public void verifyHighRssiMinChannelUtilizationAx5g160Mhz4ss() {
-        doReturn(true).when(mResource).getBoolean(R.bool.config_wifi_11ax_supported);
+        doReturn(true).when(mResource).getBoolean(R.bool.config_wifi11axSupportOverride);
         doReturn(true).when(mResource).getBoolean(
                 R.bool.config_wifi_contiguous_160mhz_supported);
         doReturn(4).when(mResource).getInteger(

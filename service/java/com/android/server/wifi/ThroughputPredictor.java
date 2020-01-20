@@ -120,7 +120,9 @@ public class ThroughputPredictor {
                 maxNumSpatialStreamAp);
 
         // Downgrade to AC mode if 11AX AP is found but 11AX mode is not supported by the device
-        if (!mContext.getResources().getBoolean(R.bool.config_wifi_11ax_supported)
+        //TODO: need to read the 11ax support from
+        //WifiNative.getWifiStandard(ScanResult.WIFI_STANDARD_11AX)
+        if (!mContext.getResources().getBoolean(R.bool.config_wifi11axSupportOverride)
                 && wifiStandard == ScanResult.WIFI_STANDARD_11AX) {
             wifiStandard = ScanResult.WIFI_STANDARD_11AC;
         }

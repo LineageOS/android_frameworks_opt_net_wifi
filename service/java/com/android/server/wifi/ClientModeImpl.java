@@ -1245,6 +1245,23 @@ public class ClientModeImpl extends StateMachine {
         return stats;
     }
 
+    /**
+     * Check if a Wi-Fi standard is supported
+     *
+     * @param standard A value from {@link ScanResult}'s {@code WIFI_STANDARD_}
+     * @return {@code true} if standard is supported, {@code false} otherwise.
+     */
+    public boolean isWifiStandardSupported(@ScanResult.WifiStandard int standard) {
+        // Some devices don't have support of 11ax indicated by the chip,
+        // so an override config value is checked first
+        if (standard == ScanResult.WIFI_STANDARD_11AX
+                && mContext.getResources().getBoolean(R.bool.config_wifi11axSupportOverride)) {
+            return true;
+        }
+
+        return mWifiNative.isWifiStandardSupported(mInterfaceName, standard);
+    }
+
     private byte[] getDstMacForKeepalive(KeepalivePacketData packetData)
             throws InvalidPacketException {
         try {
