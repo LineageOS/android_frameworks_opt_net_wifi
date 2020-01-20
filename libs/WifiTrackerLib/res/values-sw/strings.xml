@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  Copyright (C) 2020 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+ -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- no translation found for summary_separator (6533720408587140819) -->
+    <skip />
+    <!-- no translation found for auto_connect_disable (8750623020267885175) -->
+    <skip />
+    <string name="saved_network" msgid="6241977554502802914">"Ilihifadhiwa na <xliff:g id="NAME">%1$s</xliff:g>"</string>
+    <string name="wifi_no_internet_no_reconnect" msgid="4378129479815195671">"Haiwezi kuunganisha kiotomatiki"</string>
+    <!-- no translation found for wifi_no_internet (4461212237521310895) -->
+    <skip />
+    <!-- no translation found for wifi_disabled_password_failure (3015007143699702403) -->
+    <skip />
+    <string name="wifi_check_password_try_again" msgid="2643230209986217827">"Angalia nenosiri na ujaribu tena"</string>
+    <!-- no translation found for wifi_disabled_network_failure (6506742207778007439) -->
+    <skip />
+    <string name="wifi_disabled_generic" msgid="8307050327779256414">"Imezimwa"</string>
+    <string name="wifi_ap_unable_to_handle_new_sta" msgid="6552198761671428871">"Lango la mtandao lina shughuli nyingi kwa sasa"</string>
+    <string name="wifi_disconnected" msgid="3720926757662831062">"Hujaunganishwa"</string>
+    <string name="wifi_remembered" msgid="5126903736498678708">"Imehifadhiwa"</string>
+    <string name="wifi_metered_label" msgid="1362621600006544014">"Mtandao unapima data"</string>
+    <string name="wifi_unmetered_label" msgid="499466875639448350">"Mtandao usiopima data"</string>
+</resources>
