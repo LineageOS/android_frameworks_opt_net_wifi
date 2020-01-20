@@ -372,11 +372,16 @@ public class PasspointManager {
      * a provider with the new configuration will replace the existing provider.
      *
      * @param config Configuration of the Passpoint provider to be added
+     * @param uid Uid of the app adding/Updating {@code config}
      * @param packageName Package name of the app adding/Updating {@code config}
+     * @param isFromSuggestion Whether this {@code config} is from suggestion API
+     * @param isTrusted Whether this {@code config} an trusted network, default should be true.
+     *                  Only able set to false when {@code isFromSuggestion} is true, otherwise
+     *                  adding {@code config} will be false.
      * @return true if provider is added, false otherwise
      */
     public boolean addOrUpdateProvider(PasspointConfiguration config, int uid,
-            String packageName, boolean isFromSuggestion) {
+            String packageName, boolean isFromSuggestion, boolean isTrusted) {
         mWifiMetrics.incrementNumPasspointProviderInstallation();
         if (config == null) {
             Log.e(TAG, "Configuration not provided");
@@ -386,11 +391,16 @@ public class PasspointManager {
             Log.e(TAG, "Invalid configuration");
             return false;
         }
+        if (!(isFromSuggestion || isTrusted)) {
+            Log.e(TAG, "Set isTrusted to false on a non suggestion passpoint is not allowed");
+            return false;
+        }
 
         mTelephonyUtil.tryUpdateCarrierIdForPasspoint(config);
         // Create a provider and install the necessary certificates and keys.
         PasspointProvider newProvider = mObjectFactory.makePasspointProvider(config, mKeyStore,
                 mTelephonyUtil, mProviderIndex++, uid, packageName, isFromSuggestion);
+        newProvider.setTrusted(isTrusted);
 
         if (!newProvider.installCertsAndKeys()) {
             Log.e(TAG, "Failed to install certificates and keys to keystore");
@@ -562,9 +572,10 @@ public class PasspointManager {
                     homeProviders.size(), "Home Provider"));
             return homeProviders;
         }
+
         if (!roamingProviders.isEmpty()) {
             Log.d(TAG, String.format("Matched %s to %s providers as %s", scanResult.SSID,
-                    allMatches.size(), "Roaming Provider"));
+                    roamingProviders.size(), "Roaming Provider"));
             return roamingProviders;
         }
 

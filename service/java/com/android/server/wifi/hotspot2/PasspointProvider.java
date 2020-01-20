@@ -102,6 +102,7 @@ public class PasspointProvider {
     private boolean mHasEverConnected;
     private boolean mIsShared;
     private boolean mIsFromSuggestion;
+    private boolean mIsTrusted;
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
             TelephonyUtil telephonyUtil, long providerId, int creatorUid, String packageName,
@@ -129,6 +130,7 @@ public class PasspointProvider {
         mIsShared = isShared;
         mIsFromSuggestion = isFromSuggestion;
         mTelephonyUtil = telephonyUtil;
+        mIsTrusted = true;
 
         // Setup EAP method and authentication parameter based on the credential.
         if (mConfig.getCredential().getUserCredential() != null) {
@@ -146,6 +148,22 @@ public class PasspointProvider {
             mImsiParameter = IMSIParameter.build(
                     mConfig.getCredential().getSimCredential().getImsi());
         }
+    }
+
+    /**
+     * Set passpoint network trusted or not.
+     * Default is true. Only allows to change when it is from suggestion.
+     */
+    public void setTrusted(boolean trusted) {
+        if (!mIsFromSuggestion) {
+            Log.e(TAG, "setTrusted can only be called for suggestion passpoint network");
+            return;
+        }
+        mIsTrusted = trusted;
+    }
+
+    public boolean isTrusted() {
+        return mIsTrusted;
     }
 
     public PasspointConfiguration getConfig() {
@@ -461,6 +479,7 @@ public class PasspointProvider {
         wifiConfig.ephemeral = mIsFromSuggestion;
         wifiConfig.creatorName = mPackageName;
         wifiConfig.creatorUid = mCreatorUid;
+        wifiConfig.trusted = mIsTrusted;
         // TODO b/145209638 plumb whether mac randomization is enabled down and handle from below.
         return wifiConfig;
     }
@@ -571,6 +590,7 @@ public class PasspointProvider {
         builder.append("Ever connected: ").append(mHasEverConnected).append("\n");
         builder.append("Shared: ").append(mIsShared).append("\n");
         builder.append("Suggestion: ").append(mIsFromSuggestion).append("\n");
+        builder.append("Trusted: ").append(mIsTrusted).append("\n");
 
         if (mPackageName != null) {
             builder.append("PackageName: ").append(mPackageName).append("\n");

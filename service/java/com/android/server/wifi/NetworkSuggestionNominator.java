@@ -158,7 +158,7 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
                 }
                 // Update the WifiConfigManager with the latest WifiConfig
                 WifiConfiguration config = createConfigForAddingToWifiConfigManager(
-                        matchingExtNetworkSuggestion.wns.wifiConfiguration, true);
+                        matchingExtNetworkSuggestion, true);
                 NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(
                         config,
                         matchingExtNetworkSuggestion.perAppInfo.uid,
@@ -188,7 +188,7 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
                 continue;
             }
             WifiConfiguration config =
-                    createConfigForAddingToWifiConfigManager(ewns.wns.wifiConfiguration, false);
+                    createConfigForAddingToWifiConfigManager(ewns, false);
             WifiConfiguration wCmConfiguredNetwork =
                     mWifiConfigManager.getConfiguredNetwork(config.getKey());
             NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(
@@ -218,11 +218,12 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
     // Add and enable this network to the central database (i.e WifiConfigManager).
     // Returns the copy of WifiConfiguration with the allocated network ID filled in.
     private WifiConfiguration addCandidateToWifiConfigManager(
-            @NonNull WifiConfiguration config, int uid, @NonNull String packageName) {
+            @NonNull ExtendedWifiNetworkSuggestion ewns) {
         WifiConfiguration wifiConfiguration =
-                createConfigForAddingToWifiConfigManager(config, true);
+                createConfigForAddingToWifiConfigManager(ewns, true);
         NetworkUpdateResult result =
-                mWifiConfigManager.addOrUpdateNetwork(wifiConfiguration, uid, packageName);
+                mWifiConfigManager.addOrUpdateNetwork(wifiConfiguration, ewns.perAppInfo.uid,
+                        ewns.perAppInfo.packageName);
         if (!result.isSuccess()) {
             mLocalLog.log("Failed to add network suggestion");
             return null;
@@ -236,13 +237,14 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
         return mWifiConfigManager.getConfiguredNetwork(candidateNetworkId);
     }
 
-    private WifiConfiguration createConfigForAddingToWifiConfigManager(WifiConfiguration config,
-            boolean allowAutojoin) {
-        WifiConfiguration wifiConfiguration = new WifiConfiguration(config);
+    private WifiConfiguration createConfigForAddingToWifiConfigManager(
+            ExtendedWifiNetworkSuggestion ewns, boolean allowAutojoin) {
+        WifiConfiguration wifiConfiguration = new WifiConfiguration(ewns.wns.wifiConfiguration);
         // Mark the network ephemeral because we don't want these persisted by WifiConfigManager.
         wifiConfiguration.ephemeral = true;
         wifiConfiguration.fromWifiNetworkSuggestion = true;
         wifiConfiguration.allowAutojoin = allowAutojoin;
+        wifiConfiguration.trusted = !ewns.wns.isNetworkUntrusted;
         return wifiConfiguration;
     }
 
@@ -352,9 +354,7 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
                     // if the network does not already exist in WifiConfigManager, add now.
                     if (matchedNetworkInfo.wCmConfiguredNetwork == null) {
                         matchedNetworkInfo.wCmConfiguredNetwork = addCandidateToWifiConfigManager(
-                                matchedNetworkInfo.extWifiNetworkSuggestion.wns.wifiConfiguration,
-                                matchedNetworkInfo.extWifiNetworkSuggestion.perAppInfo.uid,
-                                matchedNetworkInfo.extWifiNetworkSuggestion.perAppInfo.packageName);
+                                matchedNetworkInfo.extWifiNetworkSuggestion);
                         if (matchedNetworkInfo.wCmConfiguredNetwork == null) continue;
                         mLocalLog.log(String.format("network suggestion candidate %s (new)",
                                 WifiNetworkSelector.toNetworkString(
