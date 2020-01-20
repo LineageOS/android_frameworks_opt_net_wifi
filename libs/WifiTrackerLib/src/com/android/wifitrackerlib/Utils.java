@@ -37,6 +37,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -44,6 +45,7 @@ import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.StringJoiner;
 
 /**
  * Utility methods for WifiTrackerLib.
@@ -209,10 +211,22 @@ class Utils {
     }
 
     static String getVerboseLoggingDescription(@NonNull WifiEntry wifiEntry) {
-        // TODO(b/70983952): Fill this method in.
         if (!BaseWifiTracker.isVerboseLoggingEnabled() || wifiEntry == null) {
             return "";
         }
-        return "Verbose log";
+
+        final StringJoiner sj = new StringJoiner(" ");
+
+        final String wifiInfoDescription = wifiEntry.getWifiInfoDescription();
+        if (!TextUtils.isEmpty(wifiInfoDescription)) {
+            sj.add(wifiInfoDescription);
+        }
+
+        final String scanResultsDescription = wifiEntry.getScanResultDescription();
+        if (!TextUtils.isEmpty(scanResultsDescription)) {
+            sj.add(scanResultsDescription);
+        }
+
+        return sj.toString();
     }
 }

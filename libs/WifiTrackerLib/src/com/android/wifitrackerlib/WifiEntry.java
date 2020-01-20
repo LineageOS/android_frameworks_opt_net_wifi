@@ -45,6 +45,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 /**
@@ -143,6 +144,41 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public static final int FREQUENCY_5_GHZ = 5_000;
     public static final int FREQUENCY_6_GHZ = 6_000;
     public static final int FREQUENCY_UNKNOWN = -1;
+
+    /**
+     * Min bound on the 2.4 GHz (802.11b/g/n) WLAN channels.
+     */
+    public static final int MIN_FREQ_24GHZ = 2400;
+
+    /**
+     * Max bound on the 2.4 GHz (802.11b/g/n) WLAN channels.
+     */
+    public static final int MAX_FREQ_24GHZ = 2500;
+
+    /**
+     * Min bound on the 5.0 GHz (802.11a/h/j/n/ac) WLAN channels.
+     */
+    public static final int MIN_FREQ_5GHZ = 4900;
+
+    /**
+     * Max bound on the 5.0 GHz (802.11a/h/j/n/ac) WLAN channels.
+     */
+    public static final int MAX_FREQ_5GHZ = 5900;
+
+    /**
+     * Min bound on the 6.0 GHz (802.11ad/ay) WLAN channels.
+     */
+    public static final int MIN_FREQ_6GHZ = 5700;
+
+    /**
+     * Max bound on the 6.0 GHz (802.11ad/ay) WLAN channels.
+     */
+    public static final int MAX_FREQ_6GHZ = 7100;
+
+    /**
+     * Max ScanResult information displayed of Wi-Fi Verbose Logging.
+     */
+    protected static final int MAX_VERBOSE_LOG_DISPLAY_SCANRESULT_COUNT = 4;
 
     protected final boolean mForSavedNetworksPage;
     protected final WifiManager mWifiManager;
@@ -339,6 +375,8 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public abstract boolean canSetAutoJoinEnabled();
     /** Sets whether a network will be auto-joined or not */
     public abstract void setAutoJoinEnabled(boolean enabled);
+    /** Returns the ScanResult information of a WifiEntry */
+    abstract String getScanResultDescription();
 
     /**
      * Sets the callback listener for WifiEntryCallback methods.
@@ -559,6 +597,25 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
                 .map(InetAddress::getHostAddress).collect(Collectors.toList());
 
         notifyOnUpdated();
+    }
+
+    String getWifiInfoDescription() {
+        final StringJoiner sj = new StringJoiner(" ");
+        if (getConnectedState() == CONNECTED_STATE_CONNECTED && mWifiInfo != null) {
+            sj.add("f = " + mWifiInfo.getFrequency());
+            final String bssid = mWifiInfo.getBSSID();
+            if (bssid != null) {
+                sj.add(bssid);
+            }
+            sj.add("standard = " + mWifiInfo.getWifiStandard());
+            sj.add("rssi = " + mWifiInfo.getRssi());
+            sj.add("score = " + mWifiInfo.getScore());
+            sj.add(String.format(" tx=%.1f,", mWifiInfo.getTxSuccessRate()));
+            sj.add(String.format("%.1f,", mWifiInfo.getTxRetriesRate()));
+            sj.add(String.format("%.1f ", mWifiInfo.getTxBadRate()));
+            sj.add(String.format("rx=%.1f", mWifiInfo.getRxSuccessRate()));
+        }
+        return sj.toString();
     }
 
     // TODO (b/70983952) Come up with a sorting scheme that does the right thing.
