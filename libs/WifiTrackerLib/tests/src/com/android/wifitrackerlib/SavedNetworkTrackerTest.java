@@ -100,6 +100,8 @@ public class SavedNetworkTrackerTest {
 
         when(mMockWifiManager.getScanResults()).thenReturn(new ArrayList<>());
         when(mMockClock.millis()).thenReturn(START_MILLIS);
+        when(mMockContext.getSystemService(Context.NETWORK_SCORE_SERVICE))
+                .thenReturn(mMockNetworkScoreManager);
     }
 
     /**

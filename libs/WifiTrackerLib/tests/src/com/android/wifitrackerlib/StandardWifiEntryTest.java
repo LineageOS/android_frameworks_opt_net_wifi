@@ -26,14 +26,18 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.content.res.Resources;
+import android.net.ConnectivityManager;
 import android.net.LinkProperties;
 import android.net.MacAddress;
 import android.net.NetworkInfo;
+import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
@@ -64,6 +68,7 @@ public class StandardWifiEntryTest {
     @Mock private WifiInfo mMockWifiInfo;
     @Mock private NetworkInfo mMockNetworkInfo;
     @Mock private Context mMockContext;
+    @Mock private NetworkScoreManager mMockNetworkScoreManager;
 
     private TestLooper mTestLooper;
     private Handler mTestHandler;
@@ -85,6 +90,8 @@ public class StandardWifiEntryTest {
                 .thenReturn(OKAY_LEVEL);
         when(mMockWifiManager.calculateSignalLevel(BAD_RSSI))
                 .thenReturn(BAD_LEVEL);
+        when(mMockContext.getSystemService(Context.NETWORK_SCORE_SERVICE))
+                .thenReturn(mMockNetworkScoreManager);
     }
 
     /**
@@ -524,5 +531,37 @@ public class StandardWifiEntryTest {
         config.setSecurityParams(wifiConfigurationSecureType);
         return new StandardWifiEntry(mMockContext, mTestHandler, config,
                 mMockWifiManager);
+    }
+
+    @Test
+    public void testGetSummary_connectedWifiNetwork_showsConnected() {
+        final int networkId = 1;
+        final String summarySeparator = " / ";
+        final String[] wifiStatusArray = new String[]{"", "Scanning", "Connecting",
+                "Authenticating", "Obtaining IP address", "Connected"};
+
+        final Resources mockResources = mock(Resources.class);
+        when(mMockContext.getResources()).thenReturn(mockResources);
+        when(mockResources.getString(R.string.summary_separator)).thenReturn(summarySeparator);
+        when(mockResources.getStringArray(R.array.wifi_status)).thenReturn(wifiStatusArray);
+        final ConnectivityManager mockConnectivityManager = mock(ConnectivityManager.class);
+        when(mMockContext.getSystemService(Context.CONNECTIVITY_SERVICE))
+                .thenReturn(mockConnectivityManager);
+
+        final WifiInfo wifiInfo = new WifiInfo();
+        wifiInfo.setNetworkId(networkId);
+        final NetworkInfo networkInfo =
+                new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0 /* subtype */, "WIFI", "");
+        networkInfo.setDetailedState(NetworkInfo.DetailedState.CONNECTED, "", "");
+
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.networkId = networkId;
+        final StandardWifiEntry entry = new StandardWifiEntry(mMockContext, mTestHandler, config,
+                mMockWifiManager);
+
+        entry.updateConnectionInfo(wifiInfo, networkInfo);
+
+        assertThat(entry.getSummary()).isEqualTo("Connected");
     }
 }

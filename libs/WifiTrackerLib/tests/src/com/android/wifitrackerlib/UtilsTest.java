@@ -33,6 +33,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.net.NetworkInfo;
+import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
@@ -41,6 +42,7 @@ import android.os.Handler;
 import android.os.test.TestLooper;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -61,6 +63,7 @@ public class UtilsTest {
 
     @Mock private Context mMockContext;
     @Mock private Resources mMockResources;
+    @Mock private NetworkScoreManager mMockNetworkScoreManager;
 
     private Handler mTestHandler;
 
@@ -71,6 +74,8 @@ public class UtilsTest {
         TestLooper testLooper = new TestLooper();
         mTestHandler = new Handler(testLooper.getLooper());
         when(mMockContext.getResources()).thenReturn(mMockResources);
+        when(mMockContext.getSystemService(Context.NETWORK_SCORE_SERVICE))
+                .thenReturn(mMockNetworkScoreManager);
     }
 
     @Test
@@ -205,6 +210,7 @@ public class UtilsTest {
         assertThat(meteredDescription).isEqualTo(LABEL_METERED);
     }
 
+    @Ignore // TODO(b/70983952): Remove ignore tag when StandardWifiEntry#isMetered() is ready.
     @Test
     public void testGetMeteredDescription__meteredHintTrueAndOverrideNone_returnMetered() {
         final WifiConfiguration config = new WifiConfiguration();
