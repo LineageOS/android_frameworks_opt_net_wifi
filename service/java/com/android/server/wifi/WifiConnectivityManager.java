@@ -164,6 +164,7 @@ public class WifiConnectivityManager {
     private static final int[] DEFAULT_SCANNING_SCHEDULE = {20, 40, 80, 160};
     private int[] mConnectedSingleScanSchedule;
     private int[] mDisconnectedSingleScanSchedule;
+    private int[] mConnectedSingleSavedNetworkSingleScanSchedule;
 
     private final Object mLock = new Object();
 
@@ -518,32 +519,38 @@ public class WifiConnectivityManager {
             WifiConfigManager.OnNetworkUpdateListener {
         @Override
         public void onNetworkAdded(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkEnabled(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkRemoved(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkUpdated(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) { }
 
         @Override
         public void onNetworkPermanentlyDisabled(WifiConfiguration config, int disableReason) {
-            updatePnoScan();
+            updateScan();
         }
-        private void updatePnoScan() {
-            // Update the PNO scan network list when screen is off. Here we
-            // rely on startConnectivityScan() to perform all the checks and clean up.
-            if (!mScreenOn) {
-                localLog("Saved networks updated");
+        private void updateScan() {
+            if (mScreenOn) {
+                // Update scanning schedule if needed
+                if (updateSingleScanningSchedule()) {
+                    localLog("Saved networks updated impacting single scan schedule");
+                    startConnectivityScan(false);
+                }
+            } else {
+                // Update the PNO scan network list when screen is off. Here we
+                // rely on startConnectivityScan() to perform all the checks and clean up.
+                localLog("Saved networks updated impacting pno scan");
                 startConnectivityScan(false);
             }
         }
@@ -585,14 +592,14 @@ public class WifiConnectivityManager {
     }
 
     /** Initialize single scanning schedules, and validate them */
-    private int[] initializeScanningSchedule(Context context, int state) {
+    private int[] initializeScanningSchedule(int state) {
         int[] schedule;
 
         if (state == WIFI_STATE_CONNECTED) {
-            schedule = context.getResources().getIntArray(
+            schedule = mContext.getResources().getIntArray(
                     R.array.config_wifiConnectedScanIntervalScheduleSec);
         } else if (state == WIFI_STATE_DISCONNECTED) {
-            schedule = context.getResources().getIntArray(
+            schedule = mContext.getResources().getIntArray(
                     R.array.config_wifiDisconnectedScanIntervalScheduleSec);
         } else {
             schedule = null;
@@ -878,6 +885,28 @@ public class WifiConnectivityManager {
         synchronized (mLock) {
             return mCurrentSingleScanSchedule;
         }
+    }
+
+    // Update the single scanning schedule if needed, and return true if update occurs
+    private boolean updateSingleScanningSchedule() {
+        if (mWifiState != WIFI_STATE_CONNECTED) {
+            // No need to update the scanning schedule
+            return false;
+        }
+
+        boolean shouldUseSingleSavedNetworkSchedule = useSingleSavedNetworkSchedule();
+
+        if (mCurrentSingleScanSchedule == mConnectedSingleScanSchedule
+                && shouldUseSingleSavedNetworkSchedule) {
+            mCurrentSingleScanSchedule = mConnectedSingleSavedNetworkSingleScanSchedule;
+            return true;
+        }
+        if (mCurrentSingleScanSchedule == mConnectedSingleSavedNetworkSingleScanSchedule
+                && !shouldUseSingleSavedNetworkSchedule) {
+            mCurrentSingleScanSchedule = mConnectedSingleScanSchedule;
+            return true;
+        }
+        return false;
     }
 
     // Reset the last periodic single scan time stamp so that the next periodic single
@@ -1166,18 +1195,54 @@ public class WifiConnectivityManager {
     }
 
     /**
+     * Check if Single saved network schedule should be used
+     * This is true if the following is satisfied:
+     * 1. Device is in connected state (this method is only called in this state)
+     * 2. Device has a single saved network
+     * 3. The connected network is the saved network
+     */
+    private boolean useSingleSavedNetworkSchedule() {
+        List<WifiConfiguration> savedNetworks =
+                mConfigManager.getSavedNetworks(Process.WIFI_UID);
+
+        // return true if there is a single saved network which is the currently connected network
+        return (savedNetworks.size() == 1
+                && savedNetworks.get(0).status == WifiConfiguration.Status.CURRENT);
+    }
+
+    private int[] initSingleSavedNetworkSchedule() {
+        int[] schedule = mContext.getResources().getIntArray(
+                    R.array.config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec);
+        if (schedule == null || schedule.length == 0) {
+            return null;
+        }
+
+        for (int val : schedule) {
+            if (val <= 0) {
+                return null;
+            }
+        }
+        return schedule;
+    }
+
+    /**
      * Handler for WiFi state (connected/disconnected) changes
      */
     public void handleConnectionStateChanged(int state) {
         localLog("handleConnectionStateChanged: state=" + stateToString(state));
 
         if (mConnectedSingleScanSchedule == null) {
-            mConnectedSingleScanSchedule = initializeScanningSchedule(
-                  mContext, WIFI_STATE_CONNECTED);
+            mConnectedSingleScanSchedule = initializeScanningSchedule(WIFI_STATE_CONNECTED);
         }
         if (mDisconnectedSingleScanSchedule == null) {
-            mDisconnectedSingleScanSchedule = initializeScanningSchedule(
-                  mContext, WIFI_STATE_DISCONNECTED);
+            mDisconnectedSingleScanSchedule = initializeScanningSchedule(WIFI_STATE_DISCONNECTED);
+        }
+        if (mConnectedSingleSavedNetworkSingleScanSchedule == null) {
+            mConnectedSingleSavedNetworkSingleScanSchedule =
+                    initSingleSavedNetworkSchedule();
+            if (mConnectedSingleSavedNetworkSingleScanSchedule == null) {
+                mConnectedSingleSavedNetworkSingleScanSchedule = mConnectedSingleScanSchedule;
+            }
         }
 
         mWifiState = state;
@@ -1191,8 +1256,13 @@ public class WifiConnectivityManager {
             setSingleScanningSchedule(mDisconnectedSingleScanSchedule);
             startConnectivityScan(SCAN_IMMEDIATELY);
         } else if (mWifiState == WIFI_STATE_CONNECTED) {
-            // Switch to connected single scanning schedule
-            setSingleScanningSchedule(mConnectedSingleScanSchedule);
+            if (useSingleSavedNetworkSchedule()) {
+                // Switch to Single-Saved-Network connected schedule
+                setSingleScanningSchedule(mConnectedSingleSavedNetworkSingleScanSchedule);
+            } else {
+                // Switch to connected single scanning schedule
+                setSingleScanningSchedule(mConnectedSingleScanSchedule);
+            }
             startConnectivityScan(SCAN_ON_SCHEDULE);
         } else {
             // Intermediate state, no applicable single scanning schedule

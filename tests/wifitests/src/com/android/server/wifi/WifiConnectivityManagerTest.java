@@ -160,8 +160,9 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     private static final long CURRENT_SYSTEM_TIME_MS = 1000;
     private static final int MAX_BSSID_BLACKLIST_SIZE = 16;
     private static final int[] VALID_CONNECTED_SINGLE_SCAN_SCHEDULE = {10, 30, 50};
+    private static final int[] VALID_CONNECTED_SINGLE_SAVED_NETWORK_SCHEDULE = {15, 35, 55};
     private static final int[] VALID_DISCONNECTED_SINGLE_SCAN_SCHEDULE = {25, 40, 60};
-    private static final int[] INVALID_SCHEDULE_EMPTY = {};
+    private static final int[] SCHEDULE_EMPTY = {};
     private static final int[] INVALID_SCHEDULE_NEGATIVE_VALUES = {10, -10, 20};
     private static final int[] INVALID_SCHEDULE_ZERO_VALUES = {10, 0, 20};
     private static final int MAX_SCAN_INTERVAL_IN_SCHEDULE = 60;
@@ -186,6 +187,9 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         when(resource.getIntArray(
                 R.array.config_wifiDisconnectedScanIntervalScheduleSec))
                 .thenReturn(VALID_DISCONNECTED_SINGLE_SCAN_SCHEDULE);
+        when(resource.getIntArray(R.array
+                .config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec))
+                .thenReturn(SCHEDULE_EMPTY);
         return resource;
     }
 
@@ -769,7 +773,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     @Test
     public void checkPeriodicScanIntervalWhenDisconnectedWithEmptySchedule() throws Exception {
         when(mResource.getIntArray(R.array.config_wifiDisconnectedScanIntervalScheduleSec))
-                .thenReturn(INVALID_SCHEDULE_EMPTY);
+                .thenReturn(SCHEDULE_EMPTY);
 
         checkWorkingWithDefaultSchedule();
     }
@@ -984,6 +988,133 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
 
         assertEquals(VALID_CONNECTED_SINGLE_SCAN_SCHEDULE[
                 VALID_CONNECTED_SINGLE_SCAN_SCHEDULE.length - 1] * 1000, intervalMs);
+    }
+
+    /**
+     * When screen on and single saved network schedule is set
+     * If we have multiple saved networks, the regular connected state scan schedule is used
+     */
+    @Test
+    public void checkScanScheduleForMultipleSavedNetwork() {
+        long currentTimeStamp = CURRENT_SYSTEM_TIME_MS;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
+
+        // Set screen to ON
+        mWifiConnectivityManager.handleScreenStateChanged(true);
+
+        // Wait for max scanning interval so that any impact triggered
+        // by screen state change can settle
+        currentTimeStamp += MAX_SCAN_INTERVAL_IN_SCHEDULE * 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
+
+        when(mResource.getIntArray(R.array
+                .config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec))
+                .thenReturn(VALID_CONNECTED_SINGLE_SAVED_NETWORK_SCHEDULE);
+
+        WifiConfiguration wifiConfiguration1 = new WifiConfiguration();
+        WifiConfiguration wifiConfiguration2 = new WifiConfiguration();
+        wifiConfiguration1.status = WifiConfiguration.Status.CURRENT;
+        List<WifiConfiguration> wifiConfigurationList = new ArrayList<WifiConfiguration>();
+        wifiConfigurationList.add(wifiConfiguration1);
+        wifiConfigurationList.add(wifiConfiguration2);
+        when(mWifiConfigManager.getSavedNetworks(anyInt())).thenReturn(wifiConfigurationList);
+
+        // Set firmware roaming to enabled
+        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
+
+        // Set WiFi to connected state to trigger periodic scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_CONNECTED);
+
+        // Get the first periodic scan interval
+        long firstIntervalMs = mAlarmManager
+                .getTriggerTimeMillis(WifiConnectivityManager.PERIODIC_SCAN_TIMER_TAG)
+                - currentTimeStamp;
+        assertEquals(VALID_CONNECTED_SINGLE_SCAN_SCHEDULE[0] * 1000, firstIntervalMs);
+    }
+
+    /**
+     * When screen on and single saved network schedule is set
+     * If we have a single saved network (connected network),
+     * the single-saved-network connected state scan schedule is used
+     */
+    @Test
+    public void checkScanScheduleForSingleSavedNetworkConnected() {
+        long currentTimeStamp = CURRENT_SYSTEM_TIME_MS;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
+
+        // Set screen to ON
+        mWifiConnectivityManager.handleScreenStateChanged(true);
+
+        // Wait for max scanning interval so that any impact triggered
+        // by screen state change can settle
+        currentTimeStamp += MAX_SCAN_INTERVAL_IN_SCHEDULE * 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
+
+        when(mResource.getIntArray(R.array
+                .config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec))
+                .thenReturn(VALID_CONNECTED_SINGLE_SAVED_NETWORK_SCHEDULE);
+
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.status = WifiConfiguration.Status.CURRENT;
+        List<WifiConfiguration> wifiConfigurationList = new ArrayList<WifiConfiguration>();
+        wifiConfigurationList.add(wifiConfiguration);
+        when(mWifiConfigManager.getSavedNetworks(anyInt())).thenReturn(wifiConfigurationList);
+
+        // Set firmware roaming to enabled
+        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
+
+        // Set WiFi to connected state to trigger periodic scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_CONNECTED);
+
+        // Get the first periodic scan interval
+        long firstIntervalMs = mAlarmManager
+                .getTriggerTimeMillis(WifiConnectivityManager.PERIODIC_SCAN_TIMER_TAG)
+                - currentTimeStamp;
+        assertEquals(VALID_CONNECTED_SINGLE_SAVED_NETWORK_SCHEDULE[0] * 1000, firstIntervalMs);
+    }
+
+    /**
+     * When screen on and single saved network schedule is set
+     * If we have a single saved network (not connected network),
+     * the regular connected state scan schedule is used
+     */
+    @Test
+    public void checkScanScheduleForSingleSavedNetwork() {
+        long currentTimeStamp = CURRENT_SYSTEM_TIME_MS;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
+
+        // Set screen to ON
+        mWifiConnectivityManager.handleScreenStateChanged(true);
+
+        // Wait for max scanning interval so that any impact triggered
+        // by screen state change can settle
+        currentTimeStamp += MAX_SCAN_INTERVAL_IN_SCHEDULE * 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
+
+        when(mResource.getIntArray(R.array
+                .config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec))
+                .thenReturn(VALID_CONNECTED_SINGLE_SAVED_NETWORK_SCHEDULE);
+
+        // Set firmware roaming to enabled
+        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
+
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.status = WifiConfiguration.Status.ENABLED;
+        List<WifiConfiguration> wifiConfigurationList = new ArrayList<WifiConfiguration>();
+        wifiConfigurationList.add(wifiConfiguration);
+        when(mWifiConfigManager.getSavedNetworks(anyInt())).thenReturn(wifiConfigurationList);
+
+        // Set WiFi to connected state to trigger periodic scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_CONNECTED);
+
+        // Get the first periodic scan interval
+        long firstIntervalMs = mAlarmManager
+                .getTriggerTimeMillis(WifiConnectivityManager.PERIODIC_SCAN_TIMER_TAG)
+                - currentTimeStamp;
+        assertEquals(VALID_CONNECTED_SINGLE_SCAN_SCHEDULE[0] * 1000, firstIntervalMs);
     }
 
     /**
