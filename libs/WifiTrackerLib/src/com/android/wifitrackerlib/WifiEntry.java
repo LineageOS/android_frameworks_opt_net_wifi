@@ -382,6 +382,9 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public abstract void setAutoJoinEnabled(boolean enabled);
     /** Returns the string displayed for @Security */
     public abstract String getSecurityString(boolean concise);
+    /** Returns whether subscription of the entry is expired */
+    public abstract boolean isExpired();
+
     /** Returns the ScanResult information of a WifiEntry */
     abstract String getScanResultDescription();
 

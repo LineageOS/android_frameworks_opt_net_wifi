@@ -310,7 +310,6 @@ class StandardWifiEntry extends WifiEntry {
         return "";
     }
 
-
     @Override
     public int getLevel() {
         return mLevel;
@@ -649,6 +648,11 @@ class StandardWifiEntry extends WifiEntry {
             default:
                 return concise ? "" : mContext.getString(R.string.wifi_security_none);
         }
+    }
+
+    @Override
+    public boolean isExpired() {
+        return false;
     }
 
     @WorkerThread
