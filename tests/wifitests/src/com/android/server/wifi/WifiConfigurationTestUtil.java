@@ -288,11 +288,7 @@ public class WifiConfigurationTestUtil {
     }
 
     public static WifiConfiguration createPskNetwork() {
-        WifiConfiguration configuration =
-                generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true, null,
-                        null, SECURITY_PSK);
-        configuration.preSharedKey = TEST_PSK;
-        return configuration;
+        return createPskNetwork(createNewSSID());
     }
 
     public static WifiConfiguration createPskNetwork(String ssid) {

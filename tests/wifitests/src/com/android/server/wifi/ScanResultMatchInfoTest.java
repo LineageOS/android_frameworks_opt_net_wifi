@@ -18,13 +18,13 @@ package com.android.server.wifi;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
 
 import android.net.wifi.WifiConfiguration;
 
 import androidx.test.filters.SmallTest;
 
 import org.junit.Test;
+
 
 /**
  * Unit tests for {@link com.android.server.wifi.ScanResultMatchInfoTest}.
@@ -224,5 +224,96 @@ public class ScanResultMatchInfoTest extends WifiBaseTest {
             WifiConfiguration configuration, String bssid) {
         return WifiConfigurationTestUtil.createScanDetailForWpa2Wpa3TransitionModeNetwork(
                 configuration, bssid, -40, 2402, 0, 0);
+    }
+
+    /**
+     * Tests equality properties for PSK to SAE upgrades
+     */
+    @Test
+    public void testEqualityRulesForPskToSaeUpgrade() {
+        WifiConfiguration wifiConfigurationSae =
+                WifiConfigurationTestUtil.createSaeNetwork("\"Upgrade\"");
+        WifiConfiguration wifiConfigurationPsk =
+                WifiConfigurationTestUtil.createPskNetwork("\"Upgrade\"");
+        ScanDetail scanDetailSae = createScanDetailForNetwork(wifiConfigurationSae,
+                "AC:AB:AD:AE:AF:FC");
+
+        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromWifiConfiguration(wifiConfigurationPsk);
+        ScanResultMatchInfo key2 = ScanResultMatchInfo
+                .fromScanResult(scanDetailSae.getScanResult());
+        ScanResultMatchInfo key3 = ScanResultMatchInfo.fromWifiConfiguration(wifiConfigurationSae);
+
+        // Test a.equals(a)
+        assertTrue(key1.matchForNetworkSelection(key1, true));
+
+        // Test if a.equals(b) then b.equals(a)
+        assertTrue(key1.matchForNetworkSelection(key2, true));
+        assertTrue(key2.matchForNetworkSelection(key1, true));
+
+        // Test consistency
+        assertTrue(key1.matchForNetworkSelection(key2, true));
+        assertTrue(key1.matchForNetworkSelection(key2, true));
+        assertTrue(key1.matchForNetworkSelection(key2, true));
+        assertTrue(key1.matchForNetworkSelection(key2, true));
+
+        // Test WifiConfiguration objects are not equal
+        assertFalse(key1.matchForNetworkSelection(key3, true));
+        assertFalse(key3.matchForNetworkSelection(key1, true));
+    }
+
+    /**
+     * Tests equality properties for PSK to SAE upgrades when feature is disabled
+     */
+    @Test
+    public void testEqualityRulesForPskToSaeUpgradeWithOverlayDisable() {
+        WifiConfiguration wifiConfigurationSae =
+                WifiConfigurationTestUtil.createSaeNetwork("\"Upgrade\"");
+        WifiConfiguration wifiConfigurationPsk =
+                WifiConfigurationTestUtil.createPskNetwork("\"Upgrade\"");
+        ScanDetail scanDetailSae = createScanDetailForNetwork(wifiConfigurationSae,
+                "AC:AB:AD:AE:AF:FC");
+
+        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromWifiConfiguration(wifiConfigurationPsk);
+        ScanResultMatchInfo key2 = ScanResultMatchInfo
+                .fromScanResult(scanDetailSae.getScanResult());
+        ScanResultMatchInfo key3 = ScanResultMatchInfo.fromWifiConfiguration(wifiConfigurationSae);
+
+        // Test a.equals(a)
+        assertTrue(key1.matchForNetworkSelection(key1, false));
+
+        // Test if a.equals(b) then b.equals(a)
+        assertFalse(key1.matchForNetworkSelection(key2, false));
+        assertFalse(key2.matchForNetworkSelection(key1, false));
+
+        // Test consistency
+        assertFalse(key1.matchForNetworkSelection(key2, false));
+        assertFalse(key1.matchForNetworkSelection(key2, false));
+        assertFalse(key1.matchForNetworkSelection(key2, false));
+        assertFalse(key1.matchForNetworkSelection(key2, false));
+
+        // Test WifiConfiguration objects are not equal
+        assertFalse(key1.matchForNetworkSelection(key3, false));
+        assertFalse(key3.matchForNetworkSelection(key1, false));
+    }
+    /**
+     * Test that SAE saved network will never downgrade to a PSK AP (from scan result)
+     */
+    @Test
+    public void testSaeToPskDoesNotDowngrade() {
+        WifiConfiguration wifiConfigurationSae =
+                WifiConfigurationTestUtil.createSaeNetwork("\"Downgrade\"");
+        WifiConfiguration wifiConfigurationPsk =
+                WifiConfigurationTestUtil.createPskNetwork("\"Downgrade\"");
+        ScanDetail scanDetailPsk = createScanDetailForNetwork(wifiConfigurationPsk,
+                "AC:AB:AD:AE:AF:FC");
+
+        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromWifiConfiguration(wifiConfigurationSae);
+        ScanResultMatchInfo key2 = ScanResultMatchInfo
+                .fromScanResult(scanDetailPsk.getScanResult());
+
+        // Test both a.equals(b) and b.equals(a) are false:
+        // i.e. SAE saved network will never downgrade to a PSK AP (from scan result)
+        assertFalse(key1.equals(key2));
+        assertFalse(key2.equals(key1));
     }
 }

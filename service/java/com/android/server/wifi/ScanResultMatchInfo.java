@@ -45,6 +45,10 @@ public class ScanResultMatchInfo {
     public boolean oweInTransitionMode;
 
     /**
+     * True if created from a scan result
+     */
+    private boolean mFromScanResult = false;
+    /**
      * Fetch network type from network configuration.
      */
     private static @WifiConfiguration.SecurityType int getNetworkType(WifiConfiguration config) {
@@ -120,6 +124,7 @@ public class ScanResultMatchInfo {
         info.networkType = getNetworkType(scanResult);
         info.oweInTransitionMode = false;
         info.pskSaeInTransitionMode = false;
+        info.mFromScanResult = true;
         if (info.networkType == WifiConfiguration.SECURITY_TYPE_SAE) {
             // Note that scan result util will always choose the highest security protocol.
             info.pskSaeInTransitionMode =
@@ -135,7 +140,8 @@ public class ScanResultMatchInfo {
     /**
      * Checks for equality of network type.
      */
-    public boolean networkTypeEquals(@NonNull ScanResultMatchInfo other) {
+    public boolean networkTypeEquals(@NonNull ScanResultMatchInfo other,
+            boolean saeAutoUpgradeEnabled) {
         boolean networkTypeEquals;
         // Detect <SSID, PSK+SAE> scan result and say it is equal to <SSID, PSK> configuration
         if (other.pskSaeInTransitionMode && networkType == WifiConfiguration.SECURITY_TYPE_PSK
@@ -148,6 +154,14 @@ public class ScanResultMatchInfo {
             // Special case we treat Enhanced Open and Open as equals. This is done to support the
             // case where a saved network is Open but we found an OWE in transition network.
             networkTypeEquals = true;
+        } else if ((saeAutoUpgradeEnabled)
+                && ((mFromScanResult && networkType == WifiConfiguration.SECURITY_TYPE_SAE
+                && other.networkType == WifiConfiguration.SECURITY_TYPE_PSK)
+                || (other.mFromScanResult
+                && other.networkType == WifiConfiguration.SECURITY_TYPE_SAE
+                && networkType == WifiConfiguration.SECURITY_TYPE_PSK))) {
+            // Allow upgrading WPA2 PSK connections to WPA3 SAE AP
+            networkTypeEquals = true;
         } else {
             networkTypeEquals = networkType == other.networkType;
         }
@@ -156,6 +170,17 @@ public class ScanResultMatchInfo {
 
     @Override
     public boolean equals(Object otherObj) {
+        return matchForNetworkSelection(otherObj, false);
+    }
+
+    /**
+     * Match two ScanResultMatchInfo objects while considering configuration in overlays
+     *
+     * @param otherObj Other object to compare against
+     * @param saeAutoUpgradeEnabled A boolean that indicates if WPA3 auto upgrade feature is enabled
+     * @return true if objects are equal for network selection purposes, false otherwise
+     */
+    public boolean matchForNetworkSelection(Object otherObj, boolean saeAutoUpgradeEnabled) {
         if (this == otherObj) {
             return true;
         } else if (!(otherObj instanceof ScanResultMatchInfo)) {
@@ -165,7 +190,7 @@ public class ScanResultMatchInfo {
         if (!Objects.equals(networkSsid, other.networkSsid)) {
             return false;
         }
-        return networkTypeEquals(other);
+        return networkTypeEquals(other, saeAutoUpgradeEnabled);
     }
 
     @Override
@@ -175,6 +200,9 @@ public class ScanResultMatchInfo {
 
     @Override
     public String toString() {
-        return "ScanResultMatchInfo: ssid: " + networkSsid + ", type: " + networkType;
+        return "ScanResultMatchInfo: SSID: " + networkSsid + ", type: " + networkType
+                + ", WPA3 in transition mode: " + pskSaeInTransitionMode
+                + ", OWE in transition mode: " + oweInTransitionMode + ", from scan result: "
+                + mFromScanResult;
     }
 }

@@ -710,7 +710,7 @@ public class WifiNetworkSelector {
         final int lastUserSelectedNetworkId = mWifiConfigManager.getLastSelectedNetwork();
         final double lastSelectionWeight = calculateLastSelectionWeight();
 
-        WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard);
+        WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard, mContext);
         if (currentNetwork != null) {
             wifiCandidates.setCurrent(currentNetwork.networkId, currentBssid);
         }
