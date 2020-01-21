@@ -221,9 +221,13 @@ public class PasspointProvider {
 
     /**
      * Enable/disable mac randomization for this passpoint profile.
+     *
+     * @return true if the setting has changed
      */
-    public void setMacRandomizationEnabled(boolean enabled) {
+    public boolean setMacRandomizationEnabled(boolean enabled) {
+        boolean changed = mConfig.isMacRandomizationEnabled() != enabled;
         mConfig.setMacRandomizationEnabled(enabled);
+        return changed;
     }
 
     /**
@@ -480,7 +484,11 @@ public class PasspointProvider {
         wifiConfig.creatorName = mPackageName;
         wifiConfig.creatorUid = mCreatorUid;
         wifiConfig.trusted = mIsTrusted;
-        // TODO b/145209638 plumb whether mac randomization is enabled down and handle from below.
+        if (mConfig.isMacRandomizationEnabled()) {
+            wifiConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        } else {
+            wifiConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        }
         return wifiConfig;
     }
 

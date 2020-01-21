@@ -645,7 +645,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         // Remove the provider as the creator app.
         assertTrue(mManager.removeProvider(TEST_CREATOR_UID, false, TEST_FQDN));
         verify(provider).uninstallCertsAndKeys();
-        verify(mWifiConfigManager).removePasspointConfiguredNetwork(
+        verify(mWifiConfigManager, times(2)).removePasspointConfiguredNetwork(
                 provider.getWifiConfig().getKey());
         /**
          * 1 from |removeProvider| + 2 from |setAutoJoinEnabled| + 2 from
@@ -684,8 +684,11 @@ public class PasspointManagerTest extends WifiBaseTest {
         assertTrue(mManager.enableMacRandomization(provider.getConfig().getHomeSp().getFqdn(),
                 false));
         verify(provider).setMacRandomizationEnabled(false);
+        when(provider.setMacRandomizationEnabled(true)).thenReturn(true);
         assertTrue(mManager.enableMacRandomization(provider.getConfig().getHomeSp().getFqdn(),
                 true));
+        verify(mWifiConfigManager).removePasspointConfiguredNetwork(
+                provider.getWifiConfig().getKey());
         verify(provider).setMacRandomizationEnabled(true);
         assertFalse(mManager.enableMacRandomization(provider.getConfig().getHomeSp().getFqdn()
                 + "-XXXX", false));
