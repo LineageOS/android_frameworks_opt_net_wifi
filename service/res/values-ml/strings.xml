@@ -70,4 +70,18 @@
     <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"ക്രമീകരണം അപ്‌ഡേറ്റ് ചെയ്തു. വീണ്ടും കണക്‌റ്റ് ചെയ്യാൻ ശ്രമിക്കുക."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"സ്വകാര്യതാ ക്രമീകരണം മാറ്റാനാവില്ല"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"നെറ്റ്‌വർക്ക് കണ്ടെത്തിയില്ല"</string>
+    <!-- no translation found for wifi_eap_error_message_code_32760 (2272296327034079386) -->
+    <skip />
+    <!-- no translation found for wifi_eap_error_message_code_32761 (3110197168451423384) -->
+    <skip />
+    <!-- no translation found for wifi_eap_error_message_code_32762 (3515553222282833794) -->
+    <skip />
+    <!-- no translation found for wifi_eap_error_message_code_32763 (3790937365887990781) -->
+    <skip />
+    <!-- no translation found for wifi_eap_error_message_code_32764 (6883041845648321423) -->
+    <skip />
+    <!-- no translation found for wifi_eap_error_message_code_32765 (3134805513440435314) -->
+    <skip />
+    <!-- no translation found for wifi_eap_error_message_code_32766 (6907401733158262194) -->
+    <skip />
 </resources>

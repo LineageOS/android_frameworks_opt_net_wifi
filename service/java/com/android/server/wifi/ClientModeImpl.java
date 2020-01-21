@@ -1680,7 +1680,7 @@ public class ClientModeImpl extends StateMachine {
     public Network getCurrentNetwork() {
         synchronized (mNetworkAgentLock) {
             if (mNetworkAgent != null) {
-                return mNetworkAgent.network;
+                return mNetworkAgent.getNetwork();
             } else {
                 return null;
             }
@@ -4360,7 +4360,7 @@ public class ClientModeImpl extends StateMachine {
             clearTargetBssid("L2ConnectedState");
             mCountryCode.setReadyForChange(false);
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_ASSOCIATED);
-            mWifiScoreCard.noteNetworkAgentCreated(mWifiInfo, mNetworkAgent.network.netId);
+            mWifiScoreCard.noteNetworkAgentCreated(mWifiInfo, mNetworkAgent.getNetwork().netId);
             mBssidBlocklistMonitor.handleBssidConnectionSuccess(mLastBssid, mWifiInfo.getSSID());
         }
 

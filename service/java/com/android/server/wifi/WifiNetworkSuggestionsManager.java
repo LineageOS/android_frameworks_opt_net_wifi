@@ -662,7 +662,7 @@ public class WifiNetworkSuggestionsManager {
         }
         if (!validateNetworkSuggestions(networkSuggestions, uid, packageName)) {
             Log.e(TAG, "bad wifi suggestion from app: " + packageName);
-            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_NOT_ALLOWED;
         }
 
         int carrierId = mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(packageName);
@@ -719,7 +719,7 @@ public class WifiNetworkSuggestionsManager {
                 // Install Passpoint config, if failure, ignore that suggestion
                 if (!mWifiInjector.getPasspointManager().addOrUpdateProvider(
                         ewns.wns.passpointConfiguration, uid,
-                        packageName, true)) {
+                        packageName, true, !ewns.wns.isNetworkUntrusted)) {
                     Log.e(TAG, "Passpoint profile install failure.");
                     continue;
                 }
@@ -746,28 +746,26 @@ public class WifiNetworkSuggestionsManager {
         // If an app doesn't have carrier privileges or carrier provisioning permission, suggests
         // SIM-based network and sets CarrierId are illegal.
         for (WifiNetworkSuggestion suggestion : networkSuggestions) {
-            if (suggestion.passpointConfiguration == null) {
-                WifiConfiguration config = suggestion.wifiConfiguration;
-                if (config != null
-                        && config.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+            WifiConfiguration wifiConfiguration = suggestion.wifiConfiguration;
+            PasspointConfiguration passpointConfiguration = suggestion.passpointConfiguration;
+            if (passpointConfiguration == null) {
+                if (wifiConfiguration.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
                     return false;
                 }
-                if (config != null && config.enterpriseConfig != null
-                        && config.enterpriseConfig.isAuthenticationSimBased()) {
+                if (wifiConfiguration.enterpriseConfig != null
+                        && wifiConfiguration.enterpriseConfig.isAuthenticationSimBased()) {
                     return false;
                 }
             } else {
-                PasspointConfiguration config = suggestion.passpointConfiguration;
-                if (config.getCarrierId() != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                if (passpointConfiguration.getCarrierId() != TelephonyManager.UNKNOWN_CARRIER_ID) {
                     return false;
                 }
-                if (config.getCredential() != null
-                        && config.getCredential().getSimCredential() != null) {
+                if (passpointConfiguration.getCredential() != null
+                        && passpointConfiguration.getCredential().getSimCredential() != null) {
                     return false;
                 }
             }
         }
-
         return true;
     }
 

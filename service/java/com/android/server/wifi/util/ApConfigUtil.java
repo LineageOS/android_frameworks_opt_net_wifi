@@ -402,51 +402,6 @@ public class ApConfigUtil {
     }
 
     /**
-     * Helper function for converting SoftapConfiguration to WifiConfiguration.
-     * Note that WifiConfiguration only Supports 2GHz, 5GHz, 2GHz+5GHz bands,
-     * so conversion is limited to these bands.
-     *
-     * @param softApConfig the SoftApConfiguration which need to convert.
-     * @return the WifiConfiguration which convert from SoftApConfiguration.
-     */
-    @NonNull
-    public static WifiConfiguration convertToWifiConfiguration(
-            @NonNull SoftApConfiguration softApConfig) {
-        WifiConfiguration wifiConfig = new WifiConfiguration();
-
-        wifiConfig.SSID = softApConfig.getSsid();
-        if (softApConfig.getBssid() != null) {
-            wifiConfig.BSSID = softApConfig.getBssid().toString();
-        }
-        wifiConfig.preSharedKey = softApConfig.getPassphrase();
-        wifiConfig.hiddenSSID = softApConfig.isHiddenSsid();
-        switch (softApConfig.getBand()) {
-            case SoftApConfiguration.BAND_2GHZ:
-                wifiConfig.apBand  = WifiConfiguration.AP_BAND_2GHZ;
-                break;
-            case SoftApConfiguration.BAND_5GHZ:
-                wifiConfig.apBand  = WifiConfiguration.AP_BAND_5GHZ;
-                break;
-            default:
-                wifiConfig.apBand  = WifiConfiguration.AP_BAND_ANY;
-                break;
-        }
-        wifiConfig.apChannel = softApConfig.getChannel();
-        int authType = softApConfig.getSecurityType();
-        switch (authType) {
-            case SoftApConfiguration.SECURITY_TYPE_WPA2_PSK:
-                authType = WifiConfiguration.KeyMgmt.WPA2_PSK;
-                break;
-            default:
-                authType = WifiConfiguration.KeyMgmt.NONE;
-                break;
-        }
-        wifiConfig.allowedKeyManagement.set(authType);
-
-        return wifiConfig;
-    }
-
-    /**
      * Helper function for converting WifiConfiguration to SoftApConfiguration.
      *
      * Only Support None and WPA2 configuration conversion.

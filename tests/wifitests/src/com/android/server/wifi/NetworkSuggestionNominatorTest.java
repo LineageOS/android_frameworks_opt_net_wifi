@@ -17,25 +17,14 @@
 package com.android.server.wifi;
 
 import static android.net.wifi.WifiConfiguration.INVALID_NETWORK_ID;
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_TEMPORARY_DISABLED;
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus
+        .NETWORK_SELECTION_TEMPORARY_DISABLED;
 
 import static com.android.server.wifi.WifiConfigurationTestUtil.SECURITY_PSK;
 import static com.android.server.wifi.WifiConfigurationTestUtil.generateWifiConfig;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.argThat;
-import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
@@ -866,7 +855,7 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
             PerAppInfo perAppInfo = new PerAppInfo(uids[i], packageNames[i], null);
             WifiNetworkSuggestion suggestion =
                     new WifiNetworkSuggestion(configs[i], null, appInteractions[i], false,
-                            shareWithUser[i], true);
+                            shareWithUser[i], true, false);
             suggestions[i] = new ExtendedWifiNetworkSuggestion(suggestion, perAppInfo, autojoin[i]);
         }
         return suggestions;

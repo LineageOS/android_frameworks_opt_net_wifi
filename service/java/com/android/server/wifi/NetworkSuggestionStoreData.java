@@ -66,6 +66,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             "IsUserAllowedToManuallyConnect";
     private static final String XML_TAG_IS_INITIALIZED_AUTO_JOIN = "InitializedAutoJoinEnabled";
     private static final String XML_TAG_IS_AUTO_JOIN = "AutoJoinEnabled";
+    private static final String XML_TAG_IS_NETWORK_UNTRUSTED = "IsNetworkUntrusted";
     private static final String XML_TAG_SUGGESTOR_UID = "SuggestorUid";
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
     private static final String XML_TAG_SUGGESTOR_FEATURE_ID = "SuggestorFeatureId";
@@ -246,6 +247,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                 suggestion.isInitialAutoJoinEnabled);
         XmlUtil.writeNextValue(out, XML_TAG_IS_AUTO_JOIN,
                 extSuggestion.isAutoJoinEnabled);
+        XmlUtil.writeNextValue(out, XML_TAG_IS_NETWORK_UNTRUSTED, suggestion.isNetworkUntrusted);
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
     }
 
@@ -376,6 +378,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         boolean isUserAllowedToManuallyConnect = false; // Backward compatibility.
         boolean isInitializedAutoJoinEnabled = true; // backward compat
         boolean isAutoJoinEnabled = true; // backward compat
+        boolean isNetworkUntrusted = false;
         int suggestorUid = Process.INVALID_UID;
 
         // Loop through and parse out all the elements from the stream within this section.
@@ -404,6 +407,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         // Only needed for migration of data from Q to R.
                         suggestorUid = (int) value;
                         break;
+                    case XML_TAG_IS_NETWORK_UNTRUSTED:
+                        isNetworkUntrusted = (boolean) value;
                     default:
                         Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
                         break;
@@ -463,7 +468,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         }
         return Pair.create(new WifiNetworkSuggestion(wifiConfiguration, passpointConfiguration,
                 isAppInteractionRequired, isUserInteractionRequired, isUserAllowedToManuallyConnect,
-                isInitializedAutoJoinEnabled), isAutoJoinEnabled);
+                isInitializedAutoJoinEnabled, isNetworkUntrusted), isAutoJoinEnabled);
     }
 }
 

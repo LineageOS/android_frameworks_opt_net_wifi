@@ -117,6 +117,8 @@ public class WifiPickerTrackerTest {
         when(mMockWifiInfo.getRssi()).thenReturn(WifiInfo.INVALID_RSSI);
         when(mMockNetworkInfo.getDetailedState()).thenReturn(
                 NetworkInfo.DetailedState.DISCONNECTED);
+        when(mMockContext.getSystemService(Context.NETWORK_SCORE_SERVICE))
+                .thenReturn(mMockNetworkScoreManager);
     }
 
     /**

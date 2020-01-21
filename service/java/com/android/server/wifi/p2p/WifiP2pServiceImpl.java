@@ -479,6 +479,30 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 "WifiP2pService");
     }
 
+    private boolean checkAnyPermissionOf(String... permissions) {
+        for (String permission : permissions) {
+            if (mContext.checkCallingOrSelfPermission(permission)
+                    == PackageManager.PERMISSION_GRANTED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void enforceAnyPermissionOf(String... permissions) {
+        if (!checkAnyPermissionOf(permissions)) {
+            throw new SecurityException("Requires one of the following permissions: "
+                    + String.join(", ", permissions) + ".");
+        }
+    }
+
+    private void enforceNetworkStackOrLocationHardwarePermission() {
+        enforceAnyPermissionOf(
+                android.Manifest.permission.LOCATION_HARDWARE,
+                android.Manifest.permission.NETWORK_STACK,
+                NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK);
+    }
+
     private void stopIpClient() {
         // Invalidate all previous start requests
         mIpClientStartIndex++;
@@ -595,8 +619,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
      */
     @Override
     public Messenger getP2pStateMachineMessenger() {
-        NetworkStack.checkNetworkStackPermissionOr(mContext,
-                android.Manifest.permission.LOCATION_HARDWARE);
+        enforceNetworkStackOrLocationHardwarePermission();
         enforceAccessPermission();
         enforceChangePermission();
         return new Messenger(mP2pStateMachine.getHandler());
