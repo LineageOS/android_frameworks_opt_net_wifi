@@ -20,21 +20,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.AdditionalAnswers.answerVoid;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
 import android.net.NetworkAgent;
+import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
+import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
@@ -72,11 +81,20 @@ public class WifiScoreReportTest {
     ScanDetailCache mScanDetailCache;
     WifiInfo mWifiInfo;
     ScoringParams mScoringParams;
+    NetworkAgent mNetworkAgent;
     @Mock Context mContext;
-    @Mock NetworkAgent mNetworkAgent;
     @Mock Resources mResources;
     @Mock WifiMetrics mWifiMetrics;
     @Mock PrintWriter mPrintWriter;
+
+    // NetworkAgent is abstract, so a subclass is necessary
+    private static class TestNetworkAgent extends NetworkAgent {
+        TestNetworkAgent(Context context) {
+            super(new TestLooper().getLooper(), context, "TestNetworkAgent",
+                    mock(NetworkInfo.class), new NetworkCapabilities(), new LinkProperties(), 0);
+        }
+        @Override protected void unwanted() { }
+    }
 
     /**
      * Sets up resource values for testing
@@ -119,9 +137,12 @@ public class WifiScoreReportTest {
         setUpResources(mResources);
         mWifiInfo = new WifiInfo();
         mWifiInfo.setFrequency(2412);
-        int maxSize = 10;
-        int trimSize = 5;
         when(mContext.getResources()).thenReturn(mResources);
+        final ConnectivityManager cm = mock(ConnectivityManager.class);
+        when(mContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(cm);
+        when(cm.registerNetworkAgent(any(), any(), any(), any(), anyInt(), any(), anyInt()))
+                .thenReturn(mock(Network.class));
+        mNetworkAgent = spy(new TestNetworkAgent(mContext));
         mClock = new FakeClock();
         mScoringParams = new ScoringParams(mContext);
         mWifiScoreReport = new WifiScoreReport(mScoringParams, mClock);
