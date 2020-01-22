@@ -34,6 +34,8 @@ import com.android.internal.util.Preconditions;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -42,7 +44,7 @@ import java.util.List;
  * Note: This is a copy of WifiNetworkScoreCache for internal usage by the wifi stack. This extends
  * the formal API: {@link NetworkScoreManager.NetworkScoreCallback}
  */
-public class WifiNetworkScoreCache implements NetworkScoreManager.NetworkScoreCallback {
+public class WifiNetworkScoreCache extends NetworkScoreManager.NetworkScoreCallback {
     private static final String TAG = "WifiNetworkScoreCache";
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
@@ -88,7 +90,8 @@ public class WifiNetworkScoreCache implements NetworkScoreManager.NetworkScoreCa
         mCache = new LruCache<>(maxCacheSize);
     }
 
-    @Override public final void updateScores(List<ScoredNetwork> networks) {
+    @Override
+    public final void onScoresUpdated(Collection<ScoredNetwork> networks) {
         if (networks == null || networks.isEmpty()) {
             return;
         }
@@ -112,12 +115,13 @@ public class WifiNetworkScoreCache implements NetworkScoreManager.NetworkScoreCa
             }
 
             if (mListener != null && changed) {
-                mListener.post(networks);
+                mListener.post(new ArrayList<>(networks));
             }
         }
     }
 
-    @Override public final void clearScores() {
+    @Override
+    public final void onScoresInvalidated() {
         synchronized (mLock) {
             mCache.evictAll();
         }

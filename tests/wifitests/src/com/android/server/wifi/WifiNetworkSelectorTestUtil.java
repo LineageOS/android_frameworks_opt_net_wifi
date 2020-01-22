@@ -459,7 +459,7 @@ public class WifiNetworkSelectorTestUtil {
             networks.add(scoredNetwork);
         }
 
-        scoreCache.updateScores(networks);
+        scoreCache.onScoresUpdated(networks);
     }
 
     /**

@@ -104,9 +104,7 @@ public class ScoredNetworkNominator implements WifiNetworkSelector.NetworkNomina
 
         // Kick the score manager if there are any unscored network.
         if (!unscoredNetworks.isEmpty() && activeScorerAllowedtoSeeScanResults()) {
-            NetworkKey[] unscoredNetworkKeys =
-                    unscoredNetworks.toArray(new NetworkKey[unscoredNetworks.size()]);
-            mNetworkScoreManager.requestScores(unscoredNetworkKeys);
+            mNetworkScoreManager.requestScores(unscoredNetworks);
         }
     }
 
