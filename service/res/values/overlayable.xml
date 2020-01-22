@@ -162,6 +162,9 @@
           <item type="string" name="wifi_eap_error_message_code_32764" />
           <item type="string" name="wifi_eap_error_message_code_32765" />
           <item type="string" name="wifi_eap_error_message_code_32766" />
+          <item type="string" name="wifi_softap_auto_shutdown_timeout_expired_title" />
+          <item type="string" name="wifi_softap_auto_shutdown_timeout_expired_summary" />
+          <item type="string" name="wifi_softap_auto_shutdown_timeout_expired_detail" />
           <!-- Params from strings.xml that can be overlayed -->
 
           <!-- Params from styles.xml that can be overlayed -->
