@@ -18,10 +18,13 @@ package com.android.server.wifi;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.util.ArrayMap;
 import android.util.LocalLog;
 import android.util.Log;
+
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -74,26 +77,13 @@ public class BssidBlocklistMonitor {
     @Retention(RetentionPolicy.SOURCE)
     public @interface FailureReason {}
 
-    public static final int[] FAILURE_COUNT_DISABLE_THRESHOLD = {
-            1,  //  threshold for REASON_AP_UNABLE_TO_HANDLE_NEW_STA
-            1,  //  threshold for REASON_NETWORK_VALIDATION_FAILURE
-            1,  //  threshold for REASON_WRONG_PASSWORD
-            1,  //  threshold for REASON_EAP_FAILURE
-            3,  //  threshold for REASON_ASSOCIATION_REJECTION
-            3,  //  threshold for REASON_ASSOCIATION_TIMEOUT
-            3,  //  threshold for REASON_AUTHENTICATION_FAILURE
-            3,  //  threshold for REASON_DHCP_FAILURE
-            3   //  threshold for REASON_ABNORMAL_DISCONNECT
-    };
-
-    private static final int FAILURE_COUNTER_THRESHOLD = 3;
-    private static final long BASE_BLOCKLIST_DURATION = TimeUnit.MINUTES.toMillis(5); // 5 minutes
-    private static final long MAX_BLOCKLIST_DURATION = TimeUnit.HOURS.toMillis(18); // 18 hours
-    private static final long ABNORMAL_DISCONNECT_TIME_WINDOW_MS = TimeUnit.SECONDS.toMillis(30);
+    // To be filled with values from the overlay.
+    private static final int[] FAILURE_COUNT_DISABLE_THRESHOLD = new int[NUMBER_REASON_CODES];
+    private boolean mFailureCountDisableThresholdArrayInitialized = false;
     private static final long ABNORMAL_DISCONNECT_RESET_TIME_MS = TimeUnit.HOURS.toMillis(3);
-    private static final int FAILURE_STREAK_CAP = 7;
     private static final String TAG = "BssidBlocklistMonitor";
 
+    private final Context mContext;
     private final WifiLastResortWatchdog mWifiLastResortWatchdog;
     private final WifiConnectivityHelper mConnectivityHelper;
     private final Clock mClock;
@@ -107,9 +97,10 @@ public class BssidBlocklistMonitor {
     /**
      * Create a new instance of BssidBlocklistMonitor
      */
-    BssidBlocklistMonitor(WifiConnectivityHelper connectivityHelper,
+    BssidBlocklistMonitor(Context context, WifiConnectivityHelper connectivityHelper,
             WifiLastResortWatchdog wifiLastResortWatchdog, Clock clock, LocalLog localLog,
             WifiScoreCard wifiScoreCard) {
+        mContext = context;
         mConnectivityHelper = connectivityHelper;
         mWifiLastResortWatchdog = wifiLastResortWatchdog;
         mClock = clock;
@@ -131,14 +122,19 @@ public class BssidBlocklistMonitor {
      * @return duration to block the BSSID in milliseconds
      */
     private long getBlocklistDurationWithExponentialBackoff(int failureStreak) {
-        if (failureStreak > FAILURE_STREAK_CAP) {
-            return MAX_BLOCKLIST_DURATION;
+        int maxBlocklistDurationMs = mContext.getResources().getInteger(
+                R.integer.config_wifiBssidBlocklistMonitorMaxBlockDurationMs);
+        if (failureStreak > mContext.getResources().getInteger(
+                R.integer.config_wifiBssidBlocklistMonitorFailureStreakCap)) {
+            return maxBlocklistDurationMs;
         }
+        int baseBlocklistDurationMs = mContext.getResources().getInteger(
+                R.integer.config_wifiBssidBlocklistMonitorBaseBlockDurationMs);
         if (failureStreak < 1) {
-            return BASE_BLOCKLIST_DURATION;
+            return baseBlocklistDurationMs;
         }
-        long duration = (long) (Math.pow(2.0, (double) failureStreak) * BASE_BLOCKLIST_DURATION);
-        return Math.min(MAX_BLOCKLIST_DURATION, duration);
+        long duration = (long) (Math.pow(2.0, (double) failureStreak) * baseBlocklistDurationMs);
+        return Math.min(maxBlocklistDurationMs, duration);
     }
 
     /**
@@ -218,12 +214,47 @@ public class BssidBlocklistMonitor {
         addToBlocklist(status, durationMs, true);
     }
 
+    private int getFailureThresholdForReason(@FailureReason int reasonCode) {
+        if (mFailureCountDisableThresholdArrayInitialized) {
+            return FAILURE_COUNT_DISABLE_THRESHOLD[reasonCode];
+        }
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_AP_UNABLE_TO_HANDLE_NEW_STA] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorApUnableToHandleNewStaThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_NETWORK_VALIDATION_FAILURE] =
+                mContext.getResources().getInteger(R.integer
+                        .config_wifiBssidBlocklistMonitorNetworkValidationFailureThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_WRONG_PASSWORD] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorWrongPasswordThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_EAP_FAILURE] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorEapFailureThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_ASSOCIATION_REJECTION] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorAssociationRejectionThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_ASSOCIATION_TIMEOUT] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorAssociationTimeoutThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_AUTHENTICATION_FAILURE] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorAuthenticationFailureThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_DHCP_FAILURE] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorDhcpFailureThreshold);
+        FAILURE_COUNT_DISABLE_THRESHOLD[REASON_ABNORMAL_DISCONNECT] =
+                mContext.getResources().getInteger(
+                        R.integer.config_wifiBssidBlocklistMonitorAbnormalDisconnectThreshold);
+        mFailureCountDisableThresholdArrayInitialized = true;
+        return FAILURE_COUNT_DISABLE_THRESHOLD[reasonCode];
+    }
+
     private boolean handleBssidConnectionFailureInternal(String bssid, String ssid,
             @FailureReason int reasonCode) {
         BssidStatus entry = incrementFailureCountForBssid(bssid, ssid, reasonCode);
+        int failureThreshold = getFailureThresholdForReason(reasonCode);
         int currentStreak = mWifiScoreCard.getBssidBlocklistStreak(ssid, bssid, reasonCode);
-        if (currentStreak > 0
-                || entry.failureCount[reasonCode] >= FAILURE_COUNT_DISABLE_THRESHOLD[reasonCode]) {
+        if (currentStreak > 0 || entry.failureCount[reasonCode] >= failureThreshold) {
             // To rule out potential device side issues, don't add to blocklist if
             // WifiLastResortWatchdog is still not triggered
             if (shouldWaitForWatchdogToTriggerFirst(bssid, reasonCode)) {
@@ -250,7 +281,8 @@ public class BssidBlocklistMonitor {
             long connectionTime = mWifiScoreCard.getBssidConnectionTimestampMs(ssid, bssid);
             // only count disconnects that happen shortly after a connection.
             if (mClock.getWallClockMillis() - connectionTime
-                    > ABNORMAL_DISCONNECT_TIME_WINDOW_MS) {
+                    > mContext.getResources().getInteger(
+                            R.integer.config_wifiBssidBlocklistAbnormalDisconnectTimeWindowMs)) {
                 return false;
             }
         }

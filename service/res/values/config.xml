@@ -306,6 +306,36 @@
     <integer-array translatable="false" name="config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec">
     </integer-array>
 
+    <!-- List of constants that indicate the number of consecutive failures per type needed to block a BSSID.
+    A blocked BSSID will not be considered in network selection and firmware roaming.-->
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorApUnableToHandleNewStaThreshold"> 1 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorNetworkValidationFailureThreshold"> 1 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorWrongPasswordThreshold"> 1 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorEapFailureThreshold"> 1 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorAssociationRejectionThreshold"> 3 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorAssociationTimeoutThreshold"> 3 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorAuthenticationFailureThreshold"> 3 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorDhcpFailureThreshold"> 3 </integer>
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorAbnormalDisconnectThreshold"> 3 </integer>
+
+    <!-- Base duration to block a BSSID after consecutive failures happen. (default = 5 mins)
+    The blocklist duration is increased exponentially for a BSSID that consecutively gets added to the blocklist.
+    ie. 5/10/20/40/... up to the upper limit defined by config_wifiBssidBlocklistMonitorMaxBlockDurationMs -->
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorBaseBlockDurationMs"> 300000 </integer>
+
+    <!-- The failure streak is the number of times a BSSID consecutively gets blocked without ever
+    successfully connecting in between, and is used to calculate the exponentially growing blocklist time.
+    Any BSSID with failure streak greater than the failure streak cap will be blocked for
+    config_wifiBssidBlocklistMonitorMaxBlockDurationMs. -->
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorFailureStreakCap"> 7 </integer>
+
+    <!-- The maximum duration to block a BSSID (default = 18 hours) -->
+    <integer translatable="false" name="config_wifiBssidBlocklistMonitorMaxBlockDurationMs"> 64800000 </integer>
+
+    <!-- If a non-locally generated disconnect happens within this time window after association,
+    then count it as a failure with reason code REASON_ABNORMAL_DISCONNECT (default = 30 seconds) -->
+    <integer translatable="false" name="config_wifiBssidBlocklistAbnormalDisconnectTimeWindowMs"> 30000 </integer>
+
     <!-- Indicates that hidden networks are to be scanned during scan only mode -->
     <bool translatable="false" name="config_wifiScanHiddenNetworksScanOnlyMode">false</bool>
 
