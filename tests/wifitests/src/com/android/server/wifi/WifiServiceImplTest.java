@@ -117,6 +117,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.SoftApCallback;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -1316,16 +1317,17 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartTetheredHotspotWithSupported5gBand() {
-        when(mResources.getBoolean(
-                eq(R.bool.config_wifi5ghzSupport)))
-                .thenReturn(true);
+        when(mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ)).thenReturn(true);
+
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
                 .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
+        mLooper.startAutoDispatch();
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+
         assertTrue(result);
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
         assertThat(config).isEqualTo(mSoftApModeConfigCaptor.getValue().getSoftApConfiguration());
@@ -1336,16 +1338,17 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartTetheredHotspotWithUnSupported5gBand() {
-        when(mResources.getBoolean(
-                eq(R.bool.config_wifi5ghzSupport)))
-                .thenReturn(false);
+        when(mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ)).thenReturn(false);
+
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
                 .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
+        mLooper.startAutoDispatch();
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+
         assertFalse(result);
         verifyZeroInteractions(mActiveModeWarden);
     }
@@ -1356,11 +1359,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testStartTetheredHotspotWithSupported6gBand() {
         when(mResources.getBoolean(
-                eq(R.bool.config_wifi6ghzSupport)))
-                .thenReturn(true);
-        when(mResources.getBoolean(
                 eq(R.bool.config_wifiSoftap6ghzSupported)))
                 .thenReturn(true);
+        when(mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_6_GHZ)).thenReturn(true);
 
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
@@ -1368,7 +1369,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .setBand(SoftApConfiguration.BAND_6GHZ)
                 .build();
 
+        mLooper.startAutoDispatch();
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+
         assertTrue(result);
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
         assertThat(config).isEqualTo(mSoftApModeConfigCaptor.getValue().getSoftApConfiguration());
@@ -1380,11 +1383,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testStartTetheredHotspotWithUnSupported6gBand() {
         when(mResources.getBoolean(
-                eq(R.bool.config_wifi6ghzSupport)))
-                .thenReturn(true);
-        when(mResources.getBoolean(
                 eq(R.bool.config_wifiSoftap6ghzSupported)))
                 .thenReturn(false);
+        when(mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_6_GHZ)).thenReturn(true);
 
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
@@ -1392,7 +1393,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .setBand(SoftApConfiguration.BAND_6GHZ)
                 .build();
 
+        mLooper.startAutoDispatch();
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+
         assertFalse(result);
         verifyZeroInteractions(mActiveModeWarden);
     }
@@ -1402,16 +1405,17 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartTetheredHotspotWithSupportedBand() {
-        when(mResources.getBoolean(
-                eq(R.bool.config_wifi5ghzSupport)))
-                .thenReturn(true);
+        when(mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ)).thenReturn(true);
+
         SoftApConfiguration config = new SoftApConfiguration.Builder()
                 .setSsid("TestAp")
                 .setPassphrase("thisIsABadPassword", SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)
                 .setBand(SoftApConfiguration.BAND_5GHZ)
                 .build();
 
+        mLooper.startAutoDispatch();
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
+
         assertTrue(result);
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
         assertThat(config).isEqualTo(mSoftApModeConfigCaptor.getValue().getSoftApConfiguration());
@@ -2102,9 +2106,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mResources.getBoolean(
                 eq(R.bool.config_wifi_local_only_hotspot_5ghz)))
                 .thenReturn(true);
-        when(mResources.getBoolean(
-                eq(R.bool.config_wifi5ghzSupport)))
-                .thenReturn(true);
+        when(mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ)).thenReturn(true);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)).thenReturn(true);
 
         verify(mAsyncChannel).connect(any(), mHandlerCaptor.capture(), any(Handler.class));
@@ -2112,6 +2114,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         handler.handleMessage(handler.obtainMessage(
                 AsyncChannel.CMD_CHANNEL_HALF_CONNECTED, AsyncChannel.STATUS_SUCCESSFUL, 0));
 
+        mLooper.startAutoDispatch();
         registerLOHSRequestFull();
         verifyLohsBand(WifiConfiguration.AP_BAND_5GHZ);
     }

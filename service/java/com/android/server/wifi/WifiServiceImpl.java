@@ -2801,7 +2801,8 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     private boolean is5GhzBandSupportedInternal() {
-        return mContext.getResources().getBoolean(R.bool.config_wifi5ghzSupport);
+        return mWifiThreadRunner.call(
+                () -> mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ), false);
     }
 
     @Override
@@ -2814,7 +2815,8 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     private boolean is6GhzBandSupportedInternal() {
-        return mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport);
+        return mWifiThreadRunner.call(
+                () -> mClientModeImpl.isWifiBandSupported(WifiScanner.WIFI_BAND_6_GHZ), false);
     }
 
     @Override
