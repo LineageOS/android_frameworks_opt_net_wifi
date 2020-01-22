@@ -118,6 +118,12 @@ public class WifiConnectivityManager {
     public static final int WIFI_STATE_DISCONNECTED = 2;
     public static final int WIFI_STATE_TRANSITIONING = 3;
 
+    // Initial scan state, used to manage performing partial scans in initial scans
+    // Initial scans are the first scan after enabling Wifi or turning on screen when disconnected
+    private static final int INITIAL_SCAN_STATE_START = 0;
+    private static final int INITIAL_SCAN_STATE_AWAITING_RESPONSE = 1;
+    private static final int INITIAL_SCAN_STATE_COMPLETE = 2;
+
     // Log tag for this class
     private static final String TAG = "WifiConnectivityManager";
 
@@ -146,6 +152,10 @@ public class WifiConnectivityManager {
     private boolean mRunning = false;
     private boolean mScreenOn = false;
     private int mWifiState = WIFI_STATE_UNKNOWN;
+    private int mInitialScanState = INITIAL_SCAN_STATE_COMPLETE;
+    private boolean mEnablePartialInitialScan = false;
+    private int mInitialScanChannelMaxCount;
+    private long mInitialScanChannelMaxAgeInMillis;
     private boolean mUntrustedConnectionAllowed = false;
     private boolean mTrustedConnectionAllowed = false;
     private boolean mSpecificNetworkRequestInProgress = false;
@@ -344,6 +354,21 @@ public class WifiConnectivityManager {
                     mWifiMetrics.incrementNumConnectivityWatchdogPnoBad();
                 } else {
                     mWifiMetrics.incrementNumConnectivityWatchdogPnoGood();
+                }
+            }
+
+            // Check if we are in the middle of initial partial scan
+            if (mInitialScanState == INITIAL_SCAN_STATE_AWAITING_RESPONSE) {
+                // Done with initial scan
+                setInitialScanState(INITIAL_SCAN_STATE_COMPLETE);
+
+                if (wasConnectAttempted) {
+                    Log.i(TAG, "Connection attempted with the reduced initial scans");
+                    schedulePeriodicScanTimer(
+                            getScheduledSingleScanInterval(mCurrentSingleScanScheduleIndex));
+                } else {
+                    Log.i(TAG, "Connection was not attempted, issuing a full scan");
+                    startConnectivityScan(SCAN_IMMEDIATELY);
                 }
             }
         }
@@ -763,16 +788,19 @@ public class WifiConnectivityManager {
 
     // Helper for setting the channels for connectivity scan when band is unspecified. Returns
     // false if we can't retrieve the info.
+    // If connected, return channels used for the connected network
+    // If disconnected, return channels used for any network.
     private boolean setScanChannels(ScanSettings settings) {
+        Set<Integer> freqs;
+
         WifiConfiguration config = mStateMachine.getCurrentWifiConfiguration();
-
         if (config == null) {
-            return false;
+            freqs = mConfigManager.fetchChannelSetForPartialScan(mInitialScanChannelMaxAgeInMillis,
+                    mInitialScanChannelMaxCount);
+        } else {
+            freqs = mConfigManager.fetchChannelSetForNetworkForPartialScan(
+                    config.networkId, CHANNEL_LIST_AGE_MS, mWifiInfo.getFrequency());
         }
-
-        Set<Integer> freqs =
-                mConfigManager.fetchChannelSetForNetworkForPartialScan(
-                        config.networkId, CHANNEL_LIST_AGE_MS, mWifiInfo.getFrequency());
 
         if (freqs != null && freqs.size() != 0) {
             int index = 0;
@@ -782,7 +810,7 @@ public class WifiConnectivityManager {
             }
             return true;
         } else {
-            localLog("No scan channels for " + config.getKey() + ". Perform full band scan");
+            localLog("No history scan channels found, Perform full band scan");
             return false;
         }
     }
@@ -842,6 +870,20 @@ public class WifiConnectivityManager {
 
         if (isScanNeeded) {
             mLastPeriodicSingleScanTimeStamp = currentTimeStamp;
+
+            if (mWifiState == WIFI_STATE_DISCONNECTED
+                    && mInitialScanState == INITIAL_SCAN_STATE_START) {
+                startSingleScan(false, WIFI_WORK_SOURCE);
+
+                // Note, initial partial scan may fail due to lack of channel history
+                // Hence, we verify state before changing to AWIATING_RESPONSE
+                if (mInitialScanState == INITIAL_SCAN_STATE_START) {
+                    setInitialScanState(INITIAL_SCAN_STATE_AWAITING_RESPONSE);
+                }
+                // No scheduling for another scan (until we get the results)
+                return;
+            }
+
             startSingleScan(isFullBandScan, WIFI_WORK_SOURCE);
             schedulePeriodicScanTimer(
                     getScheduledSingleScanInterval(mCurrentSingleScanScheduleIndex));
@@ -909,6 +951,12 @@ public class WifiConnectivityManager {
         return false;
     }
 
+    // Set initial scan state
+    private void setInitialScanState(int state) {
+        Log.i(TAG, "SetInitialScanState to : " + state);
+        mInitialScanState = state;
+    }
+
     // Reset the last periodic single scan time stamp so that the next periodic single
     // scan can start immediately.
     private void resetLastPeriodicSingleScanTimeStamp() {
@@ -937,6 +985,8 @@ public class WifiConnectivityManager {
         if (!isFullBandScan) {
             if (!setScanChannels(settings)) {
                 isFullBandScan = true;
+                // Skip the initial scan since no channel history available
+                setInitialScanState(INITIAL_SCAN_STATE_COMPLETE);
             }
         }
         settings.type = WifiScanner.SCAN_TYPE_HIGH_ACCURACY; // always do high accuracy scans.
@@ -1173,6 +1223,10 @@ public class WifiConnectivityManager {
 
         mScreenOn = screenOn;
 
+        if (mWifiState == WIFI_STATE_DISCONNECTED && mEnablePartialInitialScan) {
+            setInitialScanState(INITIAL_SCAN_STATE_START);
+        }
+
         mOpenNetworkNotifier.handleScreenStateChanged(screenOn);
 
         startConnectivityScan(SCAN_ON_SCHEDULE);
@@ -1386,6 +1440,18 @@ public class WifiConnectivityManager {
         mConnectivityHelper.getFirmwareRoamingInfo();
         mBssidBlocklistMonitor.clearBssidBlocklist();
         mWifiChannelUtilization.init(mStateMachine.getWifiLinkLayerStats());
+
+        mEnablePartialInitialScan =
+                mContext.getResources().getBoolean(R.bool.config_wifiEnablePartialInitialScan);
+        mInitialScanChannelMaxAgeInMillis = 1000 * 60 * mContext.getResources().getInteger(
+                    R.integer.config_wifiInitialPartialScanChannelCacheAgeMins);
+        mInitialScanChannelMaxCount = mContext.getResources().getInteger(
+                    R.integer.config_wifiInitialPartialScanChannelMaxCount);
+
+        if (mEnablePartialInitialScan) {
+            setInitialScanState(INITIAL_SCAN_STATE_START);
+        }
+
         mRunning = true;
     }
 

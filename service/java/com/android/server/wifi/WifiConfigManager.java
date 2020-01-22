@@ -2616,6 +2616,72 @@ public class WifiConfigManager {
     }
 
     /**
+     * Find the most recently connected network from a list of networks, and place it at top
+     */
+    private void putMostRecentlyConnectedNetworkAtTop(List<WifiConfiguration> networks) {
+        WifiConfiguration lastConnectedNetwork =
+                networks.stream()
+                        .max(Comparator.comparing(
+                                (WifiConfiguration config) -> config.lastConnected))
+                        .get();
+        if (lastConnectedNetwork.lastConnected != 0) {
+            int lastConnectedNetworkIdx = networks.indexOf(lastConnectedNetwork);
+            networks.remove(lastConnectedNetworkIdx);
+            networks.add(0, lastConnectedNetwork);
+        }
+    }
+
+    /**
+     * Retrieves a list of channels for partial single scans
+     *
+     * @param ageInMillis only consider scan details whose timestamps are more recent than this.
+     * @param maxCount maximum number of channels in the set
+     * @return Set containing the frequeincies which were used for connection recently.
+     */
+    public Set<Integer> fetchChannelSetForPartialScan(long ageInMillis, int maxCount) {
+        List<WifiConfiguration> networks = new ArrayList<>(getInternalConfiguredNetworks());
+
+        // Remove any permanently or temporarily disabled networks.
+        Iterator<WifiConfiguration> iter = networks.iterator();
+        while (iter.hasNext()) {
+            WifiConfiguration config = iter.next();
+            if (config.ephemeral || config.isPasspoint()
+                    || config.getNetworkSelectionStatus().isNetworkPermanentlyDisabled()
+                    || config.getNetworkSelectionStatus().isNetworkTemporaryDisabled()) {
+                iter.remove();
+            }
+        }
+
+        if (networks.isEmpty()) {
+            return null;
+        }
+
+        // Sort the networks with the most frequent ones at the front of the network list.
+        Collections.sort(networks, sScanListComparator);
+
+        // Find the most recently connected network and move it to the front of the network list.
+        putMostRecentlyConnectedNetworkAtTop(networks);
+
+        Set<Integer> channelSet = new HashSet<>();
+        long nowInMillis = mClock.getWallClockMillis();
+
+        for (WifiConfiguration config : networks) {
+            ScanDetailCache scanDetailCache = getScanDetailCacheForNetwork(config.networkId);
+            if (scanDetailCache == null) {
+                continue;
+            }
+
+            // Add channels for the network to the output, and exit when it reaches max size
+            if (!addToChannelSetForNetworkFromScanDetailCache(channelSet, scanDetailCache,
+                    nowInMillis, ageInMillis, maxCount)) {
+                break;
+            }
+        }
+
+        return channelSet;
+    }
+
+    /**
      * Retrieve a set of channels on which AP's for the provided network was seen using the
      * internal ScanResult's cache {@link #mScanDetailCaches}. This is used for initiating partial
      * scans for the currently connected network.
@@ -2760,17 +2826,8 @@ public class WifiConfigManager {
         // Sort the networks with the most frequent ones at the front of the network list.
         Collections.sort(networks, sScanListComparator);
         if (mContext.getResources().getBoolean(R.bool.config_wifiPnoRecencySortingEnabled)) {
-            // Find the most recently connected network and add it to the front of the network list.
-            WifiConfiguration lastConnectedNetwork =
-                    networks.stream()
-                            .max(Comparator.comparing(
-                                    (WifiConfiguration config) -> config.lastConnected))
-                            .get();
-            if (lastConnectedNetwork.lastConnected != 0) {
-                int lastConnectedNetworkIdx = networks.indexOf(lastConnectedNetwork);
-                networks.remove(lastConnectedNetworkIdx);
-                networks.add(0, lastConnectedNetwork);
-            }
+            // Find the most recently connected network and move it to the front of the list.
+            putMostRecentlyConnectedNetworkAtTop(networks);
         }
         for (WifiConfiguration config : networks) {
             WifiScanner.PnoSettings.PnoNetwork pnoNetwork =
