@@ -21,6 +21,8 @@ import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
 import static android.app.Notification.EXTRA_BIG_TEXT;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_DISMISSED_INTENT_ACTION;
@@ -51,6 +53,7 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
+import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.HomeSp;
@@ -61,6 +64,7 @@ import android.os.test.TestLooper;
 import android.telephony.TelephonyManager;
 import android.test.suitebuilder.annotation.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
@@ -75,6 +79,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -2989,6 +2995,132 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 .getNetworkSuggestionsForWifiConfiguration(config, TEST_BSSID);
         for (ExtendedWifiNetworkSuggestion ewns : matchedSuggestions) {
             assertFalse(ewns.isAutoJoinEnabled);
+        }
+    }
+
+    /**
+     * Verify that both passpoint configuration and non passpoint configuration could match
+     * the ScanResults.
+     */
+    @Test
+    public void getMatchingScanResultsTestWithPasspointAndNonPasspointMatch() {
+        WifiConfiguration dummyConfiguration = new WifiConfiguration();
+        dummyConfiguration.FQDN = TEST_FQDN;
+        PasspointConfiguration mockPasspoint = mock(PasspointConfiguration.class);
+        WifiNetworkSuggestion passpointSuggestion = new WifiNetworkSuggestion(
+                dummyConfiguration, mockPasspoint, false, false, true, true, false);
+        WifiNetworkSuggestion nonPasspointSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(),
+                null, false, false, true, true, false);
+        List<WifiNetworkSuggestion> suggestions = new ArrayList<>() {{
+                add(passpointSuggestion);
+                add(nonPasspointSuggestion);
+                }};
+        ScanResult passpointScanResult = new ScanResult();
+        passpointScanResult.wifiSsid = WifiSsid.createFromAsciiEncoded("passpoint");
+        List<ScanResult> ppSrList = new ArrayList<>() {{
+                add(passpointScanResult);
+                }};
+        ScanResult nonPasspointScanResult = new ScanResult();
+        nonPasspointScanResult.wifiSsid = WifiSsid.createFromAsciiEncoded(
+                nonPasspointSuggestion.wifiConfiguration.SSID);
+        List<ScanResult> nonPpSrList = new ArrayList<>() {{
+                add(nonPasspointScanResult);
+                }};
+        List<ScanResult> allSrList = new ArrayList<>() {{
+                add(passpointScanResult);
+                add(nonPasspointScanResult);
+                }};
+        when(mPasspointManager.getMatchingScanResults(eq(mockPasspoint), eq(allSrList)))
+                .thenReturn(ppSrList);
+        ScanResultMatchInfo mockMatchInfo = mock(ScanResultMatchInfo.class);
+        ScanResultMatchInfo nonPasspointMi = new ScanResultMatchInfo();
+        nonPasspointMi.networkSsid = nonPasspointSuggestion.wifiConfiguration.SSID;
+        MockitoSession session = ExtendedMockito.mockitoSession().strictness(Strictness.LENIENT)
+                .mockStatic(ScanResultMatchInfo.class).startMocking();
+        try {
+            doReturn(nonPasspointMi).when(
+                    () -> ScanResultMatchInfo.fromWifiConfiguration(
+                            nonPasspointSuggestion.wifiConfiguration));
+            doReturn(nonPasspointMi).when(
+                    () -> ScanResultMatchInfo.fromScanResult(nonPasspointScanResult));
+            doReturn(mockMatchInfo).when(
+                    () -> ScanResultMatchInfo.fromScanResult(passpointScanResult));
+            Map<WifiNetworkSuggestion, List<ScanResult>> result =
+                    mWifiNetworkSuggestionsManager.getMatchingScanResults(suggestions, allSrList);
+            assertEquals(2, result.size());
+            assertEquals(1, result.get(nonPasspointSuggestion).size());
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verify that the wifi configuration doesn't match anything
+     */
+    @Test
+    public void getMatchingScanResultsTestWithMatchNothing() {
+        WifiNetworkSuggestion nonPasspointSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(),
+                null, false, false, true, true, false);
+        List<WifiNetworkSuggestion> suggestions = new ArrayList<>() {{
+                add(nonPasspointSuggestion);
+                }};
+        ScanResult nonPasspointScanResult = new ScanResult();
+        nonPasspointScanResult.wifiSsid = WifiSsid.createFromAsciiEncoded("non-passpoint");
+        List<ScanResult> allSrList = new ArrayList<>() {{
+                add(nonPasspointScanResult);
+            }};
+
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                ScanResultMatchInfo.class).startMocking();
+        ScanResultMatchInfo mockMatchInfo = mock(ScanResultMatchInfo.class);
+        ScanResultMatchInfo miFromConfig = new ScanResultMatchInfo();
+        miFromConfig.networkSsid = nonPasspointSuggestion.wifiConfiguration.SSID;
+        try {
+            when(ScanResultMatchInfo.fromWifiConfiguration(any(WifiConfiguration.class)))
+                    .thenReturn(miFromConfig);
+            when(ScanResultMatchInfo.fromScanResult(eq(nonPasspointScanResult)))
+                    .thenReturn(mockMatchInfo);
+            Map<WifiNetworkSuggestion, List<ScanResult>> result =
+                    mWifiNetworkSuggestionsManager.getMatchingScanResults(suggestions, allSrList);
+            assertEquals(1, result.size());
+            assertEquals(0, result.get(nonPasspointSuggestion).size());
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verify that the wifi configuration doesn't match anything if the Wificonfiguration
+     * is invalid.
+     */
+    @Test
+    public void getMatchingScanResultsTestWithInvalidWifiConfiguration() {
+        WifiNetworkSuggestion nonPasspointSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(),
+                null, false, false, true, true, false);
+        List<WifiNetworkSuggestion> suggestions = new ArrayList<>() {{
+                add(nonPasspointSuggestion);
+            }};
+        ScanResult nonPasspointScanResult = new ScanResult();
+        nonPasspointScanResult.wifiSsid = WifiSsid.createFromAsciiEncoded("non-passpoint");
+        List<ScanResult> allSrList = new ArrayList<>() {{
+                add(nonPasspointScanResult);
+            }};
+
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                ScanResultMatchInfo.class).startMocking();
+        try {
+            when(ScanResultMatchInfo.fromWifiConfiguration(any(WifiConfiguration.class)))
+                    .thenReturn(null);
+
+            Map<WifiNetworkSuggestion, List<ScanResult>> result =
+                    mWifiNetworkSuggestionsManager.getMatchingScanResults(suggestions, allSrList);
+            assertEquals(1, result.size());
+            assertEquals(0, result.get(nonPasspointSuggestion).size());
+        } finally {
+            session.finishMocking();
         }
     }
 }

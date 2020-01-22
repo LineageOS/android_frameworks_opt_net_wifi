@@ -2277,4 +2277,72 @@ public class PasspointManagerTest extends WifiBaseTest {
                 config, TEST_CREATOR_UID, TEST_PACKAGE, false, false));
         verify(provider, never()).setTrusted(false);
     }
+    /**
+     * Verify that the ScanResults(Access Points) are returned when it may be
+     * authenticated with the provided passpoint configuration as roaming match.
+     */
+    @Test
+    public void getMatchingScanResultsTestWithRoamingMatch() {
+        PasspointConfiguration config = mock(PasspointConfiguration.class);
+        PasspointProvider mockProvider = mock(PasspointProvider.class);
+        when(mObjectFactory.makePasspointProvider(config, null,
+                mTelephonyUtil, 0, 0, null, false))
+                .thenReturn(mockProvider);
+        List<ScanResult> scanResults = new ArrayList<>() {{
+                add(mock(ScanResult.class));
+            }};
+        when(mockProvider.match(anyMap(), any(RoamingConsortium.class)))
+                .thenReturn(PasspointMatch.RoamingProvider);
+
+        List<ScanResult> testResults = mManager.getMatchingScanResults(config, scanResults);
+
+        assertEquals(1, testResults.size());
+    }
+
+    /**
+     * Verify that the ScanResults(Access Points) are returned when it may be
+     * authenticated with the provided passpoint configuration as home match.
+     */
+    @Test
+    public void getMatchingScanResultsTestWithHomeMatch() {
+        PasspointConfiguration config = mock(PasspointConfiguration.class);
+        PasspointProvider mockProvider = mock(PasspointProvider.class);
+        when(mObjectFactory.makePasspointProvider(config, null,
+                mTelephonyUtil, 0, 0, null, false))
+                .thenReturn(mockProvider);
+        List<ScanResult> scanResults = new ArrayList<>() {{
+                add(mock(ScanResult.class));
+            }};
+        when(mockProvider.match(anyMap(), any(RoamingConsortium.class)))
+                .thenReturn(PasspointMatch.HomeProvider);
+
+        List<ScanResult> testResults = mManager.getMatchingScanResults(config, scanResults);
+
+        assertEquals(1, testResults.size());
+    }
+
+    /**
+     * Verify that the ScanResults(Access Points) are not returned when it cannot be
+     * authenticated with the provided passpoint configuration as none match.
+     */
+    @Test
+    public void getMatchingScanResultsTestWithNonMatch() {
+        PasspointConfiguration config = mock(PasspointConfiguration.class);
+
+        PasspointProvider mockProvider = mock(PasspointProvider.class);
+
+        when(mObjectFactory.makePasspointProvider(config, null,
+                mTelephonyUtil, 0, 0, null, false))
+                .thenReturn(mockProvider);
+
+        List<ScanResult> scanResults = new ArrayList<>() {{
+                add(mock(ScanResult.class));
+            }};
+        when(mockProvider.match(anyMap(), any(RoamingConsortium.class)))
+                .thenReturn(PasspointMatch.None);
+
+        List<ScanResult> testResults = mManager.getMatchingScanResults(config, scanResults);
+
+        assertEquals(0, testResults.size());
+    }
 }
