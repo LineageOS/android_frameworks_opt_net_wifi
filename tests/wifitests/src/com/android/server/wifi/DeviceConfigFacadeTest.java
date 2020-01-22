@@ -107,11 +107,10 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that all fields are updated properly.
+     * Verifies that default values are set correctly
      */
     @Test
-    public void testFieldUpdates() throws Exception {
-        // First verify fields are set to their default values.
+    public void testDefaultValue() throws Exception {
         assertEquals(false, mDeviceConfigFacade.isAbnormalConnectionBugreportEnabled());
         assertEquals(DeviceConfigFacade.DEFAULT_ABNORMAL_CONNECTION_DURATION_MS,
                 mDeviceConfigFacade.getAbnormalConnectionDurationMs());
@@ -125,13 +124,45 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 mDeviceConfigFacade.getDataStallTxPerThr());
         assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_CCA_LEVEL_THR,
                 mDeviceConfigFacade.getDataStallCcaLevelThr());
+        assertEquals(DeviceConfigFacade.DEFAULT_CONNECTION_FAILURE_HIGH_THR_PERCENT,
+                mDeviceConfigFacade.getConnectionFailureHighThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_CONNECTION_FAILURE_LOW_THR_PERCENT,
+                mDeviceConfigFacade.getConnectionFailureLowThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_ASSOC_REJECTION_HIGH_THR_PERCENT,
+                mDeviceConfigFacade.getAssocRejectionHighThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_ASSOC_REJECTION_LOW_THR_PERCENT,
+                mDeviceConfigFacade.getAssocRejectionLowThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_ASSOC_TIMEOUT_HIGH_THR_PERCENT,
+                mDeviceConfigFacade.getAssocTimeoutHighThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_ASSOC_TIMEOUT_LOW_THR_PERCENT,
+                mDeviceConfigFacade.getAssocTimeoutLowThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_AUTH_FAILURE_HIGH_THR_PERCENT,
+                mDeviceConfigFacade.getAuthFailureHighThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_AUTH_FAILURE_LOW_THR_PERCENT,
+                mDeviceConfigFacade.getAuthFailureLowThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_SHORT_CONNECTION_NONLOCAL_HIGH_THR_PERCENT,
+                mDeviceConfigFacade.getShortConnectionNonlocalHighThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_SHORT_CONNECTION_NONLOCAL_LOW_THR_PERCENT,
+                mDeviceConfigFacade.getShortConnectionNonlocalLowThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_DISCONNECTION_NONLOCAL_HIGH_THR_PERCENT,
+                mDeviceConfigFacade.getDisconnectionNonlocalHighThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_DISCONNECTION_NONLOCAL_LOW_THR_PERCENT,
+                mDeviceConfigFacade.getDisconnectionNonlocalLowThrPercent());
+        assertEquals(DeviceConfigFacade.DEFAULT_HEALTH_MONITOR_MIN_RSSI_THR_DBM,
+                mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm());
         assertEquals(Collections.emptySet(),
                 mDeviceConfigFacade.getRandomizationFlakySsidHotlist());
         assertEquals(Collections.emptySet(),
                 mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist());
         assertEquals(Collections.emptySet(),
                 mDeviceConfigFacade.getAggressiveMacRandomizationSsidBlocklist());
+    }
 
+    /**
+     * Verifies that all fields are updated properly.
+     */
+    @Test
+    public void testFieldUpdates() throws Exception {
         // Simulate updating the fields
         when(DeviceConfig.getBoolean(anyString(), eq("abnormal_connection_bugreport_enabled"),
                 anyBoolean())).thenReturn(true);
@@ -147,6 +178,32 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 anyInt())).thenReturn(95);
         when(DeviceConfig.getInt(anyString(), eq("data_stall_cca_level_thr"),
                 anyInt())).thenReturn(80);
+        when(DeviceConfig.getInt(anyString(), eq("connection_failure_high_thr_percent"),
+                anyInt())).thenReturn(31);
+        when(DeviceConfig.getInt(anyString(), eq("connection_failure_low_thr_percent"),
+                anyInt())).thenReturn(3);
+        when(DeviceConfig.getInt(anyString(), eq("assoc_rejection_high_thr_percent"),
+                anyInt())).thenReturn(10);
+        when(DeviceConfig.getInt(anyString(), eq("assoc_rejection_low_thr_percent"),
+                anyInt())).thenReturn(2);
+        when(DeviceConfig.getInt(anyString(), eq("assoc_timeout_high_thr_percent"),
+                anyInt())).thenReturn(12);
+        when(DeviceConfig.getInt(anyString(), eq("assoc_timeout_low_thr_percent"),
+                anyInt())).thenReturn(3);
+        when(DeviceConfig.getInt(anyString(), eq("auth_failure_high_thr_percent"),
+                anyInt())).thenReturn(11);
+        when(DeviceConfig.getInt(anyString(), eq("auth_failure_low_thr_percent"),
+                anyInt())).thenReturn(2);
+        when(DeviceConfig.getInt(anyString(), eq("short_connection_nonlocal_high_thr_percent"),
+                anyInt())).thenReturn(8);
+        when(DeviceConfig.getInt(anyString(), eq("short_connection_nonlocal_low_thr_percent"),
+                anyInt())).thenReturn(1);
+        when(DeviceConfig.getInt(anyString(), eq("disconnection_nonlocal_high_thr_percent"),
+                anyInt())).thenReturn(12);
+        when(DeviceConfig.getInt(anyString(), eq("disconnection_nonlocal_low_thr_percent"),
+                anyInt())).thenReturn(2);
+        when(DeviceConfig.getInt(anyString(), eq("health_monitor_min_rssi_thr_dbm"),
+                anyInt())).thenReturn(-67);
         String testSsidList = "ssid_1,ssid_2";
         when(DeviceConfig.getString(anyString(), eq("randomization_flaky_ssid_hotlist"),
                 anyString())).thenReturn(testSsidList);
@@ -154,6 +211,7 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 anyString())).thenReturn(testSsidList);
         when(DeviceConfig.getString(anyString(), eq("aggressive_randomization_ssid_blocklist"),
                 anyString())).thenReturn(testSsidList);
+
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
 
         // Verifying fields are updated to the new values
@@ -167,6 +225,19 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
         assertEquals(1500, mDeviceConfigFacade.getDataStallRxTputThrKbps());
         assertEquals(95, mDeviceConfigFacade.getDataStallTxPerThr());
         assertEquals(80, mDeviceConfigFacade.getDataStallCcaLevelThr());
+        assertEquals(31, mDeviceConfigFacade.getConnectionFailureHighThrPercent());
+        assertEquals(3, mDeviceConfigFacade.getConnectionFailureLowThrPercent());
+        assertEquals(10, mDeviceConfigFacade.getAssocRejectionHighThrPercent());
+        assertEquals(2, mDeviceConfigFacade.getAssocRejectionLowThrPercent());
+        assertEquals(12, mDeviceConfigFacade.getAssocTimeoutHighThrPercent());
+        assertEquals(3, mDeviceConfigFacade.getAssocTimeoutLowThrPercent());
+        assertEquals(11, mDeviceConfigFacade.getAuthFailureHighThrPercent());
+        assertEquals(2, mDeviceConfigFacade.getAuthFailureLowThrPercent());
+        assertEquals(8, mDeviceConfigFacade.getShortConnectionNonlocalHighThrPercent());
+        assertEquals(1, mDeviceConfigFacade.getShortConnectionNonlocalLowThrPercent());
+        assertEquals(12, mDeviceConfigFacade.getDisconnectionNonlocalHighThrPercent());
+        assertEquals(2, mDeviceConfigFacade.getDisconnectionNonlocalLowThrPercent());
+        assertEquals(-67, mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm());
         assertEquals(testSsidSet, mDeviceConfigFacade.getRandomizationFlakySsidHotlist());
         assertEquals(testSsidSet,
                 mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist());

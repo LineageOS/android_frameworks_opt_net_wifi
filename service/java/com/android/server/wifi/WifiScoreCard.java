@@ -21,7 +21,6 @@ import static android.net.wifi.WifiInfo.INVALID_RSSI;
 import static android.net.wifi.WifiInfo.LINK_SPEED_UNKNOWN;
 
 import static com.android.server.wifi.WifiHealthMonitor.HEALTH_MONITOR_COUNT_MIN_TX_RATE;
-import static com.android.server.wifi.WifiHealthMonitor.HEALTH_MONITOR_COUNT_RSSI_MIN_DBM;
 import static com.android.server.wifi.WifiHealthMonitor.HEALTH_MONITOR_COUNT_TX_SPEED_MIN_MBPS;
 import static com.android.server.wifi.WifiHealthMonitor.REASON_ASSOC_REJECTION;
 import static com.android.server.wifi.WifiHealthMonitor.REASON_ASSOC_TIMEOUT;
@@ -114,27 +113,12 @@ public class WifiScoreCard {
     static final int SUFFICIENT_RECENT_STATS_ONLY = 1;
     static final int SUFFICIENT_RECENT_PREV_STATS = 2;
 
-    // High and low threshold values for connection failure rate. All of them are in percent with
-    // respect to connection attempts
     private static final int ONE_HUNDRED_PERCENT = 100;
-    private static final int CONNECTION_FAILURE_PERCENT_HIGH_THRESHOLD = 30;
-    private static final int CONNECTION_FAILURE_PERCENT_LOW_THRESHOLD = 5;
-    private static final int ASSOC_REJECTION_PERCENT_HIGH_THRESHOLD = 10;
-    private static final int ASSOC_REJECTION_PERCENT_LOW_THRESHOLD = 1;
-    private static final int ASSOC_TIMEOUT_PERCENT_HIGH_THRESHOLD = 10;
-    private static final int ASSOC_TIMEOUT_PERCENT_LOW_THRESHOLD = 2;
-    private static final int AUTH_FAILURE_PERCENT_HIGH_THRESHOLD = 10;
-    private static final int AUTH_FAILURE_PERCENT_LOW_THRESHOLD = 2;
-    // High and low threshold values for non-local disconnection rate at high RSSI or high Tx speed
-    // with respect to CNT_DISCONNECTION count (with a recent RSSI poll)
-    private static final int SHORT_CONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD = 10;
-    private static final int SHORT_CONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD = 1;
-    private static final int DISCONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD = 15;
-    private static final int DISCONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD = 1;
 
     private final Clock mClock;
     private final String mL2KeySeed;
     private MemoryStore mMemoryStore;
+    private final DeviceConfigFacade mDeviceConfigFacade;
 
     @VisibleForTesting
     static final int[] RSSI_BUCKETS = intsInRange(-100, -20);
@@ -250,11 +234,12 @@ public class WifiScoreCard {
      * @param clock is the time source
      * @param l2KeySeed is for making our L2Keys usable only on this device
      */
-    public WifiScoreCard(Clock clock, String l2KeySeed) {
+    public WifiScoreCard(Clock clock, String l2KeySeed, DeviceConfigFacade deviceConfigFacade) {
         mClock = clock;
         mL2KeySeed = l2KeySeed;
         mDummyPerBssid = new PerBssid("", MacAddress.fromString(DEFAULT_MAC_ADDRESS));
         mDummyPerNetwork = new PerNetwork("");
+        mDeviceConfigFacade = deviceConfigFacade;
     }
 
     /**
@@ -756,7 +741,7 @@ public class WifiScoreCard {
                     break;
                 case CONNECTION_ATTEMPT:
                     logd(" scan rssi: " + rssi);
-                    if (rssi >= HEALTH_MONITOR_COUNT_RSSI_MIN_DBM) {
+                    if (rssi >= mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm()) {
                         mRecentStats.incrementCount(CNT_CONNECTION_ATTEMPT);
                     }
                     mConnectionSessionStartTimeMs = currTimeMs;
@@ -764,7 +749,7 @@ public class WifiScoreCard {
                     break;
                 case CONNECTION_FAILURE:
                     mConnectionSessionStartTimeMs = TS_NONE;
-                    if (rssi >= HEALTH_MONITOR_COUNT_RSSI_MIN_DBM) {
+                    if (rssi >= mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm()) {
                         if (failureReason != BssidBlocklistMonitor.REASON_WRONG_PASSWORD) {
                             mRecentStats.incrementCount(CNT_CONNECTION_FAILURE);
                         }
@@ -825,7 +810,7 @@ public class WifiScoreCard {
                     mRecentStats.incrementCount(CNT_DISCONNECTION);
                 }
                 if (mNonlocalDisconnection && hasRecentRssiPoll
-                        && (mLastRssiPoll >= HEALTH_MONITOR_COUNT_RSSI_MIN_DBM
+                        && (mLastRssiPoll >= mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm()
                         || mLastTxSpeedPoll >= HEALTH_MONITOR_COUNT_TX_SPEED_MIN_MBPS)) {
                     mRecentStats.incrementCount(CNT_DISCONNECTION_NONLOCAL);
                     if (currSessionDurationSec <= SHORT_CONNECTION_DURATION_MAX_SEC) {
@@ -888,45 +873,45 @@ public class WifiScoreCard {
                 FailureStats statsDummy = new FailureStats();
                 statsDeltaDetectionDisconnection(statsDummy, statsHigh, ONE_HUNDRED_PERCENT);
             } else {
-                statsDeltaDetectionDisconnection(statsDec, statsInc, /* thresholdLowOffset */ 0);
+                statsDeltaDetectionDisconnection(statsDec, statsInc, /* thrLowOffset */ 0);
             }
         }
 
         private void statsDeltaDetectionConnection(FailureStats statsDec,
-                FailureStats statsInc, int thresholdLowOffset) {
+                FailureStats statsInc, int thrLowOffset) {
             statsDeltaDetection(statsDec, statsInc, CNT_CONNECTION_FAILURE,
                     REASON_CONNECTION_FAILURE,
-                    CONNECTION_FAILURE_PERCENT_HIGH_THRESHOLD,
-                    CONNECTION_FAILURE_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    mDeviceConfigFacade.getConnectionFailureHighThrPercent(),
+                    mDeviceConfigFacade.getConnectionFailureLowThrPercent() + thrLowOffset,
                     CNT_CONNECTION_ATTEMPT);
             statsDeltaDetection(statsDec, statsInc, CNT_AUTHENTICATION_FAILURE,
                     REASON_AUTH_FAILURE,
-                    AUTH_FAILURE_PERCENT_HIGH_THRESHOLD,
-                    AUTH_FAILURE_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    mDeviceConfigFacade.getAuthFailureHighThrPercent(),
+                    mDeviceConfigFacade.getAuthFailureLowThrPercent() + thrLowOffset,
                     CNT_CONNECTION_ATTEMPT);
             statsDeltaDetection(statsDec, statsInc, CNT_ASSOCIATION_REJECTION,
                     REASON_ASSOC_REJECTION,
-                    ASSOC_REJECTION_PERCENT_HIGH_THRESHOLD,
-                    ASSOC_REJECTION_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    mDeviceConfigFacade.getAssocRejectionHighThrPercent(),
+                    mDeviceConfigFacade.getAssocRejectionLowThrPercent() + thrLowOffset,
                     CNT_CONNECTION_ATTEMPT);
             statsDeltaDetection(statsDec, statsInc, CNT_ASSOCIATION_TIMEOUT,
                     REASON_ASSOC_TIMEOUT,
-                    ASSOC_TIMEOUT_PERCENT_HIGH_THRESHOLD,
-                    ASSOC_TIMEOUT_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    mDeviceConfigFacade.getAssocTimeoutHighThrPercent(),
+                    mDeviceConfigFacade.getAssocTimeoutLowThrPercent() + thrLowOffset,
                     CNT_CONNECTION_ATTEMPT);
         }
 
         private void statsDeltaDetectionDisconnection(FailureStats statsDec,
-                FailureStats statsInc, int thresholdLowOffset) {
+                FailureStats statsInc, int thrLowOffset) {
             statsDeltaDetection(statsDec, statsInc, CNT_SHORT_CONNECTION_NONLOCAL,
                     REASON_SHORT_CONNECTION_NONLOCAL,
-                    SHORT_CONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD,
-                    SHORT_CONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    mDeviceConfigFacade.getShortConnectionNonlocalHighThrPercent(),
+                    mDeviceConfigFacade.getShortConnectionNonlocalLowThrPercent() + thrLowOffset,
                     CNT_DISCONNECTION);
             statsDeltaDetection(statsDec, statsInc, CNT_DISCONNECTION_NONLOCAL,
                     REASON_DISCONNECTION_NONLOCAL,
-                    DISCONNECTION_NONLOCAL_PERCENT_HIGH_THRESHOLD,
-                    DISCONNECTION_NONLOCAL_PERCENT_LOW_THRESHOLD + thresholdLowOffset,
+                    mDeviceConfigFacade.getDisconnectionNonlocalHighThrPercent(),
+                    mDeviceConfigFacade.getDisconnectionNonlocalLowThrPercent() + thrLowOffset,
                     CNT_DISCONNECTION);
         }
 

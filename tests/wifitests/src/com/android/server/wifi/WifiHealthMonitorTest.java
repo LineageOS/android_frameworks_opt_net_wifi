@@ -150,7 +150,7 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
 
         mWifiConfigManager = mockConfigManager();
 
-        mWifiScoreCard = new WifiScoreCard(mClock, "some seed");
+        mWifiScoreCard = new WifiScoreCard(mClock, "some seed", mDeviceConfigFacade);
         mAlarmManager = new TestAlarmManager();
         when(mContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
@@ -160,6 +160,8 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
         when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
         when(mWifiNative.getDriverVersion()).thenReturn(mDriverVersion);
         when(mWifiNative.getFirmwareVersion()).thenReturn(mFirmwareVersion);
+        when(mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm()).thenReturn(
+                DeviceConfigFacade.DEFAULT_HEALTH_MONITOR_MIN_RSSI_THR_DBM);
 
         mWifiHealthMonitor = new WifiHealthMonitor(mContext, mWifiInjector, mClock,
                 mWifiConfigManager, mWifiScoreCard, new Handler(mLooper.getLooper()), mWifiNative,

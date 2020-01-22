@@ -94,10 +94,7 @@ public class WifiHealthMonitor {
     // If a scanDetail is seen more than SCAN_RSSI_VALID_TIME_MS ago,
     // it will not be considered valid anymore.
     static final int SCAN_RSSI_VALID_TIME_MS = 6_000;
-    // Minimum RSSI in dBm for connection stats collection
-    // Connection or disconnection events with RSSI below this threshold are not
-    // included in connection stats collection.
-    static final int HEALTH_MONITOR_COUNT_RSSI_MIN_DBM = -68;
+
     // Minimum Tx speed in Mbps for disconnection stats collection
     // Disconnection events with Tx speed below this threshold are not
     // included in connection stats collection.
