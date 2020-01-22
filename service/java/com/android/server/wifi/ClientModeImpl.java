@@ -51,6 +51,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkInfo.DetailedState;
 import android.net.NetworkProvider;
+import android.net.NetworkScore;
 import android.net.SocketKeepalive;
 import android.net.StaticIpConfiguration;
 import android.net.TcpKeepalivePacketData;
@@ -4185,7 +4186,7 @@ public class ClientModeImpl extends StateMachine {
 
     private class WifiNetworkAgent extends NetworkAgent {
         WifiNetworkAgent(Context c, Looper l, String tag, NetworkCapabilities nc, LinkProperties lp,
-                int score, NetworkAgentConfig config, NetworkProvider provider) {
+                NetworkScore score, NetworkAgentConfig config, NetworkProvider provider) {
             super(c, l, tag, nc, lp, score, config, provider);
             register();
         }
@@ -4363,9 +4364,11 @@ public class ClientModeImpl extends StateMachine {
                     .setPartialConnectivityAcceptable(config.noInternetAccessExpected)
                     .build();
             final NetworkCapabilities nc = getCapabilities(getCurrentWifiConfiguration());
+            // STOPSHIP (b/148055573) : use a real NetworkScore when it's done
+            final NetworkScore ns = mWifiScoreReport.getNetworkScoreForLegacyInt(60);
             synchronized (mNetworkAgentLock) {
                 mNetworkAgent = new WifiNetworkAgent(mContext, getHandler().getLooper(),
-                        "WifiNetworkAgent", nc, mLinkProperties, 60, naConfig,
+                        "WifiNetworkAgent", nc, mLinkProperties, ns, naConfig,
                         mNetworkFactory.getProvider());
             }
 
