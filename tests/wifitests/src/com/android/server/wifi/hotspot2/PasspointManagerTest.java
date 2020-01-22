@@ -2280,6 +2280,7 @@ public class PasspointManagerTest extends WifiBaseTest {
                 config, TEST_CREATOR_UID, TEST_PACKAGE, false, false));
         verify(provider, never()).setTrusted(false);
     }
+
     /**
      * Verify that the ScanResults(Access Points) are returned when it may be
      * authenticated with the provided passpoint configuration as roaming match.
@@ -2347,5 +2348,17 @@ public class PasspointManagerTest extends WifiBaseTest {
         List<ScanResult> testResults = mManager.getMatchingScanResults(config, scanResults);
 
         assertEquals(0, testResults.size());
+    }
+
+    /**
+     * Verify that no ANQP queries are requested when not allowed (i.e. by WifiMetrics) when
+     * there is a cache miss.
+     */
+    @Test
+    public void testAnqpRequestNotAllowed() {
+        reset(mWifiConfigManager);
+        when(mAnqpCache.getEntry(TEST_ANQP_KEY2)).thenReturn(null);
+        verify(mAnqpRequestManager, never()).requestANQPElements(any(long.class),
+                any(ANQPNetworkKey.class), any(boolean.class), any(boolean.class));
     }
 }
