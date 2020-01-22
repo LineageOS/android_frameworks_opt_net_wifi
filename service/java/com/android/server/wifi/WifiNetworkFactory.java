@@ -473,7 +473,23 @@ public class WifiNetworkFactory extends NetworkFactory {
         // (NetworkAgent for connection with WifiNetworkSpecifier will not have internet capability)
         if (networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
             Log.e(TAG, "Request with wifi network specifier cannot contain "
-                    + "NET_CAPABILITY_INTERNET. Rejecting");
+                    + "NET_CAPABILITY_INTERNET. Rejecting ");
+            return false;
+        }
+        WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
+        if (wns.requestorPackageName == null) {
+            Log.e(TAG, "Null  package name. Rejecting ");
+            return false;
+        }
+        try {
+            mAppOpsManager.checkPackage(wns.requestorUid, wns.requestorPackageName);
+        } catch (SecurityException e) {
+            Log.e(TAG, "Invalid uid/package name " + wns.requestorPackageName + ", "
+                    + wns.requestorPackageName + ". Rejecting ", e);
+            return false;
+        }
+        if (!WifiConfigurationUtil.validateNetworkSpecifier(wns)) {
+            Log.e(TAG, "Invalid network specifier. Rejecting ");
             return false;
         }
         return true;
@@ -501,20 +517,6 @@ public class WifiNetworkFactory extends NetworkFactory {
                 return false;
             }
             WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
-            if (!WifiConfigurationUtil.validateNetworkSpecifier(wns)) {
-                Log.e(TAG, "Invalid network specifier."
-                        + " Rejecting request from " + wns.requestorPackageName);
-                releaseRequestAsUnfulfillableByAnyFactory(networkRequest);
-                return false;
-            }
-            try {
-                mAppOpsManager.checkPackage(wns.requestorUid, wns.requestorPackageName);
-            } catch (SecurityException e) {
-                Log.e(TAG, "Invalid uid/package name " + wns.requestorPackageName + ", "
-                        + wns.requestorPackageName, e);
-                releaseRequestAsUnfulfillableByAnyFactory(networkRequest);
-                return false;
-            }
             // Only allow specific wifi network request from foreground app/service.
             if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(wns.requestorUid)
                     && !isRequestFromForegroundAppOrService(wns.requestorPackageName)) {

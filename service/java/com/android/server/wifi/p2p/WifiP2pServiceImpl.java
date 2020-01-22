@@ -1366,6 +1366,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             @Override
             public void enter() {
                 if (mVerboseLoggingEnabled) logd(getName());
+                mInterfaceName = null; // reset iface name on disable.
             }
 
             private void setupInterfaceFeatures(String interfaceName) {
@@ -1428,7 +1429,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             @Override
             public void enter() {
                 if (mVerboseLoggingEnabled) logd(getName());
-                mNetworkInfo.setIsAvailable(true);
 
                 if (isPendingFactoryReset()) {
                     factoryReset(Process.SYSTEM_UID);
@@ -1774,7 +1774,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             @Override
             public void exit() {
                 sendP2pDiscoveryChangedBroadcast(false);
-                mNetworkInfo.setIsAvailable(false);
             }
         }
 
@@ -4142,7 +4141,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
             Log.i(TAG, "factoryReset uid=" + uid + " pkg=" + pkgName);
 
-            if (mNetworkInfo.isAvailable()) {
+            if (mInterfaceName != null) {
                 if (mWifiNative.p2pListNetworks(mGroups)) {
                     for (WifiP2pGroup group : mGroups.getGroupList()) {
                         mWifiNative.removeP2pNetwork(group.getNetworkId());
