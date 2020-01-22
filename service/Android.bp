@@ -80,6 +80,8 @@ java_library {
     installable: false,
     defaults: ["wifi-service-common"],
     srcs: [ ":wifi-service-srcs" ],
+    // java_api_finder must accompany `srcs`
+    plugins: ["java_api_finder"],
 
     // TODO(b/140299412) should be "core_current" since Wifi module is not allowed to use
     // @CorePlatformApi's
@@ -172,8 +174,6 @@ java_library {
     },
 
     init_rc: [":wifi-init-rc"],
-
-    plugins: ["java_api_finder"],
 
     visibility: [
         "//frameworks/opt/net/wifi/service/apex",
