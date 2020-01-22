@@ -148,7 +148,7 @@ public class WifiConnectivityManager {
 
     private boolean mDbg = false;
     private boolean mWifiEnabled = false;
-    private boolean mWifiConnectivityManagerEnabled = false;
+    private boolean mAutoJoinEnabled = false; // disabled by default, enabled by external triggers
     private boolean mRunning = false;
     private boolean mScreenOn = false;
     private int mWifiState = WIFI_STATE_UNKNOWN;
@@ -156,6 +156,7 @@ public class WifiConnectivityManager {
     private boolean mEnablePartialInitialScan = false;
     private int mInitialScanChannelMaxCount;
     private long mInitialScanChannelMaxAgeInMillis;
+    private boolean mAutoJoinEnabledExternal = true; // enabled by default
     private boolean mUntrustedConnectionAllowed = false;
     private boolean mTrustedConnectionAllowed = false;
     private boolean mSpecificNetworkRequestInProgress = false;
@@ -314,7 +315,7 @@ public class WifiConnectivityManager {
 
         @Override
         public void onResults(WifiScanner.ScanData[] results) {
-            if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+            if (!mWifiEnabled || !mAutoJoinEnabled) {
                 clearScanDetails();
                 mWaitForFullBandScanResults = false;
                 return;
@@ -375,7 +376,7 @@ public class WifiConnectivityManager {
 
         @Override
         public void onFullResult(ScanResult fullScanResult) {
-            if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+            if (!mWifiEnabled || !mAutoJoinEnabled) {
                 return;
             }
 
@@ -975,7 +976,7 @@ public class WifiConnectivityManager {
 
     // Start a single scan
     private void startSingleScan(boolean isFullBandScan, WorkSource workSource) {
-        if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+        if (!mWifiEnabled || !mAutoJoinEnabled) {
             return;
         }
 
@@ -1180,9 +1181,9 @@ public class WifiConnectivityManager {
                 + " scanImmediately=" + scanImmediately
                 + " wifiEnabled=" + mWifiEnabled
                 + " wifiConnectivityManagerEnabled="
-                + mWifiConnectivityManagerEnabled);
+                + mAutoJoinEnabled);
 
-        if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+        if (!mWifiEnabled || !mAutoJoinEnabled) {
             return;
         }
 
@@ -1341,11 +1342,14 @@ public class WifiConnectivityManager {
         }
     }
 
-    // Enable auto-join if we have any pending network request (trusted or untrusted) and no
-    // specific network request in progress.
-    private void checkStateAndEnable() {
-        enable(!mSpecificNetworkRequestInProgress
-                && (mUntrustedConnectionAllowed || mTrustedConnectionAllowed));
+    // Enable auto-join if WifiConnectivityManager is enabled & we have any pending generic network
+    // request (trusted or untrusted) and no specific network request in progress.
+    private void checkAllStatesAndEnableAutoJoin() {
+        // if auto-join was disabled externally, don't re-enable for any triggers.
+        // External triggers to disable always trumps any internal state.
+        setAutoJoinEnabled(mAutoJoinEnabledExternal
+                && (mUntrustedConnectionAllowed || mTrustedConnectionAllowed)
+                && !mSpecificNetworkRequestInProgress);
         startConnectivityScan(SCAN_IMMEDIATELY);
     }
 
@@ -1357,7 +1361,7 @@ public class WifiConnectivityManager {
 
         if (mTrustedConnectionAllowed != allowed) {
             mTrustedConnectionAllowed = allowed;
-            checkStateAndEnable();
+            checkAllStatesAndEnableAutoJoin();
         }
     }
 
@@ -1370,7 +1374,7 @@ public class WifiConnectivityManager {
 
         if (mUntrustedConnectionAllowed != allowed) {
             mUntrustedConnectionAllowed = allowed;
-            checkStateAndEnable();
+            checkAllStatesAndEnableAutoJoin();
         }
     }
 
@@ -1382,7 +1386,7 @@ public class WifiConnectivityManager {
 
         if (mSpecificNetworkRequestInProgress != inProgress) {
             mSpecificNetworkRequestInProgress = inProgress;
-            checkStateAndEnable();
+            checkAllStatesAndEnableAutoJoin();
         }
     }
 
@@ -1476,7 +1480,7 @@ public class WifiConnectivityManager {
      * are enabled, otherwise stop it.
      */
     private void updateRunningState() {
-        if (mWifiEnabled && mWifiConnectivityManagerEnabled) {
+        if (mWifiEnabled && mAutoJoinEnabled) {
             localLog("Starting up WifiConnectivityManager");
             start();
         } else {
@@ -1498,11 +1502,21 @@ public class WifiConnectivityManager {
     /**
      * Turn on/off the WifiConnectivityManager at runtime
      */
-    public void enable(boolean enable) {
-        localLog("Set WiFiConnectivityManager " + (enable ? "enabled" : "disabled"));
-
-        mWifiConnectivityManagerEnabled = enable;
+    private void setAutoJoinEnabled(boolean enable) {
+        mAutoJoinEnabled = enable;
         updateRunningState();
+    }
+
+    /**
+     * Turn on/off the auto join at runtime
+     */
+    public void setAutoJoinEnabledExternal(boolean enable) {
+        localLog("Set auto join " + (enable ? "enabled" : "disabled"));
+
+        if (mAutoJoinEnabledExternal != enable) {
+            mAutoJoinEnabledExternal = enable;
+            checkAllStatesAndEnableAutoJoin();
+        }
     }
 
     @VisibleForTesting

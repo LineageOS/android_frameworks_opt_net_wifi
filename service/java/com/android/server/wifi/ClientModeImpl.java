@@ -565,9 +565,6 @@ public class ClientModeImpl extends StateMachine {
     /* used to indicated RSSI threshold breach in hw */
     static final int CMD_RSSI_THRESHOLD_BREACHED                        = BASE + 164;
 
-    /* Enable/Disable WifiConnectivityManager */
-    static final int CMD_ENABLE_WIFI_CONNECTIVITY_MANAGER               = BASE + 166;
-
     /**
      * Used to handle messages bounced between ClientModeImpl and IpClient.
      */
@@ -4077,9 +4074,6 @@ public class ClientModeImpl extends StateMachine {
                     final boolean enabled = (message.arg1 > 0);
                     mWifiNative.configureNeighborDiscoveryOffload(mInterfaceName, enabled);
                     break;
-                case CMD_ENABLE_WIFI_CONNECTIVITY_MANAGER:
-                    mWifiConnectivityManager.enable(message.arg1 == 1 ? true : false);
-                    break;
                 default:
                     handleStatus = NOT_HANDLED;
                     break;
@@ -5539,10 +5533,10 @@ public class ClientModeImpl extends StateMachine {
     /**
      * Dynamically turn on/off WifiConnectivityManager
      *
-     * @param enabled true-enable; false-disable
+     * @param choice true-enable; false-disable
      */
-    public void enableWifiConnectivityManager(boolean enabled) {
-        sendMessage(CMD_ENABLE_WIFI_CONNECTIVITY_MANAGER, enabled ? 1 : 0);
+    public void allowAutoJoinGlobal(boolean choice) {
+        mWifiConnectivityManager.setAutoJoinEnabledExternal(choice);
     }
 
     /**

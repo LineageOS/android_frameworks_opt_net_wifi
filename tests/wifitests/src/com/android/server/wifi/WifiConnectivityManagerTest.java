@@ -1645,7 +1645,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     @Test
     public void verifyGetFirmwareRoamingInfoIsNotCalledWhenEnableWiFiAndWcmOff() {
         reset(mWifiConnectivityHelper);
-        mWifiConnectivityManager.enable(false);
+        mWifiConnectivityManager.setAutoJoinEnabledExternal(false);
         mWifiConnectivityManager.setWifiEnabled(true);
         verify(mWifiConnectivityHelper, times(0)).getFirmwareRoamingInfo();
     }
@@ -2064,9 +2064,11 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verify the various WifiConnectivityManager enable/disable sequences.
+     * Verify the various auto join enable/disable sequences when auto join is disabled externally.
      *
-     * Expected behavior: WifiConnectivityManager is turned on as a long as there is
+     * Expected behavior: Autojoin is turned on as a long as there is
+     *  - Auto join is enabled externally
+     *    And
      *  - No specific network request being processed.
      *    And
      *    - Pending generic Network request for trusted wifi connection.
@@ -2074,7 +2076,45 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      *    - Pending generic Network request for untrused wifi connection.
      */
     @Test
-    public void verifyEnableAndDisable() {
+    public void verifyEnableAndDisableAutoJoinWhenExternalAutoJoinIsDisabled() {
+        mWifiConnectivityManager = createConnectivityManager();
+
+        // set wifi on & disconnected to trigger pno scans when auto-join is enabled.
+        mWifiConnectivityManager.setWifiEnabled(true);
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+
+        // Disable externally.
+        mWifiConnectivityManager.setAutoJoinEnabledExternal(false);
+
+        // Enable trusted connection. This should NOT trigger a pno scan for auto-join.
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
+        verify(mWifiScanner, never()).startDisconnectedPnoScan(any(), any(), any(), any());
+
+        // End of processing a specific request. This should NOT trigger a new pno scan for
+        // auto-join.
+        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
+        verify(mWifiScanner, never()).startDisconnectedPnoScan(any(), any(), any(), any());
+
+        // Enable untrusted connection. This should NOT trigger a pno scan for auto-join.
+        mWifiConnectivityManager.setUntrustedConnectionAllowed(true);
+        verify(mWifiScanner, never()).startDisconnectedPnoScan(any(), any(), any(), any());
+    }
+
+    /**
+     * Verify the various auto join enable/disable sequences when auto join is enabled externally.
+     *
+     * Expected behavior: Autojoin is turned on as a long as there is
+     *  - Auto join is enabled externally
+     *    And
+     *  - No specific network request being processed.
+     *    And
+     *    - Pending generic Network request for trusted wifi connection.
+     *      OR
+     *    - Pending generic Network request for untrused wifi connection.
+     */
+    @Test
+    public void verifyEnableAndDisableAutoJoin() {
         mWifiConnectivityManager = createConnectivityManager();
 
         // set wifi on & disconnected to trigger pno scans when auto-join is enabled.

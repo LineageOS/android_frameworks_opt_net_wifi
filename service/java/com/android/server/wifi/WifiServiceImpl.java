@@ -2442,6 +2442,20 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager#allowAutojoinGlobal(boolean)}
+     * @param choice the OEM's choice to allow auto-join
+     */
+    @Override
+    public void allowAutojoinGlobal(boolean choice) {
+        enforceNetworkSettingsPermission();
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("allowAutojoin=% uid=%").c(choice).c(callingUid).flush();
+
+        mWifiThreadRunner.post(() -> mClientModeImpl.allowAutoJoinGlobal(choice));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#allowAutojoin(int, boolean)}
      * @param netId the integer that identifies the network configuration
      * @param choice the user's choice to allow auto-join
@@ -3380,20 +3394,6 @@ public class WifiServiceImpl extends BaseWifiService {
             sb.append(String.format(" %02x", s.charAt(n) & 0xffff));
         }
         return sb.toString();
-    }
-
-    /**
-     * Enable/disable WifiConnectivityManager at runtime
-     *
-     * @param enabled true-enable; false-disable
-     */
-    @Override
-    public void enableWifiConnectivityManager(boolean enabled) {
-        enforceConnectivityInternalPermission();
-        mLog.info("enableWifiConnectivityManager uid=% enabled=%")
-                .c(Binder.getCallingUid())
-                .c(enabled).flush();
-        mClientModeImpl.enableWifiConnectivityManager(enabled);
     }
 
     /**
