@@ -80,6 +80,19 @@ public class BssidBlocklistMonitor {
     // To be filled with values from the overlay.
     private static final int[] FAILURE_COUNT_DISABLE_THRESHOLD = new int[NUMBER_REASON_CODES];
     private boolean mFailureCountDisableThresholdArrayInitialized = false;
+    private static final String[] FAILURE_REASON_STRINGS = {
+            "REASON_AP_UNABLE_TO_HANDLE_NEW_STA",
+            "REASON_NETWORK_VALIDATION_FAILURE",
+            "REASON_WRONG_PASSWORD",
+            "REASON_EAP_FAILURE",
+            "REASON_ASSOCIATION_REJECTION",
+            "REASON_ASSOCIATION_TIMEOUT",
+            "REASON_AUTHENTICATION_FAILURE",
+            "REASON_DHCP_FAILURE",
+            "REASON_ABNORMAL_DISCONNECT"
+    };
+    private static final String FAILURE_BSSID_BLOCKED_BY_FRAMEWORK_REASON_STRING =
+            "BlockedByFramework";
     private static final long ABNORMAL_DISCONNECT_RESET_TIME_MS = TimeUnit.HOURS.toMillis(3);
     private static final String TAG = "BssidBlocklistMonitor";
 
@@ -148,12 +161,12 @@ public class BssidBlocklistMonitor {
     }
 
     private void addToBlocklist(@NonNull BssidStatus entry, long durationMs,
-            boolean doNotClearUntilTimeout) {
+            boolean doNotClearUntilTimeout, String reasonString) {
         entry.addToBlocklist(durationMs);
         entry.doNotClearUntilTimeout = doNotClearUntilTimeout;
         localLog(TAG + " addToBlocklist: bssid=" + entry.bssid + ", ssid=" + entry.ssid
                 + ", durationMs=" + durationMs + ", doNotClearUntilTimeout="
-                + doNotClearUntilTimeout);
+                + doNotClearUntilTimeout + ", reason=" + reasonString);
     }
 
     /**
@@ -176,7 +189,7 @@ public class BssidBlocklistMonitor {
         BssidStatus status = mBssidStatusMap.get(bssid);
         if (status == null || !ssid.equals(status.ssid)) {
             if (status != null) {
-                localLog("incrementFailureCountForBssid: BSSID=" + bssid + ", SSID changed from "
+                localLog("getOrCreateBssidStatus: BSSID=" + bssid + ", SSID changed from "
                         + status.ssid + " to " + ssid);
             }
             status = new BssidStatus(bssid, ssid);
@@ -211,7 +224,15 @@ public class BssidBlocklistMonitor {
     public void blockBssidForDurationMs(@NonNull String bssid, @NonNull String ssid,
             long durationMs) {
         BssidStatus status = getOrCreateBssidStatus(bssid, ssid);
-        addToBlocklist(status, durationMs, true);
+        addToBlocklist(status, durationMs, true,
+                FAILURE_BSSID_BLOCKED_BY_FRAMEWORK_REASON_STRING);
+    }
+
+    private String getFailureReasonString(@FailureReason int reasonCode) {
+        if (reasonCode >= FAILURE_REASON_STRINGS.length) {
+            return "REASON_UNKNOWN";
+        }
+        return FAILURE_REASON_STRINGS[reasonCode];
     }
 
     private int getFailureThresholdForReason(@FailureReason int reasonCode) {
@@ -261,7 +282,7 @@ public class BssidBlocklistMonitor {
                 return false;
             }
             addToBlocklist(entry, getBlocklistDurationWithExponentialBackoff(currentStreak),
-                    false);
+                    false, getFailureReasonString(reasonCode));
             mWifiScoreCard.incrementBssidBlocklistStreak(ssid, bssid, reasonCode);
             return true;
         }
@@ -510,6 +531,7 @@ public class BssidBlocklistMonitor {
         public void removeFromBlocklist() {
             isInBlocklist = false;
             blocklistEndTimeMs = 0;
+            localLog(TAG + " removeFromBlocklist BSSID=" + bssid);
         }
 
         @Override
