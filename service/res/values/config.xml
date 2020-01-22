@@ -299,6 +299,13 @@
         <item>160</item>
     </integer-array>
 
+    <!-- Array describing scanning schedule in seconds when device is connected and screen is on
+         and the connected network is the only saved network.
+         When this array is set to an empty array, the noraml connected scan schedule defined
+         in config_wifiConnectedScanIntervalScheduleSec will be used -->
+    <integer-array translatable="false" name="config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec">
+    </integer-array>
+
     <!-- Indicates that hidden networks are to be scanned during scan only mode -->
     <bool translatable="false" name="config_wifiScanHiddenNetworksScanOnlyMode">false</bool>
 
