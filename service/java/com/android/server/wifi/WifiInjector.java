@@ -793,4 +793,9 @@ public class WifiInjector {
     public WifiHealthMonitor getWifiHealthMonitor() {
         return mWifiHealthMonitor;
     }
+
+    public ThroughputPredictor getThroughputPredictor() {
+        return mThroughputPredictor;
+    }
+
 }

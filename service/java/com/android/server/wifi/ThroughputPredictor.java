@@ -18,8 +18,10 @@ package com.android.server.wifi;
 import static com.android.server.wifi.util.InformationElementUtil.BssLoad.MAX_CHANNEL_UTILIZATION;
 import static com.android.server.wifi.util.InformationElementUtil.BssLoad.MIN_CHANNEL_UTILIZATION;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiInfo;
 import android.util.Log;
 
 import com.android.wifi.resources.R;
@@ -61,16 +63,20 @@ public class ThroughputPredictor {
     private static final int SYM_DURATION_11N_NS = 3600;
     // 11ac OFDM symbol duration in ns with 0.4us guard interval
     private static final int SYM_DURATION_11AC_NS = 3600;
-    // 11n OFDM symbol duration in ns with 0.8us guard interval
+    // 11ax OFDM symbol duration in ns with 0.8us guard interval
     private static final int SYM_DURATION_11AX_NS = 13600;
     private static final int MICRO_TO_NANO_RATIO = 1000;
 
     // The scaling factor for integer representation of bitPerTone and MAX_BITS_PER_TONE_XXX
     private static final int BIT_PER_TONE_SCALE = 1000;
-    private static final int MAX_BITS_PER_TONE_LEGACY = (int) (6 * 3.0 * BIT_PER_TONE_SCALE / 4.0);
-    private static final int MAX_BITS_PER_TONE_11N = (int) (6 * 5.0 * BIT_PER_TONE_SCALE / 6.0);
-    private static final int MAX_BITS_PER_TONE_11AC = (int) (8 * 5.0 * BIT_PER_TONE_SCALE / 6.0);
-    private static final int MAX_BITS_PER_TONE_11AX = (int) (10 * 5.0 * BIT_PER_TONE_SCALE / 6.0);
+    private static final int MAX_BITS_PER_TONE_LEGACY =
+            (int) Math.round((6 * 3.0 * BIT_PER_TONE_SCALE) / 4.0);
+    private static final int MAX_BITS_PER_TONE_11N =
+            (int) Math.round((6 * 5.0 * BIT_PER_TONE_SCALE) / 6.0);
+    private static final int MAX_BITS_PER_TONE_11AC =
+            (int) Math.round((8 * 5.0 * BIT_PER_TONE_SCALE) / 6.0);
+    private static final int MAX_BITS_PER_TONE_11AX =
+            (int) Math.round((10 * 5.0 * BIT_PER_TONE_SCALE) / 6.0);
 
     // snrDb-to-bitPerTone lookup table (LUT) used at low SNR
     // snr = Math.pow(10.0, snrDb / 10.0);
@@ -99,7 +105,27 @@ public class ThroughputPredictor {
     }
 
     /**
-     * Predict network throughput
+     * Predict maximum Tx throughput supported by connected network at the highest RSSI
+     * with the lowest channel utilization
+     * @return predicted maximum Tx throughput in Mbps
+     */
+    public int predictMaxTxThroughput(@NonNull WifiNative.ConnectionCapabilities capabilities) {
+        return predictThroughputInternal(capabilities.wifiStandard, capabilities.channelBandwidth,
+                WifiInfo.MAX_RSSI, capabilities.maxNumberTxSpatialStreams, MIN_CHANNEL_UTILIZATION);
+    }
+
+    /**
+     * Predict maximum Rx throughput supported by connected network at the highest RSSI
+     * with the lowest channel utilization
+     * @return predicted maximum Rx throughput in Mbps
+     */
+    public int predictMaxRxThroughput(@NonNull WifiNative.ConnectionCapabilities capabilities) {
+        return predictThroughputInternal(capabilities.wifiStandard, capabilities.channelBandwidth,
+                WifiInfo.MAX_RSSI, capabilities.maxNumberRxSpatialStreams, MIN_CHANNEL_UTILIZATION);
+    }
+
+    /**
+     * Predict network throughput given by the current channel condition and RSSI
      * @param wifiStandard the highest wifi standard supported by AP
      * @param channelWidthAp the channel bandwidth of AP
      * @param rssiDbm the scan RSSI in dBm
@@ -134,12 +160,30 @@ public class ThroughputPredictor {
             channelWidth = ScanResult.CHANNEL_WIDTH_80MHZ;
         }
 
+        if (DBG) {
+            Log.d(TAG, " AP Nss: " + maxNumSpatialStreamAp + " freq: " + frequency);
+        }
+
+        int channelUtilization = getValidChannelUtilization(frequency,
+                channelUtilizationBssLoad,
+                channelUtilizationLinkLayerStats,
+                isBluetoothConnected);
+
+        return predictThroughputInternal(wifiStandard, channelWidth, rssiDbm, maxNumSpatialStream,
+                channelUtilization);
+    }
+
+    private int predictThroughputInternal(@ScanResult.WifiStandard int wifiStandard,
+            int channelWidth, int rssiDbm, int maxNumSpatialStream,  int channelUtilization) {
+
         // channel bandwidth in MHz = 20MHz * (2 ^ channelWidthFactor);
         int channelWidthFactor;
         int numTonePerSym;
         int symDurationNs;
         int maxBitsPerTone;
-        if (wifiStandard == ScanResult.WIFI_STANDARD_LEGACY) {
+        if (wifiStandard == ScanResult.WIFI_STANDARD_UNKNOWN) {
+            return WifiInfo.LINK_SPEED_UNKNOWN;
+        } else if (wifiStandard == ScanResult.WIFI_STANDARD_LEGACY) {
             numTonePerSym = NUM_TONE_PER_SYM_LEGACY;
             channelWidthFactor = 0;
             maxNumSpatialStream = MAX_NUM_SPATIAL_STREAM_LEGACY;
@@ -204,21 +248,22 @@ public class ThroughputPredictor {
         int phyRateMbps =  (int) ((numBitPerSym * MICRO_TO_NANO_RATIO)
                 / (symDurationNs * BIT_PER_TONE_SCALE));
 
-        int channelUtilization = getValidChannelUtilization(frequency,
-                channelUtilizationBssLoad,
-                channelUtilizationLinkLayerStats,
-                isBluetoothConnected);
-
         int airTimeFraction = calculateAirTimeFraction(channelUtilization, channelWidthFactor);
 
         int throughputMbps = (phyRateMbps * airTimeFraction) / MAX_CHANNEL_UTILIZATION;
 
         if (DBG) {
-            Log.d(TAG, " BW: " + channelWidthAp + " RSSI: "
-                    + rssiDbm + " Nss: " + maxNumSpatialStreamAp + " freq: " + frequency
-                    + " Mode: " + wifiStandard + " symDur: " + symDurationNs
-                    + " snrDb " + snrDb + " bitPerTone: " + bitPerTone
-                    + " rate: " + phyRateMbps + " throughput: " + throughputMbps);
+            StringBuilder sb = new StringBuilder();
+            Log.d(TAG, sb.append(" BW: ").append(channelWidth)
+                    .append(" RSSI: ").append(rssiDbm)
+                    .append(" Nss: ").append(maxNumSpatialStream)
+                    .append(" Mode: ").append(wifiStandard)
+                    .append(" symDur: ").append(symDurationNs)
+                    .append(" snrDb ").append(snrDb)
+                    .append(" bitPerTone: ").append(bitPerTone)
+                    .append(" rate: ").append(phyRateMbps)
+                    .append(" throughput: ").append(throughputMbps)
+                    .toString());
         }
         return throughputMbps;
     }
@@ -259,10 +304,12 @@ public class ThroughputPredictor {
             channelUtilization = Math.min(channelUtilization, MAX_CHANNEL_UTILIZATION);
         }
         if (DBG) {
-            Log.d(TAG, " utilization (BssLoad) " + channelUtilizationBssLoad
-                    + " utilization (LLStats) " + channelUtilizationLinkLayerStats
-                    + " isBluetoothConnected: " + isBluetoothConnected
-                    + " final utilization: " + channelUtilization);
+            StringBuilder sb = new StringBuilder();
+            Log.d(TAG, sb.append(" utilization (BssLoad) ").append(channelUtilizationBssLoad)
+                    .append(" utilization (LLStats) ").append(channelUtilizationLinkLayerStats)
+                    .append(" isBluetoothConnected: ").append(isBluetoothConnected)
+                    .append(" final utilization: ").append(channelUtilization)
+                    .toString());
         }
         return channelUtilization;
     }
