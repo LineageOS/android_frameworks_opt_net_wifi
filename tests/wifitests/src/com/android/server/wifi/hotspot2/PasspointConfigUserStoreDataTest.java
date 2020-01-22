@@ -16,6 +16,8 @@
 
 package com.android.server.wifi.hotspot2;
 
+import static android.net.wifi.WifiConfiguration.METERED_OVERRIDE_METERED;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -261,6 +263,7 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
                 TEST_HAS_EVER_CONNECTED, TEST_SHARED);
         provider2.setAutoJoinEnabled(false);
         provider2.setMacRandomizationEnabled(false);
+        provider2.setMeteredOverride(METERED_OVERRIDE_METERED);
         provider2.setTrusted(false);
         providerList.add(provider1);
         providerList.add(provider2);

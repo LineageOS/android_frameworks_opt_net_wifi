@@ -18,6 +18,8 @@ package com.android.server.wifi.hotspot2;
 
 import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
+import static android.net.wifi.WifiConfiguration.METERED_OVERRIDE_METERED;
+import static android.net.wifi.WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
 import static android.net.wifi.WifiManager.ACTION_PASSPOINT_DEAUTH_IMMINENT;
 import static android.net.wifi.WifiManager.ACTION_PASSPOINT_ICON;
 import static android.net.wifi.WifiManager.ACTION_PASSPOINT_SUBSCRIPTION_REMEDIATION;
@@ -635,9 +637,10 @@ public class PasspointManagerTest extends WifiBaseTest {
         assertEquals(1, providers.size());
         assertEquals(config, providers.get(0).getConfig());
 
-        // Verify calling |enableAutoJoin| and |enableMacRandomization|
+        // Verify calling |enableAutoJoin|, |enableMacRandomization|, and |setMeteredOverride|
         verifyEnableAutojoin(providers.get(0));
         verifyEnableMacRandomization(providers.get(0));
+        verifySetMeteredOverride(providers.get(0));
 
         // Provider index start with 0, should be 1 after adding a provider.
         assertEquals(1, mSharedDataSource.getProviderIndex());
@@ -649,9 +652,9 @@ public class PasspointManagerTest extends WifiBaseTest {
                 provider.getWifiConfig().getKey());
         /**
          * 1 from |removeProvider| + 2 from |setAutoJoinEnabled| + 2 from
-         * |enableMacRandomization| = 5 calls to |saveToStore|
+         * |enableMacRandomization| + 2 from |setMeteredOverride| = 7 calls to |saveToStore|
          */
-        verify(mWifiConfigManager, times(5)).saveToStore(true);
+        verify(mWifiConfigManager, times(7)).saveToStore(true);
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallSuccess();
         verify(mAppOpsManager).stopWatchingMode(any(AppOpsManager.OnOpChangedListener.class));
@@ -692,6 +695,17 @@ public class PasspointManagerTest extends WifiBaseTest {
         verify(provider).setMacRandomizationEnabled(true);
         assertFalse(mManager.enableMacRandomization(provider.getConfig().getHomeSp().getFqdn()
                 + "-XXXX", false));
+    }
+
+    private void verifySetMeteredOverride(PasspointProvider provider) {
+        assertTrue(mManager.setMeteredOverride(provider.getConfig().getHomeSp().getFqdn(),
+                METERED_OVERRIDE_METERED));
+        verify(provider).setMeteredOverride(METERED_OVERRIDE_METERED);
+        assertTrue(mManager.setMeteredOverride(provider.getConfig().getHomeSp().getFqdn(),
+                METERED_OVERRIDE_NOT_METERED));
+        verify(provider).setMeteredOverride(METERED_OVERRIDE_NOT_METERED);
+        assertFalse(mManager.setMeteredOverride(provider.getConfig().getHomeSp().getFqdn()
+                + "-XXXX", METERED_OVERRIDE_METERED));
     }
 
     /**
