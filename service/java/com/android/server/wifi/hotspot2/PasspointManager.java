@@ -507,8 +507,11 @@ public class PasspointManager {
             Log.e(TAG, "Config fqdn=\"" + fqdn + "\" doesn't exist");
             return false;
         }
-        provider.setMacRandomizationEnabled(enable);
+        boolean settingChanged = provider.setMacRandomizationEnabled(enable);
         mWifiConfigManager.saveToStore(true);
+        if (settingChanged) {
+            mWifiConfigManager.removePasspointConfiguredNetwork(provider.getWifiConfig().getKey());
+        }
         return true;
     }
 
