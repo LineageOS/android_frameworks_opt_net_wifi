@@ -427,7 +427,6 @@ public class XmlUtil {
                 throws XmlPullParserException, IOException {
             XmlUtil.writeNextValue(out, XML_TAG_CONFIG_KEY, configuration.getKey());
             XmlUtil.writeNextValue(out, XML_TAG_SSID, configuration.SSID);
-            XmlUtil.writeNextValue(out, XML_TAG_BSSID, configuration.BSSID);
             writePreSharedKeyToXml(out, configuration.preSharedKey, encryptionUtil);
             XmlUtil.writeNextValue(out, XML_TAG_SAE_PASSWORD_ID_KEY, configuration.saePasswordId);
             writeWepKeysToXml(out, configuration.wepKeys);
@@ -486,6 +485,7 @@ public class XmlUtil {
                 @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             writeCommonElementsToXml(out, configuration, encryptionUtil);
+            XmlUtil.writeNextValue(out, XML_TAG_BSSID, configuration.BSSID);
             XmlUtil.writeNextValue(out, XML_TAG_STATUS, configuration.status);
             XmlUtil.writeNextValue(out, XML_TAG_FQDN, configuration.FQDN);
             XmlUtil.writeNextValue(

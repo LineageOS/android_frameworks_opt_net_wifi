@@ -63,7 +63,6 @@ import java.util.Set;
  *    <WifiConfiguration>
  *     <string name="ConfigKey">value</string>
  *     <string name="SSID">value</string>
- *     <string name="BSSID" />value</string>
  *     <string name="PreSharedKey" />value</string>
  *     <string-array name="WEPKeys" num="4">
  *      <item value="WifiConfigStoreWep1" />
@@ -100,7 +99,6 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
             new HashSet<String>(Arrays.asList(new String[] {
                 WifiConfigurationXmlUtil.XML_TAG_CONFIG_KEY,
                 WifiConfigurationXmlUtil.XML_TAG_SSID,
-                WifiConfigurationXmlUtil.XML_TAG_BSSID,
                 WifiConfigurationXmlUtil.XML_TAG_PRE_SHARED_KEY,
                 WifiConfigurationXmlUtil.XML_TAG_WEP_KEYS,
                 WifiConfigurationXmlUtil.XML_TAG_WEP_TX_KEY_INDEX,
@@ -121,14 +119,14 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                 add(WifiConfigurationXmlUtil.XML_TAG_METERED_OVERRIDE);
             }};
 
-    // List of tags supported for <WifiConfiguration> section in minor version 1
+    // List of tags supported for <WifiConfiguration> section in minor version 2
     private static final Set<String> WIFI_CONFIGURATION_MINOR_V2_SUPPORTED_TAGS =
             new HashSet<String>() {{
                 addAll(WIFI_CONFIGURATION_MINOR_V1_SUPPORTED_TAGS);
                 add(WifiConfigurationXmlUtil.XML_TAG_IS_AUTO_JOIN);
             }};
 
-    // List of tags supported for <IpConfiguration> section in minor version 0 & 1
+    // List of tags supported for <IpConfiguration> section in minor version 0 to 2
     private static final Set<String> IP_CONFIGURATION_MINOR_V0_V1_V2_SUPPORTED_TAGS =
             new HashSet<String>(Arrays.asList(new String[] {
                 IpConfigurationXmlUtil.XML_TAG_IP_ASSIGNMENT,
@@ -309,9 +307,6 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                     break;
                 case WifiConfigurationXmlUtil.XML_TAG_SSID:
                     configuration.SSID = (String) value;
-                    break;
-                case WifiConfigurationXmlUtil.XML_TAG_BSSID:
-                    configuration.BSSID = (String) value;
                     break;
                 case WifiConfigurationXmlUtil.XML_TAG_PRE_SHARED_KEY:
                     configuration.preSharedKey = (String) value;
