@@ -87,19 +87,14 @@ java_library {
     libs: [
         "error_prone_annotations",
         "jsr305",
+        "framework-annotations-lib",
         "services-stubs",
         // load the resources from the resources APK.
         "wifi-service-resources",
-
         // need pre-jarjar symbols so that wifi-service can reference the original class names at
         // compile time
         "framework-wifi-pre-jarjar",
-
-        // TODO(b/135994092): Replace with framework-system-stubs once all @hide dependencies are
-        // resolved.
-        "framework-minus-apex",
-        "framework-annotations-lib",
-        "framework-telephony-stubs",
+        "framework_module_lib_stubs_current",
         "unsupportedappusage",
     ],
 
@@ -145,7 +140,7 @@ java_library {
     // need to include `libs` so that Soong doesn't complain about missing classes after jarjaring
     libs: [
         "framework-wifi",
-        "android_system_stubs_current",
+        "framework_module_lib_stubs_current",
         "services-stubs",
     ],
 
