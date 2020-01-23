@@ -2019,14 +2019,13 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // Convert the LinkLayerStats into WifiActivityEnergyInfo
-        WifiActivityEnergyInfo energyInfo = new WifiActivityEnergyInfo(
+        return new WifiActivityEnergyInfo(
                 mClock.getElapsedSinceBootMillis(),
                 WifiActivityEnergyInfo.STACK_STATE_STATE_IDLE,
                 stats.tx_time,
                 stats.rx_time,
                 stats.on_time_scan,
                 rxIdleTimeMillis);
-        return energyInfo.isValid() ? energyInfo : null;
     }
 
     /**
