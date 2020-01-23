@@ -65,6 +65,10 @@ public abstract class NetworkDetailsTracker extends BaseWifiTracker {
             return new StandardNetworkDetailsTracker(lifecycle, context, wifiManager,
                     connectivityManager, networkScoreManager, mainHandler, workerHandler, clock,
                     maxScanAgeMillis, scanIntervalMillis, key);
+        } else if (key.startsWith(PasspointWifiEntry.KEY_PREFIX)) {
+            return new PasspointNetworkDetailsTracker(lifecycle, context, wifiManager,
+                    connectivityManager, networkScoreManager, mainHandler, workerHandler, clock,
+                    maxScanAgeMillis, scanIntervalMillis, key);
         } else {
             throw new IllegalArgumentException("Key does not contain valid key prefix!");
         }

@@ -105,7 +105,6 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
             METERED_CHOICE_AUTO,
             METERED_CHOICE_METERED,
             METERED_CHOICE_UNMETERED,
-            METERED_CHOICE_UNKNOWN
     })
 
     public @interface MeteredChoice {}
@@ -114,7 +113,6 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public static final int METERED_CHOICE_AUTO = 0;
     public static final int METERED_CHOICE_METERED = 1;
     public static final int METERED_CHOICE_UNMETERED = 2;
-    public static final int METERED_CHOICE_UNKNOWN = 3;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(value = {
@@ -277,8 +275,7 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public abstract boolean isMetered();
 
     /**
-     * Indicates whether or not an entry is saved, whether by a saved configuration or
-     * subscription.
+     * Indicates whether or not an entry is for a saved configuration.
      */
     public abstract boolean isSaved();
 
@@ -684,6 +681,9 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
         if (getLevel() == WIFI_LEVEL_UNREACHABLE && other.getLevel() != WIFI_LEVEL_UNREACHABLE) {
             return 1;
         }
+
+        if (isSubscription() && !other.isSubscription()) return -1;
+        if (!isSubscription() && other.isSubscription()) return 1;
 
         if (isSaved() && !other.isSaved()) return -1;
         if (!isSaved() && other.isSaved()) return 1;

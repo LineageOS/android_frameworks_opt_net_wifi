@@ -518,15 +518,13 @@ class StandardWifiEntry extends WifiEntry {
     public int getMeteredChoice() {
         if (mWifiConfig != null) {
             final int meteredOverride = mWifiConfig.meteredOverride;
-            if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NONE) {
-                return METERED_CHOICE_AUTO;
-            } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
+            if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
                 return METERED_CHOICE_METERED;
             } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NOT_METERED) {
                 return METERED_CHOICE_UNMETERED;
             }
         }
-        return METERED_CHOICE_UNKNOWN;
+        return METERED_CHOICE_AUTO;
     }
 
     @Override
