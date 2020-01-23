@@ -150,7 +150,7 @@ public class WifiMulticastLockManager {
 
         int uid = Binder.getCallingUid();
         final long ident = Binder.clearCallingIdentity();
-        mBatteryStats.noteWifiMulticastEnabled(uid);
+        mBatteryStats.reportWifiMulticastEnabled(uid);
         WifiStatsLog.write_non_chained(
                 WifiStatsLog.WIFI_MULTICAST_LOCK_STATE_CHANGED, uid, null,
                 WifiStatsLog.WIFI_MULTICAST_LOCK_STATE_CHANGED__STATE__ON, tag);
@@ -184,7 +184,7 @@ public class WifiMulticastLockManager {
         }
 
         final long ident = Binder.clearCallingIdentity();
-        mBatteryStats.noteWifiMulticastDisabled(uid);
+        mBatteryStats.reportWifiMulticastDisabled(uid);
         WifiStatsLog.write_non_chained(
                 WifiStatsLog.WIFI_MULTICAST_LOCK_STATE_CHANGED, uid, null,
                 WifiStatsLog.WIFI_MULTICAST_LOCK_STATE_CHANGED__STATE__OFF, tag);

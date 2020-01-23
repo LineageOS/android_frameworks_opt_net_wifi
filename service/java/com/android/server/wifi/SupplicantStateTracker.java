@@ -219,7 +219,7 @@ public class SupplicantStateTracker extends StateMachine {
                 supplState = BatteryStatsManager.WIFI_SUPPL_STATE_INVALID;
                 break;
         }
-        mBatteryStatsManager.noteWifiSupplicantStateChanged(supplState, failedAuth);
+        mBatteryStatsManager.reportWifiSupplicantStateChanged(supplState, failedAuth);
         Intent intent = new Intent(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                 | Intent.FLAG_RECEIVER_REPLACE_PENDING);
