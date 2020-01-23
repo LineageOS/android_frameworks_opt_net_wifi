@@ -564,4 +564,39 @@ public class StandardWifiEntryTest {
 
         assertThat(entry.getSummary()).isEqualTo("Connected");
     }
+
+    @Test
+    public void testGetSecurityString_pskTypeWpa2_getWpa2() {
+        final StandardWifiEntry entry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_PSK);
+        final ScanResult bestScanResult = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
+        bestScanResult.capabilities = "RSN-PSK";
+        final String wifiSecurityShortWpa2Wpa3 = "WPA2/WPA3";
+        final Resources mockResources = mock(Resources.class);
+        when(mMockContext.getResources()).thenReturn(mockResources);
+        when(mockResources.getString(R.string.wifi_security_short_wpa2_wpa3))
+                .thenReturn(wifiSecurityShortWpa2Wpa3);
+
+        entry.updateScanResultInfo(Arrays.asList(bestScanResult));
+
+        assertThat(entry.getSecurityString(true /* concise */))
+                .isEqualTo(wifiSecurityShortWpa2Wpa3);
+    }
+
+    @Test
+    public void testGetSecurityString_eapTypeWpa_getWpa() {
+        final StandardWifiEntry entry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_EAP);
+        final ScanResult bestScanResult = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
+        bestScanResult.capabilities = "WPA-EAP";
+        final String wifiSecurityEapWpa = "WPA-Enterprise";
+        final Resources mockResources = mock(Resources.class);
+        when(mMockContext.getResources()).thenReturn(mockResources);
+        when(mockResources.getString(R.string.wifi_security_eap_wpa))
+                .thenReturn(wifiSecurityEapWpa);
+
+        entry.updateScanResultInfo(Arrays.asList(bestScanResult));
+
+        assertThat(entry.getSecurityString(false /* concise */)).isEqualTo(wifiSecurityEapWpa);
+    }
 }

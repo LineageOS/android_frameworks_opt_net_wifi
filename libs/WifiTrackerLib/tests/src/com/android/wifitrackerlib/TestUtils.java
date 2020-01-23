@@ -31,12 +31,14 @@ class TestUtils {
         result.SSID = ssid;
         result.BSSID = bssid;
         result.timestamp = timestampMillis * 1000;
+        result.capabilities = "";
         return result;
     }
 
     static ScanResult buildScanResult(String ssid, String bssid, long timestampMillis, int rssi) {
         final ScanResult result = buildScanResult(ssid, bssid, timestampMillis);
         result.level = rssi;
+        result.capabilities = "";
         return result;
     }
 

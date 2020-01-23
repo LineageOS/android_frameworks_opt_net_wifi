@@ -23,6 +23,7 @@ import static androidx.core.util.Preconditions.checkNotNull;
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
 import static com.android.wifitrackerlib.Utils.getSecurityFromWifiConfiguration;
 
+import android.content.Context;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -50,6 +51,7 @@ class PasspointWifiEntry extends WifiEntry {
 
     @NonNull private final String mKey;
     @NonNull private String mFriendlyName;
+    @NonNull private final Context mContext;
     @Nullable private PasspointConfiguration mPasspointConfig;
     @Nullable private WifiConfiguration mWifiConfig;
     private @Security int mSecurity;
@@ -67,13 +69,14 @@ class PasspointWifiEntry extends WifiEntry {
     /**
      * Create a PasspointWifiEntry with the associated PasspointConfiguration
      */
-    PasspointWifiEntry(@NonNull Handler callbackHandler,
+    PasspointWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
             @NonNull PasspointConfiguration passpointConfig,
             @NonNull WifiManager wifiManager) throws IllegalArgumentException {
         super(callbackHandler, false /* forSavedNetworksPage */, wifiManager);
 
         checkNotNull(passpointConfig, "Cannot construct with null PasspointConfiguration!");
 
+        mContext = context;
         final HomeSp homeSp = passpointConfig.getHomeSp();
         mKey = fqdnToPasspointWifiEntryKey(homeSp.getFqdn());
         mFriendlyName = homeSp.getFriendlyName();
@@ -282,6 +285,12 @@ class PasspointWifiEntry extends WifiEntry {
     @Override
     public void setAutoJoinEnabled(boolean enabled) {
         // TODO(b/70983952): Fill this method in
+    }
+
+    @Override
+    public String getSecurityString(boolean concise) {
+        return concise ? mContext.getString(R.string.wifi_security_short_eap) :
+                mContext.getString(R.string.wifi_security_eap);
     }
 
     @WorkerThread

@@ -45,10 +45,13 @@ import android.os.Handler;
 import android.os.SystemClock;
 import android.text.TextUtils;
 
+import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -63,12 +66,42 @@ import java.util.stream.Collectors;
 class StandardWifiEntry extends WifiEntry {
     static final String KEY_PREFIX = "StandardWifiEntry:";
 
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(value = {
+            EAP_WPA,
+            EAP_WPA2_WPA3,
+            EAP_UNKNOWN
+    })
+
+    public @interface EapType {}
+
+    private static final int EAP_WPA = 0;       // WPA-EAP
+    private static final int EAP_WPA2_WPA3 = 1; // RSN-EAP
+    private static final int EAP_UNKNOWN = 2;
+
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(value = {
+            PSK_WPA,
+            PSK_WPA2,
+            PSK_WPA_WPA2,
+            PSK_UNKNOWN
+    })
+
+    public @interface PskType {}
+
+    private static final int PSK_WPA = 0;
+    private static final int PSK_WPA2 = 1;
+    private static final int PSK_WPA_WPA2 = 2;
+    private static final int PSK_UNKNOWN = 3;
+
     private final List<ScanResult> mCurrentScanResults = new ArrayList<>();
 
     @NonNull private final String mKey;
     @NonNull private final String mSsid;
     @NonNull private final Context mContext;
     private final @Security int mSecurity;
+    private @EapType int mEapType = EAP_UNKNOWN;
+    private @PskType int mPskType = PSK_UNKNOWN;
     @Nullable private WifiConfiguration mWifiConfig;
     @Nullable private ConnectCallback mConnectCallback;
     @Nullable private DisconnectCallback mDisconnectCallback;
@@ -582,6 +615,56 @@ class StandardWifiEntry extends WifiEntry {
         mWifiManager.allowAutojoin(mWifiConfig.networkId, enabled);
     }
 
+    @Override
+    public String getSecurityString(boolean concise) {
+        switch(mSecurity) {
+            case SECURITY_EAP:
+                switch (mEapType) {
+                    case EAP_WPA:
+                        return concise ? mContext.getString(R.string.wifi_security_short_eap_wpa) :
+                                mContext.getString(R.string.wifi_security_eap_wpa);
+                    case EAP_WPA2_WPA3:
+                        return concise
+                                ? mContext.getString(R.string.wifi_security_short_eap_wpa2_wpa3) :
+                                mContext.getString(R.string.wifi_security_eap_wpa2_wpa3);
+                    case EAP_UNKNOWN:
+                    default:
+                        return concise ? mContext.getString(R.string.wifi_security_short_eap) :
+                                mContext.getString(R.string.wifi_security_eap);
+                }
+            case SECURITY_EAP_SUITE_B:
+                return concise ? mContext.getString(R.string.wifi_security_short_eap_suiteb) :
+                        mContext.getString(R.string.wifi_security_eap_suiteb);
+            case SECURITY_PSK:
+                switch (mPskType) {
+                    case PSK_WPA:
+                        return concise ? mContext.getString(R.string.wifi_security_short_wpa) :
+                            mContext.getString(R.string.wifi_security_wpa);
+                    case PSK_WPA2:
+                        return concise
+                            ? mContext.getString(R.string.wifi_security_short_wpa2_wpa3) :
+                            mContext.getString(R.string.wifi_security_wpa2_wpa3);
+                    case PSK_WPA_WPA2:
+                    case PSK_UNKNOWN:
+                    default:
+                        return concise
+                            ? mContext.getString(R.string.wifi_security_short_wpa_wpa2_wpa3) :
+                            mContext.getString(R.string.wifi_security_wpa_wpa2_wpa3);
+                }
+            case SECURITY_WEP:
+                return mContext.getString(R.string.wifi_security_wep);
+            case SECURITY_SAE:
+                return concise ? mContext.getString(R.string.wifi_security_short_sae) :
+                        mContext.getString(R.string.wifi_security_sae);
+            case SECURITY_OWE:
+                return concise ? mContext.getString(R.string.wifi_security_short_owe) :
+                    mContext.getString(R.string.wifi_security_owe);
+            case SECURITY_NONE:
+            default:
+                return concise ? "" : mContext.getString(R.string.wifi_security_none);
+        }
+    }
+
     @WorkerThread
     void updateScanResultInfo(@Nullable List<ScanResult> scanResults)
             throws IllegalArgumentException {
@@ -609,9 +692,42 @@ class StandardWifiEntry extends WifiEntry {
             mLevel = WIFI_LEVEL_UNREACHABLE;
         } else {
             mLevel = mWifiManager.calculateSignalLevel(bestScanResult.level);
+            updateEapType(bestScanResult);
+            updatePskType(bestScanResult);
         }
 
         notifyOnUpdated();
+    }
+
+    private void updateEapType(ScanResult result) {
+        if (result.capabilities.contains("RSN-EAP")) {
+            // WPA2-Enterprise and WPA3-Enterprise (non 192-bit) advertise RSN-EAP-CCMP
+            mEapType = EAP_WPA2_WPA3;
+        } else if (result.capabilities.contains("WPA-EAP")) {
+            // WPA-Enterprise advertises WPA-EAP-TKIP
+            mEapType = EAP_WPA;
+        } else {
+            mEapType = EAP_UNKNOWN;
+        }
+    }
+
+    private void updatePskType(ScanResult result) {
+        if (mSecurity != SECURITY_PSK) {
+            mPskType = PSK_UNKNOWN;
+            return;
+        }
+
+        final boolean wpa = result.capabilities.contains("WPA-PSK");
+        final boolean wpa2 = result.capabilities.contains("RSN-PSK");
+        if (wpa2 && wpa) {
+            mPskType = PSK_WPA_WPA2;
+        } else if (wpa2) {
+            mPskType = PSK_WPA2;
+        } else if (wpa) {
+            mPskType = PSK_WPA;
+        } else {
+            mPskType = PSK_UNKNOWN;
+        }
     }
 
     @WorkerThread

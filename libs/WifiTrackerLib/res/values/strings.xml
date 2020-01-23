@@ -81,4 +81,64 @@
 
     <!-- Summary for Connected wifi network without internet -->
     <string name="wifi_connected_no_internet">Connected, no internet</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with 802.1x EAP security -->
+    <string name="wifi_security_short_eap" translatable="false">802.1x</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with 802.1x EAP security -->
+    <string name="wifi_security_eap" translatable="false">WPA/WPA2/WPA3-Enterprise</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with WPA 802.1x EAP security -->
+    <string name="wifi_security_short_eap_wpa" translatable="false">WPA-EAP</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with WPA 802.1x EAP security -->
+    <string name="wifi_security_eap_wpa" translatable="false">WPA-Enterprise</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with WPA2/WPA3 802.1x EAP security -->
+    <string name="wifi_security_short_eap_wpa2_wpa3" translatable="false">RSN-EAP</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with WPA2/WPA3 802.1x EAP security -->
+    <string name="wifi_security_eap_wpa2_wpa3" translatable="false">WPA2/WPA3-Enterprise</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with 802.1x EAP Suite-B-192 security -->
+    <string name="wifi_security_short_eap_suiteb" translatable="false">Suite-B-192</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with 802.1x EAP Suite-B-192 security -->
+    <string name="wifi_security_eap_suiteb" translatable="false">WPA3-Enterprise 192-bit</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with WPA security -->
+    <string name="wifi_security_short_wpa" translatable="false">WPA</string>
+
+    <!-- Do not translate.  Terminology for wifi with WPA security -->
+    <string name="wifi_security_wpa" translatable="false">WPA-Personal</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with WPA2/WPA3 security -->
+    <string name="wifi_security_short_wpa2_wpa3" translatable="false">WPA2/WPA3</string>
+
+    <!-- Do not translate.  Terminology for wifi with WPA2/WPA3 security -->
+    <string name="wifi_security_wpa2_wpa3" translatable="false">WPA2/WPA3-Personal</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with both WPA/WPA2/WPA3 security -->
+    <string name="wifi_security_short_wpa_wpa2_wpa3" translatable="false">WPA/WPA2/WPA3</string>
+
+    <!-- Do not translate.  Terminology for wifi with both WPA/WPA2/WPA3 security, or unknown -->
+    <string name="wifi_security_wpa_wpa2_wpa3" translatable="false">WPA/WPA2/WPA3-Personal</string>
+
+    <!-- Do not translate.  Terminology for wifi with WEP security -->
+    <string name="wifi_security_wep" translatable="false">WEP</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with WPA3 security -->
+    <string name="wifi_security_short_sae" translatable="false">WPA3</string>
+
+    <!-- Do not translate.  Terminology for wifi with WPA3 security -->
+    <string name="wifi_security_sae" translatable="false">WPA3-Personal</string>
+
+    <!-- Do not translate.  Concise terminology for wifi with OWE security -->
+    <string name="wifi_security_short_owe" translatable="false">OWE</string>
+
+    <!-- Do not translate.  Terminology for wifi with OWE security -->
+    <string name="wifi_security_owe" translatable="false">Enhanced Open</string>
+
+    <!-- Used in Wi-Fi settings dialogs when Wi-Fi does not have any security. [CHAR LIMIT=40] -->
+    <string name="wifi_security_none">None</string>
 </resources>
