@@ -33,6 +33,8 @@ import android.net.ConnectivityManager;
 import android.net.NetworkScoreManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
+import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
 import android.os.test.TestLooper;
 
@@ -304,5 +306,27 @@ public class SavedNetworkTrackerTest {
                 new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
 
         assertThat(entry.getLevel()).isEqualTo(WifiEntry.WIFI_LEVEL_UNREACHABLE);
+    }
+
+    @Test
+    public void testGetSubscriptionWifiEntries_returnsPasspointEntries() {
+        final SavedNetworkTracker savedNetworkTracker = createTestSavedNetworkTracker();
+        final PasspointConfiguration passpointConfig = new PasspointConfiguration();
+        final HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("fqdn");
+        homeSp.setFriendlyName("friendlyName");
+        passpointConfig.setHomeSp(homeSp);
+        when(mMockWifiManager.getPasspointConfigurations())
+                .thenReturn(Collections.singletonList(passpointConfig));
+
+        savedNetworkTracker.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+        mTestLooper.dispatchAll();
+
+        final WifiEntry entry = savedNetworkTracker.getSubscriptionWifiEntries().get(0);
+        assertThat(savedNetworkTracker.getSubscriptionWifiEntries()).isNotEmpty();
+        assertThat(savedNetworkTracker.getSubscriptionWifiEntries().get(0).getTitle())
+                .isEqualTo("friendlyName");
     }
 }

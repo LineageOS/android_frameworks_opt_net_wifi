@@ -328,7 +328,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
             final List<ScanResult> roamingScans =
                     pair.second.get(WifiManager.PASSPOINT_ROAMING_NETWORK);
             final String key = fqdnToPasspointWifiEntryKey(wifiConfig.FQDN);
-            // Skip in case the returned
+            // Skip in case we don't have a Passpoint configuration for the returned fqdn
             if (!mPasspointConfigCache.containsKey(key)) {
                 continue;
             }
@@ -419,6 +419,30 @@ public class WifiPickerTracker extends BaseWifiTracker {
         });
     }
 
+    @WorkerThread
+    private void updatePasspointWifiEntryConfigs(@NonNull List<PasspointConfiguration> configs) {
+        checkNotNull(configs, "Config list should not be null!");
+
+        mPasspointConfigCache.clear();
+        mPasspointConfigCache.putAll(configs.stream().collect(
+                toMap((config) -> fqdnToPasspointWifiEntryKey(
+                        config.getHomeSp().getFqdn()), Function.identity())));
+
+        // Iterate through current entries and update each entry's config or remove if no config
+        // matches the entry anymore.
+        mPasspointWifiEntryCache.entrySet().removeIf((entry) -> {
+            final PasspointWifiEntry wifiEntry = entry.getValue();
+            final String key = wifiEntry.getKey();
+            final PasspointConfiguration cachedConfig = mPasspointConfigCache.get(key);
+            if (cachedConfig != null) {
+                wifiEntry.updatePasspointConfig(cachedConfig);
+                return false;
+            } else {
+                return true;
+            }
+        });
+    }
+
     /**
      * Updates all WifiEntries with the current connection info.
      * @param wifiInfo WifiInfo of the current connection
@@ -487,30 +511,6 @@ public class WifiPickerTracker extends BaseWifiTracker {
                     connectedEntry.updateConnectionInfo(wifiInfo, networkInfo);
                     mPasspointWifiEntryCache.put(connectedEntry.getKey(), connectedEntry);
                 });
-    }
-
-    @WorkerThread
-    private void updatePasspointWifiEntryConfigs(@NonNull List<PasspointConfiguration> configs) {
-        checkNotNull(configs, "Config list should not be null!");
-
-        mPasspointConfigCache.clear();
-        mPasspointConfigCache.putAll(configs.stream().collect(
-                toMap((config) -> fqdnToPasspointWifiEntryKey(
-                        config.getHomeSp().getFqdn()), Function.identity())));
-
-        // Iterate through current entries and update each entry's config or remove if no config
-        // matches the entry anymore.
-        mPasspointWifiEntryCache.entrySet().removeIf((entry) -> {
-            final PasspointWifiEntry wifiEntry = entry.getValue();
-            final String key = wifiEntry.getKey();
-            final PasspointConfiguration cachedConfig = mPasspointConfigCache.get(key);
-            if (cachedConfig != null) {
-                wifiEntry.updatePasspointConfig(cachedConfig);
-                return false;
-            } else {
-                return true;
-            }
-        });
     }
 
     /**
