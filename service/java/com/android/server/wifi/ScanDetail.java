@@ -58,7 +58,7 @@ public class ScanDetail {
         if (networkDetail.is80211McResponderSupport()) {
             mScanResult.setFlag(ScanResult.FLAG_80211mc_RESPONDER);
         }
-        if (networkDetail.isInterworking()) {
+        if (networkDetail.isInterworking() && networkDetail.getHSRelease() != null) {
             mScanResult.setFlag(ScanResult.FLAG_PASSPOINT_NETWORK);
         }
         mInformationElementRawData = informationElementRawData;
