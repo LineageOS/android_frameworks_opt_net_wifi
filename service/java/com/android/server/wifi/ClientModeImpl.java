@@ -2418,7 +2418,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private void sendRssiChangeBroadcast(final int newRssi) {
-        mBatteryStatsManager.noteWifiRssiChanged(newRssi);
+        mBatteryStatsManager.reportWifiRssiChanged(newRssi);
         WifiStatsLog.write(WifiStatsLog.WIFI_SIGNAL_STRENGTH_CHANGED,
                 RssiUtil.calculateSignalLevel(mContext, newRssi));
 

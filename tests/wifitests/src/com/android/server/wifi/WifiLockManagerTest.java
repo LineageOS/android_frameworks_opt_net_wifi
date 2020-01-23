@@ -105,7 +105,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         InOrder inOrder = inOrder(binder, mBatteryStats);
 
         inOrder.verify(binder).linkToDeath(deathRecipient.capture(), eq(0));
-        inOrder.verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(ws);
+        inOrder.verify(mBatteryStats).reportFullWifiLockAcquiredFromSource(ws);
     }
 
     private void captureUidImportanceListener() {
@@ -125,7 +125,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         assertTrue(mWifiLockManager.releaseWifiLock(binder));
         InOrder inOrder = inOrder(binder, mBatteryStats);
         inOrder.verify(binder).unlinkToDeath(deathRecipient.capture(), eq(0));
-        inOrder.verify(mBatteryStats).noteFullWifiLockReleasedFromSource(any(WorkSource.class));
+        inOrder.verify(mBatteryStats).reportFullWifiLockReleasedFromSource(any(WorkSource.class));
     }
 
     private void releaseWifiLockSuccessful_noBatteryStats(IBinder binder) throws Exception {
@@ -144,7 +144,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         assertTrue(mWifiLockManager.releaseWifiLock(binder));
         InOrder inOrder = inOrder(binder, mBatteryStats);
         inOrder.verify(binder).unlinkToDeath(deathRecipient.capture(), eq(0));
-        inOrder.verify(mBatteryStats).noteFullWifiLockReleasedFromSource(any(WorkSource.class));
+        inOrder.verify(mBatteryStats).reportFullWifiLockReleasedFromSource(any(WorkSource.class));
     }
 
     /**
@@ -306,8 +306,8 @@ public class WifiLockManagerTest extends WifiBaseTest {
 
         mWifiLockManager.updateWifiLockWorkSource(mBinder, updated);
         InOrder inOrder = inOrder(mBatteryStats);
-        inOrder.verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(eq(updated));
-        inOrder.verify(mBatteryStats).noteFullWifiLockReleasedFromSource(mChainedWorkSource);
+        inOrder.verify(mBatteryStats).reportFullWifiLockAcquiredFromSource(eq(updated));
+        inOrder.verify(mBatteryStats).reportFullWifiLockReleasedFromSource(mChainedWorkSource);
 
         releaseWifiLockSuccessful(mBinder);
     }
@@ -327,8 +327,8 @@ public class WifiLockManagerTest extends WifiBaseTest {
 
         mWifiLockManager.updateWifiLockWorkSource(mBinder, newWorkSource);
         InOrder inOrder = inOrder(mBatteryStats);
-        inOrder.verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(eq(newWorkSource));
-        inOrder.verify(mBatteryStats).noteFullWifiLockReleasedFromSource(mWorkSource);
+        inOrder.verify(mBatteryStats).reportFullWifiLockAcquiredFromSource(eq(newWorkSource));
+        inOrder.verify(mBatteryStats).reportFullWifiLockReleasedFromSource(mWorkSource);
     }
 
     /**
@@ -346,8 +346,8 @@ public class WifiLockManagerTest extends WifiBaseTest {
 
         mWifiLockManager.updateWifiLockWorkSource(mBinder, newWorkSource);
         InOrder inOrder = inOrder(mBatteryStats);
-        inOrder.verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(eq(newWorkSource));
-        inOrder.verify(mBatteryStats).noteFullWifiLockReleasedFromSource(mWorkSource);
+        inOrder.verify(mBatteryStats).reportFullWifiLockAcquiredFromSource(eq(newWorkSource));
+        inOrder.verify(mBatteryStats).reportFullWifiLockReleasedFromSource(mWorkSource);
     }
 
     /**
@@ -1204,7 +1204,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         assertTrue(mWifiLockManager.acquireWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
                 mBinder, mWorkSource));
         assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD, mWifiLockManager.getStrongestLockMode());
-        verify(mBatteryStats, never()).noteFullWifiLockAcquiredFromSource(any());
+        verify(mBatteryStats, never()).reportFullWifiLockAcquiredFromSource(any());
     }
 
     /**
@@ -1218,7 +1218,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         mWifiLockManager.updateWifiClientConnected(true);
 
         assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF, mWifiLockManager.getStrongestLockMode());
-        verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(eq(mWorkSource));
+        verify(mBatteryStats).reportFullWifiLockAcquiredFromSource(eq(mWorkSource));
     }
 
     /**
@@ -1235,7 +1235,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         mWifiLockManager.updateWifiClientConnected(false);
 
         assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD, mWifiLockManager.getStrongestLockMode());
-        verify(mBatteryStats).noteFullWifiLockReleasedFromSource(mWorkSource);
+        verify(mBatteryStats).reportFullWifiLockReleasedFromSource(mWorkSource);
     }
 
     /**
