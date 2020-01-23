@@ -242,7 +242,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     // remember if we were in a scan when it had to be stopped
     private boolean mDiscoveryPostponed = false;
 
-    private NetworkInfo mNetworkInfo;
+    private NetworkInfo.DetailedState mDetailedState;
 
     private boolean mTemporarilyDisconnectedWifi = false;
 
@@ -408,6 +408,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     }
     private ClientHandler mClientHandler;
 
+    private NetworkInfo makeNetworkInfo() {
+        final NetworkInfo info = new NetworkInfo(ConnectivityManager.TYPE_WIFI_P2P,
+                0, NETWORKTYPE, "");
+        if (mDetailedState != NetworkInfo.DetailedState.IDLE) {
+            info.setDetailedState(mDetailedState, null, null);
+        }
+        return info;
+    }
+
     /**
      * Provide a way for unit tests to set valid log object in the WifiHandler
      * @param log WifiLog object to assign to the clientHandler
@@ -451,7 +460,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         mFrameworkFacade = mWifiInjector.getFrameworkFacade();
         mWifiP2pMetrics = mWifiInjector.getWifiP2pMetrics();
 
-        mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI_P2P, 0, NETWORKTYPE, "");
+        mDetailedState = NetworkInfo.DetailedState.IDLE;
 
         mP2pSupported = mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_DIRECT);
@@ -705,7 +714,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         pw.println("mAutonomousGroup " + mAutonomousGroup);
         pw.println("mJoinExistingGroup " + mJoinExistingGroup);
         pw.println("mDiscoveryStarted " + mDiscoveryStarted);
-        pw.println("mNetworkInfo " + mNetworkInfo);
+        pw.println("mDetailedState " + mDetailedState);
         pw.println("mTemporarilyDisconnectedWifi " + mTemporarilyDisconnectedWifi);
         pw.println("mServiceDiscReqId " + mServiceDiscReqId);
         pw.println("mDeathDataByBinder " + mDeathDataByBinder);
@@ -1089,7 +1098,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         break;
                     case WifiP2pManager.REQUEST_NETWORK_INFO:
                         replyToMessage(message, WifiP2pManager.RESPONSE_NETWORK_INFO,
-                                mNetworkInfo);
+                                makeNetworkInfo());
                         break;
                     case WifiP2pManager.START_WPS:
                         replyToMessage(message, WifiP2pManager.START_WPS_FAILED,
@@ -2609,7 +2618,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 if (mVerboseLoggingEnabled) logd(getName());
                 // Once connected, peer config details are invalid
                 mSavedPeerConfig.invalidate();
-                mNetworkInfo.setDetailedState(NetworkInfo.DetailedState.CONNECTED, null, null);
+                mDetailedState = NetworkInfo.DetailedState.CONNECTED;
 
                 updateThisDevice(WifiP2pDevice.CONNECTED);
 
@@ -2899,7 +2908,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 mWifiP2pMetrics.endGroupEvent();
                 updateThisDevice(WifiP2pDevice.AVAILABLE);
                 resetWifiP2pInfo();
-                mNetworkInfo.setDetailedState(NetworkInfo.DetailedState.DISCONNECTED, null, null);
+                mDetailedState = NetworkInfo.DetailedState.DISCONNECTED;
                 sendP2pConnectionChangedBroadcast();
             }
         }
@@ -3063,12 +3072,12 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                     | Intent.FLAG_RECEIVER_REPLACE_PENDING);
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO, new WifiP2pInfo(mWifiP2pInfo));
-            intent.putExtra(WifiP2pManager.EXTRA_NETWORK_INFO, new NetworkInfo(mNetworkInfo));
+            intent.putExtra(WifiP2pManager.EXTRA_NETWORK_INFO, makeNetworkInfo());
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_GROUP, eraseOwnDeviceAddress(mGroup));
             sendBroadcastMultiplePermissions(intent);
             if (mWifiChannel != null) {
                 mWifiChannel.sendMessage(WifiP2pServiceImpl.P2P_CONNECTION_CHANGED,
-                        new NetworkInfo(mNetworkInfo));
+                        makeNetworkInfo());
             } else {
                 loge("sendP2pConnectionChangedBroadcast(): WifiChannel is null");
             }
@@ -3706,7 +3715,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void handleGroupCreationFailure() {
             resetWifiP2pInfo();
-            mNetworkInfo.setDetailedState(NetworkInfo.DetailedState.FAILED, null, null);
+            mDetailedState = NetworkInfo.DetailedState.FAILED;
             sendP2pConnectionChangedBroadcast();
 
             // Remove only the peer we failed to connect to so that other devices discovered

@@ -200,6 +200,42 @@ public class WifiApConfigStore {
         persistConfigAndTriggerBackupManagerProxy(config);
     }
 
+    /**
+     * Returns SoftApConfiguration in which some parameters might be reset to supported default
+     * config.
+     *
+     * MaxNumberOfClients and enableClientControlByUser will need HAL support client force
+     * disconnect. Reset to default when device doesn't support it.
+     *
+     * SAE/SAE-Transition need hardware support, reset to secured WPA2 security type when device
+     * doesn't support it.
+     */
+    public SoftApConfiguration resetToDefaultForUnsupportedConfig(
+            @NonNull SoftApConfiguration config) {
+        SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder(config);
+        if (!ApConfigUtil.isClientForceDisconnectSupported(mContext)) {
+            configBuilder.setMaxNumberOfClients(0);
+            configBuilder.enableClientControlByUser(false);
+            if (config.getMaxNumberOfClients() != 0) {
+                Log.e(TAG, "Reset MaxNumberOfClients to 0 due to device doesn't support");
+            }
+            if (config.isClientControlByUserEnabled()) {
+                Log.e(TAG, "Reset ClientControlByUser to false due to device doesn't support");
+            }
+        }
+
+        if (!ApConfigUtil.isWpa3SaeSupported(mContext) && (config.getSecurityType()
+                == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE
+                || config.getSecurityType()
+                == SoftApConfiguration.SECURITY_TYPE_WPA3_SAE_TRANSITION)) {
+            configBuilder.setPassphrase(generatePassword(),
+                    SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+            Log.e(TAG, "Device doesn't support WPA3-SAE, reset config to WPA2");
+        }
+
+        return configBuilder.build();
+    }
+
     private SoftApConfiguration sanitizePersistentApConfig(SoftApConfiguration config) {
         SoftApConfiguration.Builder convertedConfigBuilder = null;
 

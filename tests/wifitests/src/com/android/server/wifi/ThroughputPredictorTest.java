@@ -51,6 +51,7 @@ public class ThroughputPredictorTest extends WifiBaseTest {
     @Spy
     private MockResources mResource = new MockResources();
     ThroughputPredictor mThroughputPredictor;
+    WifiNative.ConnectionCapabilities mConnectionCap = new WifiNative.ConnectionCapabilities();
 
     /**
      * Sets up for unit test
@@ -231,5 +232,53 @@ public class ThroughputPredictorTest extends WifiBaseTest {
                 INVALID, 80, false);
 
         assertEquals(103, predictedThroughputMbps);
+    }
+
+    @Test
+    public void verifyMaxThroughputAc40Mhz2ss() {
+        mConnectionCap.wifiStandard = ScanResult.WIFI_STANDARD_11AC;
+        mConnectionCap.channelBandwidth = ScanResult.CHANNEL_WIDTH_40MHZ;
+        mConnectionCap.maxNumberTxSpatialStreams = 2;
+        assertEquals(400, mThroughputPredictor.predictMaxTxThroughput(mConnectionCap));
+    }
+
+    @Test
+    public void verifyMaxThroughputAc80Mhz2ss() {
+        mConnectionCap.wifiStandard = ScanResult.WIFI_STANDARD_11AC;
+        mConnectionCap.channelBandwidth = ScanResult.CHANNEL_WIDTH_80MHZ;
+        mConnectionCap.maxNumberRxSpatialStreams = 2;
+        assertEquals(866, mThroughputPredictor.predictMaxRxThroughput(mConnectionCap));
+    }
+
+    @Test
+    public void verifyMaxThroughputN20Mhz1ss() {
+        mConnectionCap.wifiStandard = ScanResult.WIFI_STANDARD_11N;
+        mConnectionCap.channelBandwidth = ScanResult.CHANNEL_WIDTH_20MHZ;
+        mConnectionCap.maxNumberRxSpatialStreams = 1;
+        assertEquals(72, mThroughputPredictor.predictMaxRxThroughput(mConnectionCap));
+    }
+
+    @Test
+    public void verifyMaxThroughputLegacy20Mhz1ss() {
+        mConnectionCap.wifiStandard = ScanResult.WIFI_STANDARD_LEGACY;
+        mConnectionCap.channelBandwidth = ScanResult.CHANNEL_WIDTH_80MHZ;
+        mConnectionCap.maxNumberRxSpatialStreams = 1;
+        assertEquals(54, mThroughputPredictor.predictMaxRxThroughput(mConnectionCap));
+    }
+
+    @Test
+    public void verifyMaxThroughputAx80Mhz2ss() {
+        mConnectionCap.wifiStandard = ScanResult.WIFI_STANDARD_11AX;
+        mConnectionCap.channelBandwidth = ScanResult.CHANNEL_WIDTH_80MHZ;
+        mConnectionCap.maxNumberRxSpatialStreams = 2;
+        assertEquals(1200, mThroughputPredictor.predictMaxRxThroughput(mConnectionCap));
+    }
+
+    @Test
+    public void verifyMaxThroughputUnknownStandard() {
+        mConnectionCap.wifiStandard = ScanResult.WIFI_STANDARD_UNKNOWN;
+        mConnectionCap.channelBandwidth = ScanResult.CHANNEL_WIDTH_80MHZ;
+        mConnectionCap.maxNumberTxSpatialStreams = 2;
+        assertEquals(-1, mThroughputPredictor.predictMaxTxThroughput(mConnectionCap));
     }
 }

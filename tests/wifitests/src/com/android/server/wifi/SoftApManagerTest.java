@@ -39,6 +39,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -48,6 +49,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import android.app.NotificationManager;
 import android.app.test.TestAlarmManager;
 import android.content.Context;
 import android.content.Intent;
@@ -127,6 +129,9 @@ public class SoftApManagerTest extends WifiBaseTest {
     @Mock WifiMetrics mWifiMetrics;
     @Mock SarManager mSarManager;
     @Mock BaseWifiDiagnostics mWifiDiagnostics;
+    @Mock NotificationManager mNotificationManager;
+    @Mock SoftApNotifier mFakeSoftApNotifier;
+
     final ArgumentCaptor<WifiNative.InterfaceCallback> mWifiNativeInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
     final ArgumentCaptor<WifiNative.SoftApListener> mSoftApListenerCaptor =
@@ -148,6 +153,9 @@ public class SoftApManagerTest extends WifiBaseTest {
         when(mContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
         when(mContext.getResources()).thenReturn(mResources);
+        when(mContext.getSystemService(NotificationManager.class))
+                .thenReturn(mNotificationManager);
+
         when(mResources.getInteger(R.integer.config_wifiFrameworkSoftApShutDownTimeoutMilliseconds))
                 .thenReturn(600000);
         when(mWifiNative.setCountryCodeHal(
@@ -1449,11 +1457,13 @@ public class SoftApManagerTest extends WifiBaseTest {
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null,
                 mTestSoftApCapability);
         startSoftApAndVerifyEnabled(apConfig);
-
+        doNothing().when(mFakeSoftApNotifier)
+                .showSoftApShutDownTimeoutExpiredNotification();
         mAlarmManager.dispatch(mSoftApManager.SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG);
         mLooper.dispatchAll();
 
         verify(mWifiNative).teardownInterface(TEST_INTERFACE_NAME);
+        verify(mFakeSoftApNotifier).showSoftApShutDownTimeoutExpiredNotification();
     }
 
     @Test
@@ -1728,6 +1738,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         InOrder order = inOrder(mCallback, mWifiNative);
 
         mSoftApManager = createSoftApManager(softApConfig, countryCode);
+        mSoftApManager.mSoftApNotifier = mFakeSoftApNotifier;
         SoftApConfiguration config = softApConfig.getSoftApConfiguration();
         if (config == null) {
             when(mWifiApConfigStore.getApConfiguration()).thenReturn(mDefaultApConfig);
@@ -1750,6 +1761,7 @@ public class SoftApManagerTest extends WifiBaseTest {
 
         mSoftApManager.start();
         mLooper.dispatchAll();
+        verify(mFakeSoftApNotifier).dismissSoftApShutDownTimeoutExpiredNotification();
         order.verify(mWifiNative).setupInterfaceForSoftApMode(
                 mWifiNativeInterfaceCallbackCaptor.capture());
         ArgumentCaptor<SoftApConfiguration> configCaptor =

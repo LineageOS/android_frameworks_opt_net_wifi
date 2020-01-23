@@ -32,7 +32,6 @@ import android.net.NetworkAgent;
 import android.net.NetworkAgentConfig;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
-import android.net.NetworkInfo;
 import android.net.NetworkProvider;
 import android.net.NetworkRequest;
 import android.net.NetworkSpecifier;
@@ -557,8 +556,6 @@ public class WifiAwareDataPathStateManager {
             nnri.peerDataMac = mac;
             nnri.channelInfo = channelInfo;
 
-            NetworkInfo networkInfo = new NetworkInfo(ConnectivityManager.TYPE_NONE, 0,
-                    NETWORK_TAG, "");
             NetworkCapabilities networkCapabilities = new NetworkCapabilities(
                     sNetworkCapabilitiesFilter);
             LinkProperties linkProperties = new LinkProperties();
@@ -638,7 +635,7 @@ public class WifiAwareDataPathStateManager {
             }
 
             if (!mNiWrapper.configureAgentProperties(nnri, nnri.equivalentRequests, ndpId,
-                    networkInfo, networkCapabilities, linkProperties)) {
+                    networkCapabilities, linkProperties)) {
                 declareUnfullfillableAndEndDp(nnri, ndpId);
                 return networkSpecifier;
             }
@@ -653,8 +650,7 @@ public class WifiAwareDataPathStateManager {
                     networkCapabilities, linkProperties, NETWORK_FACTORY_SCORE_AVAIL,
                     naConfig, mNetworkFactory.getProvider(), nnri);
             nnri.startValidationTimestamp = mClock.getElapsedSinceBootMillis();
-            handleAddressValidation(nnri, linkProperties, networkInfo, ndpId,
-                    networkSpecifier.isOutOfBand());
+            handleAddressValidation(nnri, linkProperties, ndpId, networkSpecifier.isOutOfBand());
         } else {
             if (VDBG) {
                 Log.v(TAG, "onDataPathConfirm: data-path for networkSpecifier=" + networkSpecifier
@@ -670,10 +666,9 @@ public class WifiAwareDataPathStateManager {
     }
 
     private void handleAddressValidation(AwareNetworkRequestInformation nnri,
-            LinkProperties linkProperties, NetworkInfo networkInfo, int ndpId,
-            boolean isOutOfBand) {
+            LinkProperties linkProperties, int ndpId, boolean isOutOfBand) {
         if (mNiWrapper.isAddressUsable(linkProperties)) {
-            mNiWrapper.sendAgentNetworkInfo(nnri.networkAgent, networkInfo);
+            mNiWrapper.setConnected(nnri.networkAgent);
 
             mAwareMetrics.recordNdpStatus(NanStatusType.SUCCESS, isOutOfBand, nnri.startTimestamp);
             nnri.startTimestamp = mClock.getElapsedSinceBootMillis(); // update time-stamp
@@ -690,7 +685,7 @@ public class WifiAwareDataPathStateManager {
                 Log.d(TAG, "Failed address validation");
             }
             mHandler.postDelayed(() -> {
-                handleAddressValidation(nnri, linkProperties, networkInfo, ndpId, isOutOfBand);
+                handleAddressValidation(nnri, linkProperties, ndpId, isOutOfBand);
             }, ADDRESS_VALIDATION_RETRY_INTERVAL_MS);
         }
     }
@@ -1468,8 +1463,7 @@ public class WifiAwareDataPathStateManager {
          */
         public boolean configureAgentProperties(AwareNetworkRequestInformation nnri,
                 Set<NetworkRequest> networkRequests, int ndpId,
-                NetworkInfo networkInfo, NetworkCapabilities networkCapabilities,
-                LinkProperties linkProperties) {
+                NetworkCapabilities networkCapabilities, LinkProperties linkProperties) {
             // find link-local address
             InetAddress linkLocal = null;
             NetworkInterface ni;
@@ -1504,9 +1498,6 @@ public class WifiAwareDataPathStateManager {
                 nnri.state = AwareNetworkRequestInformation.STATE_TERMINATING;
                 return false;
             }
-
-            // configure agent
-            networkInfo.setDetailedState(NetworkInfo.DetailedState.CONNECTED, null, null);
 
             networkCapabilities.setNetworkSpecifier(new WifiAwareAgentNetworkSpecifier(
                     networkRequests.stream()
@@ -1545,11 +1536,10 @@ public class WifiAwareDataPathStateManager {
         }
 
         /**
-         * Send updated network information to the agent.
+         * Tell the network agent the network is now connected.
          */
-        public void sendAgentNetworkInfo(WifiAwareNetworkAgent networkAgent,
-                NetworkInfo networkInfo) {
-            networkAgent.sendNetworkInfo(networkInfo);
+        public void setConnected(WifiAwareNetworkAgent networkAgent) {
+            networkAgent.setConnected();
         }
     }
 

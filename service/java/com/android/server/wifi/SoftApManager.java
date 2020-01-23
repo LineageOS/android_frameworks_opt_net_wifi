@@ -80,6 +80,9 @@ public class SoftApManager implements ActiveModeManager {
     private final FrameworkFacade mFrameworkFacade;
     private final WifiNative mWifiNative;
 
+    @VisibleForTesting
+    SoftApNotifier mSoftApNotifier;
+
     private final String mCountryCode;
 
     private final SoftApStateMachine mStateMachine;
@@ -167,6 +170,7 @@ public class SoftApManager implements ActiveModeManager {
                          @NonNull BaseWifiDiagnostics wifiDiagnostics) {
         mContext = context;
         mFrameworkFacade = framework;
+        mSoftApNotifier = new SoftApNotifier(mContext, mFrameworkFacade);
         mWifiNative = wifiNative;
         mCountryCode = countryCode;
         mModeListener = listener;
@@ -542,6 +546,7 @@ public class SoftApManager implements ActiveModeManager {
                             mModeListener.onStartFailure();
                             break;
                         }
+                        mSoftApNotifier.dismissSoftApShutDownTimeoutExpiredNotification();
                         updateApState(WifiManager.WIFI_AP_STATE_ENABLING,
                                 WifiManager.WIFI_AP_STATE_DISABLED, 0);
                         int result = startSoftAp();
@@ -920,6 +925,7 @@ public class SoftApManager implements ActiveModeManager {
                             Log.wtf(TAG, "Timeout message received but has clients. Dropping.");
                             break;
                         }
+                        mSoftApNotifier.showSoftApShutDownTimeoutExpiredNotification();
                         Log.i(TAG, "Timeout message received. Stopping soft AP.");
                         updateApState(WifiManager.WIFI_AP_STATE_DISABLING,
                                 WifiManager.WIFI_AP_STATE_ENABLED, 0);

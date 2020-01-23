@@ -2822,13 +2822,29 @@ public class WifiNative {
     }
 
     /**
-     * Get the connection Wifi standard
+     * Class to retrieve connection capability parameters after association
+     */
+    public static class ConnectionCapabilities {
+        public @ScanResult.WifiStandard int wifiStandard;
+        public int channelBandwidth;
+        public int maxNumberTxSpatialStreams;
+        public int maxNumberRxSpatialStreams;
+        ConnectionCapabilities() {
+            wifiStandard = ScanResult.WIFI_STANDARD_UNKNOWN;
+            channelBandwidth = ScanResult.CHANNEL_WIDTH_20MHZ;
+            maxNumberTxSpatialStreams = 1;
+            maxNumberRxSpatialStreams = 1;
+        }
+    }
+
+    /**
+     * Returns connection capabilities of the current network
      *
      * @param ifaceName Name of the interface.
-     * @return Wifi standard for connection on this interface
+     * @return connection capabilities of the current network
      */
-    public @ScanResult.WifiStandard int getWifiStandard(@NonNull String ifaceName) {
-        return mSupplicantStaIfaceHal.getWifiStandard(ifaceName);
+    public ConnectionCapabilities getConnectionCapabilities(@NonNull String ifaceName) {
+        return mSupplicantStaIfaceHal.getConnectionCapabilities(ifaceName);
     }
 
     /**
