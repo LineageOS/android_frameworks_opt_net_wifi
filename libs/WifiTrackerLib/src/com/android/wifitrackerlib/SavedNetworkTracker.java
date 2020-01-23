@@ -19,8 +19,7 @@ package com.android.wifitrackerlib;
 import static androidx.core.util.Preconditions.checkNotNull;
 
 import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
-
-import static java.util.stream.Collectors.groupingBy;
+import static com.android.wifitrackerlib.Utils.mapScanResultsToKey;
 
 import android.content.Context;
 import android.content.Intent;
@@ -30,7 +29,6 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
-import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.AnyThread;
@@ -190,9 +188,13 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         checkNotNull(scanResults, "Scan Result list should not be null!");
 
         // Group scans by StandardWifiEntry key
-        final Map<String, List<ScanResult>> scanResultsByKey = scanResults.stream()
-                .filter(scanResult -> !TextUtils.isEmpty(scanResult.SSID))
-                .collect(groupingBy(StandardWifiEntry::scanResultToStandardWifiEntryKey));
+        final Map<String, List<ScanResult>> scanResultsByKey = mapScanResultsToKey(
+                scanResults,
+                false /* chooseSingleSecurity */,
+                null /* wifiConfigsByKey */,
+                mWifiManager.isWpa3SaeSupported(),
+                mWifiManager.isWpa3SuiteBSupported(),
+                mWifiManager.isEnhancedOpenSupported());
 
         // Iterate through current entries and update each entry's scan results
         mStandardWifiEntryCache.entrySet().forEach(entry -> {
@@ -254,7 +256,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         } else {
             if (changeReason != WifiManager.CHANGE_REASON_REMOVED) {
                 mStandardWifiEntryCache.put(key,
-                        new StandardWifiEntry(mContext, mMainHandler, config, mWifiManager));
+                        new StandardWifiEntry(mContext, mMainHandler, key, config, mWifiManager));
             }
         }
     }
@@ -281,7 +283,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         // Create new entry for each unmatched config
         for (String key : wifiConfigsByKey.keySet()) {
             mStandardWifiEntryCache.put(key,
-                    new StandardWifiEntry(mContext, mMainHandler, wifiConfigsByKey.get(key),
+                    new StandardWifiEntry(mContext, mMainHandler, key, wifiConfigsByKey.get(key),
                             mWifiManager));
         }
     }

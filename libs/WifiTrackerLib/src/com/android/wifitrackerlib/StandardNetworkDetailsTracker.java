@@ -18,8 +18,8 @@ package com.android.wifitrackerlib;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
-import static com.android.wifitrackerlib.StandardWifiEntry.scanResultToStandardWifiEntryKey;
 import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
+import static com.android.wifitrackerlib.Utils.getSecurityTypesFromScanResult;
 import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_CONNECTED;
 
 import static java.util.stream.Collectors.toList;
@@ -66,7 +66,7 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
             String key) {
         super(lifecycle, context, wifiManager, connectivityManager, networkScoreManager,
                 mainHandler, workerHandler, clock, maxScanAgeMillis, scanIntervalMillis, TAG);
-        mChosenEntry = new StandardWifiEntry(mContext, mMainHandler, key, mWifiManager);
+        mChosenEntry = new StandardWifiEntry(mContext, mMainHandler, key, mWifiManager, false);
         cacheNewScanResults();
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
         conditionallyUpdateConfig();
@@ -173,8 +173,9 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
      */
     private void cacheNewScanResults() {
         mScanResultUpdater.update(mWifiManager.getScanResults().stream()
-                .filter(scan -> TextUtils.equals(
-                        scanResultToStandardWifiEntryKey(scan), mChosenEntry.getKey()))
+                .filter(scan -> TextUtils.equals(scan.SSID, mChosenEntry.getSsid())
+                        && getSecurityTypesFromScanResult(scan).contains(
+                                mChosenEntry.getSecurity()))
                 .collect(toList()));
     }
 }

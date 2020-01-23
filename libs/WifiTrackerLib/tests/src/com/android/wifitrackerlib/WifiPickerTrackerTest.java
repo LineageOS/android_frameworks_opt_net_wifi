@@ -267,14 +267,12 @@ public class WifiPickerTrackerTest {
 
         mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
                 new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-        List<String> seenKeys = new ArrayList<>();
+        List<String> seenTitles = new ArrayList<>();
         for (WifiEntry wifiEntry : wifiPickerTracker.getWifiEntries()) {
-            seenKeys.add(wifiEntry.getKey());
+            seenTitles.add(wifiEntry.getTitle());
         }
 
-        assertThat(seenKeys).containsExactly(
-                StandardWifiEntry.scanResultToStandardWifiEntryKey(openNetwork),
-                StandardWifiEntry.scanResultToStandardWifiEntryKey(secureNetwork));
+        assertThat(seenTitles).containsExactly("Open Network", "Secure Network");
     }
 
     /**

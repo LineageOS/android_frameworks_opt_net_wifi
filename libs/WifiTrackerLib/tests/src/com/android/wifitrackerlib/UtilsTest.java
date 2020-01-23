@@ -16,12 +16,16 @@
 
 package com.android.wifitrackerlib;
 
+import static com.android.wifitrackerlib.StandardWifiEntry.ssidAndSecurityToStandardWifiEntryKey;
+import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
 import static com.android.wifitrackerlib.TestUtils.buildScanResult;
-import static com.android.wifitrackerlib.Utils.filterScanResultsByCapabilities;
 import static com.android.wifitrackerlib.Utils.getAppLabelForSavedNetwork;
 import static com.android.wifitrackerlib.Utils.getAutoConnectDescription;
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
 import static com.android.wifitrackerlib.Utils.getMeteredDescription;
+import static com.android.wifitrackerlib.Utils.mapScanResultsToKey;
+import static com.android.wifitrackerlib.WifiEntry.SECURITY_NONE;
+import static com.android.wifitrackerlib.WifiEntry.SECURITY_PSK;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -50,6 +54,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class UtilsTest {
 
@@ -101,37 +106,48 @@ public class UtilsTest {
     }
 
     @Test
-    public void testfilterScanResultsByCapabilities_filtersUnsupportedCapabilities() {
+    public void testMapScanResultsToKey_filtersUnsupportedCapabilities() {
         final ScanResult wpa3SaeScan = new ScanResult();
         final ScanResult wpa3SuiteBScan = new ScanResult();
-        final ScanResult enhancedOpenScan = new ScanResult();
+        final ScanResult oweScan = new ScanResult();
+        wpa3SaeScan.SSID = "wpa3Sae";
         wpa3SaeScan.capabilities = "[SAE]";
+        wpa3SuiteBScan.SSID = "wpa3SuiteB";
         wpa3SuiteBScan.capabilities = "[EAP_SUITE_B_192]";
-        enhancedOpenScan.capabilities = "[OWE]";
+        oweScan.SSID = "owe";
+        oweScan.capabilities = "[OWE]";
 
-        final List<ScanResult> filteredScans = filterScanResultsByCapabilities(
-                Arrays.asList(wpa3SaeScan, wpa3SuiteBScan, enhancedOpenScan),
+        final Map<String, List<ScanResult>> scanResultsByKey = mapScanResultsToKey(
+                Arrays.asList(wpa3SaeScan, wpa3SuiteBScan, oweScan),
+                false /* chooseSingleSecurity */,
+                null /* wifiConfigsByKey */,
                 false /* isWpa3SaeSupported */,
                 false /* isWpa3SuiteBSupported */,
                 false /* isEnhancedOpenSupported */);
 
-        assertThat(filteredScans).isEmpty();
+        assertThat(scanResultsByKey).isEmpty();
     }
 
     @Test
-    public void testfilterScanResultsByCapabilities_keepsTransitionModeScans() {
+    public void testMapScanResultsToKey_convertsTransitionModeScansToSupportedSecurity() {
         final ScanResult wpa3TransitionScan = new ScanResult();
-        final ScanResult enhancedOpenTransitionScan = new ScanResult();
+        final ScanResult oweTransitionScan = new ScanResult();
+        wpa3TransitionScan.SSID = "wpa3Transition";
         wpa3TransitionScan.capabilities = "[PSK+SAE]";
-        enhancedOpenTransitionScan.capabilities = "[OWE_TRANSITION]";
+        oweTransitionScan.SSID = "owe";
+        oweTransitionScan.capabilities = "[OWE_TRANSITION]";
 
-        final List<ScanResult> filteredScans = filterScanResultsByCapabilities(
-                Arrays.asList(wpa3TransitionScan, enhancedOpenTransitionScan),
+        final Map<String, List<ScanResult>> scanResultsByKey = mapScanResultsToKey(
+                Arrays.asList(wpa3TransitionScan, oweTransitionScan),
+                false /* chooseSingleSecurity */,
+                null /* wifiConfigsByKey */,
                 false /* isWpa3SaeSupported */,
                 false /* isWpa3SuiteBSupported */,
                 false /* isEnhancedOpenSupported */);
 
-        assertThat(filteredScans).containsExactly(wpa3TransitionScan, enhancedOpenTransitionScan);
+        assertThat(scanResultsByKey.keySet()).containsExactly(
+                ssidAndSecurityToStandardWifiEntryKey(wpa3TransitionScan.SSID, SECURITY_PSK),
+                ssidAndSecurityToStandardWifiEntryKey(oweTransitionScan.SSID, SECURITY_NONE));
     }
 
     @Test
@@ -255,7 +271,8 @@ public class UtilsTest {
 
     private StandardWifiEntry getStandardWifiEntry(WifiConfiguration config) {
         final WifiManager mockWifiManager = mock(WifiManager.class);
-        final StandardWifiEntry entry = new StandardWifiEntry(mMockContext, mTestHandler, config,
+        final StandardWifiEntry entry = new StandardWifiEntry(mMockContext, mTestHandler,
+                wifiConfigToStandardWifiEntryKey(config), config,
                 mockWifiManager);
         final WifiInfo mockWifiInfo = mock(WifiInfo.class);
         final NetworkInfo mockNetworkInfo = mock(NetworkInfo.class);
