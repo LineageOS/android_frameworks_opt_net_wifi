@@ -288,7 +288,7 @@ public class PasspointProviderTest extends WifiBaseTest {
     }
 
     /**
-     * Helper function for verifying wifi configuration based on passpoing configuration
+     * Helper function for verifying wifi configuration based on Passpoint configuration
      *
      * @param passpointConfig the source of wifi configuration.
      * @param wifiConfig wifi configuration be verified.
@@ -351,7 +351,8 @@ public class PasspointProviderTest extends WifiBaseTest {
             }
             assertEquals(userCredential.getUsername(), wifiEnterpriseConfig.getIdentity());
             assertEquals(decodedPassword, wifiEnterpriseConfig.getPassword());
-            assertEquals(WifiConfiguration.METERED_OVERRIDE_METERED, wifiConfig.meteredOverride);
+            assertEquals(WifiConfiguration.METERED_OVERRIDE_NONE,
+                    wifiConfig.meteredOverride);
 
             if (!ArrayUtils.isEmpty(passpointConfig.getAaaServerTrustedNames())) {
                 assertEquals(String.join(";", passpointConfig.getAaaServerTrustedNames()),
@@ -381,7 +382,7 @@ public class PasspointProviderTest extends WifiBaseTest {
             assertEquals("anonymous@" + credential.getRealm(),
                     wifiEnterpriseConfig.getAnonymousIdentity());
             assertEquals(WifiEnterpriseConfig.Eap.TLS, wifiEnterpriseConfig.getEapMethod());
-            assertEquals(WifiConfiguration.METERED_OVERRIDE_METERED, wifiConfig.meteredOverride);
+            assertEquals(WifiConfiguration.METERED_OVERRIDE_NONE, wifiConfig.meteredOverride);
             // Domain suffix match
             if (ArrayUtils.isEmpty(passpointConfig.getAaaServerTrustedNames())) {
                 assertEquals(homeSp.getFqdn(), wifiEnterpriseConfig.getDomainSuffixMatch());

@@ -16,6 +16,8 @@
 
 package com.android.server.wifi.hotspot2;
 
+import static android.net.wifi.WifiConfiguration.MeteredOverride;
+
 import android.annotation.Nullable;
 import android.net.wifi.EAPConstants;
 import android.net.wifi.WifiConfiguration;
@@ -235,6 +237,13 @@ public class PasspointProvider {
      */
     public boolean isMacRandomizationEnabled() {
         return mConfig.isMacRandomizationEnabled();
+    }
+
+    /**
+     * Get the metered override for this passpoint profile.
+     */
+    public void setMeteredOverride(@MeteredOverride int meteredOverride) {
+        mConfig.setMeteredOverride(meteredOverride);
     }
 
     /**
@@ -489,6 +498,7 @@ public class PasspointProvider {
         } else {
             wifiConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         }
+        wifiConfig.meteredOverride = mConfig.getMeteredOverride();
         return wifiConfig;
     }
 
