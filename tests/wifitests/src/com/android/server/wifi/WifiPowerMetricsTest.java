@@ -61,9 +61,9 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
     public void testBuildWifiRadioUsageProto() throws Exception {
         final long loggingDuration = 280;
         final long scanTime = 23;
-        WifiBatteryStats wifiBatteryStats = new WifiBatteryStats();
-        wifiBatteryStats.setLoggingDurationMillis(loggingDuration);
-        wifiBatteryStats.setScanTimeMillis(scanTime);
+        WifiBatteryStats wifiBatteryStats = mock(WifiBatteryStats.class);
+        when(wifiBatteryStats.getLoggingDurationMillis()).thenReturn(loggingDuration);
+        when(wifiBatteryStats.getScanTimeMillis()).thenReturn(scanTime);
         when(mBatteryStats.getWifiBatteryStats()).thenReturn(wifiBatteryStats);
         WifiRadioUsage wifiRadioUsage = mWifiPowerMetrics.buildWifiRadioUsageProto();
         verify(mBatteryStats).getWifiBatteryStats();
@@ -120,17 +120,19 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
         final long sleepTimeMs = 323270343;
         final double monitoredRailEnergyConsumedMah = monitoredRailEnergyConsumedMaMs
                 / ((double) DateUtils.HOUR_IN_MILLIS);
-        WifiBatteryStats wifiBatteryStats = new WifiBatteryStats();
-        wifiBatteryStats.setEnergyConsumedMaMillis(monitoredRailEnergyConsumedMaMs);
-        wifiBatteryStats.setNumBytesTx(numBytesTx);
-        wifiBatteryStats.setNumBytesRx(numBytesRx);
-        wifiBatteryStats.setNumPacketsTx(numPacketsTx);
-        wifiBatteryStats.setNumPacketsRx(numPacketsRx);
-        wifiBatteryStats.setTxTimeMillis(txTimeMs);
-        wifiBatteryStats.setRxTimeMillis(rxTimeMs);
-        wifiBatteryStats.setIdleTimeMillis(idleTimeMs);
-        wifiBatteryStats.setScanTimeMillis(scanTimeMs);
-        wifiBatteryStats.setSleepTimeMillis(sleepTimeMs);
+        WifiBatteryStats wifiBatteryStats = mock(WifiBatteryStats.class);
+        when(wifiBatteryStats.getEnergyConsumedMaMillis())
+                .thenReturn(monitoredRailEnergyConsumedMaMs);
+        when(wifiBatteryStats.getNumBytesTx()).thenReturn(numBytesTx);
+        when(wifiBatteryStats.getNumBytesRx()).thenReturn(numBytesRx);
+        when(wifiBatteryStats.getNumPacketsTx()).thenReturn(numPacketsTx);
+        when(wifiBatteryStats.getNumPacketsRx()).thenReturn(numPacketsRx);
+        when(wifiBatteryStats.getTxTimeMillis()).thenReturn(txTimeMs);
+        when(wifiBatteryStats.getRxTimeMillis()).thenReturn(rxTimeMs);
+        when(wifiBatteryStats.getIdleTimeMillis()).thenReturn(idleTimeMs);
+        when(wifiBatteryStats.getScanTimeMillis()).thenReturn(scanTimeMs);
+        when(wifiBatteryStats.getSleepTimeMillis()).thenReturn(sleepTimeMs);
+
         when(mBatteryStats.getWifiBatteryStats()).thenReturn(wifiBatteryStats);
         WifiPowerStats wifiPowerStats = mWifiPowerMetrics.buildProto();
         verify(mBatteryStats).getWifiBatteryStats();

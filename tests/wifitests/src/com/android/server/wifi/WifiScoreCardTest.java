@@ -87,6 +87,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
     @Mock Clock mClock;
     @Mock WifiScoreCard.MemoryStore mMemoryStore;
+    @Mock DeviceConfigFacade mDeviceConfigFacade;
 
     final ArrayList<String> mKeys = new ArrayList<>();
     final ArrayList<WifiScoreCard.BlobListener> mBlobListeners = new ArrayList<>();
@@ -120,8 +121,34 @@ public class WifiScoreCardTest extends WifiBaseTest {
         mWifiInfo.setBSSID(TEST_BSSID_1.toString());
         mWifiInfo.setNetworkId(TEST_NETWORK_CONFIG_ID);
         millisecondsPass(0);
-        mWifiScoreCard = new WifiScoreCard(mClock, "some seed");
+        mWifiScoreCard = new WifiScoreCard(mClock, "some seed", mDeviceConfigFacade);
         mWifiScoreCard.mPersistentHistograms = true; // TODO - remove when ready
+        when(mDeviceConfigFacade.getConnectionFailureHighThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_CONNECTION_FAILURE_HIGH_THR_PERCENT);
+        when(mDeviceConfigFacade.getConnectionFailureLowThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_CONNECTION_FAILURE_LOW_THR_PERCENT);
+        when(mDeviceConfigFacade.getAssocRejectionHighThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_ASSOC_REJECTION_HIGH_THR_PERCENT);
+        when(mDeviceConfigFacade.getAssocRejectionLowThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_ASSOC_REJECTION_LOW_THR_PERCENT);
+        when(mDeviceConfigFacade.getAssocTimeoutHighThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_ASSOC_TIMEOUT_HIGH_THR_PERCENT);
+        when(mDeviceConfigFacade.getAssocTimeoutLowThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_ASSOC_TIMEOUT_LOW_THR_PERCENT);
+        when(mDeviceConfigFacade.getAuthFailureHighThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_AUTH_FAILURE_HIGH_THR_PERCENT);
+        when(mDeviceConfigFacade.getAuthFailureLowThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_AUTH_FAILURE_LOW_THR_PERCENT);
+        when(mDeviceConfigFacade.getShortConnectionNonlocalHighThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_SHORT_CONNECTION_NONLOCAL_HIGH_THR_PERCENT);
+        when(mDeviceConfigFacade.getShortConnectionNonlocalLowThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_SHORT_CONNECTION_NONLOCAL_LOW_THR_PERCENT);
+        when(mDeviceConfigFacade.getDisconnectionNonlocalHighThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_DISCONNECTION_NONLOCAL_HIGH_THR_PERCENT);
+        when(mDeviceConfigFacade.getDisconnectionNonlocalLowThrPercent()).thenReturn(
+                DeviceConfigFacade.DEFAULT_DISCONNECTION_NONLOCAL_LOW_THR_PERCENT);
+        when(mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm()).thenReturn(
+                DeviceConfigFacade.DEFAULT_HEALTH_MONITOR_MIN_RSSI_THR_DBM);
     }
 
     /**

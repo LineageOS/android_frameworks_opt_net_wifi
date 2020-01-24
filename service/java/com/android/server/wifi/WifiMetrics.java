@@ -2124,7 +2124,8 @@ public class WifiMetrics {
                 ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromScanResult(scanResult);
                 List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = null;
                 if (networkDetail.isInterworking()) {
-                    matchedProviders = mPasspointManager.matchProvider(scanResult);
+                    // Try to match provider, but do not allow new ANQP messages. Use cached data.
+                    matchedProviders = mPasspointManager.matchProvider(scanResult, false);
                     if (networkDetail.getHSRelease() == NetworkDetail.HSRelease.R1) {
                         passpointR1Aps++;
                     } else if (networkDetail.getHSRelease() == NetworkDetail.HSRelease.R2) {

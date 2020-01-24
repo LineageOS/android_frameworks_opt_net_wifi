@@ -714,13 +714,13 @@ public class WifiLockManager {
         Pair<int[], String[]> uidsAndTags = WorkSourceUtil.getUidsAndTagsForWs(ws);
         try {
             if (shouldBlame) {
-                mBatteryStats.noteFullWifiLockAcquiredFromSource(ws);
+                mBatteryStats.reportFullWifiLockAcquiredFromSource(ws);
                 WifiStatsLog.write(WifiStatsLog.WIFI_LOCK_STATE_CHANGED,
                         uidsAndTags.first, uidsAndTags.second,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__ON,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__MODE__WIFI_MODE_FULL_HIGH_PERF);
             } else {
-                mBatteryStats.noteFullWifiLockReleasedFromSource(ws);
+                mBatteryStats.reportFullWifiLockReleasedFromSource(ws);
                 WifiStatsLog.write(WifiStatsLog.WIFI_LOCK_STATE_CHANGED,
                         uidsAndTags.first, uidsAndTags.second,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
@@ -735,12 +735,12 @@ public class WifiLockManager {
         long ident = Binder.clearCallingIdentity();
         try {
             if (shouldBlame) {
-                mBatteryStats.noteFullWifiLockAcquiredFromSource(new WorkSource(uid));
+                mBatteryStats.reportFullWifiLockAcquiredFromSource(new WorkSource(uid));
                 WifiStatsLog.write_non_chained(WifiStatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__ON,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__MODE__WIFI_MODE_FULL_LOW_LATENCY);
             } else {
-                mBatteryStats.noteFullWifiLockReleasedFromSource(new WorkSource(uid));
+                mBatteryStats.reportFullWifiLockReleasedFromSource(new WorkSource(uid));
                 WifiStatsLog.write_non_chained(WifiStatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
                         WifiStatsLog.WIFI_LOCK_STATE_CHANGED__MODE__WIFI_MODE_FULL_LOW_LATENCY);

@@ -2531,7 +2531,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         ScanResult matchingScanResult = mTestScanDatas[0].getResults()[0];
 
         // Setup CDM approval for the scan result.
-        when(mCompanionDeviceManager.isDeviceAssociated(
+        when(mCompanionDeviceManager.isDeviceAssociatedForWifiConnection(
                 TEST_PACKAGE_NAME_1,
                 MacAddress.fromString(matchingScanResult.BSSID),
                 UserHandle.getUserHandleForUid(TEST_UID_1))).thenReturn(true);

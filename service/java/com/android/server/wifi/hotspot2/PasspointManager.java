@@ -507,8 +507,11 @@ public class PasspointManager {
             Log.e(TAG, "Config fqdn=\"" + fqdn + "\" doesn't exist");
             return false;
         }
-        provider.setMacRandomizationEnabled(enable);
+        boolean settingChanged = provider.setMacRandomizationEnabled(enable);
         mWifiConfigManager.saveToStore(true);
+        if (settingChanged) {
+            mWifiConfigManager.removePasspointConfiguredNetwork(provider.getWifiConfig().getKey());
+        }
         return true;
     }
 
@@ -549,8 +552,26 @@ public class PasspointManager {
      */
     public @NonNull List<Pair<PasspointProvider, PasspointMatch>> matchProvider(
             ScanResult scanResult) {
+        return matchProvider(scanResult, true);
+    }
+
+    /**
+     * Find all providers that can provide service through the given AP, which means the
+     * providers contained credential to authenticate with the given AP.
+     *
+     * If there is any home provider available, will return a list of matched home providers.
+     * Otherwise will return a list of matched roaming providers.
+     *
+     * A empty list will be returned if no matching is found.
+     *
+     * @param scanResult The scan result associated with the AP
+     * @param anqpRequestAllowed Indicates if to allow ANQP request if the provider's entry is empty
+     * @return a list of pairs of {@link PasspointProvider} and match status.
+     */
+    public @NonNull List<Pair<PasspointProvider, PasspointMatch>> matchProvider(
+            ScanResult scanResult, boolean anqpRequestAllowed) {
         List<Pair<PasspointProvider, PasspointMatch>> allMatches = getAllMatchedProviders(
-                scanResult);
+                scanResult, anqpRequestAllowed);
         if (allMatches.isEmpty()) {
             return allMatches;
         }
@@ -593,6 +614,18 @@ public class PasspointManager {
      */
     public @NonNull List<Pair<PasspointProvider, PasspointMatch>> getAllMatchedProviders(
             ScanResult scanResult) {
+        return getAllMatchedProviders(scanResult, true);
+    }
+
+    /**
+     * Return a list of all providers that can provide service through the given AP.
+     *
+     * @param scanResult The scan result associated with the AP
+     * @param anqpRequestAllowed Indicates if to allow ANQP request if the provider's entry is empty
+     * @return a list of pairs of {@link PasspointProvider} and match status.
+     */
+    private @NonNull List<Pair<PasspointProvider, PasspointMatch>> getAllMatchedProviders(
+            ScanResult scanResult, boolean anqpRequestAllowed) {
         List<Pair<PasspointProvider, PasspointMatch>> allMatches = new ArrayList<>();
 
         // Retrieve the relevant information elements, mainly Roaming Consortium IE and Hotspot 2.0
@@ -614,9 +647,11 @@ public class PasspointManager {
                 vsa.anqpDomainID);
         ANQPData anqpEntry = mAnqpCache.getEntry(anqpKey);
         if (anqpEntry == null) {
-            mAnqpRequestManager.requestANQPElements(bssid, anqpKey,
-                    roamingConsortium.anqpOICount > 0,
-                    vsa.hsRelease  == NetworkDetail.HSRelease.R2);
+            if (anqpRequestAllowed) {
+                mAnqpRequestManager.requestANQPElements(bssid, anqpKey,
+                        roamingConsortium.anqpOICount > 0,
+                        vsa.hsRelease == NetworkDetail.HSRelease.R2);
+            }
             Log.d(TAG, "ANQP entry not found for: " + anqpKey);
             return allMatches;
         }
@@ -1034,5 +1069,30 @@ public class PasspointManager {
             }
         }
         return false;
+    }
+
+    /**
+     * Get the filtered ScanResults which could be served by the {@link PasspointConfiguration}.
+     * @param passpointConfiguration The instance of {@link PasspointConfiguration}
+     * @param scanResults The list of {@link ScanResult}
+     * @return The filtered ScanResults
+     */
+    @NonNull
+    public List<ScanResult> getMatchingScanResults(
+            @NonNull PasspointConfiguration passpointConfiguration,
+            @NonNull List<ScanResult> scanResults) {
+        PasspointProvider provider = mObjectFactory.makePasspointProvider(passpointConfiguration,
+                null, mTelephonyUtil, 0, 0, null, false);
+        List<ScanResult> filteredScanResults = new ArrayList<>();
+        for (ScanResult scanResult : scanResults) {
+            PasspointMatch matchInfo = provider.match(getANQPElements(scanResult),
+                    InformationElementUtil.getRoamingConsortiumIE(scanResult.informationElements));
+            if (matchInfo == PasspointMatch.HomeProvider
+                    || matchInfo == PasspointMatch.RoamingProvider) {
+                filteredScanResults.add(scanResult);
+            }
+        }
+
+        return filteredScanResults;
     }
 }

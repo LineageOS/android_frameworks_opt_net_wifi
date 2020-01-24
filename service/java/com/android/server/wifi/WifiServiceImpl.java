@@ -2442,6 +2442,20 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager#allowAutojoinGlobal(boolean)}
+     * @param choice the OEM's choice to allow auto-join
+     */
+    @Override
+    public void allowAutojoinGlobal(boolean choice) {
+        enforceNetworkSettingsPermission();
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("allowAutojoin=% uid=%").c(choice).c(callingUid).flush();
+
+        mWifiThreadRunner.post(() -> mClientModeImpl.allowAutoJoinGlobal(choice));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#allowAutojoin(int, boolean)}
      * @param netId the integer that identifies the network configuration
      * @param choice the user's choice to allow auto-join
@@ -2598,6 +2612,46 @@ public class WifiServiceImpl extends BaseWifiService {
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
+    }
+
+    /**
+     * Return the filtered ScanResults which may be authenticated by the suggested network
+     * configurations.
+     * @return The map of {@link WifiNetworkSuggestion} and the list of {@link ScanResult} which
+     * may be authenticated by the corresponding network configuration.
+     */
+    @Override
+    @NonNull
+    public Map<WifiNetworkSuggestion, List<ScanResult>> getMatchingScanResults(
+            @NonNull List<WifiNetworkSuggestion> networkSuggestions,
+            @Nullable List<ScanResult> scanResults,
+            String callingPackage, String callingFeatureId) {
+        enforceAccessPermission();
+        int uid = Binder.getCallingUid();
+        long ident = Binder.clearCallingIdentity();
+        try {
+            mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, callingFeatureId,
+                    uid, null);
+
+            return mWifiThreadRunner.call(
+                    () -> {
+                        if (scanResults == null || scanResults.isEmpty()) {
+                            return mWifiNetworkSuggestionsManager.getMatchingScanResults(
+                                    networkSuggestions, mScanRequestProxy.getScanResults());
+                        } else {
+                            return mWifiNetworkSuggestionsManager.getMatchingScanResults(
+                                    networkSuggestions, scanResults);
+                        }
+                    },
+                    Collections.emptyMap());
+        } catch (SecurityException e) {
+            Log.e(TAG, "Permission violation - getMatchingScanResults not allowed for uid="
+                    + uid + ", packageName=" + callingPackage + ", reason + e");
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+
+        return Collections.emptyMap();
     }
 
     /**
@@ -3340,20 +3394,6 @@ public class WifiServiceImpl extends BaseWifiService {
             sb.append(String.format(" %02x", s.charAt(n) & 0xffff));
         }
         return sb.toString();
-    }
-
-    /**
-     * Enable/disable WifiConnectivityManager at runtime
-     *
-     * @param enabled true-enable; false-disable
-     */
-    @Override
-    public void enableWifiConnectivityManager(boolean enabled) {
-        enforceConnectivityInternalPermission();
-        mLog.info("enableWifiConnectivityManager uid=% enabled=%")
-                .c(Binder.getCallingUid())
-                .c(enabled).flush();
-        mClientModeImpl.enableWifiConnectivityManager(enabled);
     }
 
     /**

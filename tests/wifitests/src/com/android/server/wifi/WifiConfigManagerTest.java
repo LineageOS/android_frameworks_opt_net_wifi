@@ -605,6 +605,38 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 networks, retrievedNetworks);
     }
 
+    /**
+     * Verify that the mac randomization setting could be modified by the creator of a passpoint
+     * network.
+     */
+    @Test
+    public void testCanUpdateMacRandomizationSettingWithPasspointCreatorUid() throws Exception {
+        ArgumentCaptor<WifiConfiguration> wifiConfigCaptor =
+                ArgumentCaptor.forClass(WifiConfiguration.class);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isDeviceOwner(anyInt(), any())).thenReturn(false);
+        WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+        // Disable MAC randomization and verify this is added in successfully.
+        passpointNetwork.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(passpointNetwork);
+
+        verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
+        // Ensure that configured network list is not empty.
+        assertFalse(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+
+        // Ensure that this is not returned in the saved network list.
+        assertTrue(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID).isEmpty());
+        verify(mWcmListener).onNetworkAdded(wifiConfigCaptor.capture());
+        assertEquals(passpointNetwork.networkId, wifiConfigCaptor.getValue().networkId);
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+    }
+
 
     /**
      * Verifies the addition of a single ephemeral network using
@@ -2881,6 +2913,92 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         for (WifiConfiguration network : retrievedNetworks) {
             assertNull(network.linkedConfigurations);
         }
+    }
+
+    /**
+     * Verifies the creation of channel list using
+     * {@link WifiConfigManager#fetchChannelSetForPartialScan(long, int)}.
+     */
+    @Test
+    public void testFetchChannelSetForPartialScan() {
+        WifiConfiguration network1 = WifiConfigurationTestUtil.createPskNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(network1);
+
+        // Set it to enabled.
+        verifyUpdateNetworkSelectionStatus(
+                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+
+        WifiConfiguration network2 = WifiConfigurationTestUtil.createOpenNetwork();
+        result = verifyAddNetworkToWifiConfigManager(network2);
+        // Set it to enabled.
+        verifyUpdateNetworkSelectionStatus(
+                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+
+        // Create 3 scan results with different bssid's & frequencies to network1
+        String test_bssid_base = "af:89:56:34:56:6";
+        for (int i = 0; i < 3; i++) {
+            ScanDetail networkScanDetail =
+                    createScanDetailForNetwork(
+                            network1, test_bssid_base + Integer.toString(i), 0, TEST_FREQ_LIST[i]);
+            assertNotNull(
+                    mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
+                            networkScanDetail));
+        }
+
+        // Create 2 scan results with different bssid's & frequencies to network2
+        for (int i = 3; i < TEST_FREQ_LIST.length; i++) {
+            ScanDetail networkScanDetail =
+                    createScanDetailForNetwork(
+                            network2, test_bssid_base + Integer.toString(i), 0, TEST_FREQ_LIST[i]);
+            assertNotNull(
+                    mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
+                            networkScanDetail));
+        }
+
+        assertEquals(new HashSet<Integer>(Arrays.asList(TEST_FREQ_LIST)),
+                mWifiConfigManager.fetchChannelSetForPartialScan(100, 5));
+    }
+
+    /**
+     * Verify that the length of frequency set will not exceed the provided max value
+     */
+    @Test
+    public void testFetchChannelSetForPartialScanMaxCount() {
+        WifiConfiguration network1 = WifiConfigurationTestUtil.createPskNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(network1);
+
+        // Set it to enabled.
+        verifyUpdateNetworkSelectionStatus(
+                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+
+        WifiConfiguration network2 = WifiConfigurationTestUtil.createOpenNetwork();
+        result = verifyAddNetworkToWifiConfigManager(network2);
+        // Set it to enabled.
+        verifyUpdateNetworkSelectionStatus(
+                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+
+        // Create 3 scan results with different bssid's & frequencies to network1
+        String test_bssid_base = "af:89:56:34:56:6";
+        for (int i = 0; i < 3; i++) {
+            ScanDetail networkScanDetail =
+                    createScanDetailForNetwork(
+                            network1, test_bssid_base + Integer.toString(i), 0, TEST_FREQ_LIST[i]);
+            assertNotNull(
+                    mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
+                            networkScanDetail));
+        }
+
+        // Create 2 scan results with different bssid's & frequencies to network2
+        for (int i = 3; i < TEST_FREQ_LIST.length; i++) {
+            ScanDetail networkScanDetail =
+                    createScanDetailForNetwork(
+                            network2, test_bssid_base + Integer.toString(i), 0, TEST_FREQ_LIST[i]);
+            assertNotNull(
+                    mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
+                            networkScanDetail));
+        }
+
+        assertEquals(3, mWifiConfigManager.fetchChannelSetForPartialScan(100, 3).size());
     }
 
     /**

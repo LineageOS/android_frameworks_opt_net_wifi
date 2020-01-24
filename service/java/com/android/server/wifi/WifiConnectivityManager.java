@@ -118,6 +118,12 @@ public class WifiConnectivityManager {
     public static final int WIFI_STATE_DISCONNECTED = 2;
     public static final int WIFI_STATE_TRANSITIONING = 3;
 
+    // Initial scan state, used to manage performing partial scans in initial scans
+    // Initial scans are the first scan after enabling Wifi or turning on screen when disconnected
+    private static final int INITIAL_SCAN_STATE_START = 0;
+    private static final int INITIAL_SCAN_STATE_AWAITING_RESPONSE = 1;
+    private static final int INITIAL_SCAN_STATE_COMPLETE = 2;
+
     // Log tag for this class
     private static final String TAG = "WifiConnectivityManager";
 
@@ -142,10 +148,15 @@ public class WifiConnectivityManager {
 
     private boolean mDbg = false;
     private boolean mWifiEnabled = false;
-    private boolean mWifiConnectivityManagerEnabled = false;
+    private boolean mAutoJoinEnabled = false; // disabled by default, enabled by external triggers
     private boolean mRunning = false;
     private boolean mScreenOn = false;
     private int mWifiState = WIFI_STATE_UNKNOWN;
+    private int mInitialScanState = INITIAL_SCAN_STATE_COMPLETE;
+    private boolean mEnablePartialInitialScan = false;
+    private int mInitialScanChannelMaxCount;
+    private long mInitialScanChannelMaxAgeInMillis;
+    private boolean mAutoJoinEnabledExternal = true; // enabled by default
     private boolean mUntrustedConnectionAllowed = false;
     private boolean mTrustedConnectionAllowed = false;
     private boolean mSpecificNetworkRequestInProgress = false;
@@ -164,6 +175,7 @@ public class WifiConnectivityManager {
     private static final int[] DEFAULT_SCANNING_SCHEDULE = {20, 40, 80, 160};
     private int[] mConnectedSingleScanSchedule;
     private int[] mDisconnectedSingleScanSchedule;
+    private int[] mConnectedSingleSavedNetworkSingleScanSchedule;
 
     private final Object mLock = new Object();
 
@@ -303,7 +315,7 @@ public class WifiConnectivityManager {
 
         @Override
         public void onResults(WifiScanner.ScanData[] results) {
-            if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+            if (!mWifiEnabled || !mAutoJoinEnabled) {
                 clearScanDetails();
                 mWaitForFullBandScanResults = false;
                 return;
@@ -345,11 +357,26 @@ public class WifiConnectivityManager {
                     mWifiMetrics.incrementNumConnectivityWatchdogPnoGood();
                 }
             }
+
+            // Check if we are in the middle of initial partial scan
+            if (mInitialScanState == INITIAL_SCAN_STATE_AWAITING_RESPONSE) {
+                // Done with initial scan
+                setInitialScanState(INITIAL_SCAN_STATE_COMPLETE);
+
+                if (wasConnectAttempted) {
+                    Log.i(TAG, "Connection attempted with the reduced initial scans");
+                    schedulePeriodicScanTimer(
+                            getScheduledSingleScanInterval(mCurrentSingleScanScheduleIndex));
+                } else {
+                    Log.i(TAG, "Connection was not attempted, issuing a full scan");
+                    startConnectivityScan(SCAN_IMMEDIATELY);
+                }
+            }
         }
 
         @Override
         public void onFullResult(ScanResult fullScanResult) {
-            if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+            if (!mWifiEnabled || !mAutoJoinEnabled) {
                 return;
             }
 
@@ -518,32 +545,38 @@ public class WifiConnectivityManager {
             WifiConfigManager.OnNetworkUpdateListener {
         @Override
         public void onNetworkAdded(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkEnabled(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkRemoved(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkUpdated(WifiConfiguration config) {
-            updatePnoScan();
+            updateScan();
         }
         @Override
         public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) { }
 
         @Override
         public void onNetworkPermanentlyDisabled(WifiConfiguration config, int disableReason) {
-            updatePnoScan();
+            updateScan();
         }
-        private void updatePnoScan() {
-            // Update the PNO scan network list when screen is off. Here we
-            // rely on startConnectivityScan() to perform all the checks and clean up.
-            if (!mScreenOn) {
-                localLog("Saved networks updated");
+        private void updateScan() {
+            if (mScreenOn) {
+                // Update scanning schedule if needed
+                if (updateSingleScanningSchedule()) {
+                    localLog("Saved networks updated impacting single scan schedule");
+                    startConnectivityScan(false);
+                }
+            } else {
+                // Update the PNO scan network list when screen is off. Here we
+                // rely on startConnectivityScan() to perform all the checks and clean up.
+                localLog("Saved networks updated impacting pno scan");
                 startConnectivityScan(false);
             }
         }
@@ -585,14 +618,14 @@ public class WifiConnectivityManager {
     }
 
     /** Initialize single scanning schedules, and validate them */
-    private int[] initializeScanningSchedule(Context context, int state) {
+    private int[] initializeScanningSchedule(int state) {
         int[] schedule;
 
         if (state == WIFI_STATE_CONNECTED) {
-            schedule = context.getResources().getIntArray(
+            schedule = mContext.getResources().getIntArray(
                     R.array.config_wifiConnectedScanIntervalScheduleSec);
         } else if (state == WIFI_STATE_DISCONNECTED) {
-            schedule = context.getResources().getIntArray(
+            schedule = mContext.getResources().getIntArray(
                     R.array.config_wifiDisconnectedScanIntervalScheduleSec);
         } else {
             schedule = null;
@@ -756,16 +789,19 @@ public class WifiConnectivityManager {
 
     // Helper for setting the channels for connectivity scan when band is unspecified. Returns
     // false if we can't retrieve the info.
+    // If connected, return channels used for the connected network
+    // If disconnected, return channels used for any network.
     private boolean setScanChannels(ScanSettings settings) {
+        Set<Integer> freqs;
+
         WifiConfiguration config = mStateMachine.getCurrentWifiConfiguration();
-
         if (config == null) {
-            return false;
+            freqs = mConfigManager.fetchChannelSetForPartialScan(mInitialScanChannelMaxAgeInMillis,
+                    mInitialScanChannelMaxCount);
+        } else {
+            freqs = mConfigManager.fetchChannelSetForNetworkForPartialScan(
+                    config.networkId, CHANNEL_LIST_AGE_MS, mWifiInfo.getFrequency());
         }
-
-        Set<Integer> freqs =
-                mConfigManager.fetchChannelSetForNetworkForPartialScan(
-                        config.networkId, CHANNEL_LIST_AGE_MS, mWifiInfo.getFrequency());
 
         if (freqs != null && freqs.size() != 0) {
             int index = 0;
@@ -775,7 +811,7 @@ public class WifiConnectivityManager {
             }
             return true;
         } else {
-            localLog("No scan channels for " + config.getKey() + ". Perform full band scan");
+            localLog("No history scan channels found, Perform full band scan");
             return false;
         }
     }
@@ -835,6 +871,20 @@ public class WifiConnectivityManager {
 
         if (isScanNeeded) {
             mLastPeriodicSingleScanTimeStamp = currentTimeStamp;
+
+            if (mWifiState == WIFI_STATE_DISCONNECTED
+                    && mInitialScanState == INITIAL_SCAN_STATE_START) {
+                startSingleScan(false, WIFI_WORK_SOURCE);
+
+                // Note, initial partial scan may fail due to lack of channel history
+                // Hence, we verify state before changing to AWIATING_RESPONSE
+                if (mInitialScanState == INITIAL_SCAN_STATE_START) {
+                    setInitialScanState(INITIAL_SCAN_STATE_AWAITING_RESPONSE);
+                }
+                // No scheduling for another scan (until we get the results)
+                return;
+            }
+
             startSingleScan(isFullBandScan, WIFI_WORK_SOURCE);
             schedulePeriodicScanTimer(
                     getScheduledSingleScanInterval(mCurrentSingleScanScheduleIndex));
@@ -880,6 +930,34 @@ public class WifiConnectivityManager {
         }
     }
 
+    // Update the single scanning schedule if needed, and return true if update occurs
+    private boolean updateSingleScanningSchedule() {
+        if (mWifiState != WIFI_STATE_CONNECTED) {
+            // No need to update the scanning schedule
+            return false;
+        }
+
+        boolean shouldUseSingleSavedNetworkSchedule = useSingleSavedNetworkSchedule();
+
+        if (mCurrentSingleScanSchedule == mConnectedSingleScanSchedule
+                && shouldUseSingleSavedNetworkSchedule) {
+            mCurrentSingleScanSchedule = mConnectedSingleSavedNetworkSingleScanSchedule;
+            return true;
+        }
+        if (mCurrentSingleScanSchedule == mConnectedSingleSavedNetworkSingleScanSchedule
+                && !shouldUseSingleSavedNetworkSchedule) {
+            mCurrentSingleScanSchedule = mConnectedSingleScanSchedule;
+            return true;
+        }
+        return false;
+    }
+
+    // Set initial scan state
+    private void setInitialScanState(int state) {
+        Log.i(TAG, "SetInitialScanState to : " + state);
+        mInitialScanState = state;
+    }
+
     // Reset the last periodic single scan time stamp so that the next periodic single
     // scan can start immediately.
     private void resetLastPeriodicSingleScanTimeStamp() {
@@ -898,7 +976,7 @@ public class WifiConnectivityManager {
 
     // Start a single scan
     private void startSingleScan(boolean isFullBandScan, WorkSource workSource) {
-        if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+        if (!mWifiEnabled || !mAutoJoinEnabled) {
             return;
         }
 
@@ -908,6 +986,8 @@ public class WifiConnectivityManager {
         if (!isFullBandScan) {
             if (!setScanChannels(settings)) {
                 isFullBandScan = true;
+                // Skip the initial scan since no channel history available
+                setInitialScanState(INITIAL_SCAN_STATE_COMPLETE);
             }
         }
         settings.type = WifiScanner.SCAN_TYPE_HIGH_ACCURACY; // always do high accuracy scans.
@@ -1101,9 +1181,9 @@ public class WifiConnectivityManager {
                 + " scanImmediately=" + scanImmediately
                 + " wifiEnabled=" + mWifiEnabled
                 + " wifiConnectivityManagerEnabled="
-                + mWifiConnectivityManagerEnabled);
+                + mAutoJoinEnabled);
 
-        if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+        if (!mWifiEnabled || !mAutoJoinEnabled) {
             return;
         }
 
@@ -1144,6 +1224,10 @@ public class WifiConnectivityManager {
 
         mScreenOn = screenOn;
 
+        if (mWifiState == WIFI_STATE_DISCONNECTED && mEnablePartialInitialScan) {
+            setInitialScanState(INITIAL_SCAN_STATE_START);
+        }
+
         mOpenNetworkNotifier.handleScreenStateChanged(screenOn);
 
         startConnectivityScan(SCAN_ON_SCHEDULE);
@@ -1166,18 +1250,54 @@ public class WifiConnectivityManager {
     }
 
     /**
+     * Check if Single saved network schedule should be used
+     * This is true if the following is satisfied:
+     * 1. Device is in connected state (this method is only called in this state)
+     * 2. Device has a single saved network
+     * 3. The connected network is the saved network
+     */
+    private boolean useSingleSavedNetworkSchedule() {
+        List<WifiConfiguration> savedNetworks =
+                mConfigManager.getSavedNetworks(Process.WIFI_UID);
+
+        // return true if there is a single saved network which is the currently connected network
+        return (savedNetworks.size() == 1
+                && savedNetworks.get(0).status == WifiConfiguration.Status.CURRENT);
+    }
+
+    private int[] initSingleSavedNetworkSchedule() {
+        int[] schedule = mContext.getResources().getIntArray(
+                    R.array.config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec);
+        if (schedule == null || schedule.length == 0) {
+            return null;
+        }
+
+        for (int val : schedule) {
+            if (val <= 0) {
+                return null;
+            }
+        }
+        return schedule;
+    }
+
+    /**
      * Handler for WiFi state (connected/disconnected) changes
      */
     public void handleConnectionStateChanged(int state) {
         localLog("handleConnectionStateChanged: state=" + stateToString(state));
 
         if (mConnectedSingleScanSchedule == null) {
-            mConnectedSingleScanSchedule = initializeScanningSchedule(
-                  mContext, WIFI_STATE_CONNECTED);
+            mConnectedSingleScanSchedule = initializeScanningSchedule(WIFI_STATE_CONNECTED);
         }
         if (mDisconnectedSingleScanSchedule == null) {
-            mDisconnectedSingleScanSchedule = initializeScanningSchedule(
-                  mContext, WIFI_STATE_DISCONNECTED);
+            mDisconnectedSingleScanSchedule = initializeScanningSchedule(WIFI_STATE_DISCONNECTED);
+        }
+        if (mConnectedSingleSavedNetworkSingleScanSchedule == null) {
+            mConnectedSingleSavedNetworkSingleScanSchedule =
+                    initSingleSavedNetworkSchedule();
+            if (mConnectedSingleSavedNetworkSingleScanSchedule == null) {
+                mConnectedSingleSavedNetworkSingleScanSchedule = mConnectedSingleScanSchedule;
+            }
         }
 
         mWifiState = state;
@@ -1191,8 +1311,13 @@ public class WifiConnectivityManager {
             setSingleScanningSchedule(mDisconnectedSingleScanSchedule);
             startConnectivityScan(SCAN_IMMEDIATELY);
         } else if (mWifiState == WIFI_STATE_CONNECTED) {
-            // Switch to connected single scanning schedule
-            setSingleScanningSchedule(mConnectedSingleScanSchedule);
+            if (useSingleSavedNetworkSchedule()) {
+                // Switch to Single-Saved-Network connected schedule
+                setSingleScanningSchedule(mConnectedSingleSavedNetworkSingleScanSchedule);
+            } else {
+                // Switch to connected single scanning schedule
+                setSingleScanningSchedule(mConnectedSingleScanSchedule);
+            }
             startConnectivityScan(SCAN_ON_SCHEDULE);
         } else {
             // Intermediate state, no applicable single scanning schedule
@@ -1217,11 +1342,14 @@ public class WifiConnectivityManager {
         }
     }
 
-    // Enable auto-join if we have any pending network request (trusted or untrusted) and no
-    // specific network request in progress.
-    private void checkStateAndEnable() {
-        enable(!mSpecificNetworkRequestInProgress
-                && (mUntrustedConnectionAllowed || mTrustedConnectionAllowed));
+    // Enable auto-join if WifiConnectivityManager is enabled & we have any pending generic network
+    // request (trusted or untrusted) and no specific network request in progress.
+    private void checkAllStatesAndEnableAutoJoin() {
+        // if auto-join was disabled externally, don't re-enable for any triggers.
+        // External triggers to disable always trumps any internal state.
+        setAutoJoinEnabled(mAutoJoinEnabledExternal
+                && (mUntrustedConnectionAllowed || mTrustedConnectionAllowed)
+                && !mSpecificNetworkRequestInProgress);
         startConnectivityScan(SCAN_IMMEDIATELY);
     }
 
@@ -1233,7 +1361,7 @@ public class WifiConnectivityManager {
 
         if (mTrustedConnectionAllowed != allowed) {
             mTrustedConnectionAllowed = allowed;
-            checkStateAndEnable();
+            checkAllStatesAndEnableAutoJoin();
         }
     }
 
@@ -1246,7 +1374,7 @@ public class WifiConnectivityManager {
 
         if (mUntrustedConnectionAllowed != allowed) {
             mUntrustedConnectionAllowed = allowed;
-            checkStateAndEnable();
+            checkAllStatesAndEnableAutoJoin();
         }
     }
 
@@ -1258,7 +1386,7 @@ public class WifiConnectivityManager {
 
         if (mSpecificNetworkRequestInProgress != inProgress) {
             mSpecificNetworkRequestInProgress = inProgress;
-            checkStateAndEnable();
+            checkAllStatesAndEnableAutoJoin();
         }
     }
 
@@ -1316,6 +1444,18 @@ public class WifiConnectivityManager {
         mConnectivityHelper.getFirmwareRoamingInfo();
         mBssidBlocklistMonitor.clearBssidBlocklist();
         mWifiChannelUtilization.init(mStateMachine.getWifiLinkLayerStats());
+
+        mEnablePartialInitialScan =
+                mContext.getResources().getBoolean(R.bool.config_wifiEnablePartialInitialScan);
+        mInitialScanChannelMaxAgeInMillis = 1000 * 60 * mContext.getResources().getInteger(
+                    R.integer.config_wifiInitialPartialScanChannelCacheAgeMins);
+        mInitialScanChannelMaxCount = mContext.getResources().getInteger(
+                    R.integer.config_wifiInitialPartialScanChannelMaxCount);
+
+        if (mEnablePartialInitialScan) {
+            setInitialScanState(INITIAL_SCAN_STATE_START);
+        }
+
         mRunning = true;
     }
 
@@ -1340,7 +1480,7 @@ public class WifiConnectivityManager {
      * are enabled, otherwise stop it.
      */
     private void updateRunningState() {
-        if (mWifiEnabled && mWifiConnectivityManagerEnabled) {
+        if (mWifiEnabled && mAutoJoinEnabled) {
             localLog("Starting up WifiConnectivityManager");
             start();
         } else {
@@ -1362,11 +1502,21 @@ public class WifiConnectivityManager {
     /**
      * Turn on/off the WifiConnectivityManager at runtime
      */
-    public void enable(boolean enable) {
-        localLog("Set WiFiConnectivityManager " + (enable ? "enabled" : "disabled"));
-
-        mWifiConnectivityManagerEnabled = enable;
+    private void setAutoJoinEnabled(boolean enable) {
+        mAutoJoinEnabled = enable;
         updateRunningState();
+    }
+
+    /**
+     * Turn on/off the auto join at runtime
+     */
+    public void setAutoJoinEnabledExternal(boolean enable) {
+        localLog("Set auto join " + (enable ? "enabled" : "disabled"));
+
+        if (mAutoJoinEnabledExternal != enable) {
+            mAutoJoinEnabledExternal = enable;
+            checkAllStatesAndEnableAutoJoin();
+        }
     }
 
     @VisibleForTesting

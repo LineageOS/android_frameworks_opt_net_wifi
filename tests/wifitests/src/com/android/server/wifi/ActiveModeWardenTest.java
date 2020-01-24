@@ -228,7 +228,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         verify(mClientModeManager).setRole(ROLE_CLIENT_PRIMARY);
         verify(mScanRequestProxy).enableScanning(true, true);
         if (fromState.equals(DISABLED_STATE_STRING)) {
-            verify(mBatteryStats).noteWifiOn();
+            verify(mBatteryStats).reportWifiOn();
         }
     }
 
@@ -252,9 +252,9 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         verify(mClientModeManager).setRole(ROLE_CLIENT_SCAN_ONLY);
         verify(mScanRequestProxy).enableScanning(true, false);
         if (fromState.equals(DISABLED_STATE_STRING)) {
-            verify(mBatteryStats).noteWifiOn();
+            verify(mBatteryStats).reportWifiOn();
         }
-        verify(mBatteryStats).noteWifiState(BatteryStatsManager.WIFI_STATE_OFF_SCANNING, null);
+        verify(mBatteryStats).reportWifiState(BatteryStatsManager.WIFI_STATE_OFF_SCANNING, null);
     }
 
     private void enterSoftApActiveMode() throws Exception {
@@ -283,7 +283,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         verify(mSoftApManager).start();
         verify(mSoftApManager).setRole(softApRole);
         if (fromState.equals(DISABLED_STATE_STRING)) {
-            verify(mBatteryStats).noteWifiOn();
+            verify(mBatteryStats).reportWifiOn();
         }
     }
 
@@ -514,7 +514,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         verify(mClientModeManager).stop();
-        verify(mBatteryStats).noteWifiOff();
+        verify(mBatteryStats).reportWifiOff();
         assertInDisabledState();
     }
 
@@ -529,7 +529,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         reset(mDefaultModeManager);
         enterStaDisabledMode(true);
         verify(mSoftApManager, never()).stop();
-        verify(mBatteryStats, never()).noteWifiOff();
+        verify(mBatteryStats, never()).reportWifiOff();
     }
 
     /**
@@ -605,7 +605,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         mClientListener.onStartFailure();
         mLooper.dispatchAll();
         assertInDisabledState();
-        verify(mBatteryStats).noteWifiOff();
+        verify(mBatteryStats).reportWifiOff();
     }
 
     /**
@@ -618,7 +618,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         // now inject failure through the SoftApManager.Listener
         mSoftApListener.onStartFailure();
         mLooper.dispatchAll();
-        verify(mBatteryStats).noteWifiOff();
+        verify(mBatteryStats).reportWifiOff();
     }
 
     /**
@@ -634,7 +634,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertInDisabledState();
-        verify(mBatteryStats).noteWifiOff();
+        verify(mBatteryStats).reportWifiOff();
     }
 
     /**
@@ -647,7 +647,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         // now inject failure through the SoftApManager.Listener
         mSoftApListener.onStartFailure();
         mLooper.dispatchAll();
-        verify(mBatteryStats).noteWifiOff();
+        verify(mBatteryStats).reportWifiOff();
         verifyNoMoreInteractions(mWifiNative);
     }
 
@@ -795,7 +795,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
         verify(mSoftApManager).start();
         verify(softapManager).start();
-        verify(mBatteryStats).noteWifiOn();
+        verify(mBatteryStats).reportWifiOn();
     }
 
     /**
@@ -969,7 +969,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         lohsSoftApListener.value.onStarted();
         verify(mSoftApManager).start();
         verify(lohsSoftapManager).start();
-        verify(mBatteryStats).noteWifiOn();
+        verify(mBatteryStats).reportWifiOn();
 
         // disable tethering
         mActiveModeWarden.stopSoftAp(WifiManager.IFACE_IP_MODE_TETHERED);

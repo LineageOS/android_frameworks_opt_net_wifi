@@ -514,18 +514,18 @@ public class ActiveModeWarden {
         if (enabled) {
             if (mActiveModeManagers.size() == 1) {
                 // only report wifi on if we haven't already
-                mBatteryStatsManager.noteWifiOn();
+                mBatteryStatsManager.reportWifiOn();
             }
         } else {
             if (mActiveModeManagers.size() == 0) {
                 // only report if we don't have any active modes
-                mBatteryStatsManager.noteWifiOff();
+                mBatteryStatsManager.reportWifiOff();
             }
         }
     }
 
     private void updateBatteryStatsScanModeActive() {
-        mBatteryStatsManager.noteWifiState(BatteryStatsManager.WIFI_STATE_OFF_SCANNING, null);
+        mBatteryStatsManager.reportWifiState(BatteryStatsManager.WIFI_STATE_OFF_SCANNING, null);
     }
 
     private boolean checkScanOnlyModeAvailable() {

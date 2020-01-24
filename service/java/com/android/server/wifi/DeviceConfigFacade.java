@@ -51,6 +51,26 @@ public class DeviceConfigFacade {
     public static final int DEFAULT_DATA_STALL_TX_PER_THR = 90;
     // Default threshold of CCA level above which to trigger a data stall in percentage
     public static final int DEFAULT_DATA_STALL_CCA_LEVEL_THR = 100;
+    // Default high and low threshold values for various connection failure rates.
+    // All of them are in percent with respect to connection attempts
+    static final int DEFAULT_CONNECTION_FAILURE_HIGH_THR_PERCENT = 30;
+    static final int DEFAULT_CONNECTION_FAILURE_LOW_THR_PERCENT = 5;
+    static final int DEFAULT_ASSOC_REJECTION_HIGH_THR_PERCENT = 10;
+    static final int DEFAULT_ASSOC_REJECTION_LOW_THR_PERCENT = 1;
+    static final int DEFAULT_ASSOC_TIMEOUT_HIGH_THR_PERCENT = 10;
+    static final int DEFAULT_ASSOC_TIMEOUT_LOW_THR_PERCENT = 2;
+    static final int DEFAULT_AUTH_FAILURE_HIGH_THR_PERCENT = 10;
+    static final int DEFAULT_AUTH_FAILURE_LOW_THR_PERCENT = 2;
+    // Default high and low threshold values for non-local disconnection rate
+    // with respect to disconnection count (with a recent RSSI poll)
+    static final int DEFAULT_SHORT_CONNECTION_NONLOCAL_HIGH_THR_PERCENT = 10;
+    static final int DEFAULT_SHORT_CONNECTION_NONLOCAL_LOW_THR_PERCENT = 1;
+    static final int DEFAULT_DISCONNECTION_NONLOCAL_HIGH_THR_PERCENT = 15;
+    static final int DEFAULT_DISCONNECTION_NONLOCAL_LOW_THR_PERCENT = 1;
+    // Minimum RSSI in dBm for connection stats collection
+    // Connection or disconnection events with RSSI below this threshold are not
+    // included in connection stats collection.
+    static final int DEFAULT_HEALTH_MONITOR_MIN_RSSI_THR_DBM = -68;
 
     // Cached values of fields updated via updateDeviceConfigFlags()
     private boolean mIsAbnormalConnectionBugreportEnabled;
@@ -60,6 +80,19 @@ public class DeviceConfigFacade {
     private int mDataStallRxTputThrKbps;
     private int mDataStallTxPerThr;
     private int mDataStallCcaLevelThr;
+    private int mConnectionFailureHighThrPercent;
+    private int mConnectionFailureLowThrPercent;
+    private int mAssocRejectionHighThrPercent;
+    private int mAssocRejectionLowThrPercent;
+    private int mAssocTimeoutHighThrPercent;
+    private int mAssocTimeoutLowThrPercent;
+    private int mAuthFailureHighThrPercent;
+    private int mAuthFailureLowThrPercent;
+    private int mShortConnectionNonlocalHighThrPercent;
+    private int mShortConnectionNonlocalLowThrPercent;
+    private int mDisconnectionNonlocalHighThrPercent;
+    private int mDisconnectionNonlocalLowThrPercent;
+    private int mHealthMonitorMinRssiThrDbm;
     private Set<String> mRandomizationFlakySsidHotlist;
     private Set<String> mAggressiveMacRandomizationSsidAllowlist;
     private Set<String> mAggressiveMacRandomizationSsidBlocklist;
@@ -99,6 +132,47 @@ public class DeviceConfigFacade {
         mWifiMetrics.setDataStallRxTputThrKbps(mDataStallRxTputThrKbps);
         mWifiMetrics.setDataStallTxPerThr(mDataStallTxPerThr);
         mWifiMetrics.setDataStallCcaLevelThr(mDataStallCcaLevelThr);
+
+        mConnectionFailureHighThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "connection_failure_high_thr_percent",
+                DEFAULT_CONNECTION_FAILURE_HIGH_THR_PERCENT);
+        mConnectionFailureLowThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "connection_failure_low_thr_percent",
+                DEFAULT_CONNECTION_FAILURE_LOW_THR_PERCENT);
+        mAssocRejectionHighThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "assoc_rejection_high_thr_percent",
+                DEFAULT_ASSOC_REJECTION_HIGH_THR_PERCENT);
+        mAssocRejectionLowThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "assoc_rejection_low_thr_percent",
+                DEFAULT_ASSOC_REJECTION_LOW_THR_PERCENT);
+        mAssocTimeoutHighThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "assoc_timeout_high_thr_percent",
+                DEFAULT_ASSOC_TIMEOUT_HIGH_THR_PERCENT);
+        mAssocTimeoutLowThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "assoc_timeout_low_thr_percent",
+                DEFAULT_ASSOC_TIMEOUT_LOW_THR_PERCENT);
+        mAuthFailureHighThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "auth_failure_high_thr_percent",
+                DEFAULT_AUTH_FAILURE_HIGH_THR_PERCENT);
+        mAuthFailureLowThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "auth_failure_low_thr_percent",
+                DEFAULT_AUTH_FAILURE_LOW_THR_PERCENT);
+        mShortConnectionNonlocalHighThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "short_connection_nonlocal_high_thr_percent",
+                DEFAULT_SHORT_CONNECTION_NONLOCAL_HIGH_THR_PERCENT);
+        mShortConnectionNonlocalLowThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "short_connection_nonlocal_low_thr_percent",
+                DEFAULT_SHORT_CONNECTION_NONLOCAL_LOW_THR_PERCENT);
+        mDisconnectionNonlocalHighThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "disconnection_nonlocal_high_thr_percent",
+                DEFAULT_DISCONNECTION_NONLOCAL_HIGH_THR_PERCENT);
+        mDisconnectionNonlocalLowThrPercent = DeviceConfig.getInt(NAMESPACE,
+                "disconnection_nonlocal_low_thr_percent",
+                DEFAULT_DISCONNECTION_NONLOCAL_LOW_THR_PERCENT);
+
+        mHealthMonitorMinRssiThrDbm = DeviceConfig.getInt(NAMESPACE,
+                "health_monitor_min_rssi_thr_dbm",
+                DEFAULT_HEALTH_MONITOR_MIN_RSSI_THR_DBM);
 
         mRandomizationFlakySsidHotlist =
                 getUnmodifiableSetQuoted("randomization_flaky_ssid_hotlist");
@@ -168,6 +242,97 @@ public class DeviceConfigFacade {
      */
     public int getDataStallCcaLevelThr() {
         return mDataStallCcaLevelThr;
+    }
+
+    /**
+     * Gets the high threshold of connection failure rate in percent
+     */
+    public int getConnectionFailureHighThrPercent() {
+        return mConnectionFailureHighThrPercent;
+    }
+
+    /**
+     * Gets the low threshold of connection failure rate in percent
+     */
+    public int getConnectionFailureLowThrPercent() {
+        return mConnectionFailureLowThrPercent;
+    }
+
+    /**
+     * Gets the high threshold of association rejection rate in percent
+     */
+    public int getAssocRejectionHighThrPercent() {
+        return mAssocRejectionHighThrPercent;
+    }
+
+    /**
+     * Gets the low threshold of association rejection rate in percent
+     */
+    public int getAssocRejectionLowThrPercent() {
+        return mAssocRejectionLowThrPercent;
+    }
+
+    /**
+     * Gets the high threshold of association timeout rate in percent
+     */
+    public int getAssocTimeoutHighThrPercent() {
+        return mAssocTimeoutHighThrPercent;
+    }
+
+    /**
+     * Gets the low threshold of association timeout rate in percent
+     */
+    public int getAssocTimeoutLowThrPercent() {
+        return mAssocTimeoutLowThrPercent;
+    }
+
+    /**
+     * Gets the high threshold of authentication failure rate in percent
+     */
+    public int getAuthFailureHighThrPercent() {
+        return mAuthFailureHighThrPercent;
+    }
+
+    /**
+     * Gets the low threshold of authentication failure rate in percent
+     */
+    public int getAuthFailureLowThrPercent() {
+        return mAuthFailureLowThrPercent;
+    }
+
+    /**
+     * Gets the high threshold of nonlocal short connection rate in percent
+     */
+    public int getShortConnectionNonlocalHighThrPercent() {
+        return mShortConnectionNonlocalHighThrPercent;
+    }
+
+    /**
+     * Gets the low threshold of nonlocal short connection rate in percent
+     */
+    public int getShortConnectionNonlocalLowThrPercent() {
+        return mShortConnectionNonlocalLowThrPercent;
+    }
+
+    /**
+     * Gets the high threshold of nonlocal disconnection rate in percent
+     */
+    public int getDisconnectionNonlocalHighThrPercent() {
+        return mDisconnectionNonlocalHighThrPercent;
+    }
+
+    /**
+     * Gets the low threshold of nonlocal disconnection rate in percent
+     */
+    public int getDisconnectionNonlocalLowThrPercent() {
+        return mDisconnectionNonlocalLowThrPercent;
+    }
+
+    /**
+     * Gets health monitor min RSSI threshold in dBm
+     */
+    public int getHealthMonitorMinRssiThrDbm() {
+        return mHealthMonitorMinRssiThrDbm;
     }
 
     /**

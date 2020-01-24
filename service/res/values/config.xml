@@ -161,6 +161,16 @@
     <!-- Boolean indicating associated network selection is allowed -->
     <bool translatable="false" name="config_wifi_framework_enable_associated_network_selection">true</bool>
 
+    <!-- Boolean indicating performing a partial initial scan is enabled -->
+    <bool translatable="false" name="config_wifiEnablePartialInitialScan">false</bool>
+
+    <!-- Integer for maximum number of channels to use in initial partial scan -->
+    <integer translatable="false" name="config_wifiInitialPartialScanChannelMaxCount">10</integer>
+
+    <!-- Integer for maximum age for scan results used to identify channels for partial initial
+         scan in minutes -->
+    <integer translatable="false" name="config_wifiInitialPartialScanChannelCacheAgeMins">14400</integer>
+
     <!-- Boolean indicating whether single radio chain scan results are to be used for network selection -->
     <bool translatable="false" name="config_wifi_framework_use_single_radio_chain_scan_results_network_selection">true</bool>
 
@@ -297,6 +307,13 @@
         <item>40</item>
         <item>80</item>
         <item>160</item>
+    </integer-array>
+
+    <!-- Array describing scanning schedule in seconds when device is connected and screen is on
+         and the connected network is the only saved network.
+         When this array is set to an empty array, the noraml connected scan schedule defined
+         in config_wifiConnectedScanIntervalScheduleSec will be used -->
+    <integer-array translatable="false" name="config_wifiSingleSavedNetworkConnectedScanIntervalScheduleSec">
     </integer-array>
 
     <!-- Indicates that hidden networks are to be scanned during scan only mode -->

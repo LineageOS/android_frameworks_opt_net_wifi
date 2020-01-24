@@ -54,6 +54,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -77,7 +78,7 @@ public class ScoredNetworkNominatorTest extends WifiBaseTest {
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock private OnConnectableListener mOnConnectableListener;
-    @Captor private ArgumentCaptor<NetworkKey[]> mNetworkKeyArrayCaptor;
+    @Captor private ArgumentCaptor<Collection<NetworkKey>> mNetworkKeyCollectionCaptor;
     @Captor private ArgumentCaptor<WifiConfiguration> mWifiConfigCaptor;
 
     private WifiNetworkScoreCache mScoreCache;
@@ -180,14 +181,16 @@ public class ScoredNetworkNominatorTest extends WifiBaseTest {
 
         mScoredNetworkEvaluator.update(scanDetailsAndConfigs.getScanDetails());
 
-        verify(mNetworkScoreManager).requestScores(mNetworkKeyArrayCaptor.capture());
-        assertEquals(2, mNetworkKeyArrayCaptor.getValue().length);
+        verify(mNetworkScoreManager).requestScores(mNetworkKeyCollectionCaptor.capture());
+        NetworkKey[] requestedScores =
+                mNetworkKeyCollectionCaptor.getValue().toArray(new NetworkKey[0]);
+        assertEquals(2, requestedScores.length);
         NetworkKey expectedNetworkKey = NetworkKey.createFromScanResult(
                 scanDetailsAndConfigs.getScanDetails().get(0).getScanResult());
-        assertEquals(expectedNetworkKey, mNetworkKeyArrayCaptor.getValue()[0]);
+        assertEquals(expectedNetworkKey, requestedScores[0]);
         expectedNetworkKey = NetworkKey.createFromScanResult(
                 scanDetailsAndConfigs.getScanDetails().get(1).getScanResult());
-        assertEquals(expectedNetworkKey, mNetworkKeyArrayCaptor.getValue()[1]);
+        assertEquals(expectedNetworkKey, requestedScores[1]);
     }
 
     @Test
@@ -211,9 +214,10 @@ public class ScoredNetworkNominatorTest extends WifiBaseTest {
 
         mScoredNetworkEvaluator.update(scanDetailsAndConfigs.getScanDetails());
 
-        verify(mNetworkScoreManager).requestScores(mNetworkKeyArrayCaptor.capture());
+        verify(mNetworkScoreManager).requestScores(mNetworkKeyCollectionCaptor.capture());
 
-        NetworkKey[] requestedScores = mNetworkKeyArrayCaptor.getValue();
+        NetworkKey[] requestedScores =
+                mNetworkKeyCollectionCaptor.getValue().toArray(new NetworkKey[0]);
         assertEquals(1, requestedScores.length);
         NetworkKey expectedNetworkKey = NetworkKey.createFromScanResult(
                 scanDetailsAndConfigs.getScanDetails().get(1).getScanResult());
@@ -252,7 +256,7 @@ public class ScoredNetworkNominatorTest extends WifiBaseTest {
 
         mScoredNetworkEvaluator.update(scanDetailsAndConfigs.getScanDetails());
 
-        verify(mNetworkScoreManager, never()).requestScores(any());
+        verify(mNetworkScoreManager, never()).requestScores(anyCollection());
         verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
                 eq(TEST_PACKAGE_NAME), eq(null), eq(TEST_UID), nullable(String.class));
     }
@@ -275,7 +279,7 @@ public class ScoredNetworkNominatorTest extends WifiBaseTest {
 
         mScoredNetworkEvaluator.update(scanDetailsAndConfigs.getScanDetails());
 
-        verify(mNetworkScoreManager, never()).requestScores(any());
+        verify(mNetworkScoreManager, never()).requestScores(anyCollection());
         verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
                 eq(TEST_PACKAGE_NAME), eq(null), eq(TEST_UID), nullable(String.class));
     }

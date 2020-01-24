@@ -42,7 +42,7 @@ public class WifiStateTracker {
 
     private void informWifiStateBatteryStats(int state) {
         try {
-            mBatteryStatsManager.noteWifiState(state, null);
+            mBatteryStatsManager.reportWifiState(state, null);
         } catch (RejectedExecutionException e) {
             Log.e(TAG, "Battery stats executor is being shutdown " + e.getMessage());
         }

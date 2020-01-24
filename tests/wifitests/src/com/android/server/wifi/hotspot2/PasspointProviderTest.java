@@ -320,6 +320,12 @@ public class PasspointProviderTest extends WifiBaseTest {
                 wifiConfig.updateIdentifier);
         assertFalse(wifiConfig.shared);
         assertEquals(credential.getRealm(), wifiEnterpriseConfig.getRealm());
+        if (passpointConfig.isMacRandomizationEnabled()) {
+            assertEquals(WifiConfiguration.RANDOMIZATION_PERSISTENT,
+                    wifiConfig.macRandomizationSetting);
+        } else {
+            assertEquals(WifiConfiguration.RANDOMIZATION_NONE, wifiConfig.macRandomizationSetting);
+        }
 
         if (credential.getUserCredential() != null) {
             Credential.UserCredential userCredential = credential.getUserCredential();
@@ -1230,6 +1236,20 @@ public class PasspointProviderTest extends WifiBaseTest {
         // Retrieve the WifiConfiguration associated with the provider, and verify the content of
         // the configuration.
         verifyWifiConfigWithTestData(config, mProvider.getWifiConfig());
+    }
+
+    /**
+     * Verify that the mac randomization setting will be included in the generated
+     * WifiConfiguration.
+     */
+    @Test
+    public void testSetMacRandomizationEnabledToFalse() throws Exception {
+        // Create provider.
+        PasspointConfiguration config = generateTestPasspointConfiguration(
+                CredentialType.SIM, false);
+        mProvider = createProvider(config);
+        mProvider.setMacRandomizationEnabled(false);
+        verifyWifiConfigWithTestData(mProvider.getConfig(), mProvider.getWifiConfig());
     }
 
     /**

@@ -666,7 +666,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
             eventHandler1 = verifyStartSingleScanForImpl(mWifiScannerImpl1, order, nativeSettings);
         }
         verifySuccessfulResponse(order, handler, requestId);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource));
 
         when(mWifiScannerImpl0.getLatestSingleScanResults())
                 .thenReturn(resultsForImpl0.getScanData());
@@ -687,7 +687,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         verifyScanResultsReceived(order, handler, requestId, expectedResults.getScanData());
         verifySingleScanCompletedReceived(order, handler, requestId);
         verifyNoMoreInteractions(handler);
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource));
         assertDumpContainsRequestLog("addSingleScanRequest", requestId);
         assertDumpContainsCallbackLog("singleScanResults", requestId,
                 "results=" + expectedResults.getScanData().getResults().length);
@@ -798,7 +798,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 WifiMetricsProto.WifiLog.SCAN_FAILURE_INVALID_CONFIGURATION), 1);
 
         // Ensure that no scan was triggered to the lower layers.
-        verify(mBatteryStats, never()).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats, never()).reportWifiScanStoppedFromSource(eq(workSource));
         verify(mWifiScannerImpl0, never()).startSingleScan(any(WifiNative.ScanSettings.class),
                 any(WifiNative.ScanEventHandler.class));
     }
@@ -851,7 +851,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 WifiMetricsProto.WifiLog.SCAN_FAILURE_INVALID_CONFIGURATION), 1);
 
         // Ensure that no scan was triggered to the lower layers.
-        verify(mBatteryStats, never()).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats, never()).reportWifiScanStoppedFromSource(eq(workSource));
         verify(mWifiScannerImpl0, never()).startSingleScan(any(WifiNative.ScanSettings.class),
                 any(WifiNative.ScanEventHandler.class));
     }
@@ -896,7 +896,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 WifiMetricsProto.WifiLog.SCAN_FAILURE_INVALID_CONFIGURATION), 1);
 
         // Ensure that no scan was triggered to the lower layers.
-        verify(mBatteryStats, never()).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats, never()).reportWifiScanStoppedFromSource(eq(workSource));
         verify(mWifiScannerImpl0, never()).startSingleScan(any(WifiNative.ScanSettings.class),
                 any(WifiNative.ScanEventHandler.class));
     }
@@ -982,7 +982,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         WifiNative.ScanEventHandler eventHandler =
                 verifyStartSingleScan(order, computeSingleScanNativeSettings(requestSettings));
         verifySuccessfulResponse(order, handler, requestId);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource));
 
         // but then fails to execute
         eventHandler.onScanStatus(WifiNative.WIFI_SCAN_FAILED);
@@ -993,7 +993,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 "reason=" + WifiScanner.REASON_UNSPECIFIED + ", Scan failed");
         assertEquals(mWifiMetrics.getOneshotScanCount(), 1);
         assertEquals(mWifiMetrics.getScanReturnEntry(WifiMetricsProto.WifiLog.SCAN_UNKNOWN), 1);
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource));
     }
 
     /**
@@ -1457,7 +1457,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         WifiNative.ScanEventHandler eventHandler1 = verifyStartSingleScan(nativeOrder,
                 computeSingleScanNativeSettings(requestSettings1));
         verifySuccessfulResponse(handlerOrder, handler, requestId1);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource1));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource1));
 
 
         // Queue scan 2 (will not run because previous is in progress)
@@ -1479,8 +1479,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verifyScanResultsReceived(handlerOrder, handler, requestId1, results1.getScanData());
         verifySingleScanCompletedReceived(handlerOrder, handler, requestId1);
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource1));
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource2and3));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource1));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource2and3));
 
         // now that the first scan completed we expect the second and third ones to start
         WifiNative.ScanEventHandler eventHandler2and3 = verifyStartSingleScan(nativeOrder,
@@ -1498,7 +1498,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         assertEquals(mWifiMetrics.getOneshotScanCount(), 3);
         assertEquals(mWifiMetrics.getScanReturnEntry(WifiMetricsProto.WifiLog.SCAN_SUCCESS), 3);
 
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource2and3));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource2and3));
 
         assertDumpContainsRequestLog("addSingleScanRequest", requestId1);
         assertDumpContainsRequestLog("addSingleScanRequest", requestId2);
@@ -1633,7 +1633,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         WifiNative.ScanEventHandler eventHandler1 = verifyStartSingleScan(nativeOrder,
                 computeSingleScanNativeSettings(requestSettings1));
         verifySuccessfulResponse(handlerOrder, handler, requestId1);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource1));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource1));
 
 
         // Queue scan 2 (will not run because previous is in progress)
@@ -1656,8 +1656,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         verifyMultipleSingleScanResults(handlerOrder, handler, requestId1, results1, requestId3,
                 results3);
         // only the requests know at the beginning of the scan get blamed
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource1));
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource2));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource1));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource2));
 
         // now that the first scan completed we expect the second and third ones to start
         WifiNative.ScanEventHandler eventHandler2 = verifyStartSingleScan(nativeOrder,
@@ -1675,7 +1675,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         assertEquals(mWifiMetrics.getOneshotScanCount(), 3);
         assertEquals(mWifiMetrics.getScanReturnEntry(WifiMetricsProto.WifiLog.SCAN_SUCCESS), 3);
 
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource2));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource2));
 
         assertDumpContainsRequestLog("addSingleScanRequest", requestId1);
         assertDumpContainsRequestLog("addSingleScanRequest", requestId2);
@@ -2580,7 +2580,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         WifiNative.ScanEventHandler eventHandler =
                 verifyStartSingleScan(order, computeSingleScanNativeSettings(requestSettings));
         verifySuccessfulResponse(order, handler, requestId);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource));
 
         when(mWifiScannerImpl0.getLatestSingleScanResults())
                 .thenReturn(results.getRawScanData());
@@ -2590,7 +2590,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         verifyScanResultsReceived(order, handler, requestId, results.getScanData());
         verifySingleScanCompletedReceived(order, handler, requestId);
         verifyNoMoreInteractions(handler);
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource));
         assertDumpContainsRequestLog("addSingleScanRequest", requestId);
         assertDumpContainsCallbackLog("singleScanResults", requestId,
                 "results=" + results.getScanData().getResults().length);
@@ -3150,7 +3150,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         WifiNative.ScanEventHandler eventHandler1 =
                 verifyStartSingleScanForImpl(mWifiScannerImpl1, order, nativeSettings);
         verifySuccessfulResponse(order, handler, requestId);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource));
 
         when(mWifiScannerImpl0.getLatestSingleScanResults())
                 .thenReturn(new WifiScanner.ScanData(DUMMY_SCAN_DATA));
@@ -3163,7 +3163,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         verifyScanResultsReceived(order, handler, requestId, results.getScanData());
         verifySingleScanCompletedReceived(order, handler, requestId);
         verifyNoMoreInteractions(handler);
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource));
         assertDumpContainsRequestLog("addSingleScanRequest", requestId);
         assertDumpContainsCallbackLog("singleScanResults", requestId,
                 "results=" + results.getScanData().getResults().length);
@@ -3207,7 +3207,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 verifyStartSingleScanForImpl(mWifiScannerImpl1, order,
                         computeSingleScanNativeSettings(requestSettings));
         verifySuccessfulResponse(order, handler, requestId);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource));
 
         // but then fails to execute
         eventHandler0.onScanStatus(WifiNative.WIFI_SCAN_FAILED);
@@ -3219,7 +3219,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 "reason=" + WifiScanner.REASON_UNSPECIFIED + ", Scan failed");
         assertEquals(mWifiMetrics.getOneshotScanCount(), 1);
         assertEquals(mWifiMetrics.getScanReturnEntry(WifiMetricsProto.WifiLog.SCAN_UNKNOWN), 1);
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource));
     }
 
     /**
@@ -3261,7 +3261,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         WifiNative.ScanEventHandler eventHandler1 =
                 verifyStartSingleScanForImpl(mWifiScannerImpl1, order, nativeSettings);
         verifySuccessfulResponse(order, handler, requestId);
-        verify(mBatteryStats).noteWifiScanStartedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStartedFromSource(eq(workSource));
 
         // then fails to execute on impl0
         when(mWifiScannerImpl0.getLatestSingleScanResults())
@@ -3276,7 +3276,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         verifyScanResultsReceived(order, handler, requestId, results.getScanData());
         verifySingleScanCompletedReceived(order, handler, requestId);
         verifyNoMoreInteractions(handler);
-        verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource));
+        verify(mBatteryStats).reportWifiScanStoppedFromSource(eq(workSource));
         assertDumpContainsRequestLog("addSingleScanRequest", requestId);
         assertDumpContainsCallbackLog("singleScanResults", requestId,
                 "results=" + results.getScanData().getResults().length);
