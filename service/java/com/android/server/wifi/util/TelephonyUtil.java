@@ -28,6 +28,7 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.Credential;
 import android.os.Handler;
+import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.SubscriptionInfo;
@@ -169,17 +170,19 @@ public class TelephonyUtil {
         }
         for (SubscriptionInfo subInfo : activeSubInfos) {
             int subId = subInfo.getSubscriptionId();
-            if ((carrierConfigManager.getConfigForSubId(subId)
-                            .getInt(CarrierConfigManager.IMSI_KEY_AVAILABILITY_INT)
+            PersistableBundle bundle = carrierConfigManager.getConfigForSubId(subId);
+            if (bundle != null) {
+                if ((bundle.getInt(CarrierConfigManager.IMSI_KEY_AVAILABILITY_INT)
                                     & TelephonyManager.KEY_TYPE_WLAN) != 0) {
-                vlogd("IMSI encryption is required for " + subId);
-                mImsiEncryptionRequired.put(subId, true);
-            }
-
-            if ((carrierConfigManager.getConfigForSubId(subId)
-                    .getBoolean(CarrierConfigManager.ENABLE_EAP_METHOD_PREFIX_BOOL))) {
-                vlogd("EAP Prefix is required for " + subId);
-                mEapMethodPrefixEnable.put(subId, true);
+                    vlogd("IMSI encryption is required for " + subId);
+                    mImsiEncryptionRequired.put(subId, true);
+                }
+                if (bundle.getBoolean(CarrierConfigManager.ENABLE_EAP_METHOD_PREFIX_BOOL)) {
+                    vlogd("EAP Prefix is required for " + subId);
+                    mEapMethodPrefixEnable.put(subId, true);
+                }
+            } else {
+                Log.e(TAG, "Carrier config is missing for: " + subId);
             }
 
             try {
