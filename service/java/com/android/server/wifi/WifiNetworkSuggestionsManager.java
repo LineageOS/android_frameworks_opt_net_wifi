@@ -660,7 +660,11 @@ public class WifiNetworkSuggestionsManager {
             Log.w(TAG, "Empty list of network suggestions for " + packageName + ". Ignoring");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
         }
-        if (!validateNetworkSuggestions(networkSuggestions, uid, packageName)) {
+        if (!validateNetworkSuggestions(networkSuggestions)) {
+            Log.e(TAG, "Invalid suggestion from app: " + packageName);
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_INVALID;
+        }
+        if (!validateCarrierNetworkSuggestions(networkSuggestions, uid, packageName)) {
             Log.e(TAG, "bad wifi suggestion from app: " + packageName);
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_NOT_ALLOWED;
         }
@@ -736,8 +740,24 @@ public class WifiNetworkSuggestionsManager {
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
     }
 
-    private boolean validateNetworkSuggestions(List<WifiNetworkSuggestion> networkSuggestions,
-            int uid, String packageName) {
+    private boolean validateNetworkSuggestions(List<WifiNetworkSuggestion> networkSuggestions) {
+        for (WifiNetworkSuggestion wns : networkSuggestions) {
+            if (wns.passpointConfiguration == null) {
+                if (!WifiConfigurationUtil.validate(wns.wifiConfiguration,
+                        WifiConfigurationUtil.VALIDATE_FOR_ADD)) {
+                    return false;
+                }
+            } else {
+                if (!wns.passpointConfiguration.validate()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean validateCarrierNetworkSuggestions(
+            List<WifiNetworkSuggestion> networkSuggestions, int uid, String packageName) {
         if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)
                 || mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(packageName)
                 != TelephonyManager.UNKNOWN_CARRIER_ID) {
