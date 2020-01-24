@@ -104,16 +104,20 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
         for (Pair<ScanDetail, WifiConfiguration> candidate : candidates) {
             Set<ExtendedWifiNetworkSuggestion> matchingPasspointExtSuggestions =
                     mWifiNetworkSuggestionsManager
-                            .getNetworkSuggestionsForFqdn(candidate.second.FQDN)
-                                .stream()
-                                .filter(
-                                    ens -> ens.isAutoJoinEnabled)
-                                .collect(Collectors.toSet());
+                            .getNetworkSuggestionsForFqdn(candidate.second.FQDN);
             if (matchingPasspointExtSuggestions == null
                     || matchingPasspointExtSuggestions.isEmpty()) {
+                mLocalLog.log("Suggestion is missing for passpoint: " + candidate.second.FQDN);
                 continue;
             }
-            matchMetaInfo.putAll(matchingPasspointExtSuggestions,
+            Set<ExtendedWifiNetworkSuggestion> autoJoinEnabledExtSuggestions =
+                    matchingPasspointExtSuggestions.stream()
+                            .filter(ewns -> ewns.isAutoJoinEnabled)
+                            .collect(Collectors.toSet());
+            if (autoJoinEnabledExtSuggestions.isEmpty()) {
+                continue;
+            }
+            matchMetaInfo.putAll(autoJoinEnabledExtSuggestions,
                     candidate.second, candidate.first);
         }
     }
