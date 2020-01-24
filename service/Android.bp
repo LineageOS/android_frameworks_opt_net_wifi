@@ -26,43 +26,6 @@ java_defaults {
     },
 }
 
-// Make the JNI part
-// ============================================================
-cc_library_shared {
-    name: "libwifi-jni",
-
-    cflags: [
-        "-Wall",
-        "-Werror",
-        "-Wextra",
-        "-Wno-unused-parameter",
-        "-Wno-unused-function",
-        "-Wunused-variable",
-        "-Winit-self",
-        "-Wwrite-strings",
-        "-Wshadow",
-    ],
-
-    shared_libs: [
-        "liblog",
-        "libnativehelper",
-        "libcutils",
-        "libutils",
-        "libdl",
-    ],
-
-    srcs: [
-        "jni/com_android_server_wifi_WifiNative.cpp",
-        "jni/jni_helper.cpp",
-    ],
-
-    product_variables: {
-        pdk: {
-            enabled: false,
-        },
-    },
-}
-
 filegroup {
     name: "wifi-service-srcs",
     srcs: [
@@ -152,7 +115,6 @@ java_library {
 
     required: [
         "cacerts_wfa",
-        "libwifi-jni",
         "services",
         "wifi-service-resources",
     ],

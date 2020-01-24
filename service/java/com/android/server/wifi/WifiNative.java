@@ -54,10 +54,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -80,7 +76,6 @@ import java.util.TimeZone;
  */
 public class WifiNative {
     private static final String TAG = "WifiNative";
-    private static final String JNI_LIB = "/apex/com.android.wifi/lib64/libwifi-jni.so";
 
     private final SupplicantStaIfaceHal mSupplicantStaIfaceHal;
     private final HostapdHal mHostapdHal;
@@ -3490,45 +3485,5 @@ public class WifiNative {
             }
             return iface.phyCapabilities.isWifiStandardSupported(standard);
         }
-    }
-
-    /********************************************************
-     * JNI operations
-     ********************************************************/
-    /* Register native functions */
-    static {
-        /* Native functions are defined in libwifi-jni.so */
-        try {
-            System.load(JNI_LIB);
-            registerNatives();
-        } catch (UnsatisfiedLinkError e) {
-            Log.e(TAG, "Failed to load jni library", e);
-        }
-    }
-
-    private static native int registerNatives();
-    /* kernel logging support */
-    private static native byte[] readKernelLogNative();
-
-    /**
-     * Fetches the latest kernel logs.
-     */
-    public synchronized String readKernelLog() {
-        try {
-            byte[] bytes = readKernelLogNative();
-            if (bytes != null) {
-                CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-                try {
-                    CharBuffer decoded = decoder.decode(ByteBuffer.wrap(bytes));
-                    return decoded.toString();
-                } catch (CharacterCodingException cce) {
-                    return new String(bytes, StandardCharsets.ISO_8859_1);
-                }
-            }
-        } catch (UnsatisfiedLinkError e) {
-            // TODO (b/145196311): Fix this linker error.
-            Log.e(TAG, "Failed to load jni library", e);
-        }
-        return "*** failed to read kernel log ***";
     }
 }
