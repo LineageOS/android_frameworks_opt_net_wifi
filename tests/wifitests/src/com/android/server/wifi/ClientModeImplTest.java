@@ -3870,7 +3870,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertTrue(mCmi.getWifiInfo().isEphemeral());
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
-                mCmi.getWifiInfo().getAppPackageName());
+                mCmi.getWifiInfo().getRequestingPackageName());
     }
 
     /**
@@ -3887,7 +3887,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertTrue(mCmi.getWifiInfo().isEphemeral());
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
-                mCmi.getWifiInfo().getAppPackageName());
+                mCmi.getWifiInfo().getRequestingPackageName());
     }
 
     /**

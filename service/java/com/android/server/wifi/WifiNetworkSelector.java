@@ -232,8 +232,10 @@ public class WifiNetworkSelector {
      * @return true if it has active Tx or Rx traffic, false otherwise.
      */
     public static boolean hasActiveStream(WifiInfo wifiInfo, ScoringParams scoringParams) {
-        return (wifiInfo.getTxSuccessRate() > scoringParams.getActiveTrafficPacketsPerSecond())
-                || (wifiInfo.getRxSuccessRate() > scoringParams.getActiveTrafficPacketsPerSecond());
+        return (wifiInfo.getSuccessfulTxPacketsPerSecond()
+                        > scoringParams.getActiveTrafficPacketsPerSecond())
+                || (wifiInfo.getSuccessfulRxPacketsPerSecond()
+                        > scoringParams.getActiveTrafficPacketsPerSecond());
     }
 
     /**

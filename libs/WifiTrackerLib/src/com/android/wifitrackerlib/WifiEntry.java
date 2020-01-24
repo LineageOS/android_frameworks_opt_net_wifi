@@ -612,10 +612,10 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
             sj.add("standard = " + mWifiInfo.getWifiStandard());
             sj.add("rssi = " + mWifiInfo.getRssi());
             sj.add("score = " + mWifiInfo.getScore());
-            sj.add(String.format(" tx=%.1f,", mWifiInfo.getTxSuccessRate()));
-            sj.add(String.format("%.1f,", mWifiInfo.getTxRetriesRate()));
-            sj.add(String.format("%.1f ", mWifiInfo.getTxBadRate()));
-            sj.add(String.format("rx=%.1f", mWifiInfo.getRxSuccessRate()));
+            sj.add(String.format(" tx=%.1f,", mWifiInfo.getSuccessfulTxPacketsPerSecond()));
+            sj.add(String.format("%.1f,", mWifiInfo.getRetriedTxPacketsPerSecond()));
+            sj.add(String.format("%.1f ", mWifiInfo.getLostTxPacketsPerSecond()));
+            sj.add(String.format("rx=%.1f", mWifiInfo.getSuccessfulRxPacketsPerSecond()));
         }
         return sj.toString();
     }

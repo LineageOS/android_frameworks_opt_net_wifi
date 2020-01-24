@@ -1264,8 +1264,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkSingleScanSettingsWhenConnectedWithLowDataRate() {
-        mWifiInfo.setTxSuccessRate(0);
-        mWifiInfo.setRxSuccessRate(0);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(0);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(0);
         mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD - 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
@@ -1305,8 +1305,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkPartialScanRequestedWithHighDataRateWithoutFwRoaming() {
-        mWifiInfo.setTxSuccessRate(mMinPacketRateActiveTraffic + 1);
-        mWifiInfo.setRxSuccessRate(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(mMinPacketRateActiveTraffic + 1);
         mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD - 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
@@ -1350,8 +1350,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkPartialScanRequestedWithHighRssiTxSpeedWithoutFwRoaming() {
-        mWifiInfo.setTxSuccessRate(0.0);
-        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(0.0);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(0.0);
         mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD + 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
@@ -1396,8 +1396,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkSingleScanSettingsWhenConnectedWithHighDataRateNotInCache() {
-        mWifiInfo.setTxSuccessRate(mMinPacketRateActiveTraffic + 1);
-        mWifiInfo.setRxSuccessRate(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(mMinPacketRateActiveTraffic + 1);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(mMinPacketRateActiveTraffic + 1);
         mWifiInfo.setRssi(SUFFICIENT_RSSI_THRESHOLD + 1);
 
         final HashSet<Integer> channelList = new HashSet<>();
