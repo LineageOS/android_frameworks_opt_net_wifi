@@ -315,7 +315,7 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         byte[] fwMemoryDump;
         byte[] mDriverStateDump;
         byte[] alertData;
-        LimitedCircularArray<String> kernelLogLines;
+        ArrayList<String> kernelLogLines;
         ArrayList<String> logcatLines;
 
         void clearVerboseLogs() {
@@ -634,8 +634,8 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
             }
         }
 
-        report.logcatLines = getLogcat(127);
-        report.kernelLogLines = getKernelLog(127);
+        report.logcatLines = getLogcatSystem(127);
+        report.kernelLogLines = getLogcatKernel(127);
 
         if (captureFWDump) {
             report.fwMemoryDump = mWifiNative.getFwMemoryDump();
@@ -694,10 +694,11 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         return result;
     }
 
-    private ArrayList<String> getLogcat(int maxLines) {
-        ArrayList<String> lines = new ArrayList<String>(maxLines);
+    private ArrayList<String> getLogcat(String logcatSections, int maxLines) {
+        ArrayList<String> lines = new ArrayList<>(maxLines);
         try {
-            Process process = mJavaRuntime.exec(String.format("logcat -t %d", maxLines));
+            Process process = mJavaRuntime.exec(
+                    String.format("logcat -b %s -t %d", logcatSections, maxLines));
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()));
             String line;
@@ -714,18 +715,15 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
             mLog.dump("Exception while capturing logcat: %").c(e.toString()).flush();
         }
         return lines;
+
     }
 
-    private LimitedCircularArray<String> getKernelLog(int maxLines) {
-        if (DBG) mLog.tC("Reading kernel log ...");
-        LimitedCircularArray<String> lines = new LimitedCircularArray<String>(maxLines);
-        String log = mWifiNative.readKernelLog();
-        String logLines[] = log.split("\n");
-        for (int i = 0; i < logLines.length; i++) {
-            lines.addLast(logLines[i]);
-        }
-        if (DBG) mLog.dump("Added % lines").c(logLines.length).flush();
-        return lines;
+    private ArrayList<String> getLogcatSystem(int maxLines) {
+        return getLogcat("main,system,crash", maxLines);
+    }
+
+    private ArrayList<String> getLogcatKernel(int maxLines) {
+        return getLogcat("kernel", maxLines);
     }
 
     /** Packet fate reporting */

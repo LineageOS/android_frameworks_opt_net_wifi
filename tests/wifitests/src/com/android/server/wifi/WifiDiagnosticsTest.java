@@ -111,7 +111,6 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
         };
 
         when(mWifiNative.getRingBufferStatus()).thenReturn(ringBufferStatuses);
-        when(mWifiNative.readKernelLog()).thenReturn("");
         when(mBuildProperties.isEngBuild()).thenReturn(false);
         when(mBuildProperties.isUserdebugBuild()).thenReturn(false);
         when(mBuildProperties.isUserBuild()).thenReturn(true);

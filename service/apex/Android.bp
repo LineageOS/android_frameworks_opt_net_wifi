@@ -17,7 +17,6 @@
 apex_defaults {
     name: "com.android.wifi-defaults",
     androidManifest: ":com.android.wifi-androidManifest",
-    native_shared_libs: ["libwifi-jni"],
     java_libs: [
         "wifi-service",
         "framework-wifi",
