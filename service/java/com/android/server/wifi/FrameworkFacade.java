@@ -238,4 +238,32 @@ public class FrameworkFacade {
         Toast toast = Toast.makeText(context, text, Toast.LENGTH_SHORT);
         toast.show();
     }
+
+    /**
+     * Wrapper for {@link TrafficStats#getMobileTxBytes}.
+     */
+    public long getMobileTxBytes() {
+        return TrafficStats.getMobileTxBytes();
+    }
+
+    /**
+     * Wrapper for {@link TrafficStats#getMobileRxBytes}.
+     */
+    public long getMobileRxBytes() {
+        return TrafficStats.getMobileRxBytes();
+    }
+
+    /**
+     * Wrapper for {@link TrafficStats#getTotalTxBytes}.
+     */
+    public long getTotalTxBytes() {
+        return TrafficStats.getTotalTxBytes();
+    }
+
+    /**
+     * Wrapper for {@link TrafficStats#getTotalRxBytes}.
+     */
+    public long getTotalRxBytes() {
+        return TrafficStats.getTotalRxBytes();
+    }
 }
