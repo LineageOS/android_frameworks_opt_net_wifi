@@ -153,9 +153,6 @@ public class WifiConnectivityManager {
     private boolean mScreenOn = false;
     private int mWifiState = WIFI_STATE_UNKNOWN;
     private int mInitialScanState = INITIAL_SCAN_STATE_COMPLETE;
-    private boolean mEnablePartialInitialScan = false;
-    private int mInitialScanChannelMaxCount;
-    private long mInitialScanChannelMaxAgeInMillis;
     private boolean mAutoJoinEnabledExternal = true; // enabled by default
     private boolean mUntrustedConnectionAllowed = false;
     private boolean mTrustedConnectionAllowed = false;
@@ -796,8 +793,11 @@ public class WifiConnectivityManager {
 
         WifiConfiguration config = mStateMachine.getCurrentWifiConfiguration();
         if (config == null) {
-            freqs = mConfigManager.fetchChannelSetForPartialScan(mInitialScanChannelMaxAgeInMillis,
-                    mInitialScanChannelMaxCount);
+            long ageInMillis = 1000 * 60 * mContext.getResources().getInteger(
+                    R.integer.config_wifiInitialPartialScanChannelCacheAgeMins);
+            int maxCount = mContext.getResources().getInteger(
+                    R.integer.config_wifiInitialPartialScanChannelMaxCount);
+            freqs = mConfigManager.fetchChannelSetForPartialScan(ageInMillis, maxCount);
         } else {
             freqs = mConfigManager.fetchChannelSetForNetworkForPartialScan(
                     config.networkId, CHANNEL_LIST_AGE_MS, mWifiInfo.getFrequency());
@@ -1224,7 +1224,8 @@ public class WifiConnectivityManager {
 
         mScreenOn = screenOn;
 
-        if (mWifiState == WIFI_STATE_DISCONNECTED && mEnablePartialInitialScan) {
+        if (mWifiState == WIFI_STATE_DISCONNECTED
+                && mContext.getResources().getBoolean(R.bool.config_wifiEnablePartialInitialScan)) {
             setInitialScanState(INITIAL_SCAN_STATE_START);
         }
 
@@ -1445,14 +1446,7 @@ public class WifiConnectivityManager {
         mBssidBlocklistMonitor.clearBssidBlocklist();
         mWifiChannelUtilization.init(mStateMachine.getWifiLinkLayerStats());
 
-        mEnablePartialInitialScan =
-                mContext.getResources().getBoolean(R.bool.config_wifiEnablePartialInitialScan);
-        mInitialScanChannelMaxAgeInMillis = 1000 * 60 * mContext.getResources().getInteger(
-                    R.integer.config_wifiInitialPartialScanChannelCacheAgeMins);
-        mInitialScanChannelMaxCount = mContext.getResources().getInteger(
-                    R.integer.config_wifiInitialPartialScanChannelMaxCount);
-
-        if (mEnablePartialInitialScan) {
+        if (mContext.getResources().getBoolean(R.bool.config_wifiEnablePartialInitialScan)) {
             setInitialScanState(INITIAL_SCAN_STATE_START);
         }
 
