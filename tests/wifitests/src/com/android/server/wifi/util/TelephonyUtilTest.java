@@ -124,6 +124,8 @@ public class TelephonyUtilTest extends WifiBaseTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mLooper = new TestLooper();
+        when(mContext.getSystemService(Context.CARRIER_CONFIG_SERVICE))
+                .thenReturn(mCarrierConfigManager);
         mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager,
                 mFrameworkFacade, mContext, new Handler(mLooper.getLooper()));
         mSubInfoList = new ArrayList<>();
@@ -157,9 +159,6 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mNonDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mSubscriptionManager.getActiveSubscriptionIdList())
                 .thenReturn(new int[]{DATA_SUBID, NON_DATA_SUBID});
-
-        when(mContext.getSystemService(Context.CARRIER_CONFIG_SERVICE))
-                .thenReturn(mCarrierConfigManager);
     }
 
     @After

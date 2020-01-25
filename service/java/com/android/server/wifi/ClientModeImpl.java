@@ -119,6 +119,7 @@ import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.RssiUtil;
+import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
@@ -3113,6 +3114,24 @@ public class ClientModeImpl extends StateMachine {
         mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_STA_IFACE_DOWN);
     }
 
+    /**
+     * Helper method to check if WPA2 network upgrade feature is enabled in the framework
+     *
+     * @return boolean true if feature is enabled.
+     */
+    private boolean isWpa3SaeUpgradeEnabled() {
+        return mContext.getResources().getBoolean(R.bool.config_wifiSaeUpgradeEnabled);
+    }
+
+    /**
+     * Helper method to check if WPA2 network upgrade offload is enabled in the driver/fw
+     *
+     * @return boolean true if feature is enabled.
+     */
+    private boolean isWpa3SaeUpgradeOffloadEnabled() {
+        return mContext.getResources().getBoolean(R.bool.config_wifiSaeUpgradeOffloadEnabled);
+    }
+
     /********************************************************
      * HSM states
      *******************************************************/
@@ -3817,6 +3836,11 @@ public class ClientModeImpl extends StateMachine {
                                 .getAnonymousIdentityWith3GppRealm(config);
                         // Use anonymous@<realm> when pseudonym is not available
                         config.enterpriseConfig.setAnonymousIdentity(anonAtRealm);
+                    }
+
+                    if (isWpa3SaeUpgradeEnabled() && config.allowedKeyManagement.get(
+                            WifiConfiguration.KeyMgmt.WPA_PSK)) {
+                        config = upgradeToWpa3IfPossible(config);
                     }
 
                     if (mWifiNative.connectToNetwork(mInterfaceName, config)) {
@@ -5937,5 +5961,70 @@ public class ClientModeImpl extends StateMachine {
             // Trigger the network selection and re-connect to new network if available.
             mWifiConnectivityManager.forceConnectivityScan(ClientModeImpl.WIFI_WORK_SOURCE);
         }
+    }
+
+    private WifiConfiguration upgradeToWpa3IfPossible(@NonNull WifiConfiguration config) {
+        if (isWpa3SaeUpgradeOffloadEnabled()) {
+            // Driver offload of upgrading legacy WPA/WPA2 connection to WPA3
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Driver upgrade legacy WPA/WPA2 connection to WPA3");
+            }
+            config.allowedAuthAlgorithms.clear();
+            // Note: KeyMgmt.WPA2_PSK is already enabled, enable SAE as well
+            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+            return config;
+        }
+
+        boolean canUpgradePskToSae = false;
+
+        // Check if network selection selected a good WPA3 candidate AP for a WPA2
+        // saved network.
+        ScanResult scanResultCandidate = config.getNetworkSelectionStatus().getCandidate();
+        if (scanResultCandidate != null) {
+            ScanResultMatchInfo scanResultMatchInfo = ScanResultMatchInfo
+                    .fromScanResult(scanResultCandidate);
+            if ((scanResultMatchInfo.networkType == WifiConfiguration.SECURITY_TYPE_SAE)) {
+                canUpgradePskToSae = true;
+            } else {
+                // No SAE candidate
+                return config;
+            }
+        }
+
+        // Now check if there are any additional legacy WPA2 only APs in range.
+        ScanRequestProxy scanRequestProxy = mWifiInjector.getScanRequestProxy();
+        for (ScanResult scanResult : scanRequestProxy.getScanResults()) {
+            if (!config.SSID.equals(ScanResultUtil.createQuotedSSID(scanResult.SSID))) {
+                continue;
+            }
+            if (ScanResultUtil.isScanResultForPskNetwork(scanResult)
+                    && !ScanResultUtil.isScanResultForSaeNetwork(scanResult)) {
+                // Found a legacy WPA2 AP in range. Do not upgrade the connection to WPA3 to
+                // allow seamless roaming within the ESS.
+                if (mVerboseLoggingEnabled) {
+                    Log.d(TAG, "Found legacy WPA2 AP, do not upgrade to WPA3");
+                }
+                canUpgradePskToSae = false;
+                break;
+            }
+            if (ScanResultUtil.isScanResultForSaeNetwork(scanResult)
+                    && scanResultCandidate == null) {
+                // When the user manually selected a network from the Wi-Fi picker, evaluate
+                // if to upgrade based on the scan results. The most typical use case during
+                // the WPA3 transition mode is to have a WPA2/WPA3 AP in transition mode. In
+                // this case, we would like to upgrade the connection.
+                canUpgradePskToSae = true;
+            }
+        }
+
+        if (canUpgradePskToSae) {
+            // Upgrade legacy WPA/WPA2 connection to WPA3
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Upgrade legacy WPA/WPA2 connection to WPA3");
+            }
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_SAE);
+        }
+
+        return config;
     }
 }

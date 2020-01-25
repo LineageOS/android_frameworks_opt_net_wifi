@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.content.Context;
 import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -25,6 +26,7 @@ import android.util.ArrayMap;
 
 import com.android.internal.util.Preconditions;
 import com.android.server.wifi.proto.WifiScoreCardProto;
+import com.android.wifi.resources.R;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,10 +40,12 @@ import java.util.StringJoiner;
 public class WifiCandidates {
     private static final String TAG = "WifiCandidates";
 
-    WifiCandidates(@NonNull WifiScoreCard wifiScoreCard) {
+    WifiCandidates(@NonNull WifiScoreCard wifiScoreCard, @NonNull Context context) {
         mWifiScoreCard = Preconditions.checkNotNull(wifiScoreCard);
+        mContext = context;
     }
     private final WifiScoreCard mWifiScoreCard;
+    private final Context mContext;
 
     /**
      * Represents a connectable candidate.
@@ -387,7 +391,8 @@ public class WifiCandidates {
         ScanResultMatchInfo key1 = ScanResultMatchInfo.fromScanResult(scanResult);
         if (!config.isPasspoint()) {
             ScanResultMatchInfo key2 = ScanResultMatchInfo.fromWifiConfiguration(config);
-            if (!key1.equals(key2)) {
+            if (!key1.matchForNetworkSelection(key2, mContext.getResources()
+                    .getBoolean(R.bool.config_wifiSaeUpgradeEnabled))) {
                 return failure(key1, key2);
             }
         }

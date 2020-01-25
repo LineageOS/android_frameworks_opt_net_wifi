@@ -347,4 +347,10 @@
 
     <!-- Integer indicating the RSSI and link layer stats polling interval in milliseconds when device is connected and screen is on -->
     <integer translatable="false" name="config_wifiPollRssiIntervalMilliseconds">3000</integer>
+
+    <!-- Enable WPA2 to WPA3 auto-upgrade -->
+    <bool translatable="false" name="config_wifiSaeUpgradeEnabled">true</bool>
+
+    <!-- Enable WPA2 to WPA3 auto-upgrade offload to capable Driver/Firmware -->
+    <bool translatable="false" name="config_wifiSaeUpgradeOffloadEnabled">false</bool>
 </resources>

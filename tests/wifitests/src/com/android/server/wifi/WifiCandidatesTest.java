@@ -21,12 +21,15 @@ import static com.android.server.wifi.util.NativeUtil.removeEnclosingQuotes;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.content.Context;
 import android.net.MacAddress;
 import android.net.util.MacAddressUtils;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 
 import androidx.test.filters.SmallTest;
+
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -43,6 +46,7 @@ public class WifiCandidatesTest extends WifiBaseTest {
     @Mock ScanDetail mScanDetail2;
     @Mock WifiScoreCard mWifiScoreCard;
     @Mock WifiScoreCard.PerBssid mPerBssid;
+    @Mock Context mContext;
 
     ScanResult mScanResult1;
     ScanResult mScanResult2;
@@ -51,6 +55,7 @@ public class WifiCandidatesTest extends WifiBaseTest {
     WifiConfiguration mConfig2;
 
     WifiCandidates mWifiCandidates;
+    MockResources mResources;
 
     /**
      * Sets up for unit test
@@ -58,7 +63,7 @@ public class WifiCandidatesTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mWifiCandidates = new WifiCandidates(mWifiScoreCard);
+        mWifiCandidates = new WifiCandidates(mWifiScoreCard, mContext);
         mConfig1 = WifiConfigurationTestUtil.createOpenNetwork();
 
         mScanResult1 = new ScanResult() {{
@@ -75,6 +80,9 @@ public class WifiCandidatesTest extends WifiBaseTest {
         doReturn(mScanResult1).when(mScanDetail1).getScanResult();
         doReturn(mScanResult2).when(mScanDetail2).getScanResult();
         doReturn(mPerBssid).when(mWifiScoreCard).lookupBssid(any(), any());
+        MockResources mResources = new MockResources();
+        mResources.setBoolean(R.bool.config_wifiSaeUpgradeEnabled, true);
+        doReturn(mResources).when(mContext).getResources();
     }
 
     /**

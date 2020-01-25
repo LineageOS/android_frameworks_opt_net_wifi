@@ -1105,7 +1105,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         ScanResultMatchInfo fromScanResult = ScanResultMatchInfo.fromScanResult(scanResult);
         ScanResultMatchInfo fromWifiConfiguration =
                 ScanResultMatchInfo.fromWifiConfiguration(wns.wifiConfiguration);
-        return fromScanResult.networkTypeEquals(fromWifiConfiguration);
+        return fromScanResult.networkTypeEquals(fromWifiConfiguration, false);
     }
 
     // Loops through the scan results and finds scan results matching the active network

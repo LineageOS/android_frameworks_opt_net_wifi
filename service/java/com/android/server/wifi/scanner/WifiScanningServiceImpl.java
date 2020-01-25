@@ -313,12 +313,14 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
             switch (msg.what) {
                 case WifiScanner.CMD_ENABLE:
+                    Log.i(TAG, "Received a request to enable scanning, UID = " + msg.sendingUid);
                     setupScannerImpls();
                     mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
                     mSingleScanStateMachine.sendMessage(Message.obtain(msg));
                     mPnoScanStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 case WifiScanner.CMD_DISABLE:
+                    Log.i(TAG, "Received a request to disable scanning, UID = " + msg.sendingUid);
                     teardownScannerImpls();
                     mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
                     mSingleScanStateMachine.sendMessage(Message.obtain(msg));

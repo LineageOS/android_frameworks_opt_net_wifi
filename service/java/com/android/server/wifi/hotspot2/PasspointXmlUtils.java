@@ -112,6 +112,7 @@ public class PasspointXmlUtils {
     private static final String XML_TAG_CARRIER_ID = "CarrierId";
     private static final String XML_TAG_IS_AUTO_JOIN = "AutoJoinEnabled";
     private static final String XML_TAG_IS_MAC_RANDOMIZATION_ENABLED = "IsMacRandomizationEnabled";
+    private static final String XML_TAG_METERED_OVERRIDE = "MeteredOverride";
 
     /**
      * Serialize a {@link PasspointConfiguration} to the output stream as a XML block.
@@ -152,6 +153,7 @@ public class PasspointXmlUtils {
         XmlUtil.writeNextValue(out, XML_TAG_IS_AUTO_JOIN, config.isAutoJoinEnabled());
         XmlUtil.writeNextValue(out, XML_TAG_IS_MAC_RANDOMIZATION_ENABLED,
                 config.isMacRandomizationEnabled());
+        XmlUtil.writeNextValue(out, XML_TAG_METERED_OVERRIDE, config.getMeteredOverride());
     }
 
     /**
@@ -213,6 +215,9 @@ public class PasspointXmlUtils {
                         break;
                     case XML_TAG_IS_MAC_RANDOMIZATION_ENABLED:
                         config.setMacRandomizationEnabled((boolean) value);
+                        break;
+                    case XML_TAG_METERED_OVERRIDE:
+                        config.setMeteredOverride((int) value);
                         break;
                     default:
                         throw new XmlPullParserException("Unknown value under "

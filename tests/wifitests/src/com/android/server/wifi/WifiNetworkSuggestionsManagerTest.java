@@ -46,6 +46,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.net.util.MacAddressUtils;
+import android.net.wifi.EAPConstants;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -103,12 +104,16 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private static final String TEST_FEATURE = "testFeature";
     private static final String TEST_BSSID = "00:11:22:33:44:55";
     private static final String TEST_FQDN = "FQDN";
+    private static final String TEST_FRIENDLY_NAME = "test_friendly_name";
+    private static final String TEST_REALM = "realm.test.com";
+    private static final String TEST_CARRIER_NAME = "test_carrier";
     private static final int TEST_UID_1 = 5667;
     private static final int TEST_UID_2 = 4537;
     private static final int NETWORK_CALLBACK_ID = 1100;
     private static final int VALID_CARRIER_ID = 100;
     private static final int TEST_SUBID = 1;
     private static final int TEST_NETWORK_ID = 110;
+    private static final int TEST_CARRIER_ID = 1911;
 
     private @Mock Context mContext;
     private @Mock Resources mResources;
@@ -212,10 +217,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testAddNetworkSuggestionsSuccess() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
@@ -265,10 +268,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testRemoveNetworkSuggestionsSuccess() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
@@ -318,10 +319,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testRemoveAllNetworkSuggestionsSuccess() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
@@ -1414,10 +1413,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testNetworkSuggestionsConfigStoreLoad() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         PerAppInfo appInfo = new PerAppInfo(TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
@@ -2396,10 +2393,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testOnPasspointNetworkConnectionSuccessWithOneMatch() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
@@ -2553,12 +2548,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testGetPasspointSuggestionFromFqdnWithUserApproval() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
-        Credential credential = new Credential();
-        passpointConfiguration.setCredential(credential);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfiguration,
@@ -2581,10 +2572,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testGetPasspointSuggestionFromFqdnWithoutUserApproval() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfiguration,
@@ -2606,10 +2595,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testIsPasspointSuggestionSharedWithUserSetToTrue() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfiguration,
@@ -2636,10 +2623,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testIsPasspointSuggestionSharedWithUserSetToFalse() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfiguration,
@@ -2953,10 +2938,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      */
     @Test
     public void testSetAllowAutoJoinOnPasspointSuggestionNetwork() {
-        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn(TEST_FQDN);
-        passpointConfiguration.setHomeSp(homeSp);
+        PasspointConfiguration passpointConfiguration =
+                createTestConfigWithUserCredential(TEST_FQDN, TEST_FRIENDLY_NAME);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
@@ -3122,5 +3105,97 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         } finally {
             session.finishMocking();
         }
+    }
+
+    /**
+     * Verify adding invalid suggestions will return right error reason code.
+     */
+    @Test
+    public void testAddInvalidNetworkSuggestions() {
+        WifiConfiguration invalidConfig = WifiConfigurationTestUtil.createOpenNetwork();
+        invalidConfig.SSID = "";
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(invalidConfig,
+                null, false, false, true, true, false);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_INVALID,
+                mWifiNetworkSuggestionsManager
+                        .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE));
+    }
+
+    /**
+     * Verify adding invalid passpoint suggestions will return right error reason code.
+     */
+    @Test
+    public void testAddInvalidPasspointNetworkSuggestions() {
+        PasspointConfiguration passpointConfiguration = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(TEST_FQDN);
+        passpointConfiguration.setHomeSp(homeSp);
+        WifiConfiguration dummyConfig = new WifiConfiguration();
+        dummyConfig.FQDN = TEST_FQDN;
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfig,
+                passpointConfiguration, false, false, true, true, false);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_INVALID,
+                mWifiNetworkSuggestionsManager
+                        .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE));
+    }
+
+    /**
+     * Helper function for creating a test configuration with user credential.
+     *
+     * @return {@link PasspointConfiguration}
+     */
+    private PasspointConfiguration createTestConfigWithUserCredential(String fqdn,
+            String friendlyName) {
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(fqdn);
+        homeSp.setFriendlyName(friendlyName);
+        config.setHomeSp(homeSp);
+        Map<String, String> friendlyNames = new HashMap<>();
+        friendlyNames.put("en", friendlyName);
+        friendlyNames.put("kr", friendlyName + 1);
+        friendlyNames.put("jp", friendlyName + 2);
+        config.setServiceFriendlyNames(friendlyNames);
+        Credential credential = new Credential();
+        credential.setRealm(TEST_REALM);
+        credential.setCaCertificate(FakeKeys.CA_CERT0);
+        Credential.UserCredential userCredential = new Credential.UserCredential();
+        userCredential.setUsername("username");
+        userCredential.setPassword("password");
+        userCredential.setEapType(EAPConstants.EAP_TTLS);
+        userCredential.setNonEapInnerMethod(Credential.UserCredential.AUTH_METHOD_MSCHAP);
+        credential.setUserCredential(userCredential);
+        config.setCredential(credential);
+        return config;
+    }
+
+    /**
+     * Helper function for creating a test configuration with SIM credential.
+     *
+     * @return {@link PasspointConfiguration}
+     */
+    private PasspointConfiguration createTestConfigWithSimCredential(String fqdn, String imsi,
+            String realm) {
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(fqdn);
+        homeSp.setFriendlyName(TEST_FRIENDLY_NAME);
+        config.setHomeSp(homeSp);
+        Credential credential = new Credential();
+        credential.setRealm(TEST_REALM);
+        Credential.SimCredential simCredential = new Credential.SimCredential();
+        simCredential.setImsi(imsi);
+        simCredential.setEapType(EAPConstants.EAP_SIM);
+        credential.setSimCredential(simCredential);
+        config.setCredential(credential);
+        return config;
     }
 }

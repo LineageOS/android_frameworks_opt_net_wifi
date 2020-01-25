@@ -17,6 +17,7 @@
 package com.android.server.wifi.hotspot2;
 
 import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
+import static android.net.wifi.WifiConfiguration.MeteredOverride;
 import static android.net.wifi.WifiManager.ACTION_PASSPOINT_DEAUTH_IMMINENT;
 import static android.net.wifi.WifiManager.ACTION_PASSPOINT_ICON;
 import static android.net.wifi.WifiManager.ACTION_PASSPOINT_SUBSCRIPTION_REMEDIATION;
@@ -512,6 +513,23 @@ public class PasspointManager {
         if (settingChanged) {
             mWifiConfigManager.removePasspointConfiguredNetwork(provider.getWifiConfig().getKey());
         }
+        return true;
+    }
+
+    /**
+     * Set the metered override value for this passpoint profile
+     * @param fqdn The FQDN of the configuration
+     * @param meteredOverride One of the values in {@link MeteredOverride}
+     * @return true on success, false otherwise (e.g. if no such provider exists).
+     */
+    public boolean setMeteredOverride(@NonNull String fqdn, @MeteredOverride int meteredOverride) {
+        PasspointProvider provider = mProviders.get(fqdn);
+        if (provider == null) {
+            Log.e(TAG, "Config fqdn=\"" + fqdn + "\" doesn't exist");
+            return false;
+        }
+        provider.setMeteredOverride(meteredOverride);
+        mWifiConfigManager.saveToStore(true);
         return true;
     }
 
