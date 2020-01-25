@@ -172,7 +172,8 @@ public class ClientModeImpl extends StateMachine {
     private static final String EXTRA_UID = "uid";
     private static final String EXTRA_PACKAGE_NAME = "PackageName";
     private static final String EXTRA_PASSPOINT_CONFIGURATION = "PasspointConfiguration";
-    private static final int IPCLIENT_TIMEOUT_MS = 60_000;
+    private static final int IPCLIENT_STARTUP_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes!
+    private static final int IPCLIENT_SHUTDOWN_TIMEOUT_MS = 60_000; // 60 seconds
 
     private boolean mVerboseLoggingEnabled = false;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
@@ -1008,11 +1009,11 @@ public class ClientModeImpl extends StateMachine {
         }
 
         boolean awaitCreation() {
-            return mWaitForCreationCv.block(IPCLIENT_TIMEOUT_MS);
+            return mWaitForCreationCv.block(IPCLIENT_STARTUP_TIMEOUT_MS);
         }
 
         boolean awaitShutdown() {
-            return mWaitForStopCv.block(IPCLIENT_TIMEOUT_MS);
+            return mWaitForStopCv.block(IPCLIENT_SHUTDOWN_TIMEOUT_MS);
         }
     }
 
@@ -3363,7 +3364,7 @@ public class ClientModeImpl extends StateMachine {
         mIpClientCallbacks = new IpClientCallbacksImpl();
         mFacade.makeIpClient(mContext, mInterfaceName, mIpClientCallbacks);
         if (!mIpClientCallbacks.awaitCreation()) {
-            loge("Timeout waiting for IpClient");
+            Log.wtf(getName(), "Timeout waiting for IpClient");
         }
 
         setMulticastFilter(true);
