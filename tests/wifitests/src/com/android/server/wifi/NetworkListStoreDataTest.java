@@ -252,13 +252,16 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     private NetworkListSharedStoreData mNetworkListSharedStoreData;
     @Mock private Context mContext;
     @Mock private PackageManager mPackageManager;
+    @Mock WifiOemConfigStoreMigrationDataHolder mWifiOemConfigStoreMigrationDataHolder;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn(TEST_CREATOR_NAME);
-        mNetworkListSharedStoreData = new NetworkListSharedStoreData(mContext);
+        when(mWifiOemConfigStoreMigrationDataHolder.loadUserSavedNetworks()).thenReturn(null);
+        mNetworkListSharedStoreData =
+                new NetworkListSharedStoreData(mContext, mWifiOemConfigStoreMigrationDataHolder);
     }
 
     /**
@@ -394,7 +397,8 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
         assertEquals(WifiConfigStore.STORE_FILE_SHARED_GENERAL,
                 mNetworkListSharedStoreData.getStoreFileId());
         assertEquals(WifiConfigStore.STORE_FILE_USER_GENERAL,
-                new NetworkListUserStoreData(mContext).getStoreFileId());
+                new NetworkListUserStoreData(mContext, mWifiOemConfigStoreMigrationDataHolder)
+                        .getStoreFileId());
     }
 
     /**
@@ -681,5 +685,20 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
 
         assertFalse(retrievedNetworkList.get(0).allowedAuthAlgorithms
                 .get(WifiConfiguration.AuthAlgorithm.OPEN));
+    }
+
+    /**
+     * Verify that the shared configurations deserialized correctly from OEM migration hook.
+     */
+    @Test
+    public void deserializeSharedConfigurationsFromOemConfigStoreMigration() throws Exception {
+        List<WifiConfiguration> oemUserSavedNetworks = getTestNetworksConfig(true /* shared */);
+        when(mWifiOemConfigStoreMigrationDataHolder.loadUserSavedNetworks())
+                .thenReturn(oemUserSavedNetworks);
+
+        // File contents are ignored.
+        List<WifiConfiguration> parsedNetworks = deserializeData("".getBytes());
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigStore(
+                oemUserSavedNetworks, parsedNetworks);
     }
 }
