@@ -3397,7 +3397,9 @@ public class WifiServiceImpl extends BaseWifiService {
 
     @Override
     public Network getCurrentNetwork() {
-        enforceAccessPermission();
+        if (!isSettingsOrSuw(Binder.getCallingPid(), Binder.getCallingUid())) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("getCurrentNetwork uid=%").c(Binder.getCallingUid()).flush();
         }
