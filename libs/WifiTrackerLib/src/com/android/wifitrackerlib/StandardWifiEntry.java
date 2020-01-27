@@ -226,7 +226,7 @@ class StandardWifiEntry extends WifiEntry {
             if (!isSaved()) {
                 // For ephemeral networks.
                 final String suggestionOrSpecifierPackageName = mWifiInfo != null
-                        ? mWifiInfo.getAppPackageName() : null;
+                        ? mWifiInfo.getRequestingPackageName() : null;
                 if (!TextUtils.isEmpty(suggestionOrSpecifierPackageName)) {
                     return mContext.getString(R.string.connected_via_app,
                             getAppLabel(mContext, suggestionOrSpecifierPackageName));
