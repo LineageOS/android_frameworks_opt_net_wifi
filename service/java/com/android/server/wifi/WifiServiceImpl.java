@@ -3620,12 +3620,37 @@ public class WifiServiceImpl extends BaseWifiService {
 
     private long getSupportedFeaturesInternal() {
         final AsyncChannel channel = mClientModeImplChannel;
+        long supportedFeatureSet = 0L;
         if (channel != null) {
-            return mClientModeImpl.syncGetSupportedFeatures(channel);
+            supportedFeatureSet = mClientModeImpl.syncGetSupportedFeatures(channel);
         } else {
             Log.e(TAG, "mClientModeImplChannel is not initialized");
-            return 0;
+            return supportedFeatureSet;
         }
+        // Mask the feature set against system properties.
+        boolean rttSupported = mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_WIFI_RTT);
+        if (!rttSupported) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
+            supportedFeatureSet &=
+                    ~(WifiManager.WIFI_FEATURE_D2D_RTT | WifiManager.WIFI_FEATURE_D2AP_RTT);
+        }
+        if (!mContext.getResources().getBoolean(
+                R.bool.config_wifi_p2p_mac_randomization_supported)) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
+            supportedFeatureSet &= ~WifiManager.WIFI_FEATURE_P2P_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_RAND_MAC;
+        }
+        return supportedFeatureSet;
     }
 
     private static boolean hasAutomotiveFeature(Context context) {

@@ -5414,4 +5414,91 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mWifiScoreReport).clearWifiConnectedNetworkScorer();
     }
+
+    private long testGetSupportedFeaturesCaseForRtt(
+            long supportedFeaturesFromClientModeImpl, boolean rttDisabled) {
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT)).thenReturn(
+                !rttDisabled);
+        when(mClientModeImpl.syncGetSupportedFeatures(any()))
+                .thenReturn(supportedFeaturesFromClientModeImpl);
+        return mWifiServiceImpl.getSupportedFeatures();
+    }
+
+    /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
+    @Test
+    public void syncGetSupportedFeaturesForRtt() {
+        final long featureAware = WifiManager.WIFI_FEATURE_AWARE;
+        final long featureInfra = WifiManager.WIFI_FEATURE_INFRA;
+        final long featureD2dRtt = WifiManager.WIFI_FEATURE_D2D_RTT;
+        final long featureD2apRtt = WifiManager.WIFI_FEATURE_D2AP_RTT;
+        final long featureLongBits = 0x1000000000L;
+
+        assertEquals(0, testGetSupportedFeaturesCaseForRtt(0, false));
+        assertEquals(0, testGetSupportedFeaturesCaseForRtt(0, true));
+        assertEquals(featureAware | featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureAware | featureInfra, false));
+        assertEquals(featureAware | featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureAware | featureInfra, true));
+        assertEquals(featureInfra | featureD2dRtt,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2dRtt, false));
+        assertEquals(featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2dRtt, true));
+        assertEquals(featureInfra | featureD2apRtt,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2apRtt, false));
+        assertEquals(featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2apRtt, true));
+        assertEquals(featureInfra | featureD2dRtt | featureD2apRtt,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureInfra | featureD2dRtt | featureD2apRtt, false));
+        assertEquals(featureInfra,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureInfra | featureD2dRtt | featureD2apRtt, true));
+
+        assertEquals(featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, false));
+        assertEquals(featureLongBits | featureInfra,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, true));
+    }
+
+    private long testGetSupportedFeaturesCaseForMacRandomization(
+            long supportedFeaturesFromClientModeImpl, boolean apMacRandomizationEnabled,
+            boolean staConnectedMacRandomizationEnabled, boolean p2pMacRandomizationEnabled) {
+        when(mResources.getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported))
+                .thenReturn(staConnectedMacRandomizationEnabled);
+        when(mResources.getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported))
+                .thenReturn(apMacRandomizationEnabled);
+        when(mResources.getBoolean(
+                R.bool.config_wifi_p2p_mac_randomization_supported))
+                .thenReturn(p2pMacRandomizationEnabled);
+        when(mClientModeImpl.syncGetSupportedFeatures(
+                any())).thenReturn(supportedFeaturesFromClientModeImpl);
+        return mWifiServiceImpl.getSupportedFeatures();
+    }
+
+    /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
+    @Test
+    public void syncGetSupportedFeaturesForMacRandomization() {
+        final long featureStaConnectedMacRandomization =
+                WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+        final long featureApMacRandomization =
+                WifiManager.WIFI_FEATURE_AP_RAND_MAC;
+        final long featureP2pMacRandomization =
+                WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization
+                        | featureP2pMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(
+                        featureP2pMacRandomization, true, true, true));
+        // p2p supported by HAL, but disabled by overlay.
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(
+                        featureP2pMacRandomization, true, true, false));
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(0, true, true, false));
+    }
+
 }
