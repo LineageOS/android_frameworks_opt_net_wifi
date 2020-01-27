@@ -157,7 +157,7 @@ public class WifiKeyStore {
             mKeyStore.setCertificateEntry(alias, cert);
             return true;
         } catch (KeyStoreException e) {
-            Log.e(TAG, "Failed to put CA certificate in keystore");
+            Log.e(TAG, "Failed to put CA certificate in keystore: " + e.getMessage());
             return false;
         }
     }
@@ -172,10 +172,10 @@ public class WifiKeyStore {
      */
     public boolean putUserPrivKeyAndCertsInKeyStore(String alias, Key key, Certificate[] certs) {
         try {
-            mKeyStore.setKeyEntry(alias, key.getEncoded(), certs);
+            mKeyStore.setKeyEntry(alias, key, null, certs);
             return true;
         } catch (KeyStoreException e) {
-            Log.e(TAG, "Failed to put CA certificate in keystore");
+            Log.e(TAG, "Failed to put private key or certificate in keystore: " + e.getMessage());
             return false;
         }
     }
