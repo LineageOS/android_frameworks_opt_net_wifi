@@ -176,7 +176,7 @@ public class BaseWifiTracker implements LifecycleObserver {
         mScanResultUpdater = new ScanResultUpdater(clock,
                 maxScanAgeMillis + scanIntervalMillis);
         mScanner = new BaseWifiTracker.Scanner(workerHandler.getLooper());
-        sVerboseLogging = mWifiManager.getVerboseLoggingLevel() > 0;
+        sVerboseLogging = mWifiManager.isVerboseLoggingEnabled();
     }
 
     /**
