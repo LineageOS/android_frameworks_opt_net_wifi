@@ -5421,7 +5421,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 !rttDisabled);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
                 .thenReturn(supportedFeaturesFromClientModeImpl);
-        return mWifiServiceImpl.getSupportedFeatures();
+        mLooper.startAutoDispatch();
+        long supportedFeatures = mWifiServiceImpl.getSupportedFeatures();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        return supportedFeatures;
     }
 
     /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
@@ -5476,7 +5479,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(p2pMacRandomizationEnabled);
         when(mClientModeImpl.syncGetSupportedFeatures(
                 any())).thenReturn(supportedFeaturesFromClientModeImpl);
-        return mWifiServiceImpl.getSupportedFeatures();
+        mLooper.startAutoDispatch();
+        long supportedFeatures = mWifiServiceImpl.getSupportedFeatures();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        return supportedFeatures;
     }
 
     /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
@@ -5501,4 +5507,28 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 testGetSupportedFeaturesCaseForMacRandomization(0, true, true, false));
     }
 
+    /**
+     * Verifies that syncGetSupportedFeatures() adds capabilities based on interface
+     * combination.
+     */
+    @Test
+    public void syncGetSupportedFeaturesForStaApConcurrency() {
+        long supportedFeaturesFromClientModeImpl = WifiManager.WIFI_FEATURE_OWE;
+        when(mClientModeImpl.syncGetSupportedFeatures(
+                any())).thenReturn(supportedFeaturesFromClientModeImpl);
+
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(false);
+        mLooper.startAutoDispatch();
+        assertEquals(supportedFeaturesFromClientModeImpl,
+                        mWifiServiceImpl.getSupportedFeatures());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertEquals(supportedFeaturesFromClientModeImpl | WifiManager.WIFI_FEATURE_AP_STA,
+                mWifiServiceImpl.getSupportedFeatures());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+    }
 }

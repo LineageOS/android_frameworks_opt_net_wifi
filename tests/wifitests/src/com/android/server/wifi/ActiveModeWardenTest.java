@@ -2125,8 +2125,6 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         verify(mSoftApManager, never()).updateConfiguration(any());
     }
 
-    /**
-     */
     @Test
     public void interfaceAvailabilityListener() throws Exception {
         assertFalse(mActiveModeWarden.canRequestMoreClientModeManagers());
@@ -2150,5 +2148,44 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         mSoftApIfaceAvailableListener.getValue().onAvailabilityChanged(false);
         mLooper.dispatchAll();
         assertFalse(mActiveModeWarden.canRequestMoreSoftApManagers());
+    }
+
+    @Test
+    public void canSupportAtleastOneConcurrentClientAndSoftApManager() throws Exception {
+        assertNotNull(mClientIfaceAvailableListener.getValue());
+        assertNotNull(mSoftApIfaceAvailableListener.getValue());
+
+        // No mode manager
+        assertFalse(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager());
+
+        // client mode manager active, but cannot create one more softap manager
+        enterClientModeActiveState();
+        assertFalse(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager());
+
+        // client mode manager active, can create one more softap manager
+        mSoftApIfaceAvailableListener.getValue().onAvailabilityChanged(true);
+        mLooper.dispatchAll();
+        assertTrue(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager());
+
+        // Tear down client mode manager
+        enterStaDisabledMode(false);
+
+        // active softap manager, but cannot create one more client mode manager
+        reset(mSoftApManager, mBatteryStats);
+        enterSoftApActiveMode();
+        assertFalse(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager());
+
+        // active softap manager, can create one more client mode manager
+        mClientIfaceAvailableListener.getValue().onAvailabilityChanged(true);
+        mLooper.dispatchAll();
+        assertTrue(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager());
+
+        // softap manager + client mode manager active, cannot create any more mode managers
+        reset(mClientModeManager, mBatteryStats, mScanRequestProxy);
+        enterClientModeActiveState();
+        mSoftApIfaceAvailableListener.getValue().onAvailabilityChanged(false);
+        mClientIfaceAvailableListener.getValue().onAvailabilityChanged(false);
+        mLooper.dispatchAll();
+        assertTrue(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager());
     }
 }

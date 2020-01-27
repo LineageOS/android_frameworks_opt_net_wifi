@@ -138,7 +138,7 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
             throws XmlPullParserException, IOException {
         // Check if we have data to migrate from OEM, if yes skip loading the section from the file.
         SoftApConfiguration oemMigratedConfiguration =
-                mWifiOemConfigStoreMigrationDataHolder.loadUserSoftApConfiguration();
+                mWifiOemConfigStoreMigrationDataHolder.getUserSoftApConfiguration();
         if (oemMigratedConfiguration != null) {
             Log.i(TAG, "Loading data from OEM migration hook");
             mDataSource.fromDeserialized(oemMigratedConfiguration);

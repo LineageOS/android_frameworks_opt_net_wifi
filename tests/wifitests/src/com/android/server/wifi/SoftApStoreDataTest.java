@@ -396,7 +396,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
     @Test
     public void deserializeSoftApFromOemConfigStoreMigration() throws Exception {
         SoftApConfiguration oemSoftApConfig = createDefaultTestSoftApConfiguration();
-        when(mWifiOemConfigStoreMigrationDataHolder.loadUserSoftApConfiguration())
+        when(mWifiOemConfigStoreMigrationDataHolder.getUserSoftApConfiguration())
                 .thenReturn(oemSoftApConfig);
 
         // File contents are ignored.

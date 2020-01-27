@@ -45,7 +45,7 @@ public class WifiOemConfigStoreMigrationDataHolder {
      * Helper method to load saved network configuration from OEM migration code.
      */
     @Nullable
-    public List<WifiConfiguration> loadUserSavedNetworks() {
+    public List<WifiConfiguration> getUserSavedNetworks() {
         loadOemMigrationData();
         if (mData == null) return null;
         return mData.getUserSavedNetworkConfigurations();
@@ -55,7 +55,7 @@ public class WifiOemConfigStoreMigrationDataHolder {
      * Helper method to load saved softap configuration from OEM migration code.
      */
     @Nullable
-    public SoftApConfiguration loadUserSoftApConfiguration() {
+    public SoftApConfiguration getUserSoftApConfiguration() {
         loadOemMigrationData();
         if (mData == null) return null;
         return mData.getUserSoftApConfiguration();

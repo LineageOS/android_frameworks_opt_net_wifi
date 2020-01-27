@@ -3650,6 +3650,11 @@ public class WifiServiceImpl extends BaseWifiService {
             // no corresponding flags in vendor HAL, set if overlay enables it.
             supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_RAND_MAC;
         }
+        if (mWifiThreadRunner.call(
+                () -> mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager(),
+                false)) {
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_STA;
+        }
         return supportedFeatureSet;
     }
 

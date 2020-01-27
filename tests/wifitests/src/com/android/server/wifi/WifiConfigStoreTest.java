@@ -185,7 +185,7 @@ public class WifiConfigStoreTest extends WifiBaseTest {
                 .thenReturn(new EncryptedData(new byte[0], new byte[0]));
         when(mEncryptionUtil.decrypt(any(EncryptedData.class)))
                 .thenReturn(new byte[0]);
-        when(mWifiOemConfigStoreMigrationDataHolder.loadUserSavedNetworks()).thenReturn(null);
+        when(mWifiOemConfigStoreMigrationDataHolder.getUserSavedNetworks()).thenReturn(null);
         mSharedStore = new MockStoreFile(WifiConfigStore.STORE_FILE_SHARED_GENERAL);
         mUserStore = new MockStoreFile(WifiConfigStore.STORE_FILE_USER_GENERAL);
         mUserNetworkSuggestionsStore =

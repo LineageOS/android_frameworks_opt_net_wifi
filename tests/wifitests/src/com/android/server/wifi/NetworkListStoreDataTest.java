@@ -259,7 +259,7 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
         MockitoAnnotations.initMocks(this);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn(TEST_CREATOR_NAME);
-        when(mWifiOemConfigStoreMigrationDataHolder.loadUserSavedNetworks()).thenReturn(null);
+        when(mWifiOemConfigStoreMigrationDataHolder.getUserSavedNetworks()).thenReturn(null);
         mNetworkListSharedStoreData =
                 new NetworkListSharedStoreData(mContext, mWifiOemConfigStoreMigrationDataHolder);
     }
@@ -693,7 +693,7 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     @Test
     public void deserializeSharedConfigurationsFromOemConfigStoreMigration() throws Exception {
         List<WifiConfiguration> oemUserSavedNetworks = getTestNetworksConfig(true /* shared */);
-        when(mWifiOemConfigStoreMigrationDataHolder.loadUserSavedNetworks())
+        when(mWifiOemConfigStoreMigrationDataHolder.getUserSavedNetworks())
                 .thenReturn(oemUserSavedNetworks);
 
         // File contents are ignored.

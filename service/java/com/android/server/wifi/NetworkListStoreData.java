@@ -86,7 +86,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
             throws XmlPullParserException, IOException {
         // Check if we have data to migrate from OEM, if yes skip loading the section from the file.
         List<WifiConfiguration> oemMigratedConfigurations =
-                mWifiOemConfigStoreMigrationDataHolder.loadUserSavedNetworks();
+                mWifiOemConfigStoreMigrationDataHolder.getUserSavedNetworks();
         if (oemMigratedConfigurations != null) {
             Log.i(TAG, "Loading data from OEM migration hook");
             mConfigurations = oemMigratedConfigurations;
