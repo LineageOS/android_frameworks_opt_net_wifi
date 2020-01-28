@@ -382,6 +382,7 @@ public class PasspointProvider {
     public PasspointMatch match(Map<ANQPElementType, ANQPElement> anqpElements,
             RoamingConsortium roamingConsortium) {
 
+        // If the profile requires a SIM credential, make sure that the installed SIM matches
         String matchingSimImsi = null;
         if (mConfig.getCredential().getSimCredential() != null) {
             matchingSimImsi = getMatchingSimImsi();
@@ -391,25 +392,22 @@ public class PasspointProvider {
             }
         }
 
-        PasspointMatch providerMatch = matchProviderExceptFor3GPP(
-                anqpElements, roamingConsortium, matchingSimImsi);
+        // Match FQDN for Home provider or RCOI(s) for Roaming provider
+        // For SIM credential, the FQDN is in the format of wlan.mnc*.mcc*.3gppnetwork.org
+        PasspointMatch providerMatch = matchFqdnAndRcoi(anqpElements, roamingConsortium,
+                matchingSimImsi);
 
-        // 3GPP Network matching.
+        // 3GPP Network matching
         if (providerMatch == PasspointMatch.None && ANQPMatcher.matchThreeGPPNetwork(
                 (ThreeGPPNetworkElement) anqpElements.get(ANQPElementType.ANQP3GPPNetwork),
                 mImsiParameter, matchingSimImsi)) {
             return PasspointMatch.RoamingProvider;
         }
 
-        // Perform authentication match against the NAI Realm.
+        // Perform NAI Realm matching
         int authMatch = ANQPMatcher.matchNAIRealm(
                 (NAIRealmElement) anqpElements.get(ANQPElementType.ANQPNAIRealm),
-                mConfig.getCredential().getRealm(), mEAPMethodID, mAuthParam);
-
-        // In case of Auth mismatch, demote provider match.
-        if (authMatch == AuthMatch.NONE) {
-            return PasspointMatch.None;
-        }
+                mConfig.getCredential().getRealm());
 
         // In case of no realm match, return provider match as is.
         if ((authMatch & AuthMatch.REALM) == 0) {
@@ -671,14 +669,14 @@ public class PasspointProvider {
     }
 
     /**
-     * Perform a provider match based on the given ANQP elements except for matching 3GPP Network.
+     * Perform a provider match based on the given ANQP elements for FQDN and RCOI
      *
      * @param anqpElements List of ANQP elements
      * @param roamingConsortium Roaming Consortium information element from the AP
+     * @param matchingSIMImsi Installed SIM IMSI that matches the SIM credential ANQP element
      * @return {@link PasspointMatch}
      */
-    private PasspointMatch matchProviderExceptFor3GPP(
-            Map<ANQPElementType, ANQPElement> anqpElements,
+    private PasspointMatch matchFqdnAndRcoi(Map<ANQPElementType, ANQPElement> anqpElements,
             RoamingConsortium roamingConsortium, String matchingSIMImsi) {
         // Domain name matching.
         if (ANQPMatcher.matchDomainName(

@@ -666,9 +666,10 @@ public class PasspointProviderTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that there is no match when the provider's FQDN matches a domain name in the
-     * Domain Name ANQP element but the provider's credential doesn't match the authentication
-     * method provided in the NAI realm.
+     * Verify that Home provider is matched even when the provider's FQDN matches a domain name in
+     * the Domain Name ANQP element but the provider's credential doesn't match the authentication
+     * method provided in the NAI realm. This can happen when the infrastructure provider is not
+     * the identity provider, and authentication method matching is not required in the spec.
      *
      * @throws Exception
      */
@@ -686,7 +687,8 @@ public class PasspointProviderTest extends WifiBaseTest {
         anqpElementMap.put(ANQPElementType.ANQPNAIRealm,
                 createNAIRealmElement(TEST_REALM, EAPConstants.EAP_TLS, null));
 
-        assertEquals(PasspointMatch.None, mProvider.match(anqpElementMap, mRoamingConsortium));
+        assertEquals(PasspointMatch.HomeProvider,
+                mProvider.match(anqpElementMap, mRoamingConsortium));
     }
 
     /**
@@ -795,8 +797,8 @@ public class PasspointProviderTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that there is no match when a roaming consortium OI matches an OI
-     * in the roaming consortium ANQP element and but NAI realm is not matched.
+     * Verify that there is Roaming provider match when a roaming consortium OI matches an OI
+     * in the roaming consortium ANQP element and regardless of NAI realm mismatch.
      *
      * @throws Exception
      */
@@ -815,7 +817,7 @@ public class PasspointProviderTest extends WifiBaseTest {
         anqpElementMap.put(ANQPElementType.ANQPNAIRealm,
                 createNAIRealmElement(TEST_REALM, EAPConstants.EAP_TLS, null));
 
-        assertEquals(PasspointMatch.None,
+        assertEquals(PasspointMatch.RoamingProvider,
                 mProvider.match(anqpElementMap, mRoamingConsortium));
     }
 
@@ -870,8 +872,14 @@ public class PasspointProviderTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that there is no match when a roaming consortium OI matches an OI
+     * Verify that there is Roaming provider match when a roaming consortium OI matches an OI
      * in the roaming consortium information element, but NAI realm is not matched.
+     * This can happen in roaming federation where the infrastructure provider is not the
+     * identity provider.
+     * Page 133 in the Hotspot2.0 specification states:
+     * Per subclause 11.25.8 of [2], if the value of HomeOI matches an OI in the Roaming
+     * Consortium advertised by a hotspot operator, successful authentication with that hotspot
+     * is possible.
      *
      * @throws Exception
      */
@@ -891,7 +899,7 @@ public class PasspointProviderTest extends WifiBaseTest {
         anqpElementMap.put(ANQPElementType.ANQPNAIRealm,
                 createNAIRealmElement(TEST_REALM, EAPConstants.EAP_TLS, null));
 
-        assertEquals(PasspointMatch.None,
+        assertEquals(PasspointMatch.RoamingProvider,
                 mProvider.match(anqpElementMap, mRoamingConsortium));
     }
 

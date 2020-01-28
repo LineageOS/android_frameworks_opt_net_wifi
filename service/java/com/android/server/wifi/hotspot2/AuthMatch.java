@@ -27,10 +27,6 @@ public abstract class AuthMatch {
     public static final int NONE = -1;
     public static final int INDETERMINATE = 0;
     public static final int REALM = 0x04;
-    public static final int METHOD = 0x02;
-    public static final int PARAM = 0x01;
-    public static final int METHOD_PARAM = METHOD | PARAM;
-    public static final int EXACT = REALM | METHOD | PARAM;
 
     public static String toString(int match) {
         if (match < 0) {
@@ -43,12 +39,6 @@ public abstract class AuthMatch {
         StringBuilder sb = new StringBuilder();
         if ((match & REALM) != 0) {
             sb.append("Realm");
-        }
-        if ((match & METHOD) != 0) {
-            sb.append("Method");
-        }
-        if ((match & PARAM) != 0) {
-            sb.append("Param");
         }
         return sb.toString();
     }
