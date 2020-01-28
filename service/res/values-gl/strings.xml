@@ -70,18 +70,14 @@
     <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Actualizouse a opción de configuración. Proba a conectarte de novo."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Non se puido cambiar a configuración de privacidade"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Non se atopou ningunha rede"</string>
-    <!-- no translation found for wifi_eap_error_message_code_32760 (2272296327034079386) -->
-    <skip />
-    <!-- no translation found for wifi_eap_error_message_code_32761 (3110197168451423384) -->
-    <skip />
-    <!-- no translation found for wifi_eap_error_message_code_32762 (3515553222282833794) -->
-    <skip />
-    <!-- no translation found for wifi_eap_error_message_code_32763 (3790937365887990781) -->
-    <skip />
-    <!-- no translation found for wifi_eap_error_message_code_32764 (6883041845648321423) -->
-    <skip />
-    <!-- no translation found for wifi_eap_error_message_code_32765 (3134805513440435314) -->
-    <skip />
-    <!-- no translation found for wifi_eap_error_message_code_32766 (6907401733158262194) -->
-    <skip />
+    <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: produciuse un erro (32760) de autenticación de EAP"</string>
+    <string name="wifi_eap_error_message_code_32761" msgid="3110197168451423384">"<xliff:g id="SSID">%1$s</xliff:g>: produciuse un erro (32761) de autenticación de EAP"</string>
+    <string name="wifi_eap_error_message_code_32762" msgid="3515553222282833794">"<xliff:g id="SSID">%1$s</xliff:g>: produciuse un erro (32762) de autenticación de EAP"</string>
+    <string name="wifi_eap_error_message_code_32763" msgid="3790937365887990781">"<xliff:g id="SSID">%1$s</xliff:g>: produciuse un erro (32763) de autenticación de EAP"</string>
+    <string name="wifi_eap_error_message_code_32764" msgid="6883041845648321423">"<xliff:g id="SSID">%1$s</xliff:g>: produciuse un erro (32764) de autenticación de EAP"</string>
+    <string name="wifi_eap_error_message_code_32765" msgid="3134805513440435314">"<xliff:g id="SSID">%1$s</xliff:g>: produciuse un erro (32765) de autenticación de EAP"</string>
+    <string name="wifi_eap_error_message_code_32766" msgid="6907401733158262194">"<xliff:g id="SSID">%1$s</xliff:g>: produciuse un erro (32766) de autenticación de EAP"</string>
+    <string name="wifi_softap_auto_shutdown_timeout_expired_title" msgid="6772994319428197481">"Desactivouse a zona wifi móbil"</string>
+    <string name="wifi_softap_auto_shutdown_timeout_expired_summary" msgid="2784340491027490290">"Desactivouse a zona wifi móbil"</string>
+    <string name="wifi_softap_auto_shutdown_timeout_expired_detail" msgid="7203939001058203709">"Desactivouse a zona wifi móbil porque se esgotou o tempo de espera de inactividade."</string>
 </resources>

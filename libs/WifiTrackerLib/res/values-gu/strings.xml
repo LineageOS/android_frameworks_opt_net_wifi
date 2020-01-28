@@ -16,16 +16,12 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <!-- no translation found for summary_separator (6533720408587140819) -->
-    <skip />
-    <!-- no translation found for auto_connect_disable (8750623020267885175) -->
-    <skip />
+    <string name="summary_separator" msgid="6533720408587140819">" / "</string>
+    <string name="auto_connect_disable" msgid="8750623020267885175">"ઑટોમૅટિક રીતે કનેક્ટ કરવાની સુવિધા બંધ કરી"</string>
     <string name="saved_network" msgid="6241977554502802914">"<xliff:g id="NAME">%1$s</xliff:g> દ્વારા સચવાયું"</string>
     <string name="wifi_no_internet_no_reconnect" msgid="4378129479815195671">"આપમેળે કનેક્ટ કરશે નહીં"</string>
-    <!-- no translation found for wifi_no_internet (4461212237521310895) -->
-    <skip />
-    <!-- no translation found for wifi_disabled_password_failure (3015007143699702403) -->
-    <skip />
+    <string name="wifi_no_internet" msgid="4461212237521310895">"કોઈ ઇન્ટરનેટ ઍક્સેસ નથી"</string>
+    <string name="wifi_disabled_password_failure" msgid="3015007143699702403">"પ્રમાણીકરણમાં સમસ્યા"</string>
     <string name="wifi_check_password_try_again" msgid="2643230209986217827">"પાસવર્ડ તપાસો અને ફરી પ્રયાસ કરો"</string>
     <string name="wifi_disabled_network_failure" msgid="6506742207778007439">"IP ગોઠવણીમાં નિષ્ફળતા"</string>
     <string name="wifi_disabled_generic" msgid="8307050327779256414">"અક્ષમ કર્યો"</string>
@@ -34,4 +30,11 @@
     <string name="wifi_remembered" msgid="5126903736498678708">"સાચવેલા"</string>
     <string name="wifi_metered_label" msgid="1362621600006544014">"મીટર કરેલ"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"મીટર ન કરેલ"</string>
+    <string name="connected_via_app" msgid="1818040967936972127">"<xliff:g id="NAME">%1$s</xliff:g> દ્વારા કનેક્ટ થયેલ"</string>
+    <string name="connected_via_network_scorer" msgid="8081366798449871179">"%1$s દ્વારા સ્વત: કનેક્ટ થયેલ"</string>
+    <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"નેટવર્ક રેટિંગ પ્રદાતા દ્વારા આપમેળે કનેક્ટ થયું"</string>
+    <string name="wifi_limited_connection" msgid="3646701342701276239">"મર્યાદિત કનેક્શન"</string>
+    <string name="private_dns_broken" msgid="2212227512243587416">"ખાનગી DNS સર્વર ઍક્સેસ કરી શકાતા નથી"</string>
+    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"કનેક્ટ કર્યું, કોઈ ઇન્ટરનેટ નથી"</string>
+    <string name="wifi_security_none" msgid="6680263031386719053">"કોઈ નહીં"</string>
 </resources>
