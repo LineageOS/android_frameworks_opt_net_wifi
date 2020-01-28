@@ -70,7 +70,6 @@ import android.net.wifi.aware.WifiAwareSession;
 import android.net.wifi.util.HexEncoding;
 import android.os.Build;
 import android.os.Handler;
-import android.os.IPowerManager;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
@@ -128,7 +127,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
     @Mock private WifiPermissionsWrapper mPermissionsWrapperMock;
     @Mock private WifiManager mMockWifiManager;
     TestAlarmManager mAlarmManager;
-    private PowerManager mMockPowerManager;
+    @Mock private PowerManager mMockPowerManager;
 
     @Rule
     public ErrorCollector collector = new ErrorCollector();
@@ -149,10 +148,6 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
 
         mMockLooper = new TestLooper();
         mMockLooperHandler = new Handler(mMockLooper.getLooper());
-
-        IPowerManager powerManagerService = mock(IPowerManager.class);
-        mMockPowerManager = new PowerManager(mMockContext, powerManagerService,
-                new Handler(mMockLooper.getLooper()));
 
         when(mMockContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(mMockCm);
         when(mMockContext.getSystemServiceName(PowerManager.class)).thenReturn(
