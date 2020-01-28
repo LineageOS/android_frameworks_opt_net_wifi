@@ -261,7 +261,7 @@ public class PasspointProvider {
             for (int i = 0; i < x509Certificates.length; i++) {
                 String alias = String.format("%s%s_%d", ALIAS_HS_TYPE, mProviderId, i);
                 if (!mKeyStore.putCaCertInKeyStore(alias, x509Certificates[i])) {
-                    Log.e(TAG, "Failed to install CA Certificate");
+                    Log.e(TAG, "Failed to install CA Certificate " + alias);
                     uninstallCertsAndKeys();
                     return false;
                 } else {
@@ -285,7 +285,7 @@ public class PasspointProvider {
             }
             if (!mKeyStore.putUserPrivKeyAndCertsInKeyStore(
                     keyName, clientKey, new Certificate[] {clientCert})) {
-                Log.e(TAG, "Failed to install client private key & certificate");
+                Log.e(TAG, "Failed to install client private key or certificate");
                 uninstallCertsAndKeys();
                 return false;
             }
@@ -561,7 +561,8 @@ public class PasspointProvider {
                         EAPConstants.EAP_AKA_PRIME, wifiConfig.enterpriseConfig));
                 break;
             default:
-                Log.e(TAG, "Unsupport EAP method: " + wifiConfig.enterpriseConfig.getEapMethod());
+                Log.e(TAG, "Unsupported EAP method: "
+                        + wifiConfig.enterpriseConfig.getEapMethod());
                 return null;
         }
         if (credential.getUserCredential() == null && credential.getCertCredential() == null
