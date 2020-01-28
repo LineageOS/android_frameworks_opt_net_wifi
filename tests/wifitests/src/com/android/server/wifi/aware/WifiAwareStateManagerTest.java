@@ -62,7 +62,6 @@ import android.net.wifi.aware.WifiAwareManager;
 import android.net.wifi.util.HexEncoding;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.IPowerManager;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.RemoteException;
@@ -120,7 +119,7 @@ public class WifiAwareStateManagerTest extends WifiBaseTest {
     @Mock private WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock private WifiPermissionsWrapper mPermissionsWrapperMock;
     TestAlarmManager mAlarmManager;
-    private PowerManager mMockPowerManager;
+    @Mock private PowerManager mMockPowerManager;
     @Mock private WifiManager mMockWifiManager;
     private BroadcastReceiver mPowerBcastReceiver;
     private BroadcastReceiver mLocationModeReceiver;
@@ -147,10 +146,6 @@ public class WifiAwareStateManagerTest extends WifiBaseTest {
         when(mMockWifiManager.getWifiState()).thenReturn(WifiManager.WIFI_STATE_ENABLED);
 
         mMockLooper = new TestLooper();
-
-        IPowerManager powerManagerService = mock(IPowerManager.class);
-        mMockPowerManager = new PowerManager(mMockContext, powerManagerService,
-                new Handler(mMockLooper.getLooper()));
 
         when(mMockContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(
                 mock(ConnectivityManager.class));
