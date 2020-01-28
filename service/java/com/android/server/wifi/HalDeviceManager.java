@@ -1296,7 +1296,9 @@ public class HalDeviceManager {
         public void onFailure(WifiStatus status) throws RemoteException {
             mEventHandler.post(() -> {
                 Log.e(TAG, "IWifiEventCallback.onFailure: " + statusString(status));
-                teardownInternal();
+                synchronized (mLock) {
+                    teardownInternal();
+                }
             });
             // No need to do anything else: listeners may (will) re-start Wi-Fi
         }
