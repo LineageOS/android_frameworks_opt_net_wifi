@@ -32,6 +32,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
+import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -56,13 +57,6 @@ class PasspointWifiEntry extends WifiEntry {
     @Nullable private WifiConfiguration mWifiConfig;
     private @Security int mSecurity;
     private boolean mIsRoaming = false;
-    @Nullable private NetworkInfo mNetworkInfo;
-    @Nullable private WifiInfo mWifiInfo;
-    @Nullable private ConnectCallback mConnectCallback;
-    @Nullable private DisconnectCallback mDisconnectCallback;
-    @Nullable private ForgetCallback mForgetCallback;
-    private boolean mCalledConnect = false;
-    private boolean mCalledDisconnect = false;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
@@ -77,6 +71,7 @@ class PasspointWifiEntry extends WifiEntry {
         checkNotNull(passpointConfig, "Cannot construct with null PasspointConfiguration!");
 
         mContext = context;
+        mPasspointConfig = passpointConfig;
         final HomeSp homeSp = passpointConfig.getHomeSp();
         mKey = fqdnToPasspointWifiEntryKey(homeSp.getFqdn());
         mFriendlyName = homeSp.getFriendlyName();
@@ -86,13 +81,6 @@ class PasspointWifiEntry extends WifiEntry {
     @Override
     public String getKey() {
         return mKey;
-    }
-
-    @Override
-    @ConnectedState
-    public int getConnectedState() {
-        // TODO(b/70983952): Fill this method in
-        return CONNECTED_STATE_DISCONNECTED;
     }
 
     @Override
@@ -108,7 +96,7 @@ class PasspointWifiEntry extends WifiEntry {
     @Override
     public String getSummary(boolean concise) {
         // TODO(b/70983952): Fill this method in
-        return "Passpoint"; // Placeholder string
+        return "Passpoint (Placeholder Text)"; // Placeholder string
     }
 
     @Override
@@ -157,20 +145,20 @@ class PasspointWifiEntry extends WifiEntry {
     }
 
     @Override
-    public ConnectedInfo getConnectedInfo() {
-        // TODO(b/70983952): Fill this method in
-        return null;
-    }
-
-    @Override
     public boolean canConnect() {
         return mLevel != WIFI_LEVEL_UNREACHABLE
-                && getConnectedState() == CONNECTED_STATE_DISCONNECTED;
+                && getConnectedState() == CONNECTED_STATE_DISCONNECTED && mWifiConfig != null;
     }
 
     @Override
     public void connect(@Nullable ConnectCallback callback) {
-        // TODO(b/70983952): Fill this method in
+        mConnectCallback = callback;
+
+        if (mWifiConfig == null) {
+            // We should not be able to call connect() if mWifiConfig is null
+            new ConnectActionListener().onFailure(0);
+        }
+        mWifiManager.connect(mWifiConfig, new ConnectActionListener());
     }
 
     @Override
@@ -185,53 +173,49 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public boolean canForget() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return true;
     }
 
     @Override
     public void forget(@Nullable ForgetCallback callback) {
-        // TODO(b/70983952): Fill this method in
+        mForgetCallback = callback;
+        mWifiManager.removePasspointConfiguration(mPasspointConfig.getHomeSp().getFqdn());
+        new ForgetActionListener().onSuccess();
     }
 
     @Override
     public boolean canSignIn() {
-        // TODO(b/70983952): Fill this method in
         return false;
     }
 
     @Override
     public void signIn(@Nullable SignInCallback callback) {
-        // TODO(b/70983952): Fill this method in
+        return;
     }
 
     @Override
     public boolean canShare() {
-        // TODO(b/70983952): Fill this method in
         return false;
     }
 
     @Override
     public boolean canEasyConnect() {
-        // TODO(b/70983952): Fill this method in
         return false;
     }
 
     @Override
     public String getQrCodeString() {
-        // TODO(b/70983952): Fill this method in
         return null;
     }
 
     @Override
     public boolean canSetPassword() {
-        // TODO(b/70983952): Fill this method in
         return false;
     }
 
     @Override
     public void setPassword(@NonNull String password) {
-        // TODO(b/70983952): Fill this method in
+        // Do nothing.
     }
 
     @Override
@@ -342,7 +326,8 @@ class PasspointWifiEntry extends WifiEntry {
             return false;
         }
 
-        return mWifiConfig != null && mWifiConfig.networkId == wifiInfo.getNetworkId();
+        return TextUtils.equals(
+                wifiInfo.getPasspointFqdn(), mPasspointConfig.getHomeSp().getFqdn());
     }
 
     @NonNull

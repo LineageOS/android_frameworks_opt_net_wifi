@@ -531,4 +531,30 @@ public class WifiPickerTrackerTest {
         assertThat(wifiPickerTracker.getWifiEntries()).isNotEmpty();
         assertThat(wifiPickerTracker.getWifiEntries().get(0).getTitle()).isEqualTo("friendlyName");
     }
+
+    @Test
+    public void testGetConnectedEntry_alreadyConnectedToPasspoint_returnsPasspointEntry() {
+        final String fqdn = "fqdn";
+        final String friendlyName = "friendlyName";
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
+        final PasspointConfiguration config = new PasspointConfiguration();
+        final HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(fqdn);
+        homeSp.setFriendlyName(friendlyName);
+        config.setHomeSp(homeSp);
+        when(mMockWifiManager.getPasspointConfigurations())
+                .thenReturn(Collections.singletonList(config));
+        when(mMockWifiInfo.isPasspointAp()).thenReturn(true);
+        when(mMockWifiInfo.getPasspointFqdn()).thenReturn(fqdn);
+        when(mMockWifiInfo.getRssi()).thenReturn(-50);
+        when(mMockNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.CONNECTED);
+
+        wifiPickerTracker.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+        mTestLooper.dispatchAll();
+
+        verify(mMockCallback, atLeastOnce()).onWifiEntriesChanged();
+        assertThat(wifiPickerTracker.getConnectedWifiEntry().getTitle()).isEqualTo(friendlyName);
+    }
 }
