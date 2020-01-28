@@ -168,8 +168,10 @@ public class WifiScoreReport {
 
         if (wifiInfo.getScore() > ConnectedScore.WIFI_TRANSITION_SCORE
                  && score <= ConnectedScore.WIFI_TRANSITION_SCORE
-                 && wifiInfo.getTxSuccessRate() >= mScoringParams.getYippeeSkippyPacketsPerSecond()
-                 && wifiInfo.getRxSuccessRate() >= mScoringParams.getYippeeSkippyPacketsPerSecond()
+                 && wifiInfo.getSuccessfulTxPacketsPerSecond()
+                        >= mScoringParams.getYippeeSkippyPacketsPerSecond()
+                 && wifiInfo.getSuccessfulRxPacketsPerSecond()
+                        >= mScoringParams.getYippeeSkippyPacketsPerSecond()
         ) {
             score = ConnectedScore.WIFI_TRANSITION_SCORE + 1;
         }
@@ -304,10 +306,10 @@ public class WifiScoreReport {
         int freq = wifiInfo.getFrequency();
         int txLinkSpeed = wifiInfo.getLinkSpeed();
         int rxLinkSpeed = wifiInfo.getRxLinkSpeedMbps();
-        double txSuccessRate = wifiInfo.getTxSuccessRate();
-        double txRetriesRate = wifiInfo.getTxRetriesRate();
-        double txBadRate = wifiInfo.getTxBadRate();
-        double rxSuccessRate = wifiInfo.getRxSuccessRate();
+        double txSuccessRate = wifiInfo.getSuccessfulTxPacketsPerSecond();
+        double txRetriesRate = wifiInfo.getRetriedTxPacketsPerSecond();
+        double txBadRate = wifiInfo.getLostTxPacketsPerSecond();
+        double rxSuccessRate = wifiInfo.getSuccessfulRxPacketsPerSecond();
         String s;
         try {
             String timestamp = new SimpleDateFormat("MM-dd HH:mm:ss.SSS").format(new Date(now));

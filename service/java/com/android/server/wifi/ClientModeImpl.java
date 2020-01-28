@@ -173,7 +173,8 @@ public class ClientModeImpl extends StateMachine {
     private static final String EXTRA_UID = "uid";
     private static final String EXTRA_PACKAGE_NAME = "PackageName";
     private static final String EXTRA_PASSPOINT_CONFIGURATION = "PasspointConfiguration";
-    private static final int IPCLIENT_TIMEOUT_MS = 60_000;
+    private static final int IPCLIENT_STARTUP_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes!
+    private static final int IPCLIENT_SHUTDOWN_TIMEOUT_MS = 60_000; // 60 seconds
 
     private boolean mVerboseLoggingEnabled = false;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
@@ -1009,11 +1010,11 @@ public class ClientModeImpl extends StateMachine {
         }
 
         boolean awaitCreation() {
-            return mWaitForCreationCv.block(IPCLIENT_TIMEOUT_MS);
+            return mWaitForCreationCv.block(IPCLIENT_STARTUP_TIMEOUT_MS);
         }
 
         boolean awaitShutdown() {
-            return mWaitForStopCv.block(IPCLIENT_TIMEOUT_MS);
+            return mWaitForStopCv.block(IPCLIENT_SHUTDOWN_TIMEOUT_MS);
         }
     }
 
@@ -1960,10 +1961,10 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(" f=").append(mWifiInfo.getFrequency());
                 sb.append(" sc=").append(mWifiInfo.getScore());
                 sb.append(" link=").append(mWifiInfo.getLinkSpeed());
-                sb.append(String.format(" tx=%.1f,", mWifiInfo.getTxSuccessRate()));
-                sb.append(String.format(" %.1f,", mWifiInfo.getTxRetriesRate()));
-                sb.append(String.format(" %.1f ", mWifiInfo.getTxBadRate()));
-                sb.append(String.format(" rx=%.1f", mWifiInfo.getRxSuccessRate()));
+                sb.append(String.format(" tx=%.1f,", mWifiInfo.getSuccessfulTxPacketsPerSecond()));
+                sb.append(String.format(" %.1f,", mWifiInfo.getRetriedTxPacketsPerSecond()));
+                sb.append(String.format(" %.1f ", mWifiInfo.getLostTxPacketsPerSecond()));
+                sb.append(String.format(" rx=%.1f", mWifiInfo.getSuccessfulRxPacketsPerSecond()));
                 sb.append(String.format(" bcn=%d", mRunningBeaconCount));
                 report = reportOnTime();
                 if (report != null) {
@@ -2392,10 +2393,10 @@ public class ClientModeImpl extends StateMachine {
 
     // Polling has completed, hence we won't have a score anymore
     private void cleanWifiScore() {
-        mWifiInfo.setTxBadRate(0);
-        mWifiInfo.setTxSuccessRate(0);
-        mWifiInfo.setTxRetriesRate(0);
-        mWifiInfo.setRxSuccessRate(0);
+        mWifiInfo.setLostTxPacketsPerSecond(0);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(0);
+        mWifiInfo.setRetriedTxPacketsRate(0);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(0);
         mWifiScoreReport.reset();
         mLastLinkLayerStats = null;
     }
@@ -2556,7 +2557,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setTrusted(config.trusted);
             mWifiInfo.setOsuAp(config.osu);
             if (config.fromWifiNetworkSpecifier || config.fromWifiNetworkSuggestion) {
-                mWifiInfo.setAppPackageName(config.creatorName);
+                mWifiInfo.setRequestingPackageName(config.creatorName);
             }
 
             // Set meteredHint if scan result says network is expensive
@@ -3390,7 +3391,7 @@ public class ClientModeImpl extends StateMachine {
         mIpClientCallbacks = new IpClientCallbacksImpl();
         mFacade.makeIpClient(mContext, mInterfaceName, mIpClientCallbacks);
         if (!mIpClientCallbacks.awaitCreation()) {
-            loge("Timeout waiting for IpClient");
+            Log.wtf(getName(), "Timeout waiting for IpClient");
         }
 
         setMulticastFilter(true);

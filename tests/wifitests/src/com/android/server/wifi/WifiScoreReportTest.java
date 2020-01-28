@@ -254,8 +254,8 @@ public class WifiScoreReportTest extends WifiBaseTest {
     public void allowLowRssiIfDataIsMoving() throws Exception {
         mWifiInfo.setRssi(-80);
         mWifiInfo.setLinkSpeed(6); // Mbps
-        mWifiInfo.setTxSuccessRate(5.1); // proportional to pps
-        mWifiInfo.setRxSuccessRate(5.1);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(5.1); // proportional to pps
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(5.1);
         for (int i = 0; i < 10; i++) {
             mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
         }
@@ -277,8 +277,8 @@ public class WifiScoreReportTest extends WifiBaseTest {
         mWifiInfo.setLinkSpeed(6); // Mbps
         mWifiInfo.setFrequency(5220);
         mWifiScoreReport.enableVerboseLogging(true);
-        mWifiInfo.setTxSuccessRate(0.1);
-        mWifiInfo.setRxSuccessRate(0.1);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(0.1);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(0.1);
         for (int i = 0; i < 10; i++) {
             mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
         }
@@ -317,8 +317,8 @@ public class WifiScoreReportTest extends WifiBaseTest {
         mWifiInfo.setLinkSpeed(6); // Mbps
         mWifiInfo.setFrequency(5220);
         mWifiScoreReport.enableVerboseLogging(true);
-        mWifiInfo.setTxSuccessRate(0.1);
-        mWifiInfo.setRxSuccessRate(0.1);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(0.1);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(0.1);
         assertTrue(mScoringParams.update("rssi5=-83:-80:-66:-55"));
         for (int r = -30; r >= -100; r -= 1) {
             int rssi = Math.max(r, -80);
@@ -340,9 +340,11 @@ public class WifiScoreReportTest extends WifiBaseTest {
      */
     @Test
     public void allowTerribleRssiIfDataIsMovingWell() throws Exception {
-        mWifiInfo.setTxSuccessRate(mScoringParams.getYippeeSkippyPacketsPerSecond() + 0.1);
-        mWifiInfo.setRxSuccessRate(mScoringParams.getYippeeSkippyPacketsPerSecond() + 0.1);
-        assertTrue(mWifiInfo.getTxSuccessRate() > 10);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(
+                mScoringParams.getYippeeSkippyPacketsPerSecond() + 0.1);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(
+                mScoringParams.getYippeeSkippyPacketsPerSecond() + 0.1);
+        assertTrue(mWifiInfo.getSuccessfulTxPacketsPerSecond() > 10);
         mWifiInfo.setFrequency(5220);
         for (int r = -30; r >= -120; r -= 2) {
             mWifiInfo.setRssi(r);
@@ -350,12 +352,14 @@ public class WifiScoreReportTest extends WifiBaseTest {
             assertTrue(mWifiInfo.getScore() > ConnectedScore.WIFI_TRANSITION_SCORE);
         }
         // If the throughput dips, we should let go
-        mWifiInfo.setRxSuccessRate(mScoringParams.getYippeeSkippyPacketsPerSecond() - 0.1);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(
+                mScoringParams.getYippeeSkippyPacketsPerSecond() - 0.1);
         mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
         assertTrue(mWifiInfo.getScore() < ConnectedScore.WIFI_TRANSITION_SCORE);
         // And even if throughput improves again, once we have decided to let go, disregard
         // the good rates.
-        mWifiInfo.setRxSuccessRate(mScoringParams.getYippeeSkippyPacketsPerSecond() + 0.1);
+        mWifiInfo.setSuccessfulRxPacketsPerSecond(
+                mScoringParams.getYippeeSkippyPacketsPerSecond() + 0.1);
         mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
         assertTrue(mWifiInfo.getScore() < ConnectedScore.WIFI_TRANSITION_SCORE);
     }
@@ -464,10 +468,10 @@ public class WifiScoreReportTest extends WifiBaseTest {
             mWifiInfo.setRssi(-65 + i);
             mWifiInfo.setLinkSpeed(300);
             mWifiInfo.setFrequency(5220);
-            mWifiInfo.setTxSuccessRate(0.1 + i);
-            mWifiInfo.setTxRetriesRate(0.2 + i);
-            mWifiInfo.setTxBadRate(0.01 * i);
-            mWifiInfo.setRxSuccessRate(0.3 + i);
+            mWifiInfo.setSuccessfulTxPacketsPerSecond(0.1 + i);
+            mWifiInfo.setRetriedTxPacketsRate(0.2 + i);
+            mWifiInfo.setLostTxPacketsPerSecond(0.01 * i);
+            mWifiInfo.setSuccessfulRxPacketsPerSecond(0.3 + i);
             mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
         }
         setupToGenerateAReportWhenPrintlnIsCalled();
@@ -486,10 +490,10 @@ public class WifiScoreReportTest extends WifiBaseTest {
             mWifiInfo.setRssi(-65 + i % 20);
             mWifiInfo.setLinkSpeed(300);
             mWifiInfo.setFrequency(5220);
-            mWifiInfo.setTxSuccessRate(0.1 + i % 100);
-            mWifiInfo.setTxRetriesRate(0.2 + i % 100);
-            mWifiInfo.setTxBadRate(0.0001 * i);
-            mWifiInfo.setRxSuccessRate(0.3 + i % 200);
+            mWifiInfo.setSuccessfulTxPacketsPerSecond(0.1 + i % 100);
+            mWifiInfo.setRetriedTxPacketsRate(0.2 + i % 100);
+            mWifiInfo.setLostTxPacketsPerSecond(0.0001 * i);
+            mWifiInfo.setSuccessfulRxPacketsPerSecond(0.3 + i % 200);
             mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
         }
         mWifiScoreReport.dump(null, mPrintWriter, null);

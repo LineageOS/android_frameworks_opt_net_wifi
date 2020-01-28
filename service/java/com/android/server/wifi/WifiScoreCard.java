@@ -337,8 +337,9 @@ public class WifiScoreCard {
     }
 
     private int geTxLinkSpeedWithSufficientTxRate(@NonNull ExtendedWifiInfo wifiInfo) {
-        double txRate = wifiInfo.getTxSuccessRate() + wifiInfo.getTxBadRate()
-                + wifiInfo.getTxRetriesRate();
+        double txRate = wifiInfo.getSuccessfulTxPacketsPerSecond()
+                + wifiInfo.getLostTxPacketsPerSecond()
+                + wifiInfo.getRetriedTxPacketsPerSecond();
         int txSpeed = wifiInfo.getTxLinkSpeedMbps();
         logd("txRate: " + txRate + " txSpeed: " + txSpeed);
         return (txRate >= HEALTH_MONITOR_COUNT_MIN_TX_RATE) ? txSpeed : LINK_SPEED_UNKNOWN;

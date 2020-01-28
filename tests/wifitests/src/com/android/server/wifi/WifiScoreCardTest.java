@@ -835,8 +835,8 @@ public class WifiScoreCardTest extends WifiBaseTest {
         mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
         millisecondsPass(5000);
         mWifiInfo.setTxLinkSpeedMbps(100);
-        mWifiInfo.setTxSuccessRate(20.0);
-        mWifiInfo.setTxRetriesRate(1.0);
+        mWifiInfo.setSuccessfulTxPacketsPerSecond(20.0);
+        mWifiInfo.setRetriedTxPacketsRate(1.0);
         mWifiInfo.setRssi(-80);
         millisecondsPass(1000);
         mWifiScoreCard.noteSignalPoll(mWifiInfo);

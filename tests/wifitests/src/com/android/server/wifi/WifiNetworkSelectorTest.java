@@ -496,8 +496,10 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         when(mWifiInfo.is5GHz()).thenReturn(true);
         when(mWifiInfo.getFrequency()).thenReturn(5000);
         when(mWifiInfo.getRssi()).thenReturn(levels[0]);
-        when(mWifiInfo.getTxSuccessRate()).thenReturn(mMinPacketRateActiveTraffic - 1.0);
-        when(mWifiInfo.getRxSuccessRate()).thenReturn(mMinPacketRateActiveTraffic + 1.0);
+        when(mWifiInfo.getSuccessfulTxPacketsPerSecond())
+                .thenReturn(mMinPacketRateActiveTraffic - 1.0);
+        when(mWifiInfo.getSuccessfulRxPacketsPerSecond())
+                .thenReturn(mMinPacketRateActiveTraffic + 1.0);
 
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime()
                 + WifiNetworkSelector.MINIMUM_NETWORK_SELECTION_INTERVAL_MS + 2000);
@@ -803,8 +805,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     public void testNoActiveStream() {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
-        when(mWifiInfo.getTxSuccessRate()).thenReturn(0.0);
-        when(mWifiInfo.getRxSuccessRate()).thenReturn(0.0);
+        when(mWifiInfo.getSuccessfulTxPacketsPerSecond()).thenReturn(0.0);
+        when(mWifiInfo.getSuccessfulRxPacketsPerSecond()).thenReturn(0.0);
 
         testStayOrTryToSwitch(
                 // Parameters for network1:
@@ -829,8 +831,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     public void testOsuIsSufficient() {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi5G - 1);
-        when(mWifiInfo.getTxSuccessRate()).thenReturn(0.0);
-        when(mWifiInfo.getRxSuccessRate()).thenReturn(0.0);
+        when(mWifiInfo.getSuccessfulTxPacketsPerSecond()).thenReturn(0.0);
+        when(mWifiInfo.getSuccessfulRxPacketsPerSecond()).thenReturn(0.0);
 
         testStayOrTryToSwitch(
                 // Parameters for network1:
@@ -857,8 +859,10 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     public void testSufficientLinkQualityActiveStream() {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi5G + 1);
-        when(mWifiInfo.getTxSuccessRate()).thenReturn(mMinPacketRateActiveTraffic - 1.0);
-        when(mWifiInfo.getRxSuccessRate()).thenReturn(mMinPacketRateActiveTraffic * 2.0);
+        when(mWifiInfo.getSuccessfulTxPacketsPerSecond())
+                .thenReturn(mMinPacketRateActiveTraffic - 1.0);
+        when(mWifiInfo.getSuccessfulRxPacketsPerSecond())
+                .thenReturn(mMinPacketRateActiveTraffic * 2.0);
 
         testStayOrTryToSwitch(
                 mThresholdQualifiedRssi5G + 1 /* rssi before connected */,
@@ -879,8 +883,10 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     public void testBadRssi() {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G - 1);
-        when(mWifiInfo.getTxSuccessRate()).thenReturn(mMinPacketRateActiveTraffic + 1.0);
-        when(mWifiInfo.getRxSuccessRate()).thenReturn(mMinPacketRateActiveTraffic - 1.0);
+        when(mWifiInfo.getSuccessfulTxPacketsPerSecond())
+                .thenReturn(mMinPacketRateActiveTraffic + 1.0);
+        when(mWifiInfo.getSuccessfulRxPacketsPerSecond())
+                .thenReturn(mMinPacketRateActiveTraffic - 1.0);
 
         testStayOrTryToSwitch(
                 mThresholdQualifiedRssi2G + 1 /* rssi before connected */,
