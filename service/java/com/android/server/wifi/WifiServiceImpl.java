@@ -841,7 +841,8 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
 
-        if (!isConcurrentLohsAndTetheringSupported()) {
+        if (!mWifiThreadRunner.call(
+                () -> mActiveModeWarden.canRequestMoreSoftApManagers(), false)) {
             // Take down LOHS if it is up.
             mLohsSoftApTracker.stopAll();
         }
@@ -900,7 +901,8 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
 
-        if (!isConcurrentLohsAndTetheringSupported()) {
+        if (!mWifiThreadRunner.call(
+                () -> mActiveModeWarden.canRequestMoreSoftApManagers(), false)) {
             // Take down LOHS if it is up.
             mLohsSoftApTracker.stopAll();
         }
@@ -1502,7 +1504,7 @@ public class WifiServiceImpl extends BaseWifiService {
                             && mLohsInterfaceMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
                         // holding the required lock: send message to requestors and clear the list
                         sendHotspotStoppedMessageToAllLOHSRequestInfoEntriesLocked();
-                    } else if (!isConcurrentLohsAndTetheringSupported()) {
+                    } else {
                         // LOHS not active: report an error (still holding the required lock)
                         sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(ERROR_GENERIC);
                     }
@@ -1703,8 +1705,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // check if we are currently tethering
-        // TODO(b/123227116): handle all interface combinations just by changing the HAL.
-        if (!isConcurrentLohsAndTetheringSupported()
+        if (!mActiveModeWarden.canRequestMoreSoftApManagers()
                 && mTetheredSoftApTracker.getState() == WIFI_AP_STATE_ENABLED) {
             // Tethering is enabled, cannot start LocalOnlyHotspot
             mLog.info("Cannot start localOnlyHotspot when WiFi Tethering is active.")
@@ -2824,17 +2825,6 @@ public class WifiServiceImpl extends BaseWifiService {
                 () -> mClientModeImpl.isWifiStandardSupported(standard), false);
     }
 
-    private int getMaxApInterfacesCount() {
-        //TODO (b/123227116): pull it from the HAL
-        return mContext.getResources().getInteger(
-                R.integer.config_wifi_max_ap_interfaces);
-    }
-
-    private boolean isConcurrentLohsAndTetheringSupported() {
-        // TODO(b/110697252): handle all configurations in the wifi stack (just by changing the HAL)
-        return getMaxApInterfacesCount() >= 2;
-    }
-
     /**
      * Method allowing callers with NETWORK_SETTINGS permission to check if this is a dual mode
      * capable device (STA+AP).
@@ -3630,12 +3620,42 @@ public class WifiServiceImpl extends BaseWifiService {
 
     private long getSupportedFeaturesInternal() {
         final AsyncChannel channel = mClientModeImplChannel;
+        long supportedFeatureSet = 0L;
         if (channel != null) {
-            return mClientModeImpl.syncGetSupportedFeatures(channel);
+            supportedFeatureSet = mClientModeImpl.syncGetSupportedFeatures(channel);
         } else {
             Log.e(TAG, "mClientModeImplChannel is not initialized");
-            return 0;
+            return supportedFeatureSet;
         }
+        // Mask the feature set against system properties.
+        boolean rttSupported = mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_WIFI_RTT);
+        if (!rttSupported) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
+            supportedFeatureSet &=
+                    ~(WifiManager.WIFI_FEATURE_D2D_RTT | WifiManager.WIFI_FEATURE_D2AP_RTT);
+        }
+        if (!mContext.getResources().getBoolean(
+                R.bool.config_wifi_p2p_mac_randomization_supported)) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
+            supportedFeatureSet &= ~WifiManager.WIFI_FEATURE_P2P_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_RAND_MAC;
+        }
+        if (mWifiThreadRunner.call(
+                () -> mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager(),
+                false)) {
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_STA;
+        }
+        return supportedFeatureSet;
     }
 
     private static boolean hasAutomotiveFeature(Context context) {

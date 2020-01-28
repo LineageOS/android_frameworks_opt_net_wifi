@@ -107,12 +107,13 @@ public class SoftApStoreDataTest extends WifiBaseTest {
                     + "</AllowedClientList>\n";
 
     @Mock SoftApStoreData.DataSource mDataSource;
+    @Mock WifiOemConfigStoreMigrationDataHolder mWifiOemConfigStoreMigrationDataHolder;
     SoftApStoreData mSoftApStoreData;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mSoftApStoreData = new SoftApStoreData(mDataSource);
+        mSoftApStoreData = new SoftApStoreData(mDataSource, mWifiOemConfigStoreMigrationDataHolder);
         TEST_BLOCKEDLIST.add(MacAddress.fromString(TEST_BLOCKED_CLIENT));
         TEST_ALLOWEDLIST.add(MacAddress.fromString(TEST_ALLOWED_CLIENT));
     }
@@ -140,6 +141,20 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         out.flush();
         return outputStream.toByteArray();
     }
+
+    private SoftApConfiguration createDefaultTestSoftApConfiguration() {
+        SoftApConfiguration.Builder softApConfigBuilder = new SoftApConfiguration.Builder();
+        softApConfigBuilder.setSsid(TEST_SSID);
+        softApConfigBuilder.setPassphrase(TEST_PASSPHRASE,
+                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+        softApConfigBuilder.setBand(TEST_BAND);
+        softApConfigBuilder.enableClientControlByUser(TEST_CLIENT_CONTROL_BY_USER);
+        softApConfigBuilder.setMaxNumberOfClients(TEST_MAX_NUMBER_OF_CLIENTS);
+        softApConfigBuilder.setShutdownTimeoutMillis(TEST_SHUTDOWN_TIMEOUT_MILLIS);
+        softApConfigBuilder.setClientList(TEST_BLOCKEDLIST, TEST_ALLOWEDLIST);
+        return softApConfigBuilder.build();
+    }
+
 
     /**
      * Helper function for parsing configuration data from a XML block.
@@ -187,17 +202,8 @@ public class SoftApStoreDataTest extends WifiBaseTest {
      */
     @Test
     public void serializeSoftAp() throws Exception {
-        SoftApConfiguration.Builder softApConfigBuilder = new SoftApConfiguration.Builder();
-        softApConfigBuilder.setSsid(TEST_SSID);
-        softApConfigBuilder.setPassphrase(TEST_PASSPHRASE,
-                SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
-        softApConfigBuilder.setBand(TEST_BAND);
-        softApConfigBuilder.enableClientControlByUser(TEST_CLIENT_CONTROL_BY_USER);
-        softApConfigBuilder.setMaxNumberOfClients(TEST_MAX_NUMBER_OF_CLIENTS);
-        softApConfigBuilder.setShutdownTimeoutMillis(TEST_SHUTDOWN_TIMEOUT_MILLIS);
-        softApConfigBuilder.setClientList(TEST_BLOCKEDLIST, TEST_ALLOWEDLIST);
-
-        when(mDataSource.toSerialize()).thenReturn(softApConfigBuilder.build());
+        SoftApConfiguration softApConfig = createDefaultTestSoftApConfiguration();
+        when(mDataSource.toSerialize()).thenReturn(softApConfig);
         byte[] actualData = serializeData();
         assertEquals(TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG, new String(actualData));
     }
@@ -381,4 +387,36 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         assertEquals(softApConfig.getBand(), softApConfigDeserialized.getBand());
         assertEquals(softApConfig.getChannel(), softApConfigDeserialized.getChannel());
     }
+
+    /**
+     * Verify that the store data is deserialized correctly from OEM migration hook.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void deserializeSoftApFromOemConfigStoreMigration() throws Exception {
+        SoftApConfiguration oemSoftApConfig = createDefaultTestSoftApConfiguration();
+        when(mWifiOemConfigStoreMigrationDataHolder.getUserSoftApConfiguration())
+                .thenReturn(oemSoftApConfig);
+
+        // File contents are ignored.
+        deserializeData("".getBytes());
+
+        ArgumentCaptor<SoftApConfiguration> softapConfigCaptor =
+                ArgumentCaptor.forClass(SoftApConfiguration.class);
+        verify(mDataSource).fromDeserialized(softapConfigCaptor.capture());
+        SoftApConfiguration softApConfig = softapConfigCaptor.getValue();
+        assertNotNull(softApConfig);
+        assertEquals(softApConfig.getSsid(), TEST_SSID);
+        assertEquals(softApConfig.getPassphrase(), TEST_PASSPHRASE);
+        assertEquals(softApConfig.getSecurityType(), SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+        assertEquals(softApConfig.isHiddenSsid(), TEST_HIDDEN);
+        assertEquals(softApConfig.getBand(), TEST_BAND);
+        assertEquals(softApConfig.isClientControlByUserEnabled(), TEST_CLIENT_CONTROL_BY_USER);
+        assertEquals(softApConfig.getMaxNumberOfClients(), TEST_MAX_NUMBER_OF_CLIENTS);
+        assertEquals(softApConfig.getShutdownTimeoutMillis(), TEST_SHUTDOWN_TIMEOUT_MILLIS);
+        assertEquals(softApConfig.getBlockedClientList(), TEST_BLOCKEDLIST);
+        assertEquals(softApConfig.getAllowedClientList(), TEST_ALLOWEDLIST);
+    }
+
 }

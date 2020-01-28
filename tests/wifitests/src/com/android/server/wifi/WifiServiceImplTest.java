@@ -1229,7 +1229,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testStartSoftApWithPermissionsAndInvalidConfig() {
         boolean result = mWifiServiceImpl.startSoftAp(mApConfig);
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -1297,7 +1297,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         boolean result = mWifiServiceImpl.startTetheredHotspot(
                 new SoftApConfiguration.Builder().build());
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -1350,7 +1350,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
 
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -1397,7 +1397,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
 
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -4617,23 +4617,23 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mClientModeImpl).updateWifiUsabilityScore(anyInt(), anyInt(), anyInt());
     }
 
-    private void setupMaxApInterfaces(int val) {
-        when(mResources.getInteger(
-                eq(R.integer.config_wifi_max_ap_interfaces)))
-                .thenReturn(val);
-    }
-
-    private void startLohsAndTethering(int apCount) throws Exception {
+    private void startLohsAndTethering(boolean isApConcurrencySupported) throws Exception {
         // initialization
-        setupMaxApInterfaces(apCount);
+        when(mActiveModeWarden.canRequestMoreSoftApManagers()).thenReturn(isApConcurrencySupported);
         // For these tests, always use distinct interface names for LOHS and tethered.
         mLohsInterfaceName = WIFI_IFACE_NAME2;
 
+        mLooper.startAutoDispatch();
         setupLocalOnlyHotspot();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         reset(mActiveModeWarden);
 
+        when(mActiveModeWarden.canRequestMoreSoftApManagers()).thenReturn(isApConcurrencySupported);
+
         // start tethering
+        mLooper.startAutoDispatch();
         boolean tetheringResult = mWifiServiceImpl.startSoftAp(null);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         assertTrue(tetheringResult);
         verify(mActiveModeWarden).startSoftAp(any());
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
@@ -4646,7 +4646,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartLohsAndTethering1AP() throws Exception {
-        startLohsAndTethering(1);
+        startLohsAndTethering(false);
 
         // verify LOHS got stopped
         verify(mLohsCallback).onHotspotFailed(anyInt());
@@ -4659,7 +4659,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartLohsAndTethering2AP() throws Exception {
-        startLohsAndTethering(2);
+        startLohsAndTethering(true);
 
         // verify LOHS didn't get stopped
         verifyZeroInteractions(ignoreStubs(mLohsCallback));
@@ -5413,5 +5413,122 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.clearWifiConnectedNetworkScorer();
         mLooper.dispatchAll();
         verify(mWifiScoreReport).clearWifiConnectedNetworkScorer();
+    }
+
+    private long testGetSupportedFeaturesCaseForRtt(
+            long supportedFeaturesFromClientModeImpl, boolean rttDisabled) {
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT)).thenReturn(
+                !rttDisabled);
+        when(mClientModeImpl.syncGetSupportedFeatures(any()))
+                .thenReturn(supportedFeaturesFromClientModeImpl);
+        mLooper.startAutoDispatch();
+        long supportedFeatures = mWifiServiceImpl.getSupportedFeatures();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        return supportedFeatures;
+    }
+
+    /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
+    @Test
+    public void syncGetSupportedFeaturesForRtt() {
+        final long featureAware = WifiManager.WIFI_FEATURE_AWARE;
+        final long featureInfra = WifiManager.WIFI_FEATURE_INFRA;
+        final long featureD2dRtt = WifiManager.WIFI_FEATURE_D2D_RTT;
+        final long featureD2apRtt = WifiManager.WIFI_FEATURE_D2AP_RTT;
+        final long featureLongBits = 0x1000000000L;
+
+        assertEquals(0, testGetSupportedFeaturesCaseForRtt(0, false));
+        assertEquals(0, testGetSupportedFeaturesCaseForRtt(0, true));
+        assertEquals(featureAware | featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureAware | featureInfra, false));
+        assertEquals(featureAware | featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureAware | featureInfra, true));
+        assertEquals(featureInfra | featureD2dRtt,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2dRtt, false));
+        assertEquals(featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2dRtt, true));
+        assertEquals(featureInfra | featureD2apRtt,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2apRtt, false));
+        assertEquals(featureInfra,
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2apRtt, true));
+        assertEquals(featureInfra | featureD2dRtt | featureD2apRtt,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureInfra | featureD2dRtt | featureD2apRtt, false));
+        assertEquals(featureInfra,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureInfra | featureD2dRtt | featureD2apRtt, true));
+
+        assertEquals(featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, false));
+        assertEquals(featureLongBits | featureInfra,
+                testGetSupportedFeaturesCaseForRtt(
+                        featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, true));
+    }
+
+    private long testGetSupportedFeaturesCaseForMacRandomization(
+            long supportedFeaturesFromClientModeImpl, boolean apMacRandomizationEnabled,
+            boolean staConnectedMacRandomizationEnabled, boolean p2pMacRandomizationEnabled) {
+        when(mResources.getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported))
+                .thenReturn(staConnectedMacRandomizationEnabled);
+        when(mResources.getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported))
+                .thenReturn(apMacRandomizationEnabled);
+        when(mResources.getBoolean(
+                R.bool.config_wifi_p2p_mac_randomization_supported))
+                .thenReturn(p2pMacRandomizationEnabled);
+        when(mClientModeImpl.syncGetSupportedFeatures(
+                any())).thenReturn(supportedFeaturesFromClientModeImpl);
+        mLooper.startAutoDispatch();
+        long supportedFeatures = mWifiServiceImpl.getSupportedFeatures();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        return supportedFeatures;
+    }
+
+    /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
+    @Test
+    public void syncGetSupportedFeaturesForMacRandomization() {
+        final long featureStaConnectedMacRandomization =
+                WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+        final long featureApMacRandomization =
+                WifiManager.WIFI_FEATURE_AP_RAND_MAC;
+        final long featureP2pMacRandomization =
+                WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization
+                        | featureP2pMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(
+                        featureP2pMacRandomization, true, true, true));
+        // p2p supported by HAL, but disabled by overlay.
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(
+                        featureP2pMacRandomization, true, true, false));
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(0, true, true, false));
+    }
+
+    /**
+     * Verifies that syncGetSupportedFeatures() adds capabilities based on interface
+     * combination.
+     */
+    @Test
+    public void syncGetSupportedFeaturesForStaApConcurrency() {
+        long supportedFeaturesFromClientModeImpl = WifiManager.WIFI_FEATURE_OWE;
+        when(mClientModeImpl.syncGetSupportedFeatures(
+                any())).thenReturn(supportedFeaturesFromClientModeImpl);
+
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(false);
+        mLooper.startAutoDispatch();
+        assertEquals(supportedFeaturesFromClientModeImpl,
+                        mWifiServiceImpl.getSupportedFeatures());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertEquals(supportedFeaturesFromClientModeImpl | WifiManager.WIFI_FEATURE_AP_STA,
+                mWifiServiceImpl.getSupportedFeatures());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
 }

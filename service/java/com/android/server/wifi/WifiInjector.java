@@ -156,6 +156,7 @@ public class WifiInjector {
     private final ThroughputPredictor mThroughputPredictor;
     private NetdWrapper mNetdWrapper;
     private final WifiHealthMonitor mWifiHealthMonitor;
+    private final WifiOemConfigStoreMigrationDataHolder mOemConfigStoreMigrationDataHolder;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -249,13 +250,15 @@ public class WifiInjector {
                 mContext.getSystemService(SubscriptionManager.class);
         mTelephonyUtil = new TelephonyUtil(makeTelephonyManager(), subscriptionManager,
                 mFrameworkFacade, mContext, wifiHandler);
+        mOemConfigStoreMigrationDataHolder = new WifiOemConfigStoreMigrationDataHolder();
         // Config Manager
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
                 mUserManager, mTelephonyUtil,
                 mWifiKeyStore, mWifiConfigStore, mWifiPermissionsUtil,
-                mWifiPermissionsWrapper, this, new NetworkListSharedStoreData(mContext),
-                new NetworkListUserStoreData(mContext), new RandomizedMacStoreData(),
-                mFrameworkFacade, wifiHandler, mDeviceConfigFacade);
+                mWifiPermissionsWrapper, this,
+                new NetworkListSharedStoreData(mContext, mOemConfigStoreMigrationDataHolder),
+                new NetworkListUserStoreData(mContext, mOemConfigStoreMigrationDataHolder),
+                new RandomizedMacStoreData(), mFrameworkFacade, wifiHandler, mDeviceConfigFacade);
         String l2KeySeed = Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID);
         mWifiScoreCard = new WifiScoreCard(mClock, l2KeySeed, mDeviceConfigFacade);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
@@ -656,7 +659,7 @@ public class WifiInjector {
      */
     public SoftApStoreData makeSoftApStoreData(
             SoftApStoreData.DataSource dataSource) {
-        return new SoftApStoreData(dataSource);
+        return new SoftApStoreData(dataSource, mOemConfigStoreMigrationDataHolder);
     }
 
     public WifiPermissionsUtil getWifiPermissionsUtil() {
@@ -797,5 +800,4 @@ public class WifiInjector {
     public ThroughputPredictor getThroughputPredictor() {
         return mThroughputPredictor;
     }
-
 }
