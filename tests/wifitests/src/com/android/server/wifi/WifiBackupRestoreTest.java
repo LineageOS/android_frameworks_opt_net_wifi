@@ -337,7 +337,7 @@ public class WifiBackupRestoreTest extends WifiBaseTest {
         config.SSID = "\"GoogleGuest-Legacy\"";
         config.wepTxKeyIndex = 0;
         config.hiddenSSID = false;
-        config.requirePMF = false;
+        config.requirePmf = false;
         config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
         config.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
@@ -390,7 +390,7 @@ public class WifiBackupRestoreTest extends WifiBaseTest {
         config.SSID = "\"GoogleGuest-Legacy\"";
         config.wepTxKeyIndex = 0;
         config.hiddenSSID = false;
-        config.requirePMF = false;
+        config.requirePmf = false;
         config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
         config.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
@@ -968,7 +968,7 @@ public class WifiBackupRestoreTest extends WifiBaseTest {
         config.SSID = "\"GoogleGuest-Legacy\"";
         config.wepTxKeyIndex = 0;
         config.hiddenSSID = false;
-        config.requirePMF = false;
+        config.requirePmf = false;
         config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
         config.allowedProtocols.set(WifiConfiguration.Protocol.RSN);

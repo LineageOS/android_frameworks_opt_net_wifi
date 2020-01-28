@@ -388,7 +388,7 @@ class StandardWifiEntry extends WifiEntry {
                 if (mSecurity == SECURITY_OWE) {
                     // Use OWE if possible
                     connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.OWE);
-                    connectConfig.requirePMF = true;
+                    connectConfig.requirePmf = true;
                 } else {
                     connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
                 }
