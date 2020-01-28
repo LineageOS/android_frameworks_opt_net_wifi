@@ -30,4 +30,11 @@
     <string name="wifi_remembered" msgid="5126903736498678708">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‏‏‏‎‎‎‏‏‏‎‎‏‎‎‏‏‎‎‏‏‎‏‎‏‏‏‏‎‎‏‎‎‎‏‏‏‎‏‎‏‏‏‎‏‎‎‎‎‎‎‏‏‎‏‎‏‏‏‎‏‏‎‏‎‎‎Saved‎‏‎‎‏‎"</string>
     <string name="wifi_metered_label" msgid="1362621600006544014">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‎‏‏‎‎‏‎‏‏‏‎‏‎‎‏‎‎‎‎‎‎‎‏‎‎‏‎‎‎‎‎‎‎‏‎‏‏‏‏‏‎‏‎‏‎‏‎‎‎‎‏‏‎‏‎‏‎‎‎‏‏‏‎‎Metered‎‏‎‎‏‎"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‎‏‏‏‏‎‏‏‏‎‏‏‏‎‎‏‏‏‎‏‏‎‎‏‏‏‏‎‏‎‎‎‏‎‎‎‏‏‏‎‎‏‎‎‎‎‎‏‎‎‎‎‏‏‎‎‎‏‏‏‏‎‎Unmetered‎‏‎‎‏‎"</string>
+    <string name="connected_via_app" msgid="1818040967936972127">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‎‏‏‏‎‎‏‎‎‏‏‏‎‏‎‏‏‏‏‏‎‏‎‏‎‏‎‎‎‎‎‏‏‎‎‎‎‎‎‏‏‏‏‏‏‎‏‏‎‎‏‎‏‎‏‎‏‎‏‏‏‏‏‎Connected via ‎‏‎‎‏‏‎<xliff:g id="NAME">%1$s</xliff:g>‎‏‎‎‏‏‏‎‎‏‎‎‏‎"</string>
+    <string name="connected_via_network_scorer" msgid="8081366798449871179">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‏‏‏‏‏‎‎‎‎‎‎‏‎‎‏‏‎‏‏‎‎‏‎‎‎‎‏‎‎‏‎‎‏‎‏‎‎‏‎‎‏‎‎‏‏‏‏‎‏‏‎‎‎‏‎‎‏‎‏‎‎‏‎‏‏‎Automatically connected via %1$s‎‏‎‎‏‎"</string>
+    <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‏‎‏‎‏‎‏‎‏‏‎‎‏‏‏‏‎‏‏‏‏‎‏‎‎‎‎‎‎‏‏‎‎‎‏‏‏‏‏‎‎‎‏‏‎‏‏‎‎‎‎‏‎‎‎‏‏‏‎‏‏‏‏‎‎Automatically connected via network rating provider‎‏‎‎‏‎"</string>
+    <string name="wifi_limited_connection" msgid="3646701342701276239">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‏‎‏‏‎‎‏‎‏‎‎‏‏‎‏‏‏‎‏‎‏‏‏‏‏‎‎‎‏‏‎‎‏‏‎‏‎‏‎‏‏‎‏‎‎‏‏‎‎‏‎‎‏‏‎‎‎‏‎‎‏‏‏‏‎Limited connection‎‏‎‎‏‎"</string>
+    <string name="private_dns_broken" msgid="2212227512243587416">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‎‏‏‏‏‏‎‏‎‏‏‎‎‏‏‎‏‏‎‏‎‎‏‎‎‏‏‎‎‏‏‏‎‎‏‎‏‎‏‏‎‏‎‎‎‎‎‎‎‎‎‏‎‎‏‎‏‎‏‏‎‎‎‎Private DNS server cannot be accessed‎‏‎‎‏‎"</string>
+    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‏‎‏‏‏‏‏‏‎‏‏‎‎‏‎‏‏‎‎‏‎‎‎‏‏‎‎‎‏‏‏‎‏‎‎‎‎‏‎‎‏‎‎‏‎‏‎‎‎‎‏‏‎‎‎‏‎‎‎‏‎‎‎‎‎Connected, no internet‎‏‎‎‏‎"</string>
+    <string name="wifi_security_none" msgid="6680263031386719053">"‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‏‎‎‎‎‏‏‏‏‏‏‏‏‎‏‏‏‎‎‏‎‏‏‎‏‎‏‎‎‎‎‏‏‏‏‏‏‎‏‎‏‎‏‎‏‎‏‏‏‏‏‏‏‏‏‏‎‏‎‏‏‎‎‎‎‏‏‎‏‎‎‏‏‎‏‎None‎‏‎‎‏‎"</string>
 </resources>
