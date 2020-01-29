@@ -3733,6 +3733,10 @@ public class WifiMetrics {
         staEvent.lastScore = mLastScore;
         staEvent.lastWifiUsabilityScore = mLastWifiUsabilityScore;
         staEvent.lastPredictionHorizonSec = mLastPredictionHorizonSec;
+        staEvent.mobileTxBytes = mFacade.getMobileTxBytes();
+        staEvent.mobileRxBytes = mFacade.getMobileRxBytes();
+        staEvent.totalTxBytes = mFacade.getTotalTxBytes();
+        staEvent.totalRxBytes = mFacade.getTotalRxBytes();
         mSupplicantStateChangeBitmask = 0;
         mLastPollRssi = -127;
         mLastPollFreq = -1;
@@ -3943,6 +3947,10 @@ public class WifiMetrics {
             sb.append(" lastWifiUsabilityScore=").append(event.lastWifiUsabilityScore);
             sb.append(" lastPredictionHorizonSec=").append(event.lastPredictionHorizonSec);
         }
+        if (event.mobileTxBytes > 0) sb.append(" mobileTxBytes=").append(event.mobileTxBytes);
+        if (event.mobileRxBytes > 0) sb.append(" mobileRxBytes=").append(event.mobileRxBytes);
+        if (event.totalTxBytes > 0) sb.append(" totalTxBytes=").append(event.totalTxBytes);
+        if (event.totalRxBytes > 0) sb.append(" totalRxBytes=").append(event.totalRxBytes);
         if (event.supplicantStateChangesBitmask != 0) {
             sb.append(", ").append(supplicantStateChangesBitmaskToString(
                     event.supplicantStateChangesBitmask));
@@ -4113,6 +4121,9 @@ public class WifiMetrics {
                 case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
                     sb.append("FIRMWARE_ALERT");
                     break;
+                case WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST:
+                    sb.append("IP_REACHABILITY_LOST");
+                    break;
                 default:
                     sb.append("UNKNOWN " + event.type);
                     break;
@@ -4130,6 +4141,11 @@ public class WifiMetrics {
             }
             sb.append(" lastWifiUsabilityScore=").append(event.lastWifiUsabilityScore);
             sb.append(" lastPredictionHorizonSec=").append(event.lastPredictionHorizonSec);
+            sb.append(" screenOn=").append(event.screenOn);
+            sb.append(" mobileTxBytes=").append(event.mobileTxBytes);
+            sb.append(" mobileRxBytes=").append(event.mobileRxBytes);
+            sb.append(" totalTxBytes=").append(event.totalTxBytes);
+            sb.append(" totalRxBytes=").append(event.totalRxBytes);
             return sb.toString();
         }
     }
@@ -4215,6 +4231,10 @@ public class WifiMetrics {
         event.packetUpdateTimeDelta = mLlStatsUpdateTimeDelta;
         event.lastLinkLayerStatsUpdateTime = mLlStatsLastUpdateTime;
         event.screenOn = mScreenOn;
+        event.mobileTxBytes = mFacade.getMobileTxBytes();
+        event.mobileRxBytes = mFacade.getMobileRxBytes();
+        event.totalTxBytes = mFacade.getTotalTxBytes();
+        event.totalRxBytes = mFacade.getTotalRxBytes();
 
         mWifiIsUnusableList.add(new WifiIsUnusableWithTime(event, mClock.getWallClockMillis()));
         if (mWifiIsUnusableList.size() > MAX_UNUSABLE_EVENTS) {

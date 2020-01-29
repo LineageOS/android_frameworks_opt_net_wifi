@@ -1145,6 +1145,18 @@ message StaEvent {
   // Only valid if event type == TYPE_LINK_PROBE and link_probe_was_success == false.
   // Failure reason for an unsuccessful link probe.
   optional LinkProbeStats.LinkProbeFailureReason link_probe_failure_reason = 19;
+
+  // Number of bytes transmitted across mobile networks since device boot.
+  optional int64 mobile_tx_bytes = 20 [default = -1];
+
+  // // Number of bytes received across mobile networks since device boot.
+  optional int64 mobile_rx_bytes = 21 [default = -1];
+
+  // Number of bytes transmitted since device boot.
+  optional int64 total_tx_bytes = 22 [default = -1];
+
+  // Number of bytes received since device boot.
+  optional int64 total_rx_bytes = 23 [default = -1];
 }
 
 // Wi-Fi Aware metrics
@@ -1894,6 +1906,18 @@ message WifiIsUnusableEvent {
 
   // Whether screen status is on when WifiIsUnusableEvent happens.
   optional bool screen_on = 13 [default = false];
+
+  // Number of bytes transmitted across mobile networks since device boot.
+  optional int64 mobile_tx_bytes = 14 [default = -1];
+
+  // // Number of bytes received across mobile networks since device boot.
+  optional int64 mobile_rx_bytes = 15 [default = -1];
+
+  // Number of bytes transmitted since device boot.
+  optional int64 total_tx_bytes = 16 [default = -1];
+
+  // Number of bytes received since device boot.
+  optional int64 total_rx_bytes = 17 [default = -1];
 }
 
 message PasspointProfileTypeCount {
