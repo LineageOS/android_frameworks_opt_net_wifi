@@ -193,6 +193,7 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
 
     protected ConnectCallback mConnectCallback;
     protected DisconnectCallback mDisconnectCallback;
+    protected ForgetCallback mForgetCallback;
 
     protected boolean mCalledConnect = false;
     protected boolean mCalledDisconnect = false;
@@ -623,6 +624,52 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
             sj.add(String.format("rx=%.1f", mWifiInfo.getSuccessfulRxPacketsPerSecond()));
         }
         return sj.toString();
+    }
+
+    protected class ConnectActionListener implements WifiManager.ActionListener {
+        @Override
+        public void onSuccess() {
+            mCalledConnect = true;
+            // If we aren't connected to the network after 10 seconds, trigger the failure callback
+            mCallbackHandler.postDelayed(() -> {
+                if (mConnectCallback != null && mCalledConnect
+                        && getConnectedState() == CONNECTED_STATE_DISCONNECTED) {
+                    mConnectCallback.onConnectResult(
+                            ConnectCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
+                    mCalledConnect = false;
+                }
+            }, 10_000 /* delayMillis */);
+        }
+
+        @Override
+        public void onFailure(int i) {
+            mCallbackHandler.post(() -> {
+                if (mConnectCallback != null) {
+                    mConnectCallback.onConnectResult(
+                            mConnectCallback.CONNECT_STATUS_FAILURE_UNKNOWN);
+                }
+            });
+        }
+    }
+
+    protected class ForgetActionListener implements WifiManager.ActionListener {
+        @Override
+        public void onSuccess() {
+            mCallbackHandler.post(() -> {
+                if (mForgetCallback != null) {
+                    mForgetCallback.onForgetResult(ForgetCallback.FORGET_STATUS_SUCCESS);
+                }
+            });
+        }
+
+        @Override
+        public void onFailure(int i) {
+            mCallbackHandler.post(() -> {
+                if (mForgetCallback != null) {
+                    mForgetCallback.onForgetResult(ForgetCallback.FORGET_STATUS_FAILURE_UNKNOWN);
+                }
+            });
+        }
     }
 
     // TODO (b/70983952) Come up with a sorting scheme that does the right thing.

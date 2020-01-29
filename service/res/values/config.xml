@@ -36,9 +36,6 @@
            be checked via NL80211 interface -->
     <bool translatable="false" name="config_wifi11axSupportOverride">false</bool>
 
-    <!-- Maximum number of concurrent WiFi interfaces in AP mode -->
-    <integer translatable="false" name="config_wifi_max_ap_interfaces">1</integer>
-
     <!-- Boolean indicating whether the wifi chipset requires the softap band be -->
     <!-- converted from 5GHz to ANY due to hardware restrictions -->
     <bool translatable="false" name="config_wifi_convert_apband_5ghz_to_any">false</bool>
@@ -246,12 +243,6 @@
 
     <!-- Indicates that wifi link probing is supported on this device -->
     <bool translatable="false" name="config_wifi_link_probing_supported">false</bool>
-
-    <!-- Indicates that contiguous 160MHz mode is supported on this device -->
-    <bool translatable="false" name="config_wifi_contiguous_160mhz_supported">false</bool>
-
-    <!-- Integer indicating the max number of spatial streams supported on this device -->
-    <integer translatable="false" name="config_wifi_max_num_spatial_stream_supported">2</integer>
 
     <!-- Configure wifi tcp buffersizes in the form:
          rmem_min,rmem_def,rmem_max,wmem_min,wmem_def,wmem_max -->

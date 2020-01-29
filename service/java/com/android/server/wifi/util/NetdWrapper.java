@@ -142,6 +142,11 @@ public class NetdWrapper {
         public int getInterfaceVersion() {
             return INetdUnsolicitedEventListener.VERSION;
         }
+
+        @Override
+        public String getInterfaceHash() {
+            return INetdUnsolicitedEventListener.HASH;
+        }
     }
 
     public NetdWrapper(Context context, Handler handler) {

@@ -361,6 +361,34 @@ public class WifiVendorHal {
         }
     }
 
+    /**
+     * Register a STA iface availability listener listed with {@link HalDeviceManager}.
+     *
+     * @param listener Instance of {@link WifiNative.InterfaceAvailableForRequestListener}.
+     */
+    public void registerStaIfaceAvailabilityListener(
+            @NonNull WifiNative.InterfaceAvailableForRequestListener listener) {
+        synchronized (sLock) {
+            mHalDeviceManager.registerInterfaceAvailableForRequestListener(
+                    IfaceType.STA, (isAvailable) -> listener.onAvailabilityChanged(isAvailable),
+                    mHalEventHandler);
+        }
+    }
+
+    /**
+     * Register a AP iface availability listener listed with {@link HalDeviceManager}.
+     *
+     * @param listener Instance of {@link WifiNative.InterfaceAvailableForRequestListener}.
+     */
+    public void registerApIfaceAvailabilityListener(
+            @NonNull WifiNative.InterfaceAvailableForRequestListener listener) {
+        synchronized (sLock) {
+            mHalDeviceManager.registerInterfaceAvailableForRequestListener(
+                    IfaceType.AP, (isAvailable) -> listener.onAvailabilityChanged(isAvailable),
+                    mHalEventHandler);
+        }
+    }
+
     /** Helper method to lookup the corresponding STA iface object using iface name. */
     private IWifiStaIface getStaIface(@NonNull String ifaceName) {
         synchronized (sLock) {
@@ -466,7 +494,6 @@ public class WifiVendorHal {
             }
         }
     }
-
 
     /**
      * Create a AP iface using {@link HalDeviceManager}.

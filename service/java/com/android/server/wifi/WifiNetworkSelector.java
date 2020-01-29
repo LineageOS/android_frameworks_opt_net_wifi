@@ -904,6 +904,7 @@ public class WifiNetworkSelector {
                             scanDetail.getScanResult().frequency);
         }
         return mThroughputPredictor.predictThroughput(
+                mWifiNative.getDeviceWiphyCapabilities(mWifiNative.getClientInterfaceName()),
                 scanDetail.getScanResult().getWifiStandard(),
                 scanDetail.getScanResult().channelWidth,
                 scanDetail.getScanResult().level,

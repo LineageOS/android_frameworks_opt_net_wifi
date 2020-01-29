@@ -25,7 +25,6 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.net.IpConfiguration;
 import android.net.MacAddress;
 import android.net.ProxyInfo;
@@ -103,12 +102,6 @@ public class WifiConfigManager {
      */
     @VisibleForTesting
     public static final String PASSWORD_MASK = "*";
-    /**
-     * Package name for SysUI. This is used to lookup the UID of SysUI which is used to allow
-     * Quick settings to modify network configurations.
-     */
-    @VisibleForTesting
-    public static final String SYSUI_PACKAGE_NAME = "com.android.systemui";
 
     /**
      * Interface for other modules to listen to the network updated
@@ -311,11 +304,6 @@ public class WifiConfigManager {
      */
     private int mNextNetworkId = 0;
     /**
-     * UID of system UI. This uid is allowed to modify network configurations regardless of which
-     * user is logged in.
-     */
-    private int mSystemUiUid = -1;
-    /**
      * This is used to remember which network was selected successfully last by an app. This is set
      * when an app invokes {@link #enableNetwork(int, boolean, int)} with |disableOthers| flag set.
      * This is the only way for an app to request connection to a specific network using the
@@ -376,16 +364,6 @@ public class WifiConfigManager {
 
         mLocalLog = new LocalLog(
                 context.getSystemService(ActivityManager.class).isLowRamDevice() ? 128 : 256);
-
-        try {
-            // TODO(b/141890172): do not hardcode SYSUI_PACKAGE_NAME
-            mSystemUiUid = mContext
-                    .createPackageContextAsUser(SYSUI_PACKAGE_NAME, 0, UserHandle.SYSTEM)
-                    .getPackageManager()
-                    .getPackageUid(SYSUI_PACKAGE_NAME, PackageManager.MATCH_SYSTEM_ONLY);
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e(TAG, "Unable to resolve SystemUI's UID.");
-        }
         mMacAddressUtil = mWifiInjector.getMacAddressUtil();
     }
 
@@ -936,7 +914,10 @@ public class WifiConfigManager {
      *         otherwise false.
      */
     private boolean doesUidBelongToCurrentUser(int uid) {
-        if (uid == android.os.Process.SYSTEM_UID || uid == mSystemUiUid) {
+        if (uid == android.os.Process.SYSTEM_UID
+                // UIDs with the NETWORK_SETTINGS permission are always allowed since they are
+                // acting on behalf of the user.
+                || mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
             return true;
         } else {
             UserHandle currentUser = UserHandle.of(mCurrentUserId);

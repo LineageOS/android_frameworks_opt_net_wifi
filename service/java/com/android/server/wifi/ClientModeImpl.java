@@ -75,6 +75,7 @@ import android.net.wifi.WifiScanner;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.net.wifi.wificond.DeviceWiphyCapabilities;
 import android.net.wifi.wificond.WifiCondManager;
 import android.os.BatteryStatsManager;
 import android.os.Bundle;
@@ -1276,19 +1277,31 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
+     * Update interface capabilities
+     * This method is used to update some of interface capabilities defined in overlay
+     *
+     * @param ifaceName name of interface to update
+     */
+    private void updateInterfaceCapabilities(@NonNull String ifaceName) {
+        DeviceWiphyCapabilities cap = mWifiNative.getDeviceWiphyCapabilities(ifaceName);
+        if (cap != null) {
+            // Some devices don't have support of 11ax indicated by the chip,
+            // so an override config value is used
+            if (mContext.getResources().getBoolean(R.bool.config_wifi11axSupportOverride)) {
+                cap.setWifiStandardSupport(ScanResult.WIFI_STANDARD_11AX, true);
+            }
+
+            mWifiNative.setDeviceWiphyCapabilities(ifaceName, cap);
+        }
+    }
+
+    /**
      * Check if a Wi-Fi standard is supported
      *
      * @param standard A value from {@link ScanResult}'s {@code WIFI_STANDARD_}
      * @return {@code true} if standard is supported, {@code false} otherwise.
      */
     public boolean isWifiStandardSupported(@ScanResult.WifiStandard int standard) {
-        // Some devices don't have support of 11ax indicated by the chip,
-        // so an override config value is checked first
-        if (standard == ScanResult.WIFI_STANDARD_11AX
-                && mContext.getResources().getBoolean(R.bool.config_wifi11axSupportOverride)) {
-            return true;
-        }
-
         return mWifiNative.isWifiStandardSupported(mInterfaceName, standard);
     }
 
@@ -1500,6 +1513,7 @@ public class ClientModeImpl extends StateMachine {
             // do a quick sanity check on the iface name, make sure it isn't null
             if (ifaceName != null) {
                 mInterfaceName = ifaceName;
+                updateInterfaceCapabilities(ifaceName);
                 transitionTo(mDisconnectedState);
             } else {
                 Log.e(TAG, "supposed to enter connect mode, but iface is null -> DefaultState");
@@ -1638,30 +1652,6 @@ public class ClientModeImpl extends StateMachine {
         if (messageIsNull(resultMsg)) return 0;
         long supportedFeatureSet = ((Long) resultMsg.obj).longValue();
         resultMsg.recycle();
-
-        // Mask the feature set against system properties.
-        boolean rttSupported = mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_RTT);
-        if (!rttSupported) {
-            // flags filled in by vendor HAL, remove if overlay disables it.
-            supportedFeatureSet &=
-                    ~(WifiManager.WIFI_FEATURE_D2D_RTT | WifiManager.WIFI_FEATURE_D2AP_RTT);
-        }
-        if (!mContext.getResources().getBoolean(
-                R.bool.config_wifi_p2p_mac_randomization_supported)) {
-            // flags filled in by vendor HAL, remove if overlay disables it.
-            supportedFeatureSet &= ~WifiManager.WIFI_FEATURE_P2P_RAND_MAC;
-        }
-        if (mContext.getResources().getBoolean(
-                R.bool.config_wifi_connected_mac_randomization_supported)) {
-            // no corresponding flags in vendor HAL, set if overlay enables it.
-            supportedFeatureSet |= WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
-        }
-        if (mContext.getResources().getBoolean(
-                R.bool.config_wifi_ap_mac_randomization_supported)) {
-            // no corresponding flags in vendor HAL, set if overlay enables it.
-            supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_RAND_MAC;
-        }
         return supportedFeatureSet;
     }
 

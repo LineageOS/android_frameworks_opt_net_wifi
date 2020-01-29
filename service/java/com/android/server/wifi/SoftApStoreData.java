@@ -54,8 +54,8 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_BLOCKED_CLIENT_LIST = "BlockedClientList";
     private static final String XML_TAG_ALLOWED_CLIENT_LIST = "AllowedClientList";
 
-
     private final DataSource mDataSource;
+    private final WifiOemConfigStoreMigrationDataHolder mWifiOemConfigStoreMigrationDataHolder;
 
     /**
      * Interface define the data source for the notifier store data.
@@ -91,8 +91,10 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
      *
      * @param dataSource The DataSource that implements the update and retrieval of the SSID set.
      */
-    SoftApStoreData(DataSource dataSource) {
+    SoftApStoreData(DataSource dataSource,
+            WifiOemConfigStoreMigrationDataHolder wifiOemConfigStoreMigrationDataHolder) {
         mDataSource = dataSource;
+        mWifiOemConfigStoreMigrationDataHolder = wifiOemConfigStoreMigrationDataHolder;
     }
 
     @Override
@@ -134,6 +136,15 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
             @WifiConfigStore.Version int version,
             @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
+        // Check if we have data to migrate from OEM, if yes skip loading the section from the file.
+        SoftApConfiguration oemMigratedConfiguration =
+                mWifiOemConfigStoreMigrationDataHolder.getUserSoftApConfiguration();
+        if (oemMigratedConfiguration != null) {
+            Log.i(TAG, "Loading data from OEM migration hook");
+            mDataSource.fromDeserialized(oemMigratedConfiguration);
+            return;
+        }
+
         // Ignore empty reads.
         if (in == null) {
             return;

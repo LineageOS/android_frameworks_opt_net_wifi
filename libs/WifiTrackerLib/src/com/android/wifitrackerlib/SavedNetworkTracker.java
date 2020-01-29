@@ -18,8 +18,11 @@ package com.android.wifitrackerlib;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
+import static com.android.wifitrackerlib.PasspointWifiEntry.fqdnToPasspointWifiEntryKey;
 import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
 import static com.android.wifitrackerlib.Utils.mapScanResultsToKey;
+
+import static java.util.stream.Collectors.toMap;
 
 import android.content.Context;
 import android.content.Intent;
@@ -28,8 +31,10 @@ import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
+import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Handler;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.annotation.AnyThread;
 import androidx.annotation.GuardedBy;
@@ -68,8 +73,10 @@ public class SavedNetworkTracker extends BaseWifiTracker {
     @GuardedBy("mLock") private final List<WifiEntry> mSavedWifiEntries = new ArrayList<>();
     @GuardedBy("mLock") private final List<WifiEntry> mSubscriptionWifiEntries = new ArrayList<>();
 
-    // Cache containing visible StandardWifiEntries. Must be accessed only by the worker thread.
+    // Cache containing saved StandardWifiEntries. Must be accessed only by the worker thread.
     private final Map<String, StandardWifiEntry> mStandardWifiEntryCache = new HashMap<>();
+    // Cache containing saved PasspointWifiEntries. Must be accessed only by the worker thread.
+    private final Map<String, PasspointWifiEntry> mPasspointWifiEntryCache = new HashMap<>();
 
     public SavedNetworkTracker(@NonNull Lifecycle lifecycle, @NonNull Context context,
             @NonNull WifiManager wifiManager,
@@ -117,6 +124,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
     @Override
     protected void handleOnStart() {
         updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());
+        updatePasspointWifiEntryConfigs(mWifiManager.getPasspointConfigurations());
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
         updateSavedWifiEntries();
         updateSubscriptionWifiEntries();
@@ -154,7 +162,9 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         } else {
             updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());
         }
+        updatePasspointWifiEntryConfigs(mWifiManager.getPasspointConfigurations());
         updateSavedWifiEntries();
+        updateSubscriptionWifiEntries();
     }
 
     private void updateSavedWifiEntries() {
@@ -173,8 +183,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
     private void updateSubscriptionWifiEntries() {
         synchronized (mLock) {
             mSubscriptionWifiEntries.clear();
-            // TODO(b/70983952): Implement PasspointWifiEntry and add here
-            // mSubscriptionWifiEntries.addAll(mPasspointWifiEntryCache.values());
+            mSubscriptionWifiEntries.addAll(mPasspointWifiEntryCache.values());
             Collections.sort(mSubscriptionWifiEntries);
             if (isVerboseLoggingEnabled()) {
                 Log.v(TAG, "Updated SubscriptionWifiEntries: "
@@ -205,6 +214,25 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         });
     }
 
+    private void updatePasspointWifiEntryScans(@NonNull List<ScanResult> scanResults) {
+        checkNotNull(scanResults, "Scan Result list should not be null!");
+
+        List<Pair<WifiConfiguration, Map<Integer, List<ScanResult>>>> matchingWifiConfigs =
+                mWifiManager.getAllMatchingWifiConfigs(scanResults);
+        for (Pair<WifiConfiguration, Map<Integer, List<ScanResult>>> pair : matchingWifiConfigs) {
+            final WifiConfiguration wifiConfig = pair.first;
+            final String key = fqdnToPasspointWifiEntryKey(wifiConfig.FQDN);
+            // Skip in case we don't have a PasspointWifiEntry for the returned fqdn
+            if (!mPasspointWifiEntryCache.containsKey(key)) {
+                continue;
+            }
+
+            mPasspointWifiEntryCache.get(key).updateScanResultInfo(wifiConfig,
+                    pair.second.get(WifiManager.PASSPOINT_HOME_NETWORK),
+                    pair.second.get(WifiManager.PASSPOINT_ROAMING_NETWORK));
+        }
+    }
+
     /**
      * Conditionally updates the WifiEntry scan results based on the current wifi state and
      * whether the last scan succeeded or not.
@@ -213,6 +241,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
     private void conditionallyUpdateScanResults(boolean lastScanSucceeded) {
         if (mWifiManager.getWifiState() == WifiManager.WIFI_STATE_DISABLED) {
             updateStandardWifiEntryScans(Collections.emptyList());
+            updatePasspointWifiEntryScans(Collections.emptyList());
             return;
         }
 
@@ -226,6 +255,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
             scanAgeWindow += mScanIntervalMillis;
         }
         updateStandardWifiEntryScans(mScanResultUpdater.getScanResults(scanAgeWindow));
+        updatePasspointWifiEntryScans(mScanResultUpdater.getScanResults(scanAgeWindow));
     }
 
     /**
@@ -284,6 +314,37 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         for (String key : wifiConfigsByKey.keySet()) {
             mStandardWifiEntryCache.put(key,
                     new StandardWifiEntry(mContext, mMainHandler, key, wifiConfigsByKey.get(key),
+                            mWifiManager));
+        }
+    }
+
+    @WorkerThread
+    private void updatePasspointWifiEntryConfigs(@NonNull List<PasspointConfiguration> configs) {
+        checkNotNull(configs, "Config list should not be null!");
+
+        final Map<String, PasspointConfiguration> passpointConfigsByKey =
+                configs.stream().collect(toMap(
+                        (config) -> fqdnToPasspointWifiEntryKey(config.getHomeSp().getFqdn()),
+                        Function.identity()));
+
+        // Iterate through current entries and update each entry's config or remove if no config
+        // matches the entry anymore.
+        mPasspointWifiEntryCache.entrySet().removeIf((entry) -> {
+            final PasspointWifiEntry wifiEntry = entry.getValue();
+            final String key = wifiEntry.getKey();
+            final PasspointConfiguration cachedConfig = passpointConfigsByKey.remove(key);
+            if (cachedConfig != null) {
+                wifiEntry.updatePasspointConfig(cachedConfig);
+                return false;
+            } else {
+                return true;
+            }
+        });
+
+        // Create new entry for each unmatched config
+        for (String key : passpointConfigsByKey.keySet()) {
+            mPasspointWifiEntryCache.put(key,
+                    new PasspointWifiEntry(mContext, mMainHandler, passpointConfigsByKey.get(key),
                             mWifiManager));
         }
     }

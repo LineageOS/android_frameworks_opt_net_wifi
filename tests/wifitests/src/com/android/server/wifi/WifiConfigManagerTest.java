@@ -115,6 +115,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     private static final MacAddress TEST_RANDOMIZED_MAC =
             MacAddress.fromString("d2:11:19:34:a5:20");
     private static final int DATA_SUBID = 1;
+    private static final String SYSUI_PACKAGE_NAME = "com.android.systemui";
 
     @Mock private Context mContext;
     @Mock private Clock mClock;
@@ -182,7 +183,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 } else if (uid == TEST_UPDATE_UID) {
                     return TEST_UPDATE_NAME;
                 } else if (uid == TEST_SYSUI_UID) {
-                    return WifiConfigManager.SYSUI_PACKAGE_NAME;
+                    return SYSUI_PACKAGE_NAME;
                 } else if (uid == TEST_NO_PERM_UID) {
                     return TEST_NO_PERM_NAME;
                 } else if (uid == Process.WIFI_UID) {
@@ -196,13 +197,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         when(mContext.getSystemService(ActivityManager.class))
                 .thenReturn(mock(ActivityManager.class));
         Context mockContext = mock(Context.class);
-        when(mContext.createPackageContextAsUser(
-                eq(WifiConfigManager.SYSUI_PACKAGE_NAME), anyInt(), any()))
-                .thenReturn(mockContext);
         PackageManager mockPackageManager = mock(PackageManager.class);
         when(mockContext.getPackageManager()).thenReturn(mockPackageManager);
-        when(mockPackageManager.getPackageUid(eq(WifiConfigManager.SYSUI_PACKAGE_NAME), anyInt()))
-                .thenReturn(TEST_SYSUI_UID);
 
         when(mWifiKeyStore
                 .updateNetworkKeys(any(WifiConfiguration.class), any()))
@@ -3472,9 +3468,15 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         final WifiConfiguration user1Network = WifiConfigurationTestUtil.createPskNetwork();
         user1Network.shared = false;
         user1Network.creatorUid = UserHandle.getUid(user1, appId);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(user1Network.creatorUid))
+                .thenReturn(false);
+
         final WifiConfiguration user2Network = WifiConfigurationTestUtil.createPskNetwork();
         user2Network.shared = false;
         user2Network.creatorUid = UserHandle.getUid(user2, appId);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(user2Network.creatorUid))
+                .thenReturn(false);
+
         final WifiConfiguration sharedNetwork = WifiConfigurationTestUtil.createPskNetwork();
 
         // Set up the shared store data that is loaded at bootup. User 2's private network
@@ -3902,6 +3904,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         int creatorUid = UserHandle.getUid(user2, 674);
 
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(creatorUid)).thenReturn(false);
+
         // Create a network for user2 try adding it. This should be rejected.
         final WifiConfiguration user2Network = WifiConfigurationTestUtil.createPskNetwork();
         NetworkUpdateResult result = addNetworkToWifiConfigManager(user2Network, creatorUid);
@@ -3921,6 +3925,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(false);
         mWifiConfigManager.handleUserSwitch(user2);
+
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(TEST_SYSUI_UID)).thenReturn(true);
 
         // Create a network for user2 try adding it. This should be rejected.
         final WifiConfiguration user2Network = WifiConfigurationTestUtil.createPskNetwork();
