@@ -59,6 +59,15 @@
     <!-- Notification action for disallowing app specified in the notification body.-->
     <string name="wifi_suggestion_action_disallow_app">No thanks</string>
 
+    <!-- Notification title for a connection to a SIM-based carrier network without IMSI privacy protection. -->
+    <string name="wifi_suggestion_imsi_privacy_title">Privacy warning for IMSI protection</string>
+    <!-- Notification content for a connection to a SIM-based carrier network without IMSI privacy protection.-->
+    <string name="wifi_suggestion_imsi_privacy_content"><xliff:g id="carrierName" example="xxxMobile">%s</xliff:g> suggested networks using your SIM card info without without privacy protection, allow network to be connected automatically? </string>
+    <!-- Notification action for allowing carrier specified in the notification body.-->
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier">Allow</string>
+    <!-- Notification action for disallowing carrier specified in the notification body.-->
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier">Disallow</string>
+
     <!--Notification title for Wi-Fi Wake onboarding. This is displayed the first time a user disables Wi-Fi with the feature enabled. -->
     <string name="wifi_wakeup_onboarding_title">Wi\u2011Fi will turn on automatically</string>
     <!--Notification subtext for Wi-Fi Wake onboarding.-->

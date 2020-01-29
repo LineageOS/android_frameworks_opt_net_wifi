@@ -24,7 +24,9 @@ import static android.app.Notification.EXTRA_BIG_TEXT;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION;
+import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_ALLOWED_CARRIER_INTENT_ACTION;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION;
+import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_DISALLOWED_CARRIER_INTENT_ACTION;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_DISMISSED_INTENT_ACTION;
 
 import static org.junit.Assert.assertEquals;
@@ -126,6 +128,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private @Mock WifiConfigStore mWifiConfigStore;
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock NetworkSuggestionStoreData mNetworkSuggestionStoreData;
+    private @Mock ImsiPrivacyProtectionExemptionStoreData mImsiPrivacyProtectionExemptionStoreData;
     private @Mock WifiMetrics mWifiMetrics;
     private @Mock TelephonyUtil mTelephonyUtil;
     private @Mock PasspointManager mPasspointManager;
@@ -142,6 +145,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private NetworkSuggestionStoreData.DataSource mDataSource;
+    private ImsiPrivacyProtectionExemptionStoreData.DataSource mImsiDataSource;
 
     /**
      * Setup the mocks.
@@ -155,6 +159,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
         when(mWifiInjector.makeNetworkSuggestionStoreData(any()))
                 .thenReturn(mNetworkSuggestionStoreData);
+        when(mWifiInjector.makeImsiProtectionExemptionStoreData(any()))
+                .thenReturn(mImsiPrivacyProtectionExemptionStoreData);
         when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
         when(mWifiInjector.getPasspointManager()).thenReturn(mPasspointManager);
         when(mFrameworkFacade.getBroadcast(any(), anyInt(), any(), anyInt()))
@@ -175,6 +181,18 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         when(mResources.getText(eq(R.string.wifi_suggestion_action_allow_app)))
                 .thenReturn("blah");
         when(mResources.getText(eq(R.string.wifi_suggestion_action_disallow_app)))
+                .thenReturn("blah");
+
+        // setup resource strings for IMSI protection notification.
+        when(mResources.getString(eq(R.string.wifi_suggestion_imsi_privacy_title)))
+                .thenReturn("blah");
+        when(mResources.getString(eq(R.string.wifi_suggestion_imsi_privacy_content), anyString()))
+                .thenAnswer(s -> "blah" + s.getArguments()[1]);
+        when(mResources.getText(
+                eq(R.string.wifi_suggestion_action_allow_imsi_privacy_exemption_carrier)))
+                .thenReturn("blah");
+        when(mResources.getText(
+                eq(R.string.wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier)))
                 .thenReturn("blah");
 
         // Our app Info. Needed for notification builder.
@@ -208,6 +226,14 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         verify(mWifiInjector).makeNetworkSuggestionStoreData(dataSourceArgumentCaptor.capture());
         mDataSource = dataSourceArgumentCaptor.getValue();
         assertNotNull(mDataSource);
+
+        ArgumentCaptor<ImsiPrivacyProtectionExemptionStoreData.DataSource>
+                imsiDataSourceArgumentCaptor =
+                ArgumentCaptor.forClass(ImsiPrivacyProtectionExemptionStoreData.DataSource.class);
+        verify(mWifiInjector).makeImsiProtectionExemptionStoreData(imsiDataSourceArgumentCaptor
+                .capture());
+        mImsiDataSource = imsiDataSourceArgumentCaptor.getValue();
+        assertNotNull(mImsiDataSource);
 
         mWifiNetworkSuggestionsManager.enableVerboseLogging(1);
     }
@@ -535,39 +561,6 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                     add(networkSuggestion);
                 }};
         assertSuggestionsEquals(expectedMatchingNetworkSuggestions, matchingExtNetworkSuggestions);
-    }
-
-    /**
-     * Do not evaluate the suggested network which requires SIM card, but the SIM is absent.
-     */
-    @Test
-    public void testGetNetworkSuggestionsForScanDtailIgnoreEapSimNetworkForAbsentSim() {
-        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
-        config.carrierId = VALID_CARRIER_ID;
-        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
-                config, null, false, false, true, true, false);
-        List<WifiNetworkSuggestion> networkSuggestionList1 =
-                new ArrayList<WifiNetworkSuggestion>() {{
-                    add(networkSuggestion);
-                }};
-        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(eq(TEST_UID_1)))
-                .thenReturn(true);
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
-                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_UID_1,
-                        TEST_PACKAGE_1, TEST_FEATURE));
-        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
-
-        ScanDetail scanDetail = createScanDetailForNetwork(networkSuggestion.wifiConfiguration);
-
-        when(mTelephonyUtil.getBestMatchSubscriptionId(any(WifiConfiguration.class)))
-                .thenReturn(TEST_SUBID);
-        when(mTelephonyUtil.isSimPresent(eq(TEST_SUBID))).thenReturn(false);
-
-        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
-                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
-
-        assertNull(matchingExtNetworkSuggestions);
     }
 
     /**
@@ -1209,7 +1202,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
      * b) The app holds location permission.
      * c) App has not been approved by the user.
-     * This should trigger a broadcast to the app.
+     * This should not trigger a broadcast to the app.
      */
     @Test
     public void testOnNetworkConnectionWhenAppNotApproved() {
@@ -2038,7 +2031,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                         TEST_PACKAGE_1, TEST_FEATURE));
         validateUserApprovalNotification(TEST_APP_NAME_1);
         // Simulate user dismissal notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_DISMISSED_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         reset(mNotificationManger);
 
@@ -2049,7 +2042,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         validateUserApprovalNotification(TEST_APP_NAME_1);
 
         // Simulate user dismissal notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_DISMISSED_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
 
         reset(mNotificationManger);
@@ -2080,7 +2073,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         validateUserApprovalNotification(TEST_APP_NAME_1);
 
         // Simulate user dismissal notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_DISMISSED_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         reset(mNotificationManger);
 
@@ -2091,7 +2084,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         validateUserApprovalNotification(TEST_APP_NAME_1);
 
         // Simulate user clicking on allow in the notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         // Cancel the notification.
         verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
@@ -2128,7 +2121,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         validateUserApprovalNotification(TEST_APP_NAME_1);
 
         // Simulate user dismissal notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_DISMISSED_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         reset(mNotificationManger);
 
@@ -2139,7 +2132,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         validateUserApprovalNotification(TEST_APP_NAME_1);
 
         // Simulate user clicking on disallow in the notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         // Ensure we turn off CHANGE_WIFI_STATE app-ops.
         verify(mAppOpsManager).setMode(
@@ -2313,7 +2306,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         validateUserApprovalNotification(TEST_APP_NAME_1);
 
         // Simulate user clicking on allow in the notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         // Cancel the notification.
         verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
@@ -2350,7 +2343,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         validateUserApprovalNotification(TEST_APP_NAME_1);
 
         // Simulate user clicking on disallow in the notification.
-        sendBroadcastForUserAction(
+        sendBroadcastForUserActionOnApp(
                 NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         // Ensure we turn off CHANGE_WIFI_STATE app-ops.
         verify(mAppOpsManager).setMode(
@@ -2461,8 +2454,22 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     private boolean checkUserApprovalNotificationParams(
             Notification notification, String expectedAppName) {
-        if (!notification.extras.getString(EXTRA_BIG_TEXT).contains(expectedAppName)) return false;
-        return true;
+        return notification.extras.getString(EXTRA_BIG_TEXT).contains(expectedAppName);
+    }
+
+    private boolean checkImsiProtectionNotificationParams(
+            Notification notification, String carrierName) {
+        return notification.extras.getString(EXTRA_BIG_TEXT).contains(carrierName);
+    }
+
+    private void validateImsiProtectionNotification(String carrierName) {
+        ArgumentCaptor<Notification> notificationArgumentCaptor =
+                ArgumentCaptor.forClass(Notification.class);
+        verify(mNotificationManger).notify(eq(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE),
+                notificationArgumentCaptor.capture());
+        Notification notification = notificationArgumentCaptor.getValue();
+        assertNotNull(notification);
+        assertTrue(checkImsiProtectionNotificationParams(notification, carrierName));
     }
 
     private void validateUserApprovalNotification(String... anyOfExpectedAppNames) {
@@ -2482,11 +2489,21 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertTrue(foundMatch);
     }
 
-    private void sendBroadcastForUserAction(String action, String packageName, int uid) {
+    private void sendBroadcastForUserActionOnApp(String action, String packageName, int uid) {
         Intent intent = new Intent()
                 .setAction(action)
                 .putExtra(WifiNetworkSuggestionsManager.EXTRA_PACKAGE_NAME, packageName)
                 .putExtra(WifiNetworkSuggestionsManager.EXTRA_UID, uid);
+        assertNotNull(mBroadcastReceiverCaptor.getValue());
+        mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
+    }
+
+    private void sendBroadcastForUserActionOnImsi(String action, String carrierName,
+            int carrierId) {
+        Intent intent = new Intent()
+                .setAction(action)
+                .putExtra(WifiNetworkSuggestionsManager.EXTRA_CARRIER_NAME, carrierName)
+                .putExtra(WifiNetworkSuggestionsManager.EXTRA_CARRIER_ID, carrierId);
         assertNotNull(mBroadcastReceiverCaptor.getValue());
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
     }
@@ -2803,7 +2820,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 .thenReturn(false);
         when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
                 .thenReturn(VALID_CARRIER_ID);
-        when(mTelephonyUtil.getBestMatchSubscriptionId(config)).thenReturn(TEST_SUBID);
+        when(mTelephonyUtil.getMatchingSubId(VALID_CARRIER_ID)).thenReturn(TEST_SUBID);
         when(mTelephonyUtil.isSimPresent(TEST_SUBID)).thenReturn(true);
         when(mTelephonyUtil.requiresImsiEncryption(TEST_SUBID)).thenReturn(true);
         when(mTelephonyUtil.isImsiEncryptionInfoAvailable(TEST_SUBID)).thenReturn(true);
@@ -2820,38 +2837,6 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 }};
         verify(mNotificationManger, never()).notify(anyInt(), any());
         assertSuggestionsEquals(expectedMatchingNetworkSuggestions, matchingExtNetworkSuggestions);
-    }
-
-    /**
-     * Verify matched SIM-based network won't return when imsi protection isn't available.
-     * Todo(142001564): verify user approval notification.
-     */
-    @Test
-    public void testMatchSimBasedNetworkWithoutImsiProtection() {
-        WifiConfiguration config =
-                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
-                        WifiEnterpriseConfig.Phase2.NONE);
-        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
-                config, null, true, false, true, true, false);
-        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
-        networkSuggestionList.add(networkSuggestion);
-        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
-                .thenReturn(false);
-        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
-                .thenReturn(VALID_CARRIER_ID);
-        when(mTelephonyUtil.getBestMatchSubscriptionId(config)).thenReturn(TEST_SUBID);
-        when(mTelephonyUtil.isSimPresent(TEST_SUBID)).thenReturn(true);
-        when(mTelephonyUtil.requiresImsiEncryption(TEST_SUBID)).thenReturn(false);
-        when(mTelephonyUtil.isImsiEncryptionInfoAvailable(TEST_SUBID)).thenReturn(false);
-        ScanDetail scanDetail = createScanDetailForNetwork(config);
-        int status = mWifiNetworkSuggestionsManager
-                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS, status);
-
-        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
-                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
-        //Todo(142001564): should send out user notification.
-        assertNull(matchingExtNetworkSuggestions);
     }
 
     /**
@@ -3104,6 +3089,132 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
             assertEquals(0, result.get(nonPasspointSuggestion).size());
         } finally {
             session.finishMocking();
+        }
+    }
+
+    /**
+     * Test the IMSI protection notification and user click on the allow.
+     */
+    @Test
+    public void testSendImsiProtectionNotificationOnUserAllowed() {
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(TEST_CARRIER_ID);
+        when(mTelephonyUtil.getMatchingSubId(TEST_CARRIER_ID)).thenReturn(TEST_SUBID);
+        when(mTelephonyUtil.getCarrierNameforSubId(TEST_SUBID)).thenReturn(TEST_CARRIER_NAME);
+        when(mTelephonyUtil.requiresImsiEncryption(TEST_SUBID)).thenReturn(false);
+        WifiConfiguration eapSimConfig = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                eapSimConfig, null, true, false, true, true,
+                false);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1, TEST_FEATURE));
+        verifyNoMoreInteractions(mNotificationManger);
+        Set<ExtendedWifiNetworkSuggestion> matchedSuggestion = mWifiNetworkSuggestionsManager
+                .getNetworkSuggestionsForScanDetail(createScanDetailForNetwork(eapSimConfig));
+        validateImsiProtectionNotification(TEST_CARRIER_NAME);
+        for (ExtendedWifiNetworkSuggestion ewns : matchedSuggestion) {
+            assertFalse(ewns.isAutoJoinEnabled);
+        }
+        sendBroadcastForUserActionOnImsi(NOTIFICATION_USER_ALLOWED_CARRIER_INTENT_ACTION,
+                TEST_CARRIER_NAME, TEST_CARRIER_ID);
+        verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
+
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        assertTrue(mImsiDataSource.hasNewDataToSerialize());
+        matchedSuggestion = mWifiNetworkSuggestionsManager
+                .getNetworkSuggestionsForScanDetail(createScanDetailForNetwork(eapSimConfig));
+        verifyNoMoreInteractions(mNotificationManger);
+        assertTrue(mWifiNetworkSuggestionsManager
+                .hasUserApprovedImsiPrivacyExemptionForCarrier(TEST_CARRIER_ID));
+
+        for (ExtendedWifiNetworkSuggestion ewns : matchedSuggestion) {
+            assertTrue(ewns.isAutoJoinEnabled);
+        }
+    }
+
+    /**
+     * Test the IMSI protection notification and user click on the disallow.
+     */
+    @Test
+    public void testSendImsiProtectionNotificationOnUserDisallowed() {
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(TEST_CARRIER_ID);
+        when(mTelephonyUtil.getMatchingSubId(TEST_CARRIER_ID)).thenReturn(TEST_SUBID);
+        when(mTelephonyUtil.getCarrierNameforSubId(TEST_SUBID)).thenReturn(TEST_CARRIER_NAME);
+        when(mTelephonyUtil.requiresImsiEncryption(TEST_SUBID)).thenReturn(false);
+        WifiConfiguration eapSimConfig = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                eapSimConfig, null, true, false, true, true,
+                false);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1, TEST_FEATURE));
+        Set<ExtendedWifiNetworkSuggestion> matchedSuggestion = mWifiNetworkSuggestionsManager
+                .getNetworkSuggestionsForScanDetail(createScanDetailForNetwork(eapSimConfig));
+        validateImsiProtectionNotification(TEST_CARRIER_NAME);
+        for (ExtendedWifiNetworkSuggestion ewns : matchedSuggestion) {
+            assertFalse(ewns.isAutoJoinEnabled);
+        }
+        sendBroadcastForUserActionOnImsi(NOTIFICATION_USER_DISALLOWED_CARRIER_INTENT_ACTION,
+                TEST_CARRIER_NAME, TEST_CARRIER_ID);
+        verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
+
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        assertTrue(mImsiDataSource.hasNewDataToSerialize());
+        matchedSuggestion = mWifiNetworkSuggestionsManager
+                .getNetworkSuggestionsForScanDetail(createScanDetailForNetwork(eapSimConfig));
+        verifyNoMoreInteractions(mNotificationManger);
+        assertFalse(mWifiNetworkSuggestionsManager
+                .hasUserApprovedImsiPrivacyExemptionForCarrier(TEST_CARRIER_ID));
+
+        for (ExtendedWifiNetworkSuggestion ewns : matchedSuggestion) {
+            assertFalse(ewns.isAutoJoinEnabled);
+        }
+    }
+
+    /**
+     * Test when carrier start to support IMSI protection, imsiExemptionMap will update too.
+     */
+    @Test
+    public void testUpdateImsiExemptionMapWhenCarrierFromWithoutProtectionToWithProtection() {
+        // Simulate user click on disallow before.
+        mWifiNetworkSuggestionsManager
+                .setHasUserApprovedImsiPrivacyExemptionForCarrier(false, TEST_CARRIER_ID);
+        verifyNoMoreInteractions(mNotificationManger);
+        // Now carrier upgrade to support Imsi protection
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(TEST_CARRIER_ID);
+        when(mTelephonyUtil.getMatchingSubId(TEST_CARRIER_ID)).thenReturn(TEST_SUBID);
+        when(mTelephonyUtil.requiresImsiEncryption(TEST_SUBID)).thenReturn(true);
+        WifiConfiguration eapSimConfig = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                eapSimConfig, null, true, false, true, true,
+                false);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1, TEST_FEATURE));
+        Set<ExtendedWifiNetworkSuggestion> matchedSuggestion = mWifiNetworkSuggestionsManager
+                .getNetworkSuggestionsForScanDetail(createScanDetailForNetwork(eapSimConfig));
+        // Should be no more notification and suggestion restore to the initial auto join configure.
+        verifyNoMoreInteractions(mNotificationManger);
+        for (ExtendedWifiNetworkSuggestion ewns : matchedSuggestion) {
+            assertTrue(ewns.isAutoJoinEnabled);
         }
     }
 

@@ -25,6 +25,7 @@ import android.util.Pair;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.hotspot2.PasspointNetworkNominateHelper;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,14 +55,16 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
     private final WifiConfigManager mWifiConfigManager;
     private final PasspointNetworkNominateHelper mPasspointNetworkNominateHelper;
     private final LocalLog mLocalLog;
+    private final TelephonyUtil mTelephonyUtil;
 
     NetworkSuggestionNominator(WifiNetworkSuggestionsManager networkSuggestionsManager,
             WifiConfigManager wifiConfigManager, PasspointNetworkNominateHelper nominateHelper,
-            LocalLog localLog) {
+            LocalLog localLog, TelephonyUtil telephonyUtil) {
         mWifiNetworkSuggestionsManager = networkSuggestionsManager;
         mWifiConfigManager = wifiConfigManager;
         mPasspointNetworkNominateHelper = nominateHelper;
         mLocalLog = localLog;
+        mTelephonyUtil = telephonyUtil;
     }
 
     @Override
@@ -117,6 +120,9 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
             if (autoJoinEnabledExtSuggestions.isEmpty()) {
                 continue;
             }
+            if (!isSimBasedNetworkAvailableToAutoConnect(candidate.second)) {
+                continue;
+            }
             matchMetaInfo.putAll(autoJoinEnabledExtSuggestions,
                     candidate.second, candidate.first);
         }
@@ -131,14 +137,15 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
             if (matchingExtNetworkSuggestions == null || matchingExtNetworkSuggestions.isEmpty()) {
                 continue;
             }
-            Set<ExtendedWifiNetworkSuggestion> autojoinEnableSuggestions =
-                    matchingExtNetworkSuggestions.stream()
-                            .filter(ewns -> ewns.isAutoJoinEnabled)
-                            .collect(Collectors.toSet());
-            autoJoinDisabledSuggestions.addAll(
-                    matchingExtNetworkSuggestions.stream()
-                    .filter(ewns -> !ewns.isAutoJoinEnabled)
-                    .collect(Collectors.toSet()));
+            Set<ExtendedWifiNetworkSuggestion> autojoinEnableSuggestions = new HashSet<>();
+            for (ExtendedWifiNetworkSuggestion ewns : matchingExtNetworkSuggestions) {
+                if (ewns.isAutoJoinEnabled
+                        && isSimBasedNetworkAvailableToAutoConnect(ewns.wns.wifiConfiguration)) {
+                    autojoinEnableSuggestions.add(ewns);
+                } else {
+                    autoJoinDisabledSuggestions.add(ewns);
+                }
+            }
 
             if (autojoinEnableSuggestions.isEmpty()) {
                 continue;
@@ -147,19 +154,29 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
             // them to lookup/add the credentials to WifiConfigManager.
             // Note: Apps could provide different credentials (password, ceritificate) for the same
             // network, need to handle that in the future.
-            ExtendedWifiNetworkSuggestion matchingExtNetworkSuggestion =
-                    autojoinEnableSuggestions.stream().findAny().get();
+            String configKey = autojoinEnableSuggestions.stream().findAny().get()
+                    .wns.wifiConfiguration.getKey();
             // Check if we already have a network with the same credentials in WifiConfigManager
             // database.
             WifiConfiguration wCmConfiguredNetwork =
-                    mWifiConfigManager.getConfiguredNetwork(
-                            matchingExtNetworkSuggestion.wns.wifiConfiguration.getKey());
+                    mWifiConfigManager.getConfiguredNetwork(configKey);
             if (wCmConfiguredNetwork != null) {
                 // If existing network is not from suggestion, ignore.
                 if (!(wCmConfiguredNetwork.fromWifiNetworkSuggestion
                         && wCmConfiguredNetwork.allowAutojoin)) {
                     continue;
                 }
+                int creatorUid = wCmConfiguredNetwork.creatorUid;
+                Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsFromSamePackage =
+                        autojoinEnableSuggestions.stream()
+                                .filter(ewns -> ewns.wns.wifiConfiguration.creatorUid
+                                        == creatorUid)
+                                .collect(Collectors.toSet());
+                if (matchingExtNetworkSuggestionsFromSamePackage.isEmpty()) {
+                    continue;
+                }
+                ExtendedWifiNetworkSuggestion matchingExtNetworkSuggestion =
+                        matchingExtNetworkSuggestionsFromSamePackage.stream().findFirst().get();
                 // Update the WifiConfigManager with the latest WifiConfig
                 WifiConfiguration config = createConfigForAddingToWifiConfigManager(
                         matchingExtNetworkSuggestion, true);
@@ -178,9 +195,26 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
                             + WifiNetworkSelector.toNetworkString(wCmConfiguredNetwork));
                     continue;
                 }
+                matchingExtNetworkSuggestions = matchingExtNetworkSuggestionsFromSamePackage;
             }
             matchMetaInfo.putAll(matchingExtNetworkSuggestions, wCmConfiguredNetwork, scanDetail);
         }
+    }
+
+    private boolean isSimBasedNetworkAvailableToAutoConnect(WifiConfiguration config) {
+        if (config.enterpriseConfig == null
+                || !config.enterpriseConfig.isAuthenticationSimBased()) {
+            return true;
+        }
+        int subId = mTelephonyUtil.getBestMatchSubscriptionId(config);
+        if (!mTelephonyUtil.isSimPresent(subId)) {
+            mLocalLog.log("SIM is not present for subId: " + subId);
+            return false;
+        }
+        if (mTelephonyUtil.requiresImsiEncryption(subId)) {
+            return mTelephonyUtil.isImsiEncryptionInfoAvailable(subId);
+        }
+        return true;
     }
 
     // Add auto-join disabled suggestions also to WifiConfigManager if the app allows credential

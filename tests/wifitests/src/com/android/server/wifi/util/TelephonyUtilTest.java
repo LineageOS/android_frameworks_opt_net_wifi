@@ -95,6 +95,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
     private static final String NO_MATCH_OPERATOR_NUMERIC = "654321";
     private static final String TEST_PACKAGE = "com.test12345";
     private static final String ANONYMOUS_IDENTITY = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
+    private static final String CARRIER_NAME = "Google";
 
     @Mock
     CarrierConfigManager mCarrierConfigManager;
@@ -153,6 +154,8 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getSubscriberId()).thenReturn(DATA_FULL_IMSI);
         when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NON_DATA_FULL_IMSI);
         when(mDataTelephonyManager.getSimOperator()).thenReturn(DATA_OPERATOR_NUMERIC);
+        when(mDataTelephonyManager.getSimCarrierIdName()).thenReturn(CARRIER_NAME);
+        when(mNonDataTelephonyManager.getSimCarrierIdName()).thenReturn(null);
         when(mNonDataTelephonyManager.getSimOperator())
                 .thenReturn(NON_DATA_OPERATOR_NUMERIC);
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
@@ -1375,5 +1378,14 @@ public class TelephonyUtilTest extends WifiBaseTest {
                 .thenReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS);
         assertEquals(DATA_CARRIER_ID,
                 mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE));
+    }
+
+    /**
+     * Verify getCarrierNameforSubId returns right value.
+     */
+    @Test
+    public void getCarrierNameFromSubId() {
+        assertEquals(CARRIER_NAME, mTelephonyUtil.getCarrierNameforSubId(DATA_SUBID));
+        assertNull(mTelephonyUtil.getCarrierNameforSubId(NON_DATA_SUBID));
     }
 }
