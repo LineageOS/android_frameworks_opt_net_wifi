@@ -17,17 +17,6 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <!-- Official label of the wifi stack -->
     <string name="wifiResourcesAppLabel" product="default">System Wi-Fi Resources</string>
-    <!-- A notification is shown when there are open wireless networks nearby.  This is the notification's title. -->
-    <plurals name="wifi_available">
-        <item quantity="one">Wi-Fi network available</item>
-        <item quantity="other">Wi-Fi networks available</item>
-    </plurals>
-    <!-- A notification is shown when there are open wireless networks nearby.  This is the notification's message. -->
-    <plurals name="wifi_available_detailed">
-        <item quantity="one">Open Wi-Fi network available</item>
-        <item quantity="other">Open Wi-Fi networks available</item>
-    </plurals>
-
     <!-- Notification title for a nearby open wireless network.-->
     <string name="wifi_available_title">Connect to open Wi\u2011Fi network</string>
     <!-- Notification title when the system is connecting to the specified network. The network name is specified in the notification content. -->
