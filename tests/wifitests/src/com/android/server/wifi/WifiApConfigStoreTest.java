@@ -92,6 +92,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     @Mock private BackupManagerProxy mBackupManagerProxy;
     @Mock private WifiConfigStore mWifiConfigStore;
     @Mock private WifiConfigManager mWifiConfigManager;
+    @Mock private ActiveModeWarden mActiveModeWarden;
     private File mLegacyApConfigFile;
     private Random mRandom;
     private MockResources mResources;
@@ -117,7 +118,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         mResources.setString(R.string.wifi_localhotspot_configure_ssid_default,
                              TEST_DEFAULT_HOTSPOT_SSID);
         /* Default to device that does not require ap band conversion */
-        mResources.setBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any, false);
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(false);
         when(mContext.getResources()).thenReturn(mResources);
 
         // build the known good 2G channel list: TEST_DEFAULT_2G_CHANNEL_LIST
@@ -136,11 +138,11 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         if (legacyFilePath == null) {
             store = new WifiApConfigStore(
                     mContext, mWifiInjector, mHandler, mBackupManagerProxy,
-                    mWifiConfigStore, mWifiConfigManager);
+                    mWifiConfigStore, mWifiConfigManager, mActiveModeWarden);
         } else {
             store = new WifiApConfigStore(
                     mContext, mWifiInjector, mHandler, mBackupManagerProxy,
-                    mWifiConfigStore, mWifiConfigManager, legacyFilePath);
+                    mWifiConfigStore, mWifiConfigManager, mActiveModeWarden, legacyFilePath);
         }
 
         verify(mWifiConfigStore).registerStoreData(any());
@@ -494,7 +496,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
      */
     @Test
     public void convertDualModeDevice5GhzToAny() throws Exception {
-        mResources.setBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any, true);
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(true);
 
         /* Initialize WifiApConfigStore with default configuration. */
         WifiApConfigStore store = createWifiApConfigStore();
@@ -532,7 +535,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
      */
     @Test
     public void dualModeDeviceAnyNotConverted() throws Exception {
-        mResources.setBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any, true);
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(true);
 
         /* Initialize WifiApConfigStore with default configuration. */
         WifiApConfigStore store = createWifiApConfigStore();
@@ -613,7 +617,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
      */
     @Test
     public void dualModeDevice5GhzConvertedToAnyAtRetrieval() throws Exception {
-        mResources.setBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any, true);
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(true);
 
         SoftApConfiguration persistedConfig = setupApConfig(
                 "ConfiguredAP",                  /* SSID */
@@ -646,7 +651,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
      */
     @Test
     public void dualModeDeviceNotConvertedAtRetrieval() throws Exception {
-        mResources.setBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any, true);
+        when(mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager())
+                .thenReturn(true);
 
         SoftApConfiguration persistedConfig = setupApConfig(
                 "ConfiguredAP",                 /* SSID */

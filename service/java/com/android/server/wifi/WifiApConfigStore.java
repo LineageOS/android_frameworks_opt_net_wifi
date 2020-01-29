@@ -85,6 +85,7 @@ public class WifiApConfigStore {
     private final MacAddressUtil mMacAddressUtil;
     private final Mac mMac;
     private final WifiConfigManager mWifiConfigManager;
+    private final ActiveModeWarden mActiveModeWarden;
     private boolean mHasNewDataToSerialize = false;
 
     /**
@@ -119,9 +120,9 @@ public class WifiApConfigStore {
 
     WifiApConfigStore(Context context, WifiInjector wifiInjector, Handler handler,
             BackupManagerProxy backupManagerProxy, WifiConfigStore wifiConfigStore,
-            WifiConfigManager wifiConfigManager) {
+            WifiConfigManager wifiConfigManager, ActiveModeWarden activeModeWarden) {
         this(context, wifiInjector, handler, backupManagerProxy, wifiConfigStore,
-                wifiConfigManager, LEGACY_AP_CONFIG_FILE);
+                wifiConfigManager, activeModeWarden, LEGACY_AP_CONFIG_FILE);
     }
 
     WifiApConfigStore(Context context,
@@ -130,11 +131,13 @@ public class WifiApConfigStore {
             BackupManagerProxy backupManagerProxy,
             WifiConfigStore wifiConfigStore,
             WifiConfigManager wifiConfigManager,
+            ActiveModeWarden activeModeWarden,
             String apConfigFile) {
         mContext = context;
         mHandler = handler;
         mBackupManagerProxy = backupManagerProxy;
         mWifiConfigManager = wifiConfigManager;
+        mActiveModeWarden = activeModeWarden;
 
         // One time migration from legacy config store.
         try {
@@ -245,7 +248,7 @@ public class WifiApConfigStore {
             convertedConfigBuilder.setBssid(null);
         }
 
-        if (mContext.getResources().getBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any)) {
+        if (mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager()) {
             // some devices are unable to support 5GHz only operation, check for 5GHz and
             // allow for 2GHz if apBand conversion is required.
             if (config.getBand() == SoftApConfiguration.BAND_5GHZ) {

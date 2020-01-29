@@ -263,10 +263,6 @@ public class WifiInjector {
         mWifiScoreCard = new WifiScoreCard(mClock, l2KeySeed, mDeviceConfigFacade);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
 
-        mWifiApConfigStore = new WifiApConfigStore(
-                mContext, this, wifiHandler, mBackupManagerProxy,
-                mWifiConfigStore, mWifiConfigManager);
-
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(
                 mContext.getSystemService(ActivityManager.class).isLowRamDevice() ? 256 : 512);
@@ -334,6 +330,9 @@ public class WifiInjector {
         mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
                 mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics,
                 mContext, mClientModeImpl, mSettingsStore, mFrameworkFacade, mWifiPermissionsUtil);
+        mWifiApConfigStore = new WifiApConfigStore(
+                mContext, this, wifiHandler, mBackupManagerProxy,
+                mWifiConfigStore, mWifiConfigManager, mActiveModeWarden);
         WakeupNotificationFactory wakeupNotificationFactory =
                 new WakeupNotificationFactory(mContext, this, mFrameworkFacade);
         WakeupOnboarding wakeupOnboarding = new WakeupOnboarding(mContext, mWifiConfigManager,
