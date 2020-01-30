@@ -2826,23 +2826,6 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * Method allowing callers with NETWORK_SETTINGS permission to check if this is a dual mode
-     * capable device (STA+AP).
-     *
-     * @return true if a dual mode capable device
-     */
-    @Override
-    public boolean needs5GHzToAnyApBandConversion() {
-        enforceNetworkSettingsPermission();
-
-        if (mVerboseLoggingEnabled) {
-            mLog.info("needs5GHzToAnyApBandConversion uid=%").c(Binder.getCallingUid()).flush();
-        }
-        return mContext.getResources().getBoolean(
-                R.bool.config_wifi_convert_apband_5ghz_to_any);
-    }
-
-    /**
      * Return the DHCP-assigned addresses from the last successful DHCP request,
      * if any.
      * @return the DHCP information
