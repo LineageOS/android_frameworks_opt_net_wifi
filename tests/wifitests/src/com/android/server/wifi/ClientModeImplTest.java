@@ -2294,7 +2294,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 ISupplicantStaIfaceCallback.StatusCode.AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).setRecentFailureAssociationStatus(eq(0),
-                eq(WifiConfiguration.RecentFailure.STATUS_AP_UNABLE_TO_HANDLE_NEW_STA));
+                eq(WifiConfiguration.RECENT_FAILURE_AP_UNABLE_TO_HANDLE_NEW_STA));
         assertEquals("DisconnectedState", getCurrentState().getName());
 
         // Simulate an AUTHENTICATION_FAILURE_EVENT, which should clear the ExtraFailureReason

@@ -302,8 +302,8 @@ class StandardWifiEntry extends WifiEntry {
         } else if (getLevel() == WIFI_LEVEL_UNREACHABLE) {
             // Do nothing because users know it by signal icon.
         } else { // In range, not disabled.
-            if (mWifiConfig != null && mWifiConfig.recentFailure.getAssociationStatus()
-                    == WifiConfiguration.RecentFailure.STATUS_AP_UNABLE_TO_HANDLE_NEW_STA) {
+            if (mWifiConfig != null && mWifiConfig.getRecentFailureReason()
+                    == WifiConfiguration.RECENT_FAILURE_AP_UNABLE_TO_HANDLE_NEW_STA) {
                 return mContext.getString(R.string.wifi_ap_unable_to_handle_new_sta);
             }
         }
