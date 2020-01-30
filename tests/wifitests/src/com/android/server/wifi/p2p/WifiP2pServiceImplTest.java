@@ -169,7 +169,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
 
         // for general group started event
         mTestWifiP2pNewPersistentGoGroup = new WifiP2pGroup();
-        mTestWifiP2pNewPersistentGoGroup.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        mTestWifiP2pNewPersistentGoGroup.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         mTestWifiP2pNewPersistentGoGroup.setNetworkName("DIRECT-xy-NEW");
         mTestWifiP2pNewPersistentGoGroup.setOwner(new WifiP2pDevice(thisDeviceMac));
         mTestWifiP2pNewPersistentGoGroup.setIsGroupOwner(true);
@@ -373,7 +373,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
      * @param group the started group.
      */
     private void sendGroupStartedMsg(WifiP2pGroup group) throws Exception {
-        if (group.getNetworkId() == WifiP2pGroup.PERSISTENT_NET_ID) {
+        if (group.getNetworkId() == WifiP2pGroup.NETWORK_ID_PERSISTENT) {
             mGroups.add(group);
         }
 
@@ -791,7 +791,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
      * Mock enter GroupNegotiation state.
      */
     private void mockEnterGroupNegotiationState() throws Exception {
-        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.TEMPORARY_NET_ID, null);
+        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_TEMPORARY, null);
     }
 
 
@@ -1663,7 +1663,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to enabled state
         forceP2pEnabled(mClient1);
 
-        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_PERSISTENT);
         verify(mClientHandler).sendMessage(mMessageCaptor.capture());
         Message message = mMessageCaptor.getValue();
         assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_SUCCEEDED, message.what);
@@ -1675,7 +1675,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testDeletePersistentGroupFailureWhenP2pDisabled() throws Exception {
-        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_PERSISTENT);
         verify(mClientHandler).sendMessage(mMessageCaptor.capture());
         Message message = mMessageCaptor.getValue();
         assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED, message.what);
@@ -1689,7 +1689,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     @Test
     public void testDeletePersistentGroupFailureWhenP2pUnsupported() throws Exception {
         setUpWifiP2pServiceImpl(false);
-        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_PERSISTENT);
         verify(mClientHandler).sendMessage(mMessageCaptor.capture());
         Message message = mMessageCaptor.getValue();
         assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED, message.what);
@@ -1710,7 +1710,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.checkNetworkStackPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkConfigOverridePermission(anyInt())).thenReturn(false);
 
-        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_PERSISTENT);
         verify(mClientHandler).sendMessage(mMessageCaptor.capture());
         Message message = mMessageCaptor.getValue();
         assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED, message.what);
@@ -1911,7 +1911,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
                 anyBoolean())).thenReturn(true);
         sendChannelInfoUpdateMsg("testPkg1", "testFeature", mClient1, mClientMessenger);
 
-        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID, null);
+        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_PERSISTENT, null);
         verify(mWifiPermissionsUtil).checkCanAccessWifiDirect(eq("testPkg1"), eq("testFeature"),
                 anyInt(), eq(false));
 
@@ -1922,7 +1922,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
 
     /**
      * Verify the connection event for a local connection while setting
-     * netId to {@link WifiP2pGroup#PERSISTENT_NET_ID}.
+     * netId to {@link WifiP2pGroup#NETWORK_ID_PERSISTENT}.
      */
     @Test
     public void testStartLocalConnectionWhenCreateGroup() throws Exception {
@@ -1943,7 +1943,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // clear all groups to avoid re-invoking a group.
         sendSimpleMsg(mClientMessenger, WifiP2pManager.FACTORY_RESET);
 
-        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID, null);
+        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_PERSISTENT, null);
         verify(mWifiPermissionsUtil).checkCanAccessWifiDirect(eq("testPkg1"), eq("testFeature"),
                 anyInt(), eq(false));
 
@@ -1954,7 +1954,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
 
     /**
      * Verify the connection event for a local connection while setting the
-     * netId to {@link WifiP2pGroup#TEMPORARY_NET_ID}.
+     * netId to {@link WifiP2pGroup#NETWORK_ID_TEMPORARY}.
      */
     @Test
     public void testStartLocalConnectionEventWhenCreateTemporaryGroup() throws Exception {
@@ -1963,7 +1963,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
                 anyBoolean())).thenReturn(true);
         sendChannelInfoUpdateMsg("testPkg1", "testFeature", mClient1, mClientMessenger);
 
-        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.TEMPORARY_NET_ID, null);
+        sendCreateGroupMsg(mClientMessenger, WifiP2pGroup.NETWORK_ID_TEMPORARY, null);
         verify(mWifiPermissionsUtil).checkCanAccessWifiDirect(eq("testPkg1"), eq("testFeature"),
                 anyInt(), eq(false));
 
@@ -2032,7 +2032,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         sendChannelInfoUpdateMsg("testPkg1", "testFeature", mClient1, mClientMessenger);
 
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2342,7 +2342,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2365,7 +2365,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2518,7 +2518,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2551,7 +2551,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2577,7 +2577,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2600,7 +2600,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2625,7 +2625,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);
@@ -2651,7 +2651,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // Move to group created state
         forceP2pEnabled(mClient1);
         WifiP2pGroup group = new WifiP2pGroup();
-        group.setNetworkId(WifiP2pGroup.PERSISTENT_NET_ID);
+        group.setNetworkId(WifiP2pGroup.NETWORK_ID_PERSISTENT);
         group.setNetworkName("DIRECT-xy-NEW");
         group.setOwner(new WifiP2pDevice("thisDeviceMac"));
         group.setIsGroupOwner(true);

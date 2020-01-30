@@ -826,7 +826,7 @@ public class SupplicantP2pIfaceHal {
             }
             // NOTE: preSelectedPin cannot be null, otherwise hal would crash.
             String preSelectedPin = TextUtils.isEmpty(config.wps.pin) ? "" : config.wps.pin;
-            boolean persistent = (config.netId == WifiP2pGroup.PERSISTENT_NET_ID);
+            boolean persistent = (config.netId == WifiP2pGroup.NETWORK_ID_PERSISTENT);
 
             int goIntent = 0;
             if (!joinExistingGroup) {
