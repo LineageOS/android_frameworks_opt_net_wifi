@@ -1031,11 +1031,9 @@ public class WifiServiceImpl extends BaseWifiService {
                 CarrierConfigManager carrierConfigManager =
                         (CarrierConfigManager) mContext.getSystemService(
                         Context.CARRIER_CONFIG_SERVICE);
-                if (carrierConfigManager == null) {
-                    return;
-                }
-                PersistableBundle carrierConfig = carrierConfigManager.getConfigForSubId(
-                        subId);
+                if (carrierConfigManager == null) return;
+                PersistableBundle carrierConfig = carrierConfigManager.getConfigForSubId(subId);
+                if (carrierConfig == null) return;
                 int carrierMaxClient = carrierConfig.getInt(
                         CarrierConfigManager.Wifi.KEY_HOTSPOT_MAX_CLIENT_COUNT);
                 int finalSupportedClientNumber = mContext.getResources().getInteger(
