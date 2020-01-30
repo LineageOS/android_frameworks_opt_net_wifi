@@ -920,6 +920,57 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         mInorder.verifyNoMoreInteractions();
     }
 
+    /**
+     * Verify if a user saved network connected and it can match suggestions. Only the
+     * carrier-privileged suggestor app can receive the broadcast if
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set to true.
+     */
+    @Test
+    public void testOnSavedOpenNetworkConnectionSuccessWithMultipleMatch() throws Exception {
+        assertTrue(mWifiNetworkSuggestionsManager
+                .registerSuggestionConnectionStatusListener(mBinder, mListener,
+                        NETWORK_CALLBACK_ID, TEST_PACKAGE_1));
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(true);
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                new WifiConfiguration(config), null, true, false, true, true,
+                false);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_UID_1,
+                        TEST_PACKAGE_1, TEST_FEATURE));
+
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                new WifiConfiguration(config), null, true, false, true, true,
+                false);
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_UID_2,
+                        TEST_PACKAGE_2, TEST_FEATURE));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_2);
+
+        // Simulate connecting to the user saved open network.
+        WifiConfiguration connectNetwork = new WifiConfiguration(config);
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, connectNetwork, TEST_BSSID);
+
+        verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
+        // Verify that the correct broadcast was sent out.
+        mInorder.verify(mWifiPermissionsUtil).enforceCanAccessScanResults(eq(TEST_PACKAGE_1),
+                eq(TEST_FEATURE), eq(TEST_UID_1), nullable(String.class));
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+
+        // Verify no more broadcast were sent out.
+        mInorder.verifyNoMoreInteractions();
+    }
+
     @Test
     public void testOnNetworkConnectionFailureWithOneMatchButCallbackOnBinderDied()
             throws Exception {
