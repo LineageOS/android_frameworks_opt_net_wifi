@@ -87,8 +87,10 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
             Constants.ANQPElementType.HSConnCapability,
             Constants.ANQPElementType.HSOSUProviders);
 
-    @Mock PasspointEventHandler mHandler;
-    @Mock Clock mClock;
+    @Mock
+    PasspointEventHandler mHandler;
+    @Mock
+    Clock mClock;
     ANQPRequestManager mManager;
 
     /**
@@ -110,20 +112,22 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
     @Test
     public void requestR1ANQPElementsWithoutRC() throws Exception {
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
     }
 
     /**
-     * Verify that the expected set of ANQP elements are being requested when the targeted AP
-     * does provide roaming consortium OIs and doesn't support Hotspot 2.0 Release ANQP elements,
-     * based on the IEs in the scan result.
+     * Verify that the expected set of ANQP elements are being requested when the targeted AP does
+     * provide roaming consortium OIs and doesn't support Hotspot 2.0 Release ANQP elements, based
+     * on the IEs in the scan result.
      *
      * @throws Exception
      */
     @Test
     public void requestR1ANQPElementsWithRC() throws Exception {
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITH_RC)).thenReturn(true);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, true, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, true,
+                NetworkDetail.HSRelease.R1));
     }
 
     /**
@@ -136,20 +140,22 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
     @Test
     public void requestR1R2ANQPElementsWithoutRC() throws Exception {
         when(mHandler.requestANQP(TEST_BSSID, R1R2_ANQP_WITHOUT_RC)).thenReturn(true);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, true));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R2));
     }
 
     /**
-     * Verify that the expected set of ANQP elements are being requested when the targeted AP
-     * does provide roaming consortium OIs and support Hotspot 2.0 Release ANQP elements,
-     * based on the IEs in the scan result.
+     * Verify that the expected set of ANQP elements are being requested when the targeted AP does
+     * provide roaming consortium OIs and support Hotspot 2.0 Release ANQP elements, based on the
+     * IEs in the scan result.
      *
      * @throws Exception
      */
     @Test
     public void requestR1R2ANQPElementsWithRC() throws Exception {
         when(mHandler.requestANQP(TEST_BSSID, R1R2_ANQP_WITH_RC)).thenReturn(true);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, true, true));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, true,
+                NetworkDetail.HSRelease.R2));
     }
 
     /**
@@ -164,13 +170,15 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
         long startTime = 0;
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         reset(mHandler);
 
         // Attempt another request will fail while one is still pending and hold off time is not up
         // yet.
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime + 1);
-        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         verify(mHandler, never()).requestANQP(anyLong(), anyObject());
         reset(mHandler);
 
@@ -178,12 +186,13 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis())
                 .thenReturn(startTime + ANQPRequestManager.BASE_HOLDOFF_TIME_MILLISECONDS);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
     }
 
     /**
-     * Verify that an immediate attempt to request ANQP elements from an AP will succeed when
-     * the previous request is failed on sending.
+     * Verify that an immediate attempt to request ANQP elements from an AP will succeed when the
+     * previous request is failed on sending.
      *
      * @throws Exception
      */
@@ -193,18 +202,20 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
         long startTime = 0;
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(false);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime);
-        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         reset(mHandler);
 
         // Verify that new request is not being held off after previous send failure.
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
     }
 
     /**
-     * Verify that an immediate attempt to request ANQP elements from an AP will succeed when
-     * the previous request is completed with success.
+     * Verify that an immediate attempt to request ANQP elements from an AP will succeed when the
+     * previous request is completed with success.
      *
      * @throws Exception
      */
@@ -214,7 +225,8 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
         long startTime = 0;
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         reset(mHandler);
 
         // Request completed with success. Verify that the key associated with the request
@@ -223,13 +235,14 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
 
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime + 1);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
     }
 
     /**
-     * Verify that an immediate attempt to request ANQP elements from an AP will fail when
-     * the previous request is completed with failure.  The request will succeed after the
-     * hold off time is up.
+     * Verify that an immediate attempt to request ANQP elements from an AP will fail when the
+     * previous request is completed with failure.  The request will succeed after the hold off time
+     * is up.
      *
      * @throws Exception
      */
@@ -239,7 +252,8 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
         long startTime = 0;
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         reset(mHandler);
 
         // Request completed with failure.  Verify that the key associated with the request
@@ -248,14 +262,16 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
 
         // Attempt another request will fail since the hold off time is not up yet.
         when(mClock.getElapsedSinceBootMillis()).thenReturn(startTime + 1);
-        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         verify(mHandler, never()).requestANQP(anyLong(), anyObject());
 
         // Attempt another request will succeed after the hold off time is up.
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis())
                 .thenReturn(startTime + ANQPRequestManager.BASE_HOLDOFF_TIME_MILLISECONDS);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
     }
 
     /**
@@ -271,7 +287,8 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
         // Initial request.
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTime);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         reset(mHandler);
 
         // Sending the request with the hold off time based on the current hold off count.
@@ -281,14 +298,16 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
 
             // Request will fail before the hold off time is up.
             when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTime);
-            assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+            assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                    NetworkDetail.HSRelease.R1));
             verify(mHandler, never()).requestANQP(anyLong(), anyObject());
 
             // Request will succeed when the hold off time is up.
             currentTime += 1;
             when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
             when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTime);
-            assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+            assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                    NetworkDetail.HSRelease.R1));
             reset(mHandler);
         }
 
@@ -297,13 +316,43 @@ public class ANQPRequestManagerTest extends WifiBaseTest {
                 * (1 << ANQPRequestManager.MAX_HOLDOFF_COUNT) - 1);
 
         when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTime);
-        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertFalse(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         verify(mHandler, never()).requestANQP(anyLong(), anyObject());
 
         currentTime += 1;
         when(mHandler.requestANQP(TEST_BSSID, R1_ANQP_WITHOUT_RC)).thenReturn(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTime);
-        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false, false));
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R1));
         reset(mHandler);
+    }
+
+    /**
+     * Verify that the expected set of ANQP elements are being requested when the targeted AP
+     * doesn't provide roaming consortium OIs and does support Hotspot 2.0 Release 3 ANQP elements,
+     * based on the IEs in the scan result.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void requestR1R2ANQPElementsWithoutRCForR3() throws Exception {
+        when(mHandler.requestANQP(TEST_BSSID, R1R2_ANQP_WITHOUT_RC)).thenReturn(true);
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, false,
+                NetworkDetail.HSRelease.R3));
+    }
+
+    /**
+     * Verify that the expected set of ANQP elements are being requested when the targeted AP does
+     * provide roaming consortium OIs and support Hotspot 2.0 Release 3 ANQP elements, based on the
+     * IEs in the scan result.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void requestR1R2ANQPElementsWithRCForR3() throws Exception {
+        when(mHandler.requestANQP(TEST_BSSID, R1R2_ANQP_WITH_RC)).thenReturn(true);
+        assertTrue(mManager.requestANQPElements(TEST_BSSID, TEST_ANQP_KEY, true,
+                NetworkDetail.HSRelease.R3));
     }
 }
