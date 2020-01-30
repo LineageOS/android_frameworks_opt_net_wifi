@@ -16,7 +16,7 @@
 
 package com.android.wifitrackerlib;
 
-import static android.net.wifi.WifiInfo.removeDoubleQuotes;
+import static android.net.wifi.WifiInfo.sanitizeSsid;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
@@ -113,7 +113,7 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public String getSsid() {
-        return mWifiConfig != null ? removeDoubleQuotes(mWifiConfig.SSID) : null;
+        return mWifiConfig != null ? sanitizeSsid(mWifiConfig.SSID) : null;
     }
 
     @Override
