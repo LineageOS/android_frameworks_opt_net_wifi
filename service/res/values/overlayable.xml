@@ -124,10 +124,6 @@
           <!-- Params from config.xml that can be overlayed -->
 
           <!-- Params from strings.xml that can be overlayed -->
-          <!-- Not supported by compiler.
-          <item type="plurals" name="wifi_available" />
-          <item type="plurals" name="wifi_available_detailed" />
-          -->
           <item type="string" name="wifi_available_title" />
           <item type="string" name="wifi_available_title_connecting" />
           <item type="string" name="wifi_available_title_connected" />
@@ -139,6 +135,10 @@
           <item type="string" name="wifi_suggestion_content" />
           <item type="string" name="wifi_suggestion_action_allow_app" />
           <item type="string" name="wifi_suggestion_action_disallow_app" />
+          <item type="string" name="wifi_suggestion_imsi_privacy_title" />
+          <item type="string" name="wifi_suggestion_imsi_privacy_content" />
+          <item type="string" name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" />
+          <item type="string" name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" />
           <item type="string" name="wifi_wakeup_onboarding_title" />
           <item type="string" name="wifi_wakeup_onboarding_subtext" />
           <item type="string" name="wifi_wakeup_onboarding_action_disable" />
@@ -190,10 +190,15 @@
           <item type="style" name="wifi_section" />
           <!-- Params from styles.xml that can be overlayed -->
 
-          <!-- Params from styles.xml that can be overlayed -->
+          <!-- Params from drawable/ that can be overlayed -->
           <item type="drawable" name="stat_notify_wifi_in_range" />
           <item type="drawable" name="ic_wifi_settings" />
-          <!-- Params from styles.xml that can be overlayed -->
+          <!-- Params from drawable/ that can be overlayed -->
+
+          <!-- Params from layout/ that can be overlayed -->
+          <item type="layout" name="wifi_p2p_dialog" />
+          <item type="layout" name="wifi_p2p_dialog_row" />
+          <!-- Params from layout/ that can be overlayed -->
 
         </policy>
         <!-- END VENDOR CUSTOMIZATION -->

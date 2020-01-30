@@ -20,6 +20,7 @@ import static android.net.wifi.WifiConfiguration.INVALID_NETWORK_ID;
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus
         .NETWORK_SELECTION_TEMPORARY_DISABLED;
 
+import static com.android.server.wifi.WifiConfigurationTestUtil.SECURITY_EAP;
 import static com.android.server.wifi.WifiConfigurationTestUtil.SECURITY_PSK;
 import static com.android.server.wifi.WifiConfigurationTestUtil.generateWifiConfig;
 
@@ -27,6 +28,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
 import android.util.LocalLog;
@@ -37,6 +39,7 @@ import androidx.test.filters.SmallTest;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.hotspot2.PasspointNetworkNominateHelper;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -62,11 +65,16 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
     private static final String TEST_PACKAGE = "com.test";
     private static final String TEST_PACKAGE_OTHER = "com.test.other";
     private static final String TEST_FQDN = "fqdn";
+    private static final int TEST_CARRIER_ID = 1911;
+    private static final String TEST_CARRIER_NAME = "testCarrier";
+    private static final int TEST_SUB_ID = 2020;
+
 
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private @Mock PasspointNetworkNominateHelper mPasspointNetworkNominateHelper;
     private @Mock Clock mClock;
+    private @Mock TelephonyUtil mTelephonyUtil;
     private NetworkSuggestionNominator mNetworkSuggestionNominator;
 
     /** Sets up test. */
@@ -75,7 +83,7 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
         MockitoAnnotations.initMocks(this);
         mNetworkSuggestionNominator = new NetworkSuggestionNominator(
                 mWifiNetworkSuggestionsManager, mWifiConfigManager, mPasspointNetworkNominateHelper,
-                new LocalLog(100));
+                new LocalLog(100), mTelephonyUtil);
     }
 
     /**
@@ -750,6 +758,98 @@ public class NetworkSuggestionNominatorTest extends WifiBaseTest {
         verify(mWifiConfigManager, never())
                 .addOrUpdateNetwork(argThat(new WifiConfigMatcher(
                         suggestions[1].wns.wifiConfiguration)), anyInt(), anyString());
+    }
+
+    @Test
+    public void testSelectNetworkSuggestionForOneMatchSimBasedWithNoSim() {
+        String[] scanSsids = {"test1"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] freqs = {2470};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-67};
+        String[] suggestionSsids = {"\"" + scanSsids[0] + "\""};
+        int[] securities = {SECURITY_EAP};
+        boolean[] appInteractions = {true};
+        boolean[] meteredness = {true};
+        int[] priorities = {-1};
+        int[] uids = {TEST_UID};
+        String[] packageNames = {TEST_PACKAGE};
+        boolean[] autojoin = {true};
+        boolean[] shareWithUser = {true};
+
+        ScanDetail[] scanDetails =
+                buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
+        ExtendedWifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids,
+                securities, appInteractions, meteredness, priorities, uids,
+                packageNames, autojoin, shareWithUser);
+        WifiConfiguration eapSimConfig = suggestions[0].wns.wifiConfiguration;
+        eapSimConfig.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.SIM);
+        eapSimConfig.enterpriseConfig.setPhase2Method(WifiEnterpriseConfig.Phase2.NONE);
+        eapSimConfig.carrierId = TEST_CARRIER_ID;
+        when(mTelephonyUtil.getBestMatchSubscriptionId(eapSimConfig)).thenReturn(TEST_SUB_ID);
+        when(mTelephonyUtil.isSimPresent(TEST_SUB_ID)).thenReturn(false);
+        // Link the scan result with suggestions.
+        linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
+        // setup config manager interactions.
+        setupAddToWifiConfigManager(suggestions[0].wns.wifiConfiguration);
+
+        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
+        mNetworkSuggestionNominator.nominateNetworks(
+                Arrays.asList(scanDetails), null, null, true, false,
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
+                    connectableNetworks.add(Pair.create(scanDetail, configuration));
+                });
+
+        // Verify no network is nominated.
+        assertTrue(connectableNetworks.isEmpty());
+        verifyAddToWifiConfigManager(suggestions[0].wns.wifiConfiguration);
+    }
+
+    @Test
+    public void testSelectNetworkSuggestionForOneMatchSimBasedWithEncryptionInfoNotAvailabele() {
+        String[] scanSsids = {"test1"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] freqs = {2470};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-67};
+        String[] suggestionSsids = {"\"" + scanSsids[0] + "\""};
+        int[] securities = {SECURITY_EAP};
+        boolean[] appInteractions = {true};
+        boolean[] meteredness = {true};
+        int[] priorities = {-1};
+        int[] uids = {TEST_UID};
+        String[] packageNames = {TEST_PACKAGE};
+        boolean[] autojoin = {true};
+        boolean[] shareWithUser = {true};
+
+        ScanDetail[] scanDetails =
+                buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
+        ExtendedWifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids,
+                securities, appInteractions, meteredness, priorities, uids,
+                packageNames, autojoin, shareWithUser);
+        WifiConfiguration eapSimConfig = suggestions[0].wns.wifiConfiguration;
+        eapSimConfig.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.SIM);
+        eapSimConfig.enterpriseConfig.setPhase2Method(WifiEnterpriseConfig.Phase2.NONE);
+        eapSimConfig.carrierId = TEST_CARRIER_ID;
+        when(mTelephonyUtil.getBestMatchSubscriptionId(eapSimConfig)).thenReturn(TEST_SUB_ID);
+        when(mTelephonyUtil.isSimPresent(TEST_SUB_ID)).thenReturn(true);
+        when(mTelephonyUtil.requiresImsiEncryption(TEST_SUB_ID)).thenReturn(true);
+        when(mTelephonyUtil.isImsiEncryptionInfoAvailable(TEST_SUB_ID)).thenReturn(false);
+        // Link the scan result with suggestions.
+        linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
+        // setup config manager interactions.
+        setupAddToWifiConfigManager(suggestions[0].wns.wifiConfiguration);
+
+        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
+        mNetworkSuggestionNominator.nominateNetworks(
+                Arrays.asList(scanDetails), null, null, true, false,
+                (ScanDetail scanDetail, WifiConfiguration configuration) -> {
+                    connectableNetworks.add(Pair.create(scanDetail, configuration));
+                });
+
+        // Verify no network is nominated.
+        assertTrue(connectableNetworks.isEmpty());
+        verifyAddToWifiConfigManager(suggestions[0].wns.wifiConfiguration);
     }
 
     private void setupAddToWifiConfigManager(WifiConfiguration...candidates) {

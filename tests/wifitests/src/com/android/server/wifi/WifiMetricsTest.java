@@ -2419,14 +2419,20 @@ public class WifiMetricsTest extends WifiBaseTest {
      * Values used to generate WifiIsUnusableEvent
      * <WifiIsUnusableEvent.TriggerType>, <last_score>, <tx_success_delta>, <tx_retries_delta>,
      * <tx_bad_delta>, <rx_success_delta>, <packet_update_time_delta>, <firmware_alert_code>,
-     * <last_wifi_usability_score>
+     * <last_wifi_usability_score>, <mobile_tx_bytes>, <mobile_rx_bytes>, <total_tx_bytes>,
+     * <total_rx_bytes>,
      */
     private int[][] mTestUnusableEvents = {
-        {WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX,        60,  60,  50,  40,  30,  1000,  -1, 51},
-        {WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX, 55,  40,  30,  0,   0,   500,   -1, 52},
-        {WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH,          60,  90,  30,  30,  0,   1000,  -1, 53},
-        {WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT,           55,  55,  30,  15,  10,  1000,   4, 54},
-        {WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST,     50,  56,  28,  17,  12,  1000,  -1, 45}
+        {WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX,        60,  60,  50,  40,  30,  1000,  -1, 51,
+                11, 12, 13, 14},
+        {WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX, 55,  40,  30,  0,   0,   500,   -1, 52,
+                15, 16, 17, 18},
+        {WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH,          60,  90,  30,  30,  0,   1000,  -1, 53,
+                19, 20, 21, 22},
+        {WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT,           55,  55,  30,  15,  10,  1000,   4, 54,
+                23, 24, 25, 26},
+        {WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST,     50,  56,  28,  17,  12,  1000,  -1, 45,
+                27, 28, 29, 30}
     };
 
     /**
@@ -2445,6 +2451,10 @@ public class WifiMetricsTest extends WifiBaseTest {
     private void generateUnusableEventAtGivenTime(int index, long eventTime) {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(eventTime);
         int[] trigger = mTestUnusableEvents[index];
+        when(mFacade.getMobileTxBytes()).thenReturn((long) trigger[9]);
+        when(mFacade.getMobileRxBytes()).thenReturn((long) trigger[10]);
+        when(mFacade.getTotalTxBytes()).thenReturn((long) trigger[11]);
+        when(mFacade.getTotalRxBytes()).thenReturn((long) trigger[12]);
         mWifiMetrics.incrementWifiScoreCount(trigger[1]);
         mWifiMetrics.incrementWifiUsabilityScoreCount(1, trigger[8], 15);
         mWifiMetrics.updateWifiIsUnusableLinkLayerStats(trigger[2], trigger[3], trigger[4],
@@ -2494,6 +2504,10 @@ public class WifiMetricsTest extends WifiBaseTest {
         assertEquals(expectedValues[7], event.firmwareAlertCode);
         assertEquals(expectedValues[8], event.lastWifiUsabilityScore);
         assertEquals(true, event.screenOn);
+        assertEquals(expectedValues[9], event.mobileTxBytes);
+        assertEquals(expectedValues[10], event.mobileRxBytes);
+        assertEquals(expectedValues[11], event.totalTxBytes);
+        assertEquals(expectedValues[12], event.totalRxBytes);
     }
 
     /**

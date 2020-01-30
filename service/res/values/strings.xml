@@ -17,17 +17,6 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <!-- Official label of the wifi stack -->
     <string name="wifiResourcesAppLabel" product="default">System Wi-Fi Resources</string>
-    <!-- A notification is shown when there are open wireless networks nearby.  This is the notification's title. -->
-    <plurals name="wifi_available">
-        <item quantity="one">Wi-Fi network available</item>
-        <item quantity="other">Wi-Fi networks available</item>
-    </plurals>
-    <!-- A notification is shown when there are open wireless networks nearby.  This is the notification's message. -->
-    <plurals name="wifi_available_detailed">
-        <item quantity="one">Open Wi-Fi network available</item>
-        <item quantity="other">Open Wi-Fi networks available</item>
-    </plurals>
-
     <!-- Notification title for a nearby open wireless network.-->
     <string name="wifi_available_title">Connect to open Wi\u2011Fi network</string>
     <!-- Notification title when the system is connecting to the specified network. The network name is specified in the notification content. -->
@@ -58,6 +47,15 @@
     <string name="wifi_suggestion_action_allow_app">Allow</string>
     <!-- Notification action for disallowing app specified in the notification body.-->
     <string name="wifi_suggestion_action_disallow_app">No thanks</string>
+
+    <!-- Notification title for a connection to a SIM-based carrier network without IMSI privacy protection. -->
+    <string name="wifi_suggestion_imsi_privacy_title">Privacy warning for IMSI protection</string>
+    <!-- Notification content for a connection to a SIM-based carrier network without IMSI privacy protection.-->
+    <string name="wifi_suggestion_imsi_privacy_content"><xliff:g id="carrierName" example="xxxMobile">%s</xliff:g> suggested networks using your SIM card info without without privacy protection, allow network to be connected automatically? </string>
+    <!-- Notification action for allowing carrier specified in the notification body.-->
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier">Allow</string>
+    <!-- Notification action for disallowing carrier specified in the notification body.-->
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier">Disallow</string>
 
     <!--Notification title for Wi-Fi Wake onboarding. This is displayed the first time a user disables Wi-Fi with the feature enabled. -->
     <string name="wifi_wakeup_onboarding_title">Wi\u2011Fi will turn on automatically</string>

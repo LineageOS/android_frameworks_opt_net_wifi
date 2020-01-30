@@ -59,6 +59,7 @@ class PasspointWifiEntry extends WifiEntry {
     private boolean mIsRoaming = false;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
+    protected long mSubscriptionExpirationTimeInMillis;
 
     /**
      * Create a PasspointWifiEntry with the associated PasspointConfiguration
@@ -76,6 +77,8 @@ class PasspointWifiEntry extends WifiEntry {
         mKey = fqdnToPasspointWifiEntryKey(homeSp.getFqdn());
         mFriendlyName = homeSp.getFriendlyName();
         mSecurity = SECURITY_NONE; //TODO: Should this always be Enterprise?
+        mSubscriptionExpirationTimeInMillis =
+                passpointConfig.getSubscriptionExpirationTimeInMillis();
     }
 
     @Override
@@ -95,6 +98,10 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public String getSummary(boolean concise) {
+        if (isExpired()) {
+            return mContext.getString(R.string.wifi_passpoint_expired);
+        }
+
         // TODO(b/70983952): Fill this method in
         return "Passpoint (Placeholder Text)"; // Placeholder string
     }
@@ -277,11 +284,23 @@ class PasspointWifiEntry extends WifiEntry {
                 mContext.getString(R.string.wifi_security_eap);
     }
 
+    @Override
+    public boolean isExpired() {
+        if (mSubscriptionExpirationTimeInMillis <= 0) {
+            // Expiration time not specified.
+            return false;
+        } else {
+            return System.currentTimeMillis() >= mSubscriptionExpirationTimeInMillis;
+        }
+    }
+
     @WorkerThread
     void updatePasspointConfig(@NonNull PasspointConfiguration passpointConfig) {
         checkNotNull(passpointConfig, "Cannot update with null PasspointConfiguration!");
         mPasspointConfig = passpointConfig;
         mFriendlyName = passpointConfig.getHomeSp().getFriendlyName();
+        mSubscriptionExpirationTimeInMillis =
+                passpointConfig.getSubscriptionExpirationTimeInMillis();
         notifyOnUpdated();
     }
 

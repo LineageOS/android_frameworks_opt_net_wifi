@@ -25,12 +25,8 @@ import com.android.server.wifi.hotspot2.anqp.NAIRealmData;
 import com.android.server.wifi.hotspot2.anqp.NAIRealmElement;
 import com.android.server.wifi.hotspot2.anqp.RoamingConsortiumElement;
 import com.android.server.wifi.hotspot2.anqp.ThreeGPPNetworkElement;
-import com.android.server.wifi.hotspot2.anqp.eap.AuthParam;
-import com.android.server.wifi.hotspot2.anqp.eap.EAPMethod;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Utility class for providing matching functions against ANQP elements.
@@ -100,27 +96,19 @@ public class ANQPMatcher {
      *
      * @param element The NAI Realm ANQP element
      * @param realm The realm of the provider's credential
-     * @param eapMethodID The EAP Method ID of the provider's credential
-     * @param authParam The authentication parameter of the provider's credential
      * @return an integer indicating the match status
      */
-    public static int matchNAIRealm(NAIRealmElement element, String realm, int eapMethodID,
-            AuthParam authParam) {
+    public static int matchNAIRealm(NAIRealmElement element, String realm) {
         if (element == null || element.getRealmDataList().isEmpty()) {
             return AuthMatch.INDETERMINATE;
         }
 
-        int bestMatch = AuthMatch.NONE;
         for (NAIRealmData realmData : element.getRealmDataList()) {
-            int match = matchNAIRealmData(realmData, realm, eapMethodID, authParam);
-            if (match > bestMatch) {
-                bestMatch = match;
-                if (bestMatch == AuthMatch.EXACT) {
-                    break;
-                }
+            if (matchNAIRealmData(realmData, realm) == AuthMatch.REALM) {
+                return AuthMatch.REALM;
             }
         }
-        return bestMatch;
+        return AuthMatch.NONE;
     }
 
     /**
@@ -150,70 +138,17 @@ public class ANQPMatcher {
      *
      * @param realmData The NAI Realm data
      * @param realm The realm of the provider's credential
-     * @param eapMethodID The EAP Method ID of the provider's credential
-     * @param authParam The authentication parameter of the provider's credential
      * @return an integer indicating the match status
      */
-    private static int matchNAIRealmData(NAIRealmData realmData, String realm, int eapMethodID,
-            AuthParam authParam) {
+    private static int matchNAIRealmData(NAIRealmData realmData, String realm) {
         // Check for realm domain name match.
-        int realmMatch = AuthMatch.NONE;
         for (String realmStr : realmData.getRealms()) {
             if (DomainMatcher.arg2SubdomainOfArg1(realm, realmStr)) {
-                realmMatch = AuthMatch.REALM;
-                break;
+                return AuthMatch.REALM;
             }
         }
 
-        if (realmData.getEAPMethods().isEmpty()) {
-            return realmMatch;
-        }
-
-        // Check for EAP method match.
-        int eapMethodMatch = AuthMatch.NONE;
-        for (EAPMethod eapMethod : realmData.getEAPMethods()) {
-            eapMethodMatch = matchEAPMethod(eapMethod, eapMethodID, authParam);
-            if (eapMethodMatch != AuthMatch.NONE) {
-                break;
-            }
-        }
-
-        if (eapMethodMatch == AuthMatch.NONE) {
-            return AuthMatch.NONE;
-        }
-
-        if (realmMatch == AuthMatch.NONE) {
-            return eapMethodMatch;
-        }
-        return realmMatch | eapMethodMatch;
-    }
-
-    /**
-     * Match the given EAPMethod against the authentication method of a provider.
-     *
-     * @param method The EAP Method
-     * @param eapMethodID The EAP Method ID of the provider's credential
-     * @param authParam The authentication parameter of the provider's credential
-     * @return an integer indicating the match status
-     */
-    private static int matchEAPMethod(EAPMethod method, int eapMethodID, AuthParam authParam) {
-        if (method.getEAPMethodID() != eapMethodID) {
-            return AuthMatch.NONE;
-        }
-        // Check for authentication parameter match.
-        if (authParam != null) {
-            Map<Integer, Set<AuthParam>> authParams = method.getAuthParams();
-            if (authParams.isEmpty()) {
-                // no auth methods to match
-                return AuthMatch.METHOD;
-            }
-            Set<AuthParam> paramSet = authParams.get(authParam.getAuthTypeID());
-            if (paramSet == null || !paramSet.contains(authParam)) {
-                return AuthMatch.NONE;
-            }
-            return AuthMatch.METHOD_PARAM;
-        }
-        return AuthMatch.METHOD;
+        return AuthMatch.NONE;
     }
 
     /**

@@ -297,7 +297,7 @@ public class WifiInjector {
         mSavedNetworkNominator = new SavedNetworkNominator(
                 mWifiConfigManager, nominateHelper, mConnectivityLocalLog, mTelephonyUtil);
         mNetworkSuggestionNominator = new NetworkSuggestionNominator(mWifiNetworkSuggestionsManager,
-                mWifiConfigManager, nominateHelper, mConnectivityLocalLog);
+                mWifiConfigManager, nominateHelper, mConnectivityLocalLog, mTelephonyUtil);
         mScoredNetworkNominator = new ScoredNetworkNominator(mContext, wifiHandler,
                 mFrameworkFacade, mNetworkScoreManager, mContext.getPackageManager(),
                 mWifiConfigManager, mConnectivityLocalLog,
@@ -652,6 +652,14 @@ public class WifiInjector {
     public NetworkSuggestionStoreData makeNetworkSuggestionStoreData(
             NetworkSuggestionStoreData.DataSource dataSource) {
         return new NetworkSuggestionStoreData(dataSource);
+    }
+
+    /**
+     *
+     */
+    public ImsiPrivacyProtectionExemptionStoreData makeImsiProtectionExemptionStoreData(
+            ImsiPrivacyProtectionExemptionStoreData.DataSource dataSource) {
+        return new ImsiPrivacyProtectionExemptionStoreData(dataSource);
     }
 
     /**

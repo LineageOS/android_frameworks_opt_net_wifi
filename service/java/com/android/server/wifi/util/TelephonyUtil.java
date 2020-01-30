@@ -1142,4 +1142,20 @@ public class TelephonyUtil {
         }
         return TelephonyManager.UNKNOWN_CARRIER_ID;
     }
+
+    /**
+     * Get the carrier name for target subscription id.
+     * @param subId Subscription id
+     * @return String of carrier name.
+     */
+    public String getCarrierNameforSubId(int subId) {
+        TelephonyManager specifiedTm =
+                mTelephonyManager.createForSubscriptionId(subId);
+
+        CharSequence name = specifiedTm.getSimCarrierIdName();
+        if (name == null) {
+            return null;
+        }
+        return name.toString();
+    }
 }
