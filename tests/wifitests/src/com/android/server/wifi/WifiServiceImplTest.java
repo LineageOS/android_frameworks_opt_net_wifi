@@ -3724,57 +3724,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mWifiConfigManager, never()).removeNetworksForUser(anyInt());
     }
 
-    /**
-     * Test for needs5GHzToAnyApBandConversion returns true.  Requires the NETWORK_SETTINGS
-     * permission.
-     */
-    @Test
-    public void testNeeds5GHzToAnyApBandConversionReturnedTrue() {
-        when(mResources.getBoolean(
-                eq(R.bool.config_wifi_convert_apband_5ghz_to_any)))
-                .thenReturn(true);
-        assertTrue(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
-
-        verify(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
-    }
-
-    /**
-     * Test for needs5GHzToAnyApBandConversion returns false.  Requires the NETWORK_SETTINGS
-     * permission.
-     */
-    @Test
-    public void testNeeds5GHzToAnyApBandConversionReturnedFalse() {
-        when(mResources.getBoolean(
-                eq(R.bool.config_wifi_convert_apband_5ghz_to_any)))
-                .thenReturn(false);
-
-        assertFalse(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
-
-        verify(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
-    }
-
-    /**
-     * The API impl for needs5GHzToAnyApBandConversion requires the NETWORK_SETTINGS permission,
-     * verify an exception is thrown without holding the permission.
-     */
-    @Test
-    public void testNeeds5GHzToAnyApBandConversionThrowsWithoutProperPermissions() {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                        eq("WifiService"));
-
-        try {
-            mWifiServiceImpl.needs5GHzToAnyApBandConversion();
-            // should have thrown an exception - fail test
-            fail();
-        } catch (SecurityException e) {
-            // expected
-        }
-    }
-
-
     private class IdleModeIntentMatcher implements ArgumentMatcher<IntentFilter> {
         @Override
         public boolean matches(IntentFilter filter) {

@@ -16,7 +16,7 @@
 
 package com.android.wifitrackerlib;
 
-import static android.net.wifi.WifiInfo.removeDoubleQuotes;
+import static android.net.wifi.WifiInfo.sanitizeSsid;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
@@ -518,15 +518,13 @@ class StandardWifiEntry extends WifiEntry {
     public int getMeteredChoice() {
         if (mWifiConfig != null) {
             final int meteredOverride = mWifiConfig.meteredOverride;
-            if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NONE) {
-                return METERED_CHOICE_AUTO;
-            } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
+            if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
                 return METERED_CHOICE_METERED;
             } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NOT_METERED) {
                 return METERED_CHOICE_UNMETERED;
             }
         }
-        return METERED_CHOICE_UNKNOWN;
+        return METERED_CHOICE_AUTO;
     }
 
     @Override
@@ -717,11 +715,11 @@ class StandardWifiEntry extends WifiEntry {
     @WorkerThread
     void updateConfig(@Nullable WifiConfiguration wifiConfig) throws IllegalArgumentException {
         if (wifiConfig != null) {
-            if (!TextUtils.equals(mSsid, removeDoubleQuotes(wifiConfig.SSID))) {
+            if (!TextUtils.equals(mSsid, sanitizeSsid(wifiConfig.SSID))) {
                 throw new IllegalArgumentException(
                         "Attempted to update with wrong SSID!"
                                 + " Expected: " + mSsid
-                                + ", Actual: " + removeDoubleQuotes(wifiConfig.SSID)
+                                + ", Actual: " + sanitizeSsid(wifiConfig.SSID)
                                 + ", Config: " + wifiConfig);
             }
             if (mSecurity != getSecurityTypeFromWifiConfiguration(wifiConfig)) {
@@ -765,7 +763,7 @@ class StandardWifiEntry extends WifiEntry {
     static String wifiConfigToStandardWifiEntryKey(@NonNull WifiConfiguration config) {
         checkNotNull(config, "Cannot create key with null config!");
         checkNotNull(config.SSID, "Cannot create key with null SSID in config!");
-        return KEY_PREFIX + removeDoubleQuotes(config.SSID) + ","
+        return KEY_PREFIX + sanitizeSsid(config.SSID) + ","
                 + getSecurityTypeFromWifiConfiguration(config);
     }
 

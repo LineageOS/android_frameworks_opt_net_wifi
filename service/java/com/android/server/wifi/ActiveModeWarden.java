@@ -162,7 +162,7 @@ public class ActiveModeWarden {
 
     /**
      * @return Returns whether the device can support at least one concurrent client mode manager &
-     * softap * manager.
+     * softap manager.
      */
     public boolean canSupportAtleastOneConcurrentClientAndSoftApManager() {
         // We already have 1 client mode manager and 1 softap manager active, so yes.

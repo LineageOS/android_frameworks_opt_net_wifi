@@ -16,7 +16,7 @@
 
 package com.android.wifitrackerlib;
 
-import static android.net.wifi.WifiInfo.removeDoubleQuotes;
+import static android.net.wifi.WifiInfo.sanitizeSsid;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
@@ -42,7 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * WifiEntry representation of a Passpoint network, uniquely identified by FQDN.
+ * WifiEntry representation of a subscribed Passpoint network, uniquely identified by FQDN.
  */
 class PasspointWifiEntry extends WifiEntry {
     static final String KEY_PREFIX = "PasspointWifiEntry:";
@@ -53,7 +53,7 @@ class PasspointWifiEntry extends WifiEntry {
     @NonNull private final String mKey;
     @NonNull private String mFriendlyName;
     @NonNull private final Context mContext;
-    @Nullable private PasspointConfiguration mPasspointConfig;
+    @NonNull private PasspointConfiguration mPasspointConfig;
     @Nullable private WifiConfiguration mWifiConfig;
     private @Security int mSecurity;
     private boolean mIsRoaming = false;
@@ -113,7 +113,7 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public String getSsid() {
-        return mWifiConfig != null ? removeDoubleQuotes(mWifiConfig.SSID) : null;
+        return mWifiConfig != null ? sanitizeSsid(mWifiConfig.SSID) : null;
     }
 
     @Override
@@ -137,7 +137,6 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public boolean isSaved() {
-        // TODO(b/70983952): Fill this method in
         return false;
     }
 
@@ -229,7 +228,7 @@ class PasspointWifiEntry extends WifiEntry {
     @MeteredChoice
     public int getMeteredChoice() {
         // TODO(b/70983952): Fill this method in
-        return METERED_CHOICE_UNKNOWN;
+        return METERED_CHOICE_AUTO;
     }
 
     @Override
@@ -296,7 +295,6 @@ class PasspointWifiEntry extends WifiEntry {
 
     @WorkerThread
     void updatePasspointConfig(@NonNull PasspointConfiguration passpointConfig) {
-        checkNotNull(passpointConfig, "Cannot update with null PasspointConfiguration!");
         mPasspointConfig = passpointConfig;
         mFriendlyName = passpointConfig.getHomeSp().getFriendlyName();
         mSubscriptionExpirationTimeInMillis =
