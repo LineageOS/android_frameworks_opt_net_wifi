@@ -3528,8 +3528,10 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         doNothing().when(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
                 TEST_PACKAGE_NAME, TEST_FEATURE_ID, Binder.getCallingUid(), false, false);
 
+        mLooper.startAutoDispatch();
         Bundle bundle = mWifiScanningServiceImpl.getAvailableChannels(
                 WifiScanner.WIFI_BAND_24_GHZ, TEST_PACKAGE_NAME, TEST_FEATURE_ID);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         List<Integer> actual = bundle.getIntegerArrayList(GET_AVAILABLE_CHANNELS_EXTRA);
 
         List<Integer> expected = Arrays.asList(2400, 2450);
