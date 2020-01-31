@@ -608,7 +608,7 @@ public class WifiP2pNative {
         return mSupplicantP2pIfaceHal.groupAdd(
                 config.networkName,
                 config.passphrase,
-                (config.netId == WifiP2pGroup.PERSISTENT_NET_ID),
+                (config.netId == WifiP2pGroup.NETWORK_ID_PERSISTENT),
                 freq, config.deviceAddress, join);
     }
 
