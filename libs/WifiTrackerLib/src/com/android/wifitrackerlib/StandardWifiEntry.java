@@ -16,6 +16,8 @@
 
 package com.android.wifitrackerlib;
 
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLED;
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_PERMANENTLY_DISABLED;
 import static android.net.wifi.WifiInfo.sanitizeSsid;
 
 import static androidx.core.util.Preconditions.checkNotNull;
@@ -281,10 +283,13 @@ class StandardWifiEntry extends WifiEntry {
     private String getDisconnectedStateDescription() {
         if (isSaved() && mWifiConfig.hasNoInternetAccess()) {
             final int messageID =
-                    mWifiConfig.getNetworkSelectionStatus().isNetworkPermanentlyDisabled()
+                    mWifiConfig.getNetworkSelectionStatus().getNetworkSelectionStatus()
+                            == NETWORK_SELECTION_PERMANENTLY_DISABLED
                     ? R.string.wifi_no_internet_no_reconnect : R.string.wifi_no_internet;
             return mContext.getString(messageID);
-        } else if (isSaved() && !mWifiConfig.getNetworkSelectionStatus().isNetworkEnabled()) {
+        } else if (isSaved()
+                && (mWifiConfig.getNetworkSelectionStatus().getNetworkSelectionStatus()
+                        != NETWORK_SELECTION_ENABLED)) {
             final WifiConfiguration.NetworkSelectionStatus networkStatus =
                     mWifiConfig.getNetworkSelectionStatus();
             switch (networkStatus.getNetworkSelectionDisableReason()) {
