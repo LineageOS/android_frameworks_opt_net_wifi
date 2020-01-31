@@ -1071,7 +1071,7 @@ public class XmlUtil {
             if (status == -1 || disableReason == -1 ||
                     status == NetworkSelectionStatus.NETWORK_SELECTION_TEMPORARY_DISABLED) {
                 status = NetworkSelectionStatus.NETWORK_SELECTION_ENABLED;
-                disableReason = NetworkSelectionStatus.NETWORK_SELECTION_ENABLE;
+                disableReason = NetworkSelectionStatus.DISABLED_NONE;
             }
             selectionStatus.setNetworkSelectionStatus(status);
             selectionStatus.setNetworkSelectionDisableReason(disableReason);

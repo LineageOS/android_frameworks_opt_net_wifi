@@ -240,7 +240,7 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
             // Try to enable network selection
             if (wCmConfiguredNetwork == null) {
                 if (!mWifiConfigManager.updateNetworkSelectionStatus(result.getNetworkId(),
-                        WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE)) {
+                        WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE)) {
                     mLocalLog.log("Failed to make network suggestion selectable");
                 }
             } else {
@@ -267,7 +267,7 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
             return null;
         }
         if (!mWifiConfigManager.updateNetworkSelectionStatus(result.getNetworkId(),
-                WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE)) {
+                WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE)) {
             mLocalLog.log("Failed to make network suggestion selectable");
             return null;
         }

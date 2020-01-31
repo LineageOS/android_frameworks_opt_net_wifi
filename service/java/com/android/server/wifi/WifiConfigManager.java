@@ -1260,7 +1260,7 @@ public class WifiConfigManager {
 
         if (mDeletedEphemeralSsidsToTimeMap.remove(config.SSID) != null) {
             updateNetworkSelectionStatus(
-                    newInternalConfig, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                    newInternalConfig, NetworkSelectionStatus.DISABLED_NONE);
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Removed from ephemeral blacklist: " + config.SSID);
             }
@@ -1574,7 +1574,7 @@ public class WifiConfigManager {
                 NetworkSelectionStatus.NETWORK_SELECTION_ENABLED);
         status.setDisableTime(
                 NetworkSelectionStatus.INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP);
-        status.setNetworkSelectionDisableReason(NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+        status.setNetworkSelectionDisableReason(NetworkSelectionStatus.DISABLED_NONE);
 
         // Clear out all the disable reason counters.
         status.clearDisableReasonCounter();
@@ -1645,7 +1645,7 @@ public class WifiConfigManager {
             Log.e(TAG, "Invalid Network disable reason " + reason);
             return false;
         }
-        if (reason == NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
+        if (reason == NetworkSelectionStatus.DISABLED_NONE) {
             setNetworkSelectionEnabled(config);
             setNetworkStatus(config, WifiConfiguration.Status.ENABLED);
         } else if (reason < NetworkSelectionStatus.PERMANENTLY_DISABLED_STARTING_INDEX) {
@@ -1671,7 +1671,7 @@ public class WifiConfigManager {
      */
     private boolean updateNetworkSelectionStatus(WifiConfiguration config, int reason) {
         NetworkSelectionStatus networkStatus = config.getNetworkSelectionStatus();
-        if (reason != NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
+        if (reason != NetworkSelectionStatus.DISABLED_NONE) {
 
             // Do not update SSID blacklist with information if this is the only
             // SSID be observed. By ignoring it we will cause additional failures
@@ -1759,7 +1759,7 @@ public class WifiConfigManager {
             }
             if (timeDifferenceMs >= disableTimeoutMs) {
                 return updateNetworkSelectionStatus(
-                        config, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                        config, NetworkSelectionStatus.DISABLED_NONE);
             }
         }
         return false;
@@ -1817,7 +1817,7 @@ public class WifiConfigManager {
             return false;
         }
         if (!updateNetworkSelectionStatus(
-                networkId, WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE)) {
+                networkId, WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE)) {
             return false;
         }
         saveToStore(true);
@@ -2889,7 +2889,7 @@ public class WifiConfigManager {
             WifiConfiguration foundConfig = getInternalEphemeralConfiguredNetwork(ssid);
             if (foundConfig != null) {
                 updateNetworkSelectionStatus(
-                        foundConfig, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                        foundConfig, NetworkSelectionStatus.DISABLED_NONE);
             }
             return false;
         }

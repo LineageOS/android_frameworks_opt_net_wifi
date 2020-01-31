@@ -5139,7 +5139,7 @@ public class ClientModeImpl extends StateMachine {
                             mWifiConfigManager.updateNetworkSelectionStatus(
                                     config.networkId,
                                     WifiConfiguration.NetworkSelectionStatus
-                                            .NETWORK_SELECTION_ENABLE);
+                                            .DISABLED_NONE);
                             mWifiConfigManager.setNetworkValidatedInternetAccess(
                                     config.networkId, true);
                         }
