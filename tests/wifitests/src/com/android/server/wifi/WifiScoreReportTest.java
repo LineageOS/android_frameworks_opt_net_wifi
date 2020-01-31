@@ -633,26 +633,6 @@ public class WifiScoreReportTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that WifiScoreReport gets updated score when onScoreChange() is called by apps.
-     */
-    @Test
-    public void testFrameworkGetsUpdatesScore() throws Exception {
-        WifiConnectedNetworkScorerImpl scorerImpl = new WifiConnectedNetworkScorerImpl();
-        // Register Client for verification.
-        mWifiScoreReport.setWifiConnectedNetworkScorer(mAppBinder, scorerImpl);
-
-        mWifiScoreReport.setSessionId(anyInt());
-        mWifiScoreReport.startConnectedNetworkScorer();
-        scorerImpl.mScoreChangeCallback.onStatusChange(scorerImpl.mSessionId, true);
-        assertEquals(mWifiScoreReport.getExternalConnectedScore(), 51);
-        scorerImpl.mScoreChangeCallback.onStatusChange(scorerImpl.mSessionId, false);
-        assertEquals(mWifiScoreReport.getExternalConnectedScore(), 49);
-
-        // TODO: Test WifiScoreReport gets notification for triggering update of
-        //  WifiUsabilityStatsEntrypl when scorerImpl calls onTriggerUpdateOfWifiUsabilityStats.
-    }
-
-    /**
      * Verify that only a single Wi-Fi connected network scorer can be registered successfully.
      */
     @Test
