@@ -323,7 +323,7 @@ public class WakeupController {
             if (isWideAreaNetwork(config)
                     || config.hasNoInternetAccess()
                     || config.noInternetAccessExpected
-                    || !config.getNetworkSelectionStatus().getHasEverConnected()) {
+                    || !config.getNetworkSelectionStatus().hasEverConnected()) {
                 continue;
             }
             goodNetworks.add(ScanResultMatchInfo.fromWifiConfiguration(config));

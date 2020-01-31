@@ -3032,7 +3032,7 @@ public class ClientModeImpl extends StateMachine {
             return false;
         }
         WifiConfiguration network = mWifiConfigManager.getConfiguredNetwork(networkId);
-        if (network != null && network.getNetworkSelectionStatus().getHasEverConnected()) {
+        if (network != null && network.getNetworkSelectionStatus().hasEverConnected()) {
             return false;
         }
         return true;

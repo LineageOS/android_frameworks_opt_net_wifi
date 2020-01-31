@@ -1993,7 +1993,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
         assertFalse("Updating network credentials config must clear hasEverConnected.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
         assertTrue(result.hasCredentialChanged());
     }
 
@@ -5675,7 +5675,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
         assertFalse("Adding a new network should not have hasEverConnected set to true.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
     }
 
     /**
@@ -5688,7 +5688,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
         assertFalse("Updating network credentials config should clear hasEverConnected.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
         assertTrue(result.hasCredentialChanged());
     }
 
@@ -5701,7 +5701,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertTrue(mWifiConfigManager.updateNetworkAfterConnect(networkId));
         WifiConfiguration retrievedNetwork = mWifiConfigManager.getConfiguredNetwork(networkId);
         assertTrue("hasEverConnected expected to be true after connection.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
     }
 
     /**

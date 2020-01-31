@@ -730,7 +730,7 @@ public class WifiConfigurationTestUtil {
                     actual.getNetworkSelectionDisableReason());
         }
         assertEquals(expected.getConnectChoice(), actual.getConnectChoice());
-        assertEquals(expected.getHasEverConnected(), actual.getHasEverConnected());
+        assertEquals(expected.hasEverConnected(), actual.hasEverConnected());
     }
 
     /**
