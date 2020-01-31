@@ -174,7 +174,17 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public void disconnect(@Nullable DisconnectCallback callback) {
-        // TODO(b/70983952): Fill this method in
+        if (canDisconnect()) {
+            mCalledDisconnect = true;
+            mDisconnectCallback = callback;
+            mCallbackHandler.postDelayed(() -> {
+                if (callback != null && mCalledDisconnect) {
+                    callback.onDisconnectResult(
+                            DisconnectCallback.DISCONNECT_STATUS_FAILURE_UNKNOWN);
+                }
+            }, 10_000 /* delayMillis */);
+            mWifiManager.disconnect();
+        }
     }
 
     @Override
@@ -227,19 +237,33 @@ class PasspointWifiEntry extends WifiEntry {
     @Override
     @MeteredChoice
     public int getMeteredChoice() {
-        // TODO(b/70983952): Fill this method in
+        final int meteredOverride = mPasspointConfig.getMeteredOverride();
+        if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
+            return METERED_CHOICE_METERED;
+        } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NOT_METERED) {
+            return METERED_CHOICE_UNMETERED;
+        }
         return METERED_CHOICE_AUTO;
     }
 
     @Override
     public boolean canSetMeteredChoice() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return true;
     }
 
     @Override
     public void setMeteredChoice(int meteredChoice) {
-        // TODO(b/70983952): Fill this method in
+        final String fqdn = mPasspointConfig.getHomeSp().getFqdn();
+        if (meteredChoice == METERED_CHOICE_AUTO) {
+            mWifiManager.setMeteredOverridePasspoint(fqdn,
+                    WifiConfiguration.METERED_OVERRIDE_NONE);
+        } else if (meteredChoice == METERED_CHOICE_METERED) {
+            mWifiManager.setMeteredOverridePasspoint(fqdn,
+                    WifiConfiguration.METERED_OVERRIDE_METERED);
+        } else if (meteredChoice == METERED_CHOICE_UNMETERED) {
+            mWifiManager.setMeteredOverridePasspoint(fqdn,
+                    WifiConfiguration.METERED_OVERRIDE_NOT_METERED);
+        }
     }
 
     @Override
