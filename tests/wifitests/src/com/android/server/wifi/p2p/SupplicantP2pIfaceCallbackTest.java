@@ -40,7 +40,6 @@ import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl.P2pStatus;
 import com.android.server.wifi.util.NativeUtil;
 
-import org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -355,7 +354,7 @@ public class SupplicantP2pIfaceCallbackTest extends WifiBaseTest {
                 assertEquals(iface, mIface);
                 assertNotNull(group.getOwner());
                 assertEquals(group.getOwner().deviceAddress, mDeviceAddress1String);
-                assertEquals(group.getNetworkId(), WifiP2pGroup.PERSISTENT_NET_ID);
+                assertEquals(group.getNetworkId(), WifiP2pGroup.NETWORK_ID_PERSISTENT);
                 passwords.add(group.getPassphrase());
                 assertEquals(group.getInterface(), fakeName);
                 assertEquals(group.getNetworkName(), fakeSsidString);

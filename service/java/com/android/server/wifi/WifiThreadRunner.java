@@ -30,7 +30,10 @@ import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * Runs code on the main Wifi thread from another thread, in order to prevent race conditions.
+ * Runs code on one of the Wifi service threads from another thread (For ex: incoming AIDL call from
+ * a binder thread), in order to prevent race conditions.
+ * Note: This is a utility class and each wifi service may have separate instances of this class on
+ * their corresponding main thread for servicing incoming AIDL calls.
  */
 @ThreadSafe
 public class WifiThreadRunner {

@@ -34,6 +34,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
 import android.net.NetworkProvider;
 import android.net.NetworkRequest;
+import android.net.NetworkScore;
 import android.net.NetworkSpecifier;
 import android.net.RouteInfo;
 import android.net.wifi.aware.TlvBufferUtils;
@@ -644,10 +645,13 @@ public class WifiAwareDataPathStateManager {
                     .setLegacyType(ConnectivityManager.TYPE_NONE)
                     .setLegacyTypeName(NETWORK_TAG)
                     .build();
+            final NetworkScore ns = new NetworkScore.Builder()
+                    .setLegacyScore(NETWORK_FACTORY_SCORE_AVAIL)
+                    .build();
 
             nnri.networkAgent = new WifiAwareNetworkAgent(mLooper, mContext,
                     AGENT_TAG_PREFIX + nnri.ndpId,
-                    networkCapabilities, linkProperties, NETWORK_FACTORY_SCORE_AVAIL,
+                    networkCapabilities, linkProperties, ns,
                     naConfig, mNetworkFactory.getProvider(), nnri);
             nnri.startValidationTimestamp = mClock.getElapsedSinceBootMillis();
             handleAddressValidation(nnri, linkProperties, ndpId, networkSpecifier.isOutOfBand());
@@ -1019,7 +1023,7 @@ public class WifiAwareDataPathStateManager {
         private AwareNetworkRequestInformation mAwareNetworkRequestInfo;
 
         WifiAwareNetworkAgent(Looper looper, Context context, String logTag,
-                NetworkCapabilities nc, LinkProperties lp, int score,
+                NetworkCapabilities nc, LinkProperties lp, NetworkScore score,
                 NetworkAgentConfig config, NetworkProvider provider,
                 AwareNetworkRequestInformation anri) {
             super(context, looper, logTag, nc, lp, score, config, provider);

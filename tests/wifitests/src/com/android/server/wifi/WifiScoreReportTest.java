@@ -28,6 +28,7 @@ import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -43,6 +44,7 @@ import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
+import android.net.NetworkScore;
 import android.net.wifi.IScoreChangeCallback;
 import android.net.wifi.IWifiConnectedNetworkScorer;
 import android.net.wifi.WifiConfiguration;
@@ -182,7 +184,7 @@ public class WifiScoreReportTest extends WifiBaseTest {
         when(mContext.getResources()).thenReturn(mResources);
         final ConnectivityManager cm = mock(ConnectivityManager.class);
         when(mContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(cm);
-        when(cm.registerNetworkAgent(any(), any(), any(), any(), anyInt(), any(), anyInt()))
+        when(cm.registerNetworkAgent(any(), any(), any(), any(), any(), any(), anyInt()))
                 .thenReturn(mock(Network.class));
         mNetworkAgent = spy(new TestNetworkAgent(mContext));
         mClock = new FakeClock();
@@ -211,7 +213,7 @@ public class WifiScoreReportTest extends WifiBaseTest {
     public void calculateAndReportScoreSucceeds() throws Exception {
         mWifiInfo.setRssi(-77);
         mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
-        verify(mNetworkAgent).sendNetworkScore(anyInt());
+        verify(mNetworkAgent).sendNetworkScore(any());
         verify(mWifiMetrics).incrementWifiScoreCount(anyInt());
     }
 
@@ -225,7 +227,7 @@ public class WifiScoreReportTest extends WifiBaseTest {
     public void calculateAndReportScoreDoesNotReportWhenRssiIsNotValid() throws Exception {
         mWifiInfo.setRssi(WifiInfo.INVALID_RSSI);
         mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
-        verify(mNetworkAgent, never()).sendNetworkScore(anyInt());
+        verify(mNetworkAgent, never()).sendNetworkScore(any());
         verify(mWifiMetrics, never()).incrementWifiScoreCount(anyInt());
     }
 
@@ -284,7 +286,8 @@ public class WifiScoreReportTest extends WifiBaseTest {
         }
         int score = mWifiInfo.getScore();
         assertTrue(score < ConnectedScore.WIFI_TRANSITION_SCORE);
-        verify(mNetworkAgent, atLeast(1)).sendNetworkScore(score);
+        final NetworkScore ns = new NetworkScore.Builder().setLegacyScore(score).build();
+        verify(mNetworkAgent, atLeast(1)).sendNetworkScore(eq(ns));
     }
 
     /**
@@ -301,7 +304,8 @@ public class WifiScoreReportTest extends WifiBaseTest {
             oops += ":" + mWifiInfo.getScore();
         }
         int score = mWifiInfo.getScore();
-        verify(mNetworkAgent, atLeast(1)).sendNetworkScore(score);
+        final NetworkScore ns = new NetworkScore.Builder().setLegacyScore(score).build();
+        verify(mNetworkAgent, atLeast(1)).sendNetworkScore(eq(ns));
         assertTrue(oops, score < ConnectedScore.WIFI_TRANSITION_SCORE);
     }
 

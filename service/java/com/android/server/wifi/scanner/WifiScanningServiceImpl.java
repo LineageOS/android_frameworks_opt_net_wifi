@@ -61,6 +61,7 @@ import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.WifiThreadRunner;
 import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
@@ -120,8 +121,10 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Nullable String featureId) {
         enforcePermission(Binder.getCallingUid(), packageName, featureId, false, false, false);
 
-        mChannelHelper.updateChannels();
-        ChannelSpec[][] channelSpecs = mChannelHelper.getAvailableScanChannels(band);
+        ChannelSpec[][] channelSpecs = mWifiThreadRunner.call(() -> {
+            mChannelHelper.updateChannels();
+            return mChannelHelper.getAvailableScanChannels(band);
+        }, new ChannelSpec[0][0]);
 
         ArrayList<Integer> list = new ArrayList<>();
         for (int i = 0; i < channelSpecs.length; i++) {
@@ -366,6 +369,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
     private final Context mContext;
     private final Looper mLooper;
+    private final WifiThreadRunner mWifiThreadRunner;
     private final WifiScannerImpl.WifiScannerImplFactory mScannerImplFactory;
     private final ArrayMap<Messenger, ClientInfo> mClients;
     private final Map<String, WifiScannerImpl> mScannerImpls;
@@ -394,6 +398,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             BatteryStatsManager batteryStats, WifiInjector wifiInjector) {
         mContext = context;
         mLooper = looper;
+        mWifiThreadRunner = new WifiThreadRunner(new Handler(looper));
         mScannerImplFactory = scannerImplFactory;
         mBatteryStats = batteryStats;
         mClients = new ArrayMap<>();
@@ -409,7 +414,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     public void startService() {
-        new Handler(mLooper).post(() -> {
+        mWifiThreadRunner.post(() -> {
             mBackgroundScanStateMachine = new WifiBackgroundScanStateMachine(mLooper);
             mSingleScanStateMachine = new WifiSingleScanStateMachine(mLooper);
             mPnoScanStateMachine = new WifiPnoScanStateMachine(mLooper);
