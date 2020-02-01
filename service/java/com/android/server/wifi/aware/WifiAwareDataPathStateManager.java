@@ -1369,7 +1369,7 @@ public class WifiAwareDataPathStateManager {
 
             // validate permission if PMK is used (SystemApi)
             if (ns.pmk != null && ns.pmk.length != 0) {
-                if (permissionWrapper.getUidPermission(Manifest.permission.CONNECTIVITY_INTERNAL,
+                if (permissionWrapper.getUidPermission(Manifest.permission.NETWORK_STACK,
                         ns.requestorUid) != PackageManager.PERMISSION_GRANTED) {
                     Log.e(TAG, "processNetworkSpecifier: networkSpecifier=" + ns.toString()
                             + " -- UID doesn't have permission to use PMK API");
