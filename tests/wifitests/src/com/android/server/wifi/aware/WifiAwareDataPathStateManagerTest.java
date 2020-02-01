@@ -179,8 +179,8 @@ public class WifiAwareDataPathStateManagerTest {
         when(mMockPowerManager.isDeviceIdleMode()).thenReturn(false);
         when(mMockPowerManager.isInteractive()).thenReturn(true);
 
-        when(mPermissionsWrapperMock.getUidPermission(eq(Manifest.permission.CONNECTIVITY_INTERNAL),
-                anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mPermissionsWrapperMock.getUidPermission(eq(Manifest.permission.NETWORK_STACK),
+                eq(Process.myUid()))).thenReturn(PackageManager.PERMISSION_GRANTED);
 
         mDut.mDataPathMgr.mNwService = mMockNwMgt;
         mDut.mDataPathMgr.mNiWrapper = mMockNetworkInterface;
@@ -288,8 +288,8 @@ public class WifiAwareDataPathStateManagerTest {
         InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback);
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
-        when(mPermissionsWrapperMock.getUidPermission(eq(Manifest.permission.CONNECTIVITY_INTERNAL),
-                anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mPermissionsWrapperMock.getUidPermission(eq(Manifest.permission.NETWORK_STACK),
+                eq(Process.myUid()))).thenReturn(PackageManager.PERMISSION_DENIED);
 
         // (0) initialize
         DataPathEndPointInfo res = initDataPathEndPoint(true, clientId, pubSubId, requestorId,
@@ -1319,7 +1319,7 @@ public class WifiAwareDataPathStateManagerTest {
 
         if (!providePmk) {
             when(mPermissionsWrapperMock.getUidPermission(
-                    eq(Manifest.permission.CONNECTIVITY_INTERNAL), anyInt())).thenReturn(
+                    eq(Manifest.permission.NETWORK_STACK), eq(Process.myUid()))).thenReturn(
                     PackageManager.PERMISSION_DENIED);
         }
 
@@ -1481,7 +1481,7 @@ public class WifiAwareDataPathStateManagerTest {
 
         if (providePmk) {
             when(mPermissionsWrapperMock.getUidPermission(
-                    eq(Manifest.permission.CONNECTIVITY_INTERNAL), anyInt())).thenReturn(
+                    eq(Manifest.permission.NETWORK_STACK), eq(Process.myUid()))).thenReturn(
                     PackageManager.PERMISSION_GRANTED);
         }
 
