@@ -3135,14 +3135,14 @@ public class WifiServiceImplTest {
 
     /**
      * Verify that setCountryCode() fails and doesn't call WifiCountryCode object
-     * if the caller doesn't have CONNECTIVITY_INTERNAL permission.
+     * if the caller doesn't have NETWORK_STACK permission.
      */
     @Test(expected = SecurityException.class)
-    public void testSetCountryCodeFailsWithoutConnectivityInternalPermission() throws Exception {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(
-                        eq(android.Manifest.permission.CONNECTIVITY_INTERNAL),
-                        eq("ConnectivityService"));
+    public void testSetCountryCodeFailsWithoutNetworkStackPermission() throws Exception {
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK), any());
         mWifiServiceImpl.setCountryCode(TEST_COUNTRY_CODE);
         verify(mWifiCountryCode, never()).setCountryCode(TEST_COUNTRY_CODE);
     }
@@ -3699,13 +3699,13 @@ public class WifiServiceImplTest {
 
     /**
      * Verify that a call to factoryReset throws a SecurityException if the caller does not have
-     * the CONNECTIVITY_INTERNAL permission.
+     * the NETWORK_SETTINGS permission.
      */
     @Test
-    public void testFactoryResetWithoutConnectivityInternalPermission() throws Exception {
+    public void testFactoryResetWithoutNetworkSettingsPermission() throws Exception {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(Manifest.permission.CONNECTIVITY_INTERNAL),
-                        eq("ConnectivityService"));
+                .enforceCallingOrSelfPermission(eq(Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
 
         try {
