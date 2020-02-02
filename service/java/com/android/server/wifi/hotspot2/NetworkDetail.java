@@ -49,6 +49,7 @@ public class NetworkDetail {
     public enum HSRelease {
         R1,
         R2,
+        R3,
         Unknown
     }
 

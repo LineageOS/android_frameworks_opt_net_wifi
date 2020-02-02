@@ -943,13 +943,30 @@ public class PasspointManagerTest extends WifiBaseTest {
      */
     @Test
     public void matchProviderWithAnqpCacheMissed() throws Exception {
-        addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME, TEST_PACKAGE, false);
+        // static mocking
+        MockitoSession session =
+                com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
+                        InformationElementUtil.class).startMocking();
+        try {
+            addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME, TEST_PACKAGE, false);
 
-        when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(null);
-        assertTrue(mManager.matchProvider(createTestScanResult()).isEmpty());
-        // Verify that a request for ANQP elements is initiated.
-        verify(mAnqpRequestManager).requestANQPElements(eq(TEST_BSSID), any(ANQPNetworkKey.class),
-                anyBoolean(), anyBoolean());
+            when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(null);
+            InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+            vsa.hsRelease = NetworkDetail.HSRelease.R1;
+            when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
+            InformationElementUtil.RoamingConsortium roamingConsortium =
+                    new InformationElementUtil.RoamingConsortium();
+            roamingConsortium.anqpOICount = 0;
+            when(InformationElementUtil.getRoamingConsortiumIE(isNull()))
+                    .thenReturn(roamingConsortium);
+            assertTrue(mManager.matchProvider(createTestScanResult()).isEmpty());
+            // Verify that a request for ANQP elements is initiated.
+            verify(mAnqpRequestManager).requestANQPElements(eq(TEST_BSSID),
+                    any(ANQPNetworkKey.class),
+                    anyBoolean(), any(NetworkDetail.HSRelease.class));
+        } finally {
+            session.finishMocking();
+        }
     }
 
     /**
@@ -2373,6 +2390,6 @@ public class PasspointManagerTest extends WifiBaseTest {
         reset(mWifiConfigManager);
         when(mAnqpCache.getEntry(TEST_ANQP_KEY2)).thenReturn(null);
         verify(mAnqpRequestManager, never()).requestANQPElements(any(long.class),
-                any(ANQPNetworkKey.class), any(boolean.class), any(boolean.class));
+                any(ANQPNetworkKey.class), any(boolean.class), any(NetworkDetail.HSRelease.class));
     }
 }

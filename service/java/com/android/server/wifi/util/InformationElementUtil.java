@@ -770,6 +770,9 @@ public class InformationElementUtil {
                     case 1:
                         hsRelease = NetworkDetail.HSRelease.R2;
                         break;
+                    case 2:
+                        hsRelease = NetworkDetail.HSRelease.R3;
+                        break;
                     default:
                         hsRelease = NetworkDetail.HSRelease.Unknown;
                         break;
