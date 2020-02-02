@@ -132,6 +132,7 @@ public class PasspointNetworkNominateHelperTest {
     private static ScanDetail generateScanDetail(String ssid, String bssid) {
         NetworkDetail networkDetail = mock(NetworkDetail.class);
         when(networkDetail.isInterworking()).thenReturn(true);
+        when(networkDetail.getHSRelease()).thenReturn(NetworkDetail.HSRelease.R1);
         when(networkDetail.getAnt()).thenReturn(NetworkDetail.Ant.FreePublic);
         when(networkDetail.isInternet()).thenReturn(true);
 
@@ -181,7 +182,7 @@ public class PasspointNetworkNominateHelperTest {
      * @throws Exception
      */
     @Test
-    public void evaulateScansWithNoInterworkingAP() throws Exception {
+    public void evaluateScansWithNoInterworkingAP() throws Exception {
         NetworkDetail networkDetail = mock(NetworkDetail.class);
         when(networkDetail.isInterworking()).thenReturn(false);
         ScanDetail scanDetail = mock(ScanDetail.class);
@@ -651,5 +652,30 @@ public class PasspointNetworkNominateHelperTest {
                 .getPasspointNetworkCandidates(scanDetails, true);
         assertEquals(1, candidates.size());
         assertEquals(TEST_FQDN2, candidates.get(0).second.FQDN);
+    }
+
+    /**
+     * Verify that provider matching will not be performed when evaluating scans with interworking
+     * support, but no HS2.0 VSA element with release version, verify that no candidate will be
+     * nominated.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void evaluateScansWithInterworkingAndNoHs20VsaAP() throws Exception {
+        NetworkDetail networkDetail = mock(NetworkDetail.class);
+        when(networkDetail.isInterworking()).thenReturn(true);
+        when(networkDetail.getHSRelease()).thenReturn(null);
+        when(networkDetail.getAnt()).thenReturn(NetworkDetail.Ant.FreePublic);
+        when(networkDetail.isInternet()).thenReturn(true);
+        ScanDetail scanDetail = mock(ScanDetail.class);
+        when(scanDetail.getNetworkDetail()).thenReturn(networkDetail);
+
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {scanDetail});
+        List<Pair<ScanDetail, WifiConfiguration>> candidates = mNominateHelper
+                .getPasspointNetworkCandidates(scanDetails, false);
+        assertTrue(candidates.isEmpty());
+        // Verify that no provider matching is performed.
+        verify(mPasspointManager, never()).matchProvider(any(ScanResult.class));
     }
 }
