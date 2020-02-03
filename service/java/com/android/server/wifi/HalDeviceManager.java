@@ -54,7 +54,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -2056,16 +2055,13 @@ public class HalDeviceManager {
         if (VDBG) Log.d(TAG, "dispatchAllDestroyedListeners");
 
         synchronized (mLock) {
-            Iterator<Map.Entry<Pair<String, Integer>, InterfaceCacheEntry>> it =
-                    mInterfaceInfoCache.entrySet().iterator();
-            while (it.hasNext()) {
-                InterfaceCacheEntry entry = it.next().getValue();
-                for (InterfaceDestroyedListenerProxy listener : entry.destroyedListeners) {
+            for (InterfaceCacheEntry cacheEntry: mInterfaceInfoCache.values()) {
+                for (InterfaceDestroyedListenerProxy listener : cacheEntry.destroyedListeners) {
                     listener.trigger();
                 }
-                entry.destroyedListeners.clear(); // for insurance (though cache entry is removed)
-                it.remove();
+                cacheEntry.destroyedListeners.clear(); // for insurance
             }
+            mInterfaceInfoCache.clear();
         }
     }
 
