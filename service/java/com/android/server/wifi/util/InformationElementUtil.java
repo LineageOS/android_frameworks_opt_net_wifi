@@ -150,6 +150,7 @@ public class InformationElementUtil {
         public static final int INVALID = -1;
         public static final int MAX_CHANNEL_UTILIZATION = 255;
         public static final int MIN_CHANNEL_UTILIZATION = 0;
+        public static final int CHANNEL_UTILIZATION_SCALE = 256;
         public int stationCount = INVALID;
         public int channelUtilization = INVALID;
         public int capacity = INVALID;
