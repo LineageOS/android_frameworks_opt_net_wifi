@@ -1064,7 +1064,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         int networkId = result.getNetworkId();
         // First set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                networkId, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                networkId, NetworkSelectionStatus.DISABLED_NONE, 0);
 
         // Now set it to temporarily disabled. The threshold for association rejection is 5, so
         // disable it 5 times to actually mark it temporarily disabled.
@@ -1085,7 +1085,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertEquals(openNetwork.networkId, wifiConfigCaptor.getValue().networkId);
         // Now set it back to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
         verify(mWcmListener, times(2))
                 .onNetworkEnabled(wifiConfigCaptor.capture());
         assertEquals(openNetwork.networkId, wifiConfigCaptor.getValue().networkId);
@@ -1106,7 +1106,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         int networkId = result.getNetworkId();
         // First set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                networkId, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                networkId, NetworkSelectionStatus.DISABLED_NONE, 0);
 
         // Now set it to temporarily disabled. The threshold for no internet is 1, so
         // disable it once to actually mark it temporarily disabled.
@@ -1118,7 +1118,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertEquals(openNetwork.networkId, wifiConfigCaptor.getValue().networkId);
         // Now set it back to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
         verify(mWcmListener, times(2))
                 .onNetworkEnabled(wifiConfigCaptor.capture());
         assertEquals(openNetwork.networkId, wifiConfigCaptor.getValue().networkId);
@@ -1137,7 +1137,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         // First set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         // Now set it to temporarily disabled 2 times for 2 different reasons.
         verifyUpdateNetworkSelectionStatus(
@@ -1151,7 +1151,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         // Now set it back to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         // Ensure that the counters have all been reset now.
         verifyUpdateNetworkSelectionStatus(
@@ -1163,7 +1163,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     private void verifyDisableNetwork(NetworkUpdateResult result, int reason) {
         // First set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         int disableThreshold =
                 WifiConfigManager.getNetworkSelectionDisableThreshold(reason);
@@ -1993,7 +1993,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
         assertFalse("Updating network credentials config must clear hasEverConnected.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
         assertTrue(result.hasCredentialChanged());
     }
 
@@ -2677,9 +2677,9 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         // Enable all of them.
         verifyUpdateNetworkSelectionStatus(
-                result1.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result1.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
         verifyUpdateNetworkSelectionStatus(
-                result2.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result2.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         // Set network1 to temporarily disabled. The threshold for association rejection is 5, so
         // disable it 5 times to actually mark it temporarily disabled.
@@ -2922,13 +2922,13 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         // Set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         WifiConfiguration network2 = WifiConfigurationTestUtil.createOpenNetwork();
         result = verifyAddNetworkToWifiConfigManager(network2);
         // Set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         // Create 3 scan results with different bssid's & frequencies to network1
         String test_bssid_base = "af:89:56:34:56:6";
@@ -2965,13 +2965,13 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         // Set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         WifiConfiguration network2 = WifiConfigurationTestUtil.createOpenNetwork();
         result = verifyAddNetworkToWifiConfigManager(network2);
         // Set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                result.getNetworkId(), NetworkSelectionStatus.DISABLED_NONE, 0);
 
         // Create 3 scan results with different bssid's & frequencies to network1
         String test_bssid_base = "af:89:56:34:56:6";
@@ -5578,7 +5578,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         int disableReasonThreshold =
                 WifiConfigManager.getNetworkSelectionDisableThreshold(reason);
 
-        if (reason == NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
+        if (reason == NetworkSelectionStatus.DISABLED_NONE) {
             assertEquals(reason, retrievedDisableReason);
             assertTrue(retrievedStatus.isNetworkEnabled());
             assertEquals(
@@ -5675,7 +5675,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
         assertFalse("Adding a new network should not have hasEverConnected set to true.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
     }
 
     /**
@@ -5688,7 +5688,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
         assertFalse("Updating network credentials config should clear hasEverConnected.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
         assertTrue(result.hasCredentialChanged());
     }
 
@@ -5701,7 +5701,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertTrue(mWifiConfigManager.updateNetworkAfterConnect(networkId));
         WifiConfiguration retrievedNetwork = mWifiConfigManager.getConfiguredNetwork(networkId);
         assertTrue("hasEverConnected expected to be true after connection.",
-                retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
+                retrievedNetwork.getNetworkSelectionStatus().hasEverConnected());
     }
 
     /**
@@ -5747,7 +5747,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         int networkId = result.getNetworkId();
         // First set it to enabled.
         verifyUpdateNetworkSelectionStatus(
-                networkId, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+                networkId, NetworkSelectionStatus.DISABLED_NONE, 0);
 
         int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
         int assocRejectThreshold =

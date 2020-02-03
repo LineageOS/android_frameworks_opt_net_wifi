@@ -310,7 +310,7 @@ public class ScoredNetworkNominator implements WifiNetworkSelector.NetworkNomina
                         break;
                     }
                     if (!mWifiConfigManager.updateNetworkSelectionStatus(result.getNetworkId(),
-                            WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE)) {
+                            WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE)) {
                         mLocalLog.log("Failed to make ephemeral network selectable");
                         break;
                     }

@@ -3032,7 +3032,7 @@ public class ClientModeImpl extends StateMachine {
             return false;
         }
         WifiConfiguration network = mWifiConfigManager.getConfiguredNetwork(networkId);
-        if (network != null && network.getNetworkSelectionStatus().getHasEverConnected()) {
+        if (network != null && network.getNetworkSelectionStatus().hasEverConnected()) {
             return false;
         }
         return true;
@@ -5139,7 +5139,7 @@ public class ClientModeImpl extends StateMachine {
                             mWifiConfigManager.updateNetworkSelectionStatus(
                                     config.networkId,
                                     WifiConfiguration.NetworkSelectionStatus
-                                            .NETWORK_SELECTION_ENABLE);
+                                            .DISABLED_NONE);
                             mWifiConfigManager.setNetworkValidatedInternetAccess(
                                     config.networkId, true);
                         }

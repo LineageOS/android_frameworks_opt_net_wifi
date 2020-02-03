@@ -522,7 +522,7 @@ public class WifiNetworkSelector {
         // Enable the network if it is disabled.
         if (!selected.getNetworkSelectionStatus().isNetworkEnabled()) {
             mWifiConfigManager.updateNetworkSelectionStatus(netId,
-                    WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                    WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE);
         }
         return setLegacyUserConnectChoice(selected);
     }

@@ -3763,7 +3763,7 @@ public class WifiMetrics {
         info.hiddenSsid = config.hiddenSSID;
         info.isPasspoint = config.isPasspoint();
         info.isEphemeral = config.isEphemeral();
-        info.hasEverConnected = config.getNetworkSelectionStatus().getHasEverConnected();
+        info.hasEverConnected = config.getNetworkSelectionStatus().hasEverConnected();
         ScanResult candidate = config.getNetworkSelectionStatus().getCandidate();
         if (candidate != null) {
             info.scanRssi = candidate.level;

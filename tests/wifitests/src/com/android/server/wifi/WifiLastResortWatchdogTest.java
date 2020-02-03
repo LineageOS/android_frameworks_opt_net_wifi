@@ -110,7 +110,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 WifiConfiguration.NetworkSelectionStatus networkSelectionStatus =
                         mock(WifiConfiguration.NetworkSelectionStatus.class);
                 when(config.getNetworkSelectionStatus()).thenReturn(networkSelectionStatus);
-                when(networkSelectionStatus.getHasEverConnected()).thenReturn(true);
+                when(networkSelectionStatus.hasEverConnected()).thenReturn(true);
             }
             candidates.add(Pair.create(scanDetail, config));
         }
@@ -134,7 +134,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 WifiConfiguration.NetworkSelectionStatus networkSelectionStatus =
                         mock(WifiConfiguration.NetworkSelectionStatus.class);
                 when(config.getNetworkSelectionStatus()).thenReturn(networkSelectionStatus);
-                when(networkSelectionStatus.getHasEverConnected())
+                when(networkSelectionStatus.hasEverConnected())
                         .thenReturn(hasEverConnected[index]);
             }
             candidates.add(Pair.create(scanDetail, config));
@@ -1619,7 +1619,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
         WifiConfiguration.NetworkSelectionStatus networkSelectionStatus =
                 mock(WifiConfiguration.NetworkSelectionStatus.class);
         when(config.getNetworkSelectionStatus()).thenReturn(networkSelectionStatus);
-        when(networkSelectionStatus.getHasEverConnected())
+        when(networkSelectionStatus.hasEverConnected())
                 .thenReturn(true);
         candidates.add(Pair.create(scanDetail, config));
         mLastResortWatchdog.updateAvailableNetworks(candidates);
@@ -1656,7 +1656,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 mock(WifiConfiguration.NetworkSelectionStatus.class);
         when(configHasEverConnectedFalse.getNetworkSelectionStatus())
                 .thenReturn(networkSelectionStatusFalse);
-        when(networkSelectionStatusFalse.getHasEverConnected())
+        when(networkSelectionStatusFalse.hasEverConnected())
                 .thenReturn(false);
         candidates.add(Pair.create(scanDetail, configHasEverConnectedFalse));
         mLastResortWatchdog.updateAvailableNetworks(candidates);
@@ -1675,7 +1675,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 mock(WifiConfiguration.NetworkSelectionStatus.class);
         when(configHasEverConnectedTrue.getNetworkSelectionStatus())
                 .thenReturn(networkSelectionStatusTrue);
-        when(networkSelectionStatusTrue.getHasEverConnected())
+        when(networkSelectionStatusTrue.hasEverConnected())
                 .thenReturn(true);
         candidates.add(Pair.create(scanDetail, configHasEverConnectedTrue));
         mLastResortWatchdog.updateAvailableNetworks(candidates);
@@ -1704,7 +1704,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 mock(WifiConfiguration.NetworkSelectionStatus.class);
         when(configHasEverConnectedTrue.getNetworkSelectionStatus())
                 .thenReturn(networkSelectionStatusTrue);
-        when(networkSelectionStatusTrue.getHasEverConnected())
+        when(networkSelectionStatusTrue.hasEverConnected())
                 .thenReturn(true);
         candidates.add(Pair.create(scanDetail, configHasEverConnectedTrue));
         mLastResortWatchdog.updateAvailableNetworks(candidates);
@@ -1723,7 +1723,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 mock(WifiConfiguration.NetworkSelectionStatus.class);
         when(configHasEverConnectedFalse.getNetworkSelectionStatus())
                 .thenReturn(networkSelectionStatusFalse);
-        when(networkSelectionStatusFalse.getHasEverConnected())
+        when(networkSelectionStatusFalse.hasEverConnected())
                 .thenReturn(false);
         candidates.add(Pair.create(scanDetail, configHasEverConnectedFalse));
         mLastResortWatchdog.updateAvailableNetworks(candidates);
@@ -1750,7 +1750,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 mock(WifiConfiguration.NetworkSelectionStatus.class);
         when(configHasEverConnectedTrue.getNetworkSelectionStatus())
                 .thenReturn(networkSelectionStatusTrue);
-        when(networkSelectionStatusTrue.getHasEverConnected()).thenReturn(true);
+        when(networkSelectionStatusTrue.hasEverConnected()).thenReturn(true);
         WifiLastResortWatchdog.AvailableNetworkFailureCount withConfigHECTrue =
                 new WifiLastResortWatchdog.AvailableNetworkFailureCount(configHasEverConnectedTrue);
         String output = withConfigHECTrue.toString();
@@ -1762,7 +1762,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
                 mock(WifiConfiguration.NetworkSelectionStatus.class);
         when(configHasEverConnectedFalse.getNetworkSelectionStatus())
                 .thenReturn(networkSelectionStatusFalse);
-        when(networkSelectionStatusFalse.getHasEverConnected()).thenReturn(false);
+        when(networkSelectionStatusFalse.hasEverConnected()).thenReturn(false);
         WifiLastResortWatchdog.AvailableNetworkFailureCount withConfigHECFalse =
                 new WifiLastResortWatchdog.AvailableNetworkFailureCount(
                         configHasEverConnectedFalse);
@@ -1925,7 +1925,7 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
 
         // Simulate user changing the configuration
-        when(candidates.get(0).second.getNetworkSelectionStatus().getHasEverConnected())
+        when(candidates.get(0).second.getNetworkSelectionStatus().hasEverConnected())
                 .thenReturn(false);
 
         mLastResortWatchdog.connectedStateTransition(true);

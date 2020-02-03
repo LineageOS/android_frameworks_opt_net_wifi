@@ -502,11 +502,11 @@ public class WifiNetworkSelectorTestUtil {
                     }
                 });
         when(wifiConfigManager.updateNetworkSelectionStatus(eq(networkId),
-                eq(WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE)))
+                eq(WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE)))
                 .then(new AnswerWithArguments() {
                     public boolean answer(int netId, int status) {
                         config.getNetworkSelectionStatus().setNetworkSelectionStatus(
-                                WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                                WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE);
                         return true;
                     }
                 });

@@ -16,8 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NONE;
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE;
 
 import static com.android.server.wifi.ClientModeImpl.CMD_PRE_DHCP_ACTION;
 
@@ -3418,7 +3418,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiConfigManager)
                 .setNetworkValidatedInternetAccess(FRAMEWORK_NETWORK_ID, true);
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
-                FRAMEWORK_NETWORK_ID, NETWORK_SELECTION_ENABLE);
+                FRAMEWORK_NETWORK_ID, DISABLED_NONE);
         verify(mWifiScoreCard).noteValidationSuccess(any());
         verify(mBssidBlocklistMonitor).handleNetworkValidationSuccess(sBSSID, sSSID);
     }

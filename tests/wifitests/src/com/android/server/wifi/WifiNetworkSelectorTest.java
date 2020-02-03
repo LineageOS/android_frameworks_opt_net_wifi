@@ -667,7 +667,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         assertTrue(mWifiNetworkSelector.setUserConnectChoice(selectedWifiConfig.networkId));
 
         verify(mWifiConfigManager).updateNetworkSelectionStatus(selectedWifiConfig.networkId,
-                NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                NetworkSelectionStatus.DISABLED_NONE);
         verify(mWifiConfigManager).clearNetworkConnectChoice(selectedWifiConfig.networkId);
         verify(mWifiConfigManager).setNetworkConnectChoice(configInLastNetworkSelection.networkId,
                 selectedWifiConfig.getKey());
