@@ -81,8 +81,9 @@ public class PasspointNetworkNominateHelper {
         // Filter out all invalid scanDetail
         for (ScanDetail scanDetail : scanDetails) {
             if (scanDetail.getNetworkDetail() == null
-                    || !scanDetail.getNetworkDetail().isInterworking()) {
-                // If scanDetail is not passpoint network, ignore.
+                    || !scanDetail.getNetworkDetail().isInterworking()
+                    || scanDetail.getNetworkDetail().getHSRelease() == null) {
+                // If scanDetail is not Passpoint network, ignore.
                 continue;
             }
             if (!scanDetail.getNetworkDetail().isInternet()

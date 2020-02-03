@@ -112,19 +112,23 @@ public class ANQPRequestManager {
      * @param anqpNetworkKey The unique network key associated with this request
      * @param rcOIs Flag indicating the inclusion of roaming consortium OIs. When set to true,
      *              Roaming Consortium ANQP element will be requested
-     * @param hsReleaseR2 Flag indicating the support of Hotspot 2.0 Release 2. When set to true,
+     * @param hsReleaseVer Indicates Hotspot 2.0 Release version. When set to R2 or higher,
      *              the Release 2 ANQP elements {@link #R2_ANQP_BASE_SET} will be requested
      * @return true if a request was sent successfully
      */
     public boolean requestANQPElements(long bssid, ANQPNetworkKey anqpNetworkKey, boolean rcOIs,
-            boolean hsReleaseR2) {
+            NetworkDetail.HSRelease hsReleaseVer) {
         // Check if we are allow to send the request now.
         if (!canSendRequestNow(bssid)) {
             return false;
         }
 
+        boolean requestHs20Elements = (hsReleaseVer != NetworkDetail.HSRelease.R1
+                && hsReleaseVer != NetworkDetail.HSRelease.Unknown);
+
         // No need to hold off future requests for send failures.
-        if (!mPasspointHandler.requestANQP(bssid, getRequestElementIDs(rcOIs, hsReleaseR2))) {
+        if (!mPasspointHandler.requestANQP(bssid, getRequestElementIDs(rcOIs,
+                requestHs20Elements))) {
             return false;
         }
 

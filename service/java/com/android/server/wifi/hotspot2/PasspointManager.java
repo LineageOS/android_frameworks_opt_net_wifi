@@ -667,8 +667,7 @@ public class PasspointManager {
         if (anqpEntry == null) {
             if (anqpRequestAllowed) {
                 mAnqpRequestManager.requestANQPElements(bssid, anqpKey,
-                        roamingConsortium.anqpOICount > 0,
-                        vsa.hsRelease == NetworkDetail.HSRelease.R2);
+                        roamingConsortium.anqpOICount > 0, vsa.hsRelease);
             }
             Log.d(TAG, "ANQP entry not found for: " + anqpKey);
             return allMatches;
