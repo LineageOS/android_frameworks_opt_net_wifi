@@ -608,4 +608,14 @@ public class StandardWifiEntryTest {
 
         assertThat(entry.getSecurityString(false /* concise */)).isEqualTo(wifiSecurityEapWpa);
     }
+
+    @Test
+    public void testGetMeteredChoice_afterSetMeteredChoice_getCorrectValue() {
+        StandardWifiEntry entry =
+                getSavedStandardWifiEntry(WifiConfiguration.SECURITY_TYPE_PSK);
+
+        entry.setMeteredChoice(WifiEntry.METERED_CHOICE_METERED);
+
+        assertThat(entry.getMeteredChoice()).isEqualTo(WifiEntry.METERED_CHOICE_METERED);
+    }
 }

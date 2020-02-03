@@ -61,6 +61,13 @@ class PasspointWifiEntry extends WifiEntry {
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
     protected long mSubscriptionExpirationTimeInMillis;
 
+    // PasspointConfiguration#setMeteredOverride(int meteredOverride) is a hide API and we can't
+    // set it in PasspointWifiEntry#setMeteredChoice(int meteredChoice).
+    // For PasspointWifiEntry#getMeteredChoice() to return correct value right after
+    // PasspointWifiEntry#setMeteredChoice(int meteredChoice), cache
+    // PasspointConfiguration#getMeteredOverride() in this variable.
+    private int mMeteredOverride;
+
     /**
      * Create a PasspointWifiEntry with the associated PasspointConfiguration
      */
@@ -79,6 +86,7 @@ class PasspointWifiEntry extends WifiEntry {
         mSecurity = SECURITY_NONE; //TODO: Should this always be Enterprise?
         mSubscriptionExpirationTimeInMillis =
                 passpointConfig.getSubscriptionExpirationTimeInMillis();
+        mMeteredOverride = mPasspointConfig.getMeteredOverride();
     }
 
     @Override
@@ -237,10 +245,9 @@ class PasspointWifiEntry extends WifiEntry {
     @Override
     @MeteredChoice
     public int getMeteredChoice() {
-        final int meteredOverride = mPasspointConfig.getMeteredOverride();
-        if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
+        if (mMeteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
             return METERED_CHOICE_METERED;
-        } else if (meteredOverride == WifiConfiguration.METERED_OVERRIDE_NOT_METERED) {
+        } else if (mMeteredOverride == WifiConfiguration.METERED_OVERRIDE_NOT_METERED) {
             return METERED_CHOICE_UNMETERED;
         }
         return METERED_CHOICE_AUTO;
@@ -253,17 +260,22 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public void setMeteredChoice(int meteredChoice) {
-        final String fqdn = mPasspointConfig.getHomeSp().getFqdn();
-        if (meteredChoice == METERED_CHOICE_AUTO) {
-            mWifiManager.setMeteredOverridePasspoint(fqdn,
-                    WifiConfiguration.METERED_OVERRIDE_NONE);
-        } else if (meteredChoice == METERED_CHOICE_METERED) {
-            mWifiManager.setMeteredOverridePasspoint(fqdn,
-                    WifiConfiguration.METERED_OVERRIDE_METERED);
-        } else if (meteredChoice == METERED_CHOICE_UNMETERED) {
-            mWifiManager.setMeteredOverridePasspoint(fqdn,
-                    WifiConfiguration.METERED_OVERRIDE_NOT_METERED);
+        switch (meteredChoice) {
+            case METERED_CHOICE_AUTO:
+                mMeteredOverride = WifiConfiguration.METERED_OVERRIDE_NONE;
+                break;
+            case METERED_CHOICE_METERED:
+                mMeteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
+                break;
+            case METERED_CHOICE_UNMETERED:
+                mMeteredOverride = WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
+                break;
+            default:
+                // Do nothing.
+                return;
         }
+        mWifiManager.setMeteredOverridePasspoint(mPasspointConfig.getHomeSp().getFqdn(),
+                mMeteredOverride);
     }
 
     @Override
@@ -323,6 +335,7 @@ class PasspointWifiEntry extends WifiEntry {
         mFriendlyName = passpointConfig.getHomeSp().getFriendlyName();
         mSubscriptionExpirationTimeInMillis =
                 passpointConfig.getSubscriptionExpirationTimeInMillis();
+        mMeteredOverride = mPasspointConfig.getMeteredOverride();
         notifyOnUpdated();
     }
 
