@@ -3664,7 +3664,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         private boolean setWfdInfo(WifiP2pWfdInfo wfdInfo) {
             boolean success;
 
-            if (!wfdInfo.isWfdEnabled()) {
+            if (!wfdInfo.isEnabled()) {
                 success = mWifiNative.setWfdEnable(false);
             } else {
                 success =
