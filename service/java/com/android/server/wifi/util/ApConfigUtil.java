@@ -255,17 +255,13 @@ public class ApConfigUtil {
         }
 
         // Get the allowed list of channel frequencies in MHz
-        int[] regulatoryArray = wifiNative.getChannelsForBand(scannerBand);
-        List<Integer> regulatoryList = new ArrayList<Integer>();
-        for (int freq : regulatoryArray) {
-            regulatoryList.add(freq);
-        }
+        List<Integer> regulatoryList = new ArrayList<>(wifiNative.getChannelsForBand(scannerBand));
 
         if (configuredList == null || configuredList.isEmpty()) {
             return regulatoryList;
         }
 
-        List<Integer> filteredList = new ArrayList<Integer>();
+        List<Integer> filteredList = new ArrayList<>();
         // Otherwise, filter the configured list
         for (int channel : configuredList) {
             int channelFreq = convertChannelToFrequency(channel, band);

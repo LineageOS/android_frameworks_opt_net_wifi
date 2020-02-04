@@ -1264,14 +1264,14 @@ public class ClientModeImpl extends StateMachine {
             if (mContext.getResources().getBoolean(R.bool.config_wifi5ghzSupport)) {
                 return true;
             }
-            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ).length > 0);
+            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ).size() > 0);
         }
 
         if (band == WifiScanner.WIFI_BAND_6_GHZ) {
             if (mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport)) {
                 return true;
             }
-            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ).length > 0);
+            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ).size() > 0);
         }
 
         return false;
