@@ -57,7 +57,6 @@ public class WifiScoreReport {
 
     // Cache of the last score
     private int mScore = ConnectedScore.WIFI_MAX_SCORE;
-    private int mExternalConnectedScore = ConnectedScore.WIFI_MAX_SCORE;
     private int mSessionId = INVALID_SESSION_ID;
 
     private final ScoringParams mScoringParams;
@@ -72,22 +71,20 @@ public class WifiScoreReport {
      */
     private class ScoreChangeCallbackProxy extends IScoreChangeCallback.Stub {
         @Override
-        public void onStatusChange(int sessionId, boolean isUsable) {
+        public void onScoreChange(int sessionId, @NonNull NetworkScore score) {
             if (sessionId == INVALID_SESSION_ID || sessionId != mSessionId) {
                 return;
             }
-            mExternalConnectedScore = isUsable ? ConnectedScore.WIFI_TRANSITION_SCORE + 1 :
-                    ConnectedScore.WIFI_TRANSITION_SCORE - 1;
             // TODO: Refactor this class to bypass and override score provided by scorer
             //  in framework
             // if (mWifiConnectedNetworkScorers.getNumCallbacks() == 0) {
             //     // donot override
             // } else {
-            //     // bypass scorer in framework and use score from external scorer
+            //     // bypass scorer in framework and send external score to ConnectivityService
             // }
         }
         @Override
-        public void onTriggerUpdateOfWifiUsabilityStats(@NonNull int sessionId) {
+        public void onTriggerUpdateOfWifiUsabilityStats(int sessionId) {
             // TODO: Fetch WifiInfo and WifiLinkLayerStats, and trigger an update of
             // WifiUsabilityStatsEntry in WifiMetrics.
             // mWifiMetrics.updateWifiUsabilityStatsEntries(WifiInfo, WifiLinkLayerStats);
@@ -417,13 +414,6 @@ public class WifiScoreReport {
                 Log.e(TAG, "Unable to stop Wifi connected network scorer " + scorer, e);
             }
         }
-    }
-
-    /**
-     * Get external Wifi connected network score.
-     */
-    public int getExternalConnectedScore() {
-        return mExternalConnectedScore;
     }
 
     /**
