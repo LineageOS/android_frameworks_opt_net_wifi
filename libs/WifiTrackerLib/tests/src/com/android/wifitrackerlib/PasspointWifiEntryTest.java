@@ -87,4 +87,14 @@ public class PasspointWifiEntryTest {
         passpointConfiguration.setHomeSp(homeSp);
         return passpointConfiguration;
     }
+
+    @Test
+    public void testGetMeteredChoice_afterSetMeteredChoice_getCorrectValue() {
+        PasspointWifiEntry entry = new PasspointWifiEntry(mMockContext, mTestHandler,
+                getPasspointConfiguration(), mMockWifiManager);
+
+        entry.setMeteredChoice(WifiEntry.METERED_CHOICE_UNMETERED);
+
+        assertThat(entry.getMeteredChoice()).isEqualTo(WifiEntry.METERED_CHOICE_UNMETERED);
+    }
 }
