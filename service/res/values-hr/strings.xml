@@ -17,16 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Wi-Fi resursi sustava"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">Dostupne su Wi-Fi mreže</item>
-      <item quantity="few">Dostupne su Wi-Fi mreže</item>
-      <item quantity="other">Dostupne su Wi-Fi mreže</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">Dostupne su otvorene Wi-Fi mreže</item>
-      <item quantity="few">Dostupne su otvorene Wi-Fi mreže</item>
-      <item quantity="other">Dostupne su otvorene Wi-Fi mreže</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Povezivanje s otvorenom Wi‑Fi mrežom"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Povezivanje s Wi-Fi mrežom"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Povezano s Wi-Fi mrežom"</string>
@@ -41,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Mreže koje predlaže aplikacija <xliff:g id="NAME">%s</xliff:g>. Uređaji se mogu povezati automatski."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Dopusti"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Ne, hvala"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Upozorenje o privatnosti za IMSI zaštitu"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"Mobilni operater <xliff:g id="CARRIERNAME">%s</xliff:g> predložio je mreže na temelju podataka o vašoj SIM kartici bez zaštite privatnosti. Želite li dopustiti automatsko povezivanje s mrežom?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Dopusti"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Nemoj dopustiti"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi će se uključiti automatski"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Kada ste u blizini spremljene mreže visoke kvalitete"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Više ne uključuj"</string>

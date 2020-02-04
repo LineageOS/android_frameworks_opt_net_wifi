@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"System-WLAN-Ressourcen"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">WLANs verfügbar</item>
-      <item quantity="one">WLAN verfügbar</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">Verfügbare WLANs öffnen</item>
-      <item quantity="one">Verfügbares WLAN öffnen</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Mit offenem WLAN verbinden"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Verbindung zu WLAN wird hergestellt"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Mit WLAN verbunden"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Von <xliff:g id="NAME">%s</xliff:g> vorgeschlagene Netzwerke. Gerät verbindet sich möglicherweise automatisch."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Zulassen"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nein danke"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"WLAN wird automatisch aktiviert"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Wenn du in der Nähe eines sicheren gespeicherten Netzwerks bist"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Nicht wieder aktivieren"</string>

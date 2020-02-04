@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"സിസ്റ്റം വെെഫെെ ഉറവിടങ്ങൾ"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">വൈഫൈ നെറ്റ്‌വർക്കുകൾ ലഭ്യമാണ്</item>
-      <item quantity="one">വൈഫൈ നെറ്റ്‌വർക്ക് ലഭ്യമാണ്</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">ലഭ്യമായ വൈഫൈ നെറ്റ്‌വർക്കുകൾ തുറക്കുക</item>
-      <item quantity="one">ലഭ്യമായ വൈഫൈ നെറ്റ്‌വർക്ക് തുറക്കുക</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"ലഭ്യമായ വൈഫൈ നെറ്റ്‌വർക്കിലേക്ക് കണക്റ്റുചെയ്യുക"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"വൈഫൈ നെറ്റ്‌വർക്കിലേക്ക് കണക്‌റ്റ് ചെയ്യുന്നു"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"വൈഫൈ നെറ്റ്‌വർക്കിലേക്ക് കണക്റ്റു‌ചെയ്‌‌തു"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> നിർദ്ദേശിച്ച നെറ്റ്‌വർക്കുകൾ. ഉപകരണം സ്വയമേവ കണക്‌റ്റ് ചെയ്‌തേക്കാം."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"അനുവദിക്കുക"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"വേണ്ട"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"വൈഫൈ സ്വമേധയാ ഓണാകും"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"നിങ്ങൾ ഉയർന്ന നിലവാരമുള്ള സംരക്ഷിക്കപ്പെട്ട നെറ്റ്‌വർക്കിനരികിലെത്തുമ്പോൾ"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"തിരികെ ഓണാക്കരുത്"</string>

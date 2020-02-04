@@ -35,6 +35,7 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Connecté automatiquement via un fournisseur d\'évaluation de l\'état du réseau"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Connexion limitée"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"Impossible d\'accéder au serveur DNS privé"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"Connecté, aucun accès à Internet"</string>
+    <string name="wifi_connected_no_internet" msgid="7273909077465731259">"Aucun accès à Internet"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"Aucune"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Arrivé à expiration"</string>
 </resources>

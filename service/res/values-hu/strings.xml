@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"A rendszer Wi-Fi-erőforrásai"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">Wi-Fi hálózatok érhetők el</item>
-      <item quantity="one">Van elérhető Wi-Fi hálózat</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">Nyílt Wi-Fi hálózatok érhetők el</item>
-      <item quantity="one">Nyílt Wi-Fi hálózat érhető el</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Nyílt Wi-Fi-hálózathoz kapcsolódhat"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Csatlakozás Wi-Fi hálózathoz…"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Sikeres kapcsolódás a Wi-Fi-hálózathoz"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"A(z) <xliff:g id="NAME">%s</xliff:g> hálózatokat javasolt. Az eszköz automatikusan csatlakozhat hozzájuk."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Engedélyezés"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nem, köszönöm"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Adatvédelmi figyelmeztetés az IMSI-védelemről"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"A szolgáltató (<xliff:g id="CARRIERNAME">%s</xliff:g>) a SIM-kártya adatainak felhasználásával javasolt adatvédelem nélküli hálózatokat. Engedélyezi a hálózatra való automatikus csatlakozást?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Engedélyezés"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Tiltás"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"A Wi-Fi automatikusan bekapcsol"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Amikor jó minőségű mentett hálózat közelében tartózkodik"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Ne kapcsolódjon vissza"</string>

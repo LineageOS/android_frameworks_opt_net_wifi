@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"ਸਿਸਟਮ ਵਾਈ-ਫਾਈ ਸਰੋਤ"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">ਵਾਈ-ਫਾਈ ਨੈੱਟਵਰਕ ਉਪਲਬਧ</item>
-      <item quantity="other">ਵਾਈ-ਫਾਈ ਨੈੱਟਵਰਕ ਉਪਲਬਧ</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">ਉਪਲਬਧ ਵਾਈ-ਫਾਈ ਨੈੱਟਵਰਕ ਖੋਲ੍ਹੋ</item>
-      <item quantity="other">ਉਪਲਬਧ ਵਾਈ-ਫਾਈ ਨੈੱਟਵਰਕ ਖੋਲ੍ਹੋ</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"ਖੁੱਲ੍ਹੇ ਵਾਈ‑ਫਾਈ ਨੈੱਟਵਰਕ ਨਾਲ ਕਨੈਕਟ ਹੋਵੋ"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"ਵਾਈ-ਫਾਈ ਨੈੱਟਵਰਕ ਨਾਲ ਕਨੈਕਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"ਵਾਈ‑ਫਾਈ ਨੈੱਟਵਰਕ ਨਾਲ ਕਨੈਕਟ ਕੀਤਾ ਗਿਆ"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> ਦੇ ਸੁਝਾਏ ਨੈੱਟਵਰਕ। ਸ਼ਾਇਦ ਡੀਵਾਈਸ ਸਵੈਚਲਿਤ ਤੌਰ \'ਤੇ ਕਨੈਕਟ ਹੋਵੇ।"</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"ਵਰਤਣ ਦਿਓ"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"ਨਹੀਂ ਧੰਨਵਾਦ"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"ਵਾਈ‑ਫਾਈ ਸਵੈਚਲਿਤ ਤੌਰ \'ਤੇ ਚੱਲ ਪਵੇਗਾ"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"ਜਦੋਂ ਤੁਸੀਂ ਕਿਸੇ ਰੱਖਿਅਤ ਕੀਤੇ ਉੱਚ-ਗੁਣਵੱਤਾ ਵਾਲੇ ਨੈੱਟਵਰਕ ਦੇ ਨੇੜੇ ਹੋਵੋ"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"ਵਾਪਸ ਚਾਲੂ ਨਾ ਕਰੋ"</string>

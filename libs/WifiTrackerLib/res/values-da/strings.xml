@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Automatisk forbundet via udbyder af netværksvurdering"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Begrænset forbindelse"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"Der er ikke adgang til den private DNS-server"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"Tilsluttet – intet internet"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"Ingen"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Udløbet"</string>
 </resources>

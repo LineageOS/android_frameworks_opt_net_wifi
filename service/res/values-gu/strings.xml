@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"સિસ્ટમ વાઇ-ફાઇના સાધનો"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">વાઇ-ફાઇ નેટવર્ક્સ ઉપલબ્ધ</item>
-      <item quantity="other">વાઇ-ફાઇ નેટવર્ક્સ ઉપલબ્ધ</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">ખુલ્લા વાઇ-ફાઇ નેટવર્ક્સ ઉપલબ્ધ છે</item>
-      <item quantity="other">ખુલ્લા વાઇ-ફાઇ નેટવર્ક્સ ઉપલબ્ધ છે</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"ખુલ્લા વાઇ-ફાઇ નેટવર્ક સાથે કનેક્ટ કરો"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"કનેક્ટ કરી રહ્યાં છીએ તે વાઇ-ફાઇ નેટવર્ક"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"વાઇ-ફાઇ નેટવર્ક સાથે કનેક્ટ કર્યુ"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> સૂચવેલા નેટવર્ક. ડિવાઇસ ઑટોમૅટિક રીતે કનેક્ટ થાય તેમ બની શકે છે."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"મંજૂરી આપો"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"ના, આભાર"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"વાઇ-ફાઇ આપમેળે ચાલુ થઈ જશે"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"જ્યારે તમે એક ઉચ્ચ ક્વૉલિટીવાળા સાચવેલ નેટવર્કની નજીક હોવ"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"પાછું ચાલુ કરશો નહીં"</string>

@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"បានភ្ជាប់​ដោយស្វ័យប្រវត្តិ​តាម​រយៈក្រុមហ៊ុនផ្តល់​ការ​វាយ​តម្លៃលើ​បណ្តាញ"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"ការតភ្ជាប់មានកម្រិត"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"មិនអាច​ចូលប្រើ​ម៉ាស៊ីនមេ DNS ឯកជន​បានទេ"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"បាន​ភ្ជាប់ ប៉ុន្តែ​គ្មាន​អ៊ីនធឺណិត​ទេ"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"គ្មាន"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"ផុតកំណត់"</string>
 </resources>

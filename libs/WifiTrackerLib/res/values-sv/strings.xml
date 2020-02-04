@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Automatiskt ansluten via leverantör av nätverksbetyg"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Begränsad anslutning"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"Det går inte att komma åt den privata DNS-servern."</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"Ansluten, inget internet"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"Ingen"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Har upphört att gälla"</string>
 </resources>

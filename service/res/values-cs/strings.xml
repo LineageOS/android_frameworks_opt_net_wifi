@@ -17,18 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Systémové zdroje Wi-Fi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="few">K dispozici jsou sítě Wi-Fi</item>
-      <item quantity="many">K dispozici jsou sítě Wi-Fi</item>
-      <item quantity="other">K dispozici jsou sítě Wi-Fi</item>
-      <item quantity="one">K dispozici je síť Wi-Fi</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="few">K dispozici jsou veřejné sítě Wi-Fi</item>
-      <item quantity="many">K dispozici jsou veřejné sítě Wi-Fi</item>
-      <item quantity="other">K dispozici jsou veřejné sítě Wi-Fi</item>
-      <item quantity="one">K dispozici je veřejná síť Wi-Fi</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Připojení k otevřené síti Wi-Fi"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Připojování k síti Wi-Fi..."</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Připojeno k síti Wi-Fi"</string>
@@ -43,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Sítě navrhované aplikací <xliff:g id="NAME">%s</xliff:g>. Zařízení se může připojovat automaticky."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Povolit"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Ne, díky"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Upozornění ohledně soukromí v rámci ochrany IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> navrhuje sítě, které využívají údaje ze SIM karty bez ochrany osobních údajů. Povolit automatické připojování?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Povolit"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Zakázat"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi se zapne automaticky"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Když budete v dosahu kvalitní uložené sítě"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Znovu nezapínat"</string>

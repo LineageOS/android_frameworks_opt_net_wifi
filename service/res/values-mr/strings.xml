@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"सिस्टम वाय-फाय स्रोत"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">वाय-फाय नेटवर्क उपलब्ध</item>
-      <item quantity="one">वाय-फाय नेटवर्क उपलब्‍ध</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">खुले वाय-फाय नेटवर्क उपलब्ध</item>
-      <item quantity="one">खुले वाय-फाय नेटवर्क उपलब्‍ध</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"खुल्या वाय-फाय नेटवर्कशी कनेक्ट करा"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"वाय-फाय नेटवर्कशी कनेक्ट करत आहे"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"वाय-फाय नेटवर्कशी कनेक्ट केले"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> सुचवलेली नेटवर्क. डिव्हाइस आपोआप कनेक्ट होऊ शकते."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"अनुमती द्या"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"नाही, नको"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"वाय-फाय आपोआप चालू होईल"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"तुम्ही जेव्हा सेव्ह केलेल्या उच्च दर्जाच्या नेटवर्कजवळ असाल तेव्हा"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"पुन्हा चालू करू नका"</string>
