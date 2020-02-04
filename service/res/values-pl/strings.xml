@@ -17,18 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Zasoby systemowej sieci Wi-Fi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="few">Dostępne są sieci Wi-Fi</item>
-      <item quantity="many">Dostępne są sieci Wi-Fi</item>
-      <item quantity="other">Dostępne są sieci Wi-Fi</item>
-      <item quantity="one">Dostępna jest sieć Wi-Fi</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="few">Dostępne są otwarte sieci Wi-Fi</item>
-      <item quantity="many">Dostępne są otwarte sieci Wi-Fi</item>
-      <item quantity="other">Dostępne są otwarte sieci Wi-Fi</item>
-      <item quantity="one">Dostępna jest otwarta sieć Wi-Fi</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Połącz się z otwartą siecią Wi-Fi"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Łączę z siecią Wi-Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Połączono z siecią Wi-Fi"</string>
@@ -43,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Sugerowane sieci: <xliff:g id="NAME">%s</xliff:g>. Urządzenie może łączyć się automatycznie."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Zezwól"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nie, dziękuję"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Ostrzeżenie dotyczące prywatności w odniesieniu do ochrony IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"Operator <xliff:g id="CARRIERNAME">%s</xliff:g> sugeruje, by sieci używały Twoich danych karty SIM bez ochrony prywatności. Zezwolić na automatyczne łączenie z siecią?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Zezwól"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Nie zezwalaj"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi włączy się automatycznie"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Gdy znajdziesz się w pobliżu zapisanej sieci o mocnym sygnale"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Nie włączaj ponownie"</string>

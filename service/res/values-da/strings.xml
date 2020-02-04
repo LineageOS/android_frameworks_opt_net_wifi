@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Ressourcer for systemets Wi-Fi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">Tilgængelige Wi-Fi-netværk</item>
-      <item quantity="other">Tilgængelige Wi-Fi-netværk</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">Åbne Wi-Fi-netværk er tilgængelige</item>
-      <item quantity="other">Åbne Wi-Fi-netværk er tilgængelige</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Opret forbindelse til et åbent Wi-Fi-netværk"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Opretter forbindelse til Wi-Fi-netværket"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Forbundet til Wi-Fi-netværket"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Netværk foreslået af <xliff:g id="NAME">%s</xliff:g>. Enheden opretter muligvis forbindelse automatisk."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Tillad"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nej tak"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Advarsel om privatlivsbeskyttelse for IMSI-beskyttelse"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> har foreslået netværk, der anvender oplysninger om dit SIM-kort uden privatlivsbeskyttelse. Vil du tillade, at der oprettes automatisk forbindelse til netværket?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Tillad"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Tillad ikke"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi aktiveres automatisk"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Når du er i nærheden af et gemt netværk af høj kvalitet"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Aktivér ikke igen"</string>

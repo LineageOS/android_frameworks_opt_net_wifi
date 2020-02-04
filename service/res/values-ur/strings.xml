@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"‏Wi-Fi سسٹم کے وسائل"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">‏Wi-Fi نیٹ ورکس دستیاب ہیں</item>
-      <item quantity="one">‏Wi-Fi نیٹ ورک دستیاب ہے</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">‏عوامی Wi-Fi نیٹ ورکس دستیاب ہیں</item>
-      <item quantity="one">‏عوامی Wi-Fi نیٹ ورک دستیاب ہے</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"‏عوامی Wi‑Fi نیٹ ورک سے منسلک ہوں"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"‏Wi‑Fi نیٹ ورک سے منسلک ہو رہا ہے"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"‏عوامی Wi‑Fi نیٹ ورک سے منسلک ہو گيا"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> تجویز کردہ نیٹ ورکس۔ آلہ خودکار طور پر منسلک ہو سکتا ہے۔"</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"اجازت ہیں"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"نہیں شکریہ"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"‏IMSI حفاظت کے لیے رازداری کی وارننگ"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> تجویز کردہ نیٹ ورکس رازداری کے تحفظ کے بغیر آپ کے سم کارڈ کی معلومات کا استعمال کرتے ہوئے، نیٹ ورک کو خودکار طور پر جڑنے کی اجازت دیتے ہیں؟"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"اجازت دیں"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"اجازت نہ دیں"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"‏Wi‑Fi از خود آن ہو جائے گا"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"جب آپ اعلی معیار کے محفوظ کردہ نیٹ ورک کے قریب ہوں"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"دوبارہ آن نہ کریں"</string>

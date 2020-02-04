@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"नेटवर्क रेटिंग प्रदात्याद्वारे स्वयंचलितपणे कनेक्ट केले"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"मर्यादित कनेक्शन"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"खाजगी DNS सर्व्हर ॲक्सेस करू शकत नाही"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"कनेक्‍ट केले, इंटरनेट नाही"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"काहीही नाही"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"मुदत संपली"</string>
 </resources>

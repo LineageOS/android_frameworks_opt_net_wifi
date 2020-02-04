@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Automaticky pripojené prostredníctvom poskytovateľa hodnotenia siete"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Obmedzené pripojenie"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"K súkromnému serveru DNS sa nepodarilo získať prístup"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"Pripojené, žiadny internet"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"Žiadne"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Platnosť vypršala"</string>
 </resources>

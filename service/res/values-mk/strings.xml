@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Системски ресусрси на Wi-Fi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">Wi-Fi мрежи се достапни</item>
-      <item quantity="other">Wi-Fi мрежи се достапни</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">Отворени Wi-Fi мрежи се достапни</item>
-      <item quantity="other">Отворени Wi-Fi мрежи се достапни</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Поврзете се на отворена Wi‑Fi-мрежа"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Поврзување со Wi-Fi мрежа"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Се поврзавте на Wi‑Fi-мрежа"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Предложени мрежи од <xliff:g id="NAME">%s</xliff:g>. Уредот може да се поврзе автоматски."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Дозволи"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Не, фала"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Предупредување за приватноста за IMSI-заштита"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> предложи мрежи користејќи ги информациите за SIM-картичката без заштита на приватноста. Да се дозволи автоматско поврзување на мрежата?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Дозволи"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Не дозволувај"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi ќе се вклучи автоматски"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Кога сте во близина на зачувана мрежа со висок квалитет"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Не вклучувај повторно"</string>

@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"നെറ്റ്‌വർക്ക് റേറ്റിംഗ് ദാതാവുമായി സ്വയം കണക്‌റ്റുചെയ്‌തു"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"പരിമിത കണക്‌ഷൻ"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"സ്വകാര്യ DNS സെർവർ ആക്‌സസ് ചെയ്യാനാവില്ല"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"കണക്റ്റ് ചെയ്‌തു, ഇന്റർനെറ്റ് ഇല്ല"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"ഒന്നുമില്ല"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"കാലഹരണപ്പെട്ടത്"</string>
 </resources>

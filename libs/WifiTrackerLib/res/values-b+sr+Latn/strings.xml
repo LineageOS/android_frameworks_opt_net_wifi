@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Automatski povezano preko dobavljača ocene mreže"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Ograničena veza"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"Pristup privatnom DNS serveru nije uspeo"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"Veza je uspostavljena, nema interneta"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"Nema"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Isteklo"</string>
 </resources>

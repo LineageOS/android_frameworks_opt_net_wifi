@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Recursos del sistema Wi‑Fi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">Xarxes Wi-Fi disponibles</item>
-      <item quantity="one">Xarxa Wi-Fi disponible</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">Xarxes Wi-Fi obertes disponibles</item>
-      <item quantity="one">Xarxa Wi-Fi oberta disponible</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Connecta\'t a una xarxa Wi-Fi oberta"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"S\'està connectant a una xarxa Wi-Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"S\'ha connectat a la xarxa Wi-Fi"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Xarxes suggerides de l\'aplicació <xliff:g id="NAME">%s</xliff:g>. El dispositiu pot connectar-se automàticament."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Permet"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"No, gràcies"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Advertiment de privadesa per a la protecció IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> ha suggerit xarxes fent servir la informació de la teva targeta SIM sense protegir-ne la privadesa. Vols permetre que la xarxa es connecti automàticament?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Permet"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"No permetis"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"La Wi-Fi s\'activarà automàticament"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Quan siguis a prop d\'una xarxa de qualitat desada"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"No tornis a activar"</string>

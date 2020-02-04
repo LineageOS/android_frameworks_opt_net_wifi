@@ -17,18 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Zdroje systému Wi‑Fi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="few">K dispozícii sú siete Wi‑Fi</item>
-      <item quantity="many">K dispozícii sú siete Wi‑Fi</item>
-      <item quantity="other">K dispozícii sú siete Wi‑Fi</item>
-      <item quantity="one">K dispozícii je sieť Wi‑Fi</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="few">K dispozícii sú verejné siete Wi‑Fi</item>
-      <item quantity="many">K dispozícii sú verejné siete Wi‑Fi</item>
-      <item quantity="other">K dispozícii sú verejné siete Wi‑Fi</item>
-      <item quantity="one">K dispozícii je verejná sieť Wi‑Fi</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Pripojenie k otvorenej sieti Wi‑Fi"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Pripája sa k sieti Wi-Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Pripojenie k sieti Wi‑Fi"</string>
@@ -43,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Siete navrhuje aplikácia <xliff:g id="NAME">%s</xliff:g>. Zariadenie sa môže pripájať automaticky."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Povoliť"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nie, ďakujem"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Upozornenie týkajúce sa ochrany súkromia pre ochranu IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"Operátor <xliff:g id="CARRIERNAME">%s</xliff:g> pomocou údajov o vašej SIM karte navrhol siete bez ochrany súkromia. Chcete povoliť automatické pripojenie k sieti?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Povoliť"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Zakázať"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi sa zapne automaticky"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Keď budete v blízkosti kvalitnej uloženej siete"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Znova nezapínať"</string>

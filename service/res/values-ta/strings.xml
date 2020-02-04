@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"சிஸ்டம் வைஃபை ஆதாரங்கள்"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">வைஃபை நெட்வொர்க்குகள் உள்ளன</item>
-      <item quantity="one">வைஃபை நெட்வொர்க் உள்ளது</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">பொது வைஃபை நெட்வொர்க்குகள் உள்ளன</item>
-      <item quantity="one">பொது வைஃபை நெட்வொர்க் உள்ளது</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"திறந்த வைஃபை நெட்வொர்க்குடன் இணைக்கவும்"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"வைஃபை நெட்வொர்க்குடன் இணைக்கிறது"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"வைஃபை நெட்வொர்க்குடன் இணைக்கப்பட்டது"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> பரிந்துரைக்கும் நெட்வொர்க்குகள். சாதனம் தானாக இணைக்கப்படக்கூடும்."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"அனுமதி"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"வேண்டாம்"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"வைஃபை தானாக ஆன் ஆகும்"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"சேமித்த, உயர்தர நெட்வொர்க்கிற்கு அருகில் இருக்கும்போது"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"மீண்டும் ஆன் செய்யாதே"</string>

@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Resource Wi-Fi Sistem"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">Jaringan Wi-Fi tersedia</item>
-      <item quantity="one">Jaringan Wi-Fi tersedia</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">Jaringan Wi-Fi terbuka tersedia</item>
-      <item quantity="one">Jaringan Wi-Fi terbuka tersedia</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Hubungkan ke jaringan Wi-Fi terbuka"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Menghubungkan ke jaringan Wi-Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Terhubung ke jaringan Wi-Fi"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Jaringan yang disarankan <xliff:g id="NAME">%s</xliff:g>. Perangkat dapat terhubung secara otomatis."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Izinkan"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Lain kali"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Peringatan privasi untuk perlindungan IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> menyarankan jaringan menggunakan info kartu SIM tanpa perlindungan privasi, izinkan jaringan untuk terhubung otomatis?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Izinkan"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Larang"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi akan aktif otomatis"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Saat berada di dekat jaringan berkualitas tinggi yang tersimpan"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Jangan aktifkan kembali"</string>

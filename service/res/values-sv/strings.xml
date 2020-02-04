@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Resurser för Wi-Fi-system"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">Wi-Fi-nätverk är tillgängliga</item>
-      <item quantity="one">Wi-Fi-nätverk är tillgängligt</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">Öppna Wi-Fi-nätverk är tillgängliga</item>
-      <item quantity="one">Öppet Wi-Fi-nätverk är tillgängligt</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Anslut till ett öppet Wi-Fi-nätverk"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Ansluter till Wi-Fi-nätverk"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Ansluten till Wi-Fi-nätverket"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Nätverk som föreslagits av <xliff:g id="NAME">%s</xliff:g>. Enheten kan anslutas automatiskt."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Tillåt"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nej tack"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Sekretessvarning för IMSI-skydd"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> föreslog nätverk utifrån dina SIM-kortuppgifter utan integritetsskydd. Vill du tillåta att nätverk ansluts automatiskt?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Tillåt"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Tillåt inte"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi-Fi aktiveras automatiskt"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"När du är i närheten av ett sparat nätverk av hög kvalitet"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Återaktivera inte"</string>
