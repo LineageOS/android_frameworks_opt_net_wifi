@@ -83,6 +83,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -110,7 +111,7 @@ public class SoftApManagerTest extends WifiBaseTest {
     private static final int TEST_AP_BANDWIDTH_FROM_IFACE_CALLBACK =
             SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
     private static final int TEST_AP_BANDWIDTH_IN_SOFTAPINFO = SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;
-    private static final int[] EMPTY_CHANNEL_ARRAY = {};
+    private static final List<Integer> EMPTY_CHANNEL_ARRAY = Collections.emptyList();
     private final SoftApConfiguration mDefaultApConfig = createDefaultApConfig();
 
     private ContentObserver mContentObserver;

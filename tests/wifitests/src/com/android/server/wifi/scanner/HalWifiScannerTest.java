@@ -22,6 +22,8 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 
+import java.util.Arrays;
+
 /**
  * Unit tests for {@link com.android.server.wifi.scanner.HalWifiScannerImpl}.
  */
@@ -31,10 +33,10 @@ public class HalWifiScannerTest extends BaseWifiScannerImplTest {
     @Before
     public void setUp() throws Exception {
         setupMockChannels(mWifiNative,
-                new int[]{2400, 2450},
-                new int[]{5150, 5175},
-                new int[]{5600, 5650},
-                new int[]{5945, 5985});
+                Arrays.asList(2400, 2450),
+                Arrays.asList(5150, 5175),
+                Arrays.asList(5600, 5650),
+                Arrays.asList(5945, 5985));
         mScanner = new HalWifiScannerImpl(mContext, BaseWifiScannerImplTest.IFACE_NAME,
                 mWifiNative, mWifiMonitor, mLooper.getLooper(), mClock);
     }
