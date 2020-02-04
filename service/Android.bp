@@ -60,6 +60,8 @@ java_library {
         // compile time
         "framework-wifi-pre-jarjar",
         "android_module_lib_stubs_current",
+        // TODO(b/146167933): Use framework-statsd-stubs instead.
+        "framework-statsd",
         "unsupportedappusage",
     ],
 
@@ -141,7 +143,7 @@ java_library {
     ],
 }
 
-// Westworld auto-generated code
+// Statsd auto-generated code
 // ============================================================
 genrule {
     name: "statslog-wifi-java-gen",
