@@ -452,6 +452,7 @@ public class PasspointProvider {
     public WifiConfiguration getWifiConfig() {
         WifiConfiguration wifiConfig = new WifiConfiguration();
         wifiConfig.FQDN = mConfig.getHomeSp().getFqdn();
+        wifiConfig.setPasspointUniqueId(mConfig.getUniqueId());
         if (mConfig.getHomeSp().getRoamingConsortiumOis() != null) {
             wifiConfig.roamingConsortiumIds = Arrays.copyOf(
                     mConfig.getHomeSp().getRoamingConsortiumOis(),

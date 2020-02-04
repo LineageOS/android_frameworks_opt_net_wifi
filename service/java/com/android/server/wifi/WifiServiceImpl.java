@@ -2127,10 +2127,8 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * Returns the list of FQDN (Fully Qualified Domain Name) to installed Passpoint configurations.
-     *
-     * Return the map of all matching configurations with corresponding scanResults (or an empty map
-     * if none).
+     * Return a map of all matching configurations keys with corresponding scanResults (or an empty
+     * map if none).
      *
      * @param scanResults The list of scan results
      * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
@@ -2138,8 +2136,8 @@ public class WifiServiceImpl extends BaseWifiService {
      * WifiManager#PASSPOINT_ROAMING_NETWORK}).
      */
     @Override
-    public Map<String, Map<Integer, List<ScanResult>>> getAllMatchingFqdnsForScanResults(
-            List<ScanResult> scanResults) {
+    public Map<String, Map<Integer, List<ScanResult>>>
+            getAllMatchingPasspointProfilesForScanResults(List<ScanResult> scanResults) {
         if (!isSettingsOrSuw(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
         }
@@ -2147,7 +2145,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("getMatchingPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
         return mWifiThreadRunner.call(
-            () -> mPasspointManager.getAllMatchingFqdnsForScanResults(scanResults),
+            () -> mPasspointManager.getAllMatchingPasspointProfilesForScanResults(scanResults),
                 Collections.emptyMap());
     }
 
@@ -2512,7 +2510,7 @@ public class WifiServiceImpl extends BaseWifiService {
         int callingUid = Binder.getCallingUid();
         mLog.info("allowAutojoinPasspoint=% uid=%").c(enableAutojoin).c(callingUid).flush();
         mWifiThreadRunner.post(
-                () -> mPasspointManager.enableAutojoin(fqdn, enableAutojoin));
+                () -> mPasspointManager.enableAutojoin(null, fqdn, enableAutojoin));
     }
 
     /**
@@ -2590,6 +2588,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 result.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
                 result.setFQDN(null);
                 result.setProviderFriendlyName(null);
+                result.setPasspointUniqueId(null);
             }
 
             if (mVerboseLoggingEnabled
@@ -2715,7 +2714,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("removePasspointConfiguration uid=%").c(Binder.getCallingUid()).flush();
         final boolean privilegedFinal = privileged;
         return mWifiThreadRunner.call(
-                () -> mPasspointManager.removeProvider(uid, privilegedFinal, fqdn), false);
+                () -> mPasspointManager.removeProvider(uid, privilegedFinal, null, fqdn), false);
     }
 
     /**
@@ -3332,7 +3331,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 () -> mPasspointManager.getProviderConfigs(Process.WIFI_UID /* ignored */, true),
                 Collections.emptyList());
         for (PasspointConfiguration config : configs) {
-            removePasspointConfiguration(config.getHomeSp().getFqdn(), packageName);
+            removePasspointConfiguration(config.getUniqueId(), packageName);
         }
         mWifiThreadRunner.post(() -> {
             mWifiConfigManager.clearDeletedEphemeralNetworks();

@@ -646,4 +646,10 @@ public class BaseWifiService extends IWifiManager.Stub {
     public boolean isScanThrottleEnabled() {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public Map<String, Map<Integer, List<ScanResult>>>
+            getAllMatchingPasspointProfilesForScanResults(List<ScanResult> scanResults) {
+        throw new UnsupportedOperationException();
+    }
 }
