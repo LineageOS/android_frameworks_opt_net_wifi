@@ -1015,7 +1015,7 @@ public class XmlUtil {
                     out, XML_TAG_DISABLE_REASON, selectionStatus.getNetworkDisableReasonString());
             XmlUtil.writeNextValue(out, XML_TAG_CONNECT_CHOICE, selectionStatus.getConnectChoice());
             XmlUtil.writeNextValue(
-                    out, XML_TAG_HAS_EVER_CONNECTED, selectionStatus.getHasEverConnected());
+                    out, XML_TAG_HAS_EVER_CONNECTED, selectionStatus.hasEverConnected());
         }
 
         /**
@@ -1071,7 +1071,7 @@ public class XmlUtil {
             if (status == -1 || disableReason == -1 ||
                     status == NetworkSelectionStatus.NETWORK_SELECTION_TEMPORARY_DISABLED) {
                 status = NetworkSelectionStatus.NETWORK_SELECTION_ENABLED;
-                disableReason = NetworkSelectionStatus.NETWORK_SELECTION_ENABLE;
+                disableReason = NetworkSelectionStatus.DISABLED_NONE;
             }
             selectionStatus.setNetworkSelectionStatus(status);
             selectionStatus.setNetworkSelectionDisableReason(disableReason);

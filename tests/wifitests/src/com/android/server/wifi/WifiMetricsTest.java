@@ -2395,7 +2395,7 @@ public class WifiMetricsTest extends WifiBaseTest {
         assertEquals(config.allowedGroupCiphers,    intToBitSet(info.allowedGroupCiphers));
         assertEquals(config.hiddenSSID, info.hiddenSsid);
         assertEquals(config.ephemeral, info.isEphemeral);
-        assertEquals(config.getNetworkSelectionStatus().getHasEverConnected(),
+        assertEquals(config.getNetworkSelectionStatus().hasEverConnected(),
                 info.hasEverConnected);
         assertEquals(config.getNetworkSelectionStatus().getCandidate().level, info.scanRssi);
         assertEquals(config.getNetworkSelectionStatus().getCandidate().frequency, info.scanFreq);

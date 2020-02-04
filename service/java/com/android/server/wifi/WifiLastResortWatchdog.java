@@ -546,7 +546,7 @@ public class WifiLastResortWatchdog {
         for (Map.Entry<String, AvailableNetworkFailureCount> entry
                 : mRecentAvailableNetworks.entrySet()) {
             if (entry.getValue().config != null
-                    && entry.getValue().config.getNetworkSelectionStatus().getHasEverConnected()) {
+                    && entry.getValue().config.getNetworkSelectionStatus().hasEverConnected()) {
                 return true;
             }
         }
@@ -791,7 +791,7 @@ public class WifiLastResortWatchdog {
 
         public String toString() {
             return  ssid + " HasEverConnected: " + ((config != null)
-                    ? config.getNetworkSelectionStatus().getHasEverConnected() : "null_config")
+                    ? config.getNetworkSelectionStatus().hasEverConnected() : "null_config")
                     + ", Failures: {"
                     + "Assoc: " + associationRejection
                     + ", Auth: " + authenticationFailure

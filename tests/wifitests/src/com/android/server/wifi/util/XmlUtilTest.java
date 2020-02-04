@@ -263,7 +263,7 @@ public class XmlUtilTest extends WifiBaseTest {
             throws IOException, XmlPullParserException {
         NetworkSelectionStatus status = new NetworkSelectionStatus();
         status.setNetworkSelectionStatus(NetworkSelectionStatus.NETWORK_SELECTION_ENABLED);
-        status.setNetworkSelectionDisableReason(NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+        status.setNetworkSelectionDisableReason(NetworkSelectionStatus.DISABLED_NONE);
         status.setConnectChoice(TEST_DUMMY_CONFIG_KEY);
         status.setHasEverConnected(true);
         serializeDeserializeNetworkSelectionStatus(status);
@@ -326,7 +326,7 @@ public class XmlUtilTest extends WifiBaseTest {
         expectedStatus.copy(status);
         expectedStatus.setNetworkSelectionStatus(NetworkSelectionStatus.NETWORK_SELECTION_ENABLED);
         expectedStatus.setNetworkSelectionDisableReason(
-                NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                NetworkSelectionStatus.DISABLED_NONE);
 
         WifiConfigurationTestUtil.assertNetworkSelectionStatusEqualForConfigStore(
                 expectedStatus, retrievedStatus);
@@ -373,7 +373,7 @@ public class XmlUtilTest extends WifiBaseTest {
         expectedStatus.copy(status);
         expectedStatus.setNetworkSelectionStatus(NetworkSelectionStatus.NETWORK_SELECTION_ENABLED);
         expectedStatus.setNetworkSelectionDisableReason(
-                NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+                NetworkSelectionStatus.DISABLED_NONE);
 
         WifiConfigurationTestUtil.assertNetworkSelectionStatusEqualForConfigStore(
                 expectedStatus, retrievedStatus);
