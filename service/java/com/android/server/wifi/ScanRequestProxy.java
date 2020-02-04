@@ -289,7 +289,7 @@ public class ScanRequestProxy {
      */
     private void sendScanAvailableBroadcast(Context context, boolean available) {
         Log.d(TAG, "Sending scan available broadcast: " + available);
-        final Intent intent = new Intent(WifiManager.ACTION_WIFI_SCAN_AVAILABLE);
+        final Intent intent = new Intent(WifiManager.ACTION_WIFI_SCAN_AVAILABILITY_CHANGED);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
         intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, available);
         context.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
