@@ -17,6 +17,7 @@
 package com.android.server.wifi.util;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.content.Context;
 import android.content.res.Resources;
 import android.net.MacAddress;
@@ -405,39 +406,44 @@ public class ApConfigUtil {
      * so conversion is limited to these bands.
      *
      * @param wifiConfig the WifiConfiguration which need to convert.
-     * @return the SoftApConfiguration which convert from WifiConfiguration.
+     * @return the SoftApConfiguration if wifiConfig is valid, null otherwise.
      */
-    @NonNull
+    @Nullable
     public static SoftApConfiguration fromWifiConfiguration(
             @NonNull WifiConfiguration wifiConfig) {
         SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
-        configBuilder.setSsid(wifiConfig.SSID);
-        if (wifiConfig.BSSID != null) {
-            configBuilder.setBssid(MacAddress.fromString(wifiConfig.BSSID));
-        }
-        if (wifiConfig.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
-            configBuilder.setPassphrase(wifiConfig.preSharedKey,
-                    SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
-        }
-        configBuilder.setHiddenSsid(wifiConfig.hiddenSSID);
+        try {
+            configBuilder.setSsid(wifiConfig.SSID);
+            if (wifiConfig.BSSID != null) {
+                configBuilder.setBssid(MacAddress.fromString(wifiConfig.BSSID));
+            }
+            if (wifiConfig.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
+                configBuilder.setPassphrase(wifiConfig.preSharedKey,
+                        SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
+            }
+            configBuilder.setHiddenSsid(wifiConfig.hiddenSSID);
 
-        int band;
-        switch (wifiConfig.apBand) {
-            case WifiConfiguration.AP_BAND_2GHZ:
-                band = SoftApConfiguration.BAND_2GHZ;
-                break;
-            case WifiConfiguration.AP_BAND_5GHZ:
-                band = SoftApConfiguration.BAND_5GHZ;
-                break;
-            default:
-                // WifiConfiguration.AP_BAND_ANY means only 2GHz and 5GHz bands
-                band = SoftApConfiguration.BAND_2GHZ | SoftApConfiguration.BAND_5GHZ;
-                break;
-        }
-        if (wifiConfig.apChannel == 0) {
-            configBuilder.setBand(band);
-        } else {
-            configBuilder.setChannel(wifiConfig.apChannel, band);
+            int band;
+            switch (wifiConfig.apBand) {
+                case WifiConfiguration.AP_BAND_2GHZ:
+                    band = SoftApConfiguration.BAND_2GHZ;
+                    break;
+                case WifiConfiguration.AP_BAND_5GHZ:
+                    band = SoftApConfiguration.BAND_5GHZ;
+                    break;
+                default:
+                    // WifiConfiguration.AP_BAND_ANY means only 2GHz and 5GHz bands
+                    band = SoftApConfiguration.BAND_2GHZ | SoftApConfiguration.BAND_5GHZ;
+                    break;
+            }
+            if (wifiConfig.apChannel == 0) {
+                configBuilder.setBand(band);
+            } else {
+                configBuilder.setChannel(wifiConfig.apChannel, band);
+            }
+        } catch (IllegalArgumentException iae) {
+            Log.e(TAG, "Invalid WifiConfiguration" + iae);
+            return null;
         }
         return configBuilder.build();
     }
