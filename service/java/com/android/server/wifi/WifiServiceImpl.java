@@ -4180,4 +4180,28 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiThreadRunner.post(() ->
                 wifiScoreReport.clearWifiConnectedNetworkScorer());
     }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#setScanThrottleEnabled(boolean)}
+     */
+    @Override
+    public void setScanThrottleEnabled(boolean enable) {
+        enforceNetworkSettingsPermission();
+        mLog.info("setScanThrottleEnabled uid=% verbose=%")
+                .c(Binder.getCallingUid())
+                .c(enable).flush();
+        mWifiThreadRunner.post(()-> mScanRequestProxy.setScanThrottleEnabled(enable));
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#isScanThrottleEnabled()}
+     */
+    @Override
+    public boolean isScanThrottleEnabled() {
+        enforceAccessPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("isScanThrottleEnabled uid=%").c(Binder.getCallingUid()).flush();
+        }
+        return mWifiThreadRunner.call(()-> mScanRequestProxy.isScanThrottleEnabled(), true);
+    }
 }
