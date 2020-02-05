@@ -16,7 +16,6 @@
 
 package com.android.server.wifi;
 
-import android.net.MacAddress;
 import android.util.ArrayMap;
 
 import com.android.server.wifi.proto.WifiScoreCardProto;
@@ -24,9 +23,7 @@ import com.android.server.wifi.proto.WifiScoreCardProto;
 import java.util.Map;
 
 public final class ConcreteCandidate implements WifiCandidates.Candidate {
-    private WifiCandidates.Key mKey = new WifiCandidates.Key(new ScanResultMatchInfo(),
-            MacAddress.fromString("14:59:c0:51:0e:1b"), 0);
-    private ScanDetail mScanDetail;
+    private WifiCandidates.Key mKey;
     private int mNetworkConfigId = -1;
     private boolean mIsOpenNetwork;
     private boolean mIsCurrentNetwork;
@@ -50,7 +47,6 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
 
     public ConcreteCandidate(WifiCandidates.Candidate candidate) {
         mKey = candidate.getKey();
-        mScanDetail = candidate.getScanDetail();
         mNetworkConfigId = candidate.getNetworkConfigId();
         mIsOpenNetwork = candidate.isOpenNetwork();
         mIsCurrentNetwork = candidate.isCurrentNetwork();
@@ -81,16 +77,6 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     @Override
     public WifiCandidates.Key getKey() {
         return mKey;
-    }
-
-    public ConcreteCandidate setScanDetail(ScanDetail scanDetail) {
-        mScanDetail = scanDetail;
-        return this;
-    }
-
-    @Override
-    public ScanDetail getScanDetail() {
-        return mScanDetail;
     }
 
     public ConcreteCandidate setNetworkConfigId(int networkConfigId) {

@@ -57,10 +57,7 @@ public class WifiCandidates {
          * Generally, a CandidateScorer should not need to use this.
          */
         @Nullable Key getKey();
-        /**
-         * Gets the ScanDetail associate with the candidate.
-         */
-        @Nullable ScanDetail getScanDetail();
+
         /**
          * Gets the config id.
          */
@@ -136,14 +133,15 @@ public class WifiCandidates {
      */
     private static class CandidateImpl implements Candidate {
         public final Key key;                   // SSID/sectype/BSSID/configId
-        public final ScanDetail scanDetail;
         public final WifiConfiguration config;
         // First nominator to nominate this config
         public final @WifiNetworkSelector.NetworkNominator.NominatorId int nominatorId;
         public final int nominatorScore;        // Score provided by first nominator
         public final double lastSelectionWeight; // Value between 0 and 1
 
-        private WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
+        private final int mScanRssi;
+        private final int mFrequency;
+        private final WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
         private final boolean mIsCurrentNetwork;
         private final boolean mIsCurrentBssid;
         private final boolean mIsMetered;
@@ -161,10 +159,11 @@ public class WifiCandidates {
                 boolean isMetered,
                 int predictedThroughputMbps) {
             this.key = key;
-            this.scanDetail = scanDetail;
             this.config = config;
             this.nominatorId = nominatorId;
             this.nominatorScore = nominatorScore;
+            this.mScanRssi = scanDetail.getScanResult().level;
+            this.mFrequency = scanDetail.getScanResult().frequency;
             this.mPerBssid = perBssid;
             this.lastSelectionWeight = lastSelectionWeight;
             this.mIsCurrentNetwork = isCurrentNetwork;
@@ -181,11 +180,6 @@ public class WifiCandidates {
         @Override
         public int getNetworkConfigId() {
             return key.networkId;
-        }
-
-        @Override
-        public ScanDetail getScanDetail() {
-            return scanDetail;
         }
 
         @Override
@@ -241,12 +235,12 @@ public class WifiCandidates {
 
         @Override
         public int getScanRssi() {
-            return scanDetail.getScanResult().level;
+            return mScanRssi;
         }
 
         @Override
         public int getFrequency() {
-            return scanDetail.getScanResult().frequency;
+            return mFrequency;
         }
 
         @Override
@@ -299,14 +293,12 @@ public class WifiCandidates {
         public final double err;
         public final Key candidateKey;
         public final boolean userConnectChoiceOverride;
-        public final ScanDetail scanDetail;
         public ScoredCandidate(double value, double err, boolean userConnectChoiceOverride,
                 Candidate candidate) {
             this.value = value;
             this.err = err;
             this.candidateKey = (candidate == null) ? null : candidate.getKey();
             this.userConnectChoiceOverride = userConnectChoiceOverride;
-            this.scanDetail = (candidate == null) ? null : candidate.getScanDetail();
         }
         /**
          * Represents no score
@@ -380,25 +372,10 @@ public class WifiCandidates {
                     double lastSelectionWeightBetweenZeroAndOne,
                     boolean isMetered,
                     int predictedThroughputMbps) {
-        if (config == null) return failure();
-        if (scanDetail == null) return failure();
+        if (!validConfigAndScanDetail(config, scanDetail)) return false;
         ScanResult scanResult = scanDetail.getScanResult();
-        if (scanResult == null) return failure();
-        MacAddress bssid;
-        try {
-            bssid = MacAddress.fromString(scanResult.BSSID);
-        } catch (RuntimeException e) {
-            return failWithException(e);
-        }
-        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromScanResult(scanResult);
-        if (!config.isPasspoint()) {
-            ScanResultMatchInfo key2 = ScanResultMatchInfo.fromWifiConfiguration(config);
-            if (!key1.matchForNetworkSelection(key2, mContext.getResources()
-                    .getBoolean(R.bool.config_wifiSaeUpgradeEnabled))) {
-                return failure(key1, key2);
-            }
-        }
-        Key key = new Key(key1, bssid, config.networkId);
+        MacAddress bssid = MacAddress.fromString(scanResult.BSSID);
+        Key key = new Key(ScanResultMatchInfo.fromScanResult(scanResult), bssid, config.networkId);
         CandidateImpl old = mCandidates.get(key);
         if (old != null) {
             // check if we want to replace this old candidate
@@ -421,6 +398,36 @@ public class WifiCandidates {
                 isMetered,
                 predictedThroughputMbps);
         mCandidates.put(key, candidate);
+        return true;
+    }
+
+    /**
+     * Checks that the supplied config and scan detail are valid (for the parts
+     * we care about) and consistent with each other.
+     *
+     * @param config to be validated
+     * @param scanDetail to be validated
+     * @return true if the config and scanDetail are consistent with each other
+     */
+    private boolean validConfigAndScanDetail(WifiConfiguration config, ScanDetail scanDetail) {
+        if (config == null) return failure();
+        if (scanDetail == null) return failure();
+        ScanResult scanResult = scanDetail.getScanResult();
+        if (scanResult == null) return failure();
+        MacAddress bssid;
+        try {
+            bssid = MacAddress.fromString(scanResult.BSSID);
+        } catch (RuntimeException e) {
+            return failWithException(e);
+        }
+        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromScanResult(scanResult);
+        if (!config.isPasspoint()) {
+            ScanResultMatchInfo key2 = ScanResultMatchInfo.fromWifiConfiguration(config);
+            if (!key1.matchForNetworkSelection(key2, mContext.getResources()
+                    .getBoolean(R.bool.config_wifiSaeUpgradeEnabled))) {
+                return failure(key1, key2);
+            }
+        }
         return true;
     }
 
