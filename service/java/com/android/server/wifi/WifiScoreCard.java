@@ -56,6 +56,7 @@ import com.android.server.wifi.proto.WifiScoreCardProto.SecurityType;
 import com.android.server.wifi.proto.WifiScoreCardProto.Signal;
 import com.android.server.wifi.proto.WifiScoreCardProto.UnivariateStatistic;
 import com.android.server.wifi.util.IntHistogram;
+import com.android.server.wifi.util.LruList;
 import com.android.server.wifi.util.NativeUtil;
 
 import com.google.protobuf.ByteString;
@@ -67,6 +68,7 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -114,6 +116,7 @@ public class WifiScoreCard {
     static final int SUFFICIENT_RECENT_PREV_STATS = 2;
 
     private static final int ONE_HUNDRED_PERCENT = 100;
+    private static final int MAX_FREQUENCIES_PER_SSID = 10;
 
     private final Clock mClock;
     private final String mL2KeySeed;
@@ -719,6 +722,7 @@ public class WifiScoreCard {
         private NetworkConnectionStats mRecentStats;
         private NetworkConnectionStats mStatsCurrBuild;
         private NetworkConnectionStats mStatsPrevBuild;
+        private LruList<Integer> mFrequencyList;
 
         PerNetwork(String ssid) {
             super(computeHashLong(ssid, MacAddress.fromString(DEFAULT_MAC_ADDRESS), mL2KeySeed));
@@ -728,6 +732,7 @@ public class WifiScoreCard {
             mRecentStats = new NetworkConnectionStats();
             mStatsCurrBuild = new NetworkConnectionStats();
             mStatsPrevBuild = new NetworkConnectionStats();
+            mFrequencyList = new LruList<Integer>(MAX_FREQUENCIES_PER_SSID);
         }
 
         void updateEventStats(Event event, int rssi, int txSpeed, int failureReason) {
@@ -830,6 +835,22 @@ public class WifiScoreCard {
         }
         @NonNull NetworkConnectionStats getStatsPrevBuild() {
             return mStatsPrevBuild;
+        }
+
+        /**
+         * Retrieve the list of frequencies seen for this network, with the most recent first.
+         * @return
+         */
+        List<Integer> getFrequencies() {
+            return mFrequencyList.getEntries();
+        }
+
+        /**
+         * Add a frequency to the list of frequencies for this network.
+         * Will evict the least recently added frequency if the cache is full.
+         */
+        void addFrequency(int frequency) {
+            mFrequencyList.add(frequency);
         }
 
         /**
@@ -973,6 +994,9 @@ public class WifiScoreCard {
             builder.setRecentStats(toConnectionStats(mRecentStats));
             builder.setStatsCurrBuild(toConnectionStats(mStatsCurrBuild));
             builder.setStatsPrevBuild(toConnectionStats(mStatsPrevBuild));
+            if (mFrequencyList.size() > 0) {
+                builder.addAllFrequencies(mFrequencyList.getEntries());
+            }
             return builder.build();
         }
 
@@ -1021,6 +1045,16 @@ public class WifiScoreCard {
                 ConnectionStats statsPrev = ns.getStatsPrevBuild();
                 mStatsPrevBuild.clear();
                 mergeConnectionStats(statsPrev, mStatsPrevBuild);
+            }
+            if (ns.getFrequenciesList().size() > 0) {
+                // This merge assumes that whatever data is in memory is more recent that what's
+                // in store
+                List<Integer> mergedFrequencyList = mFrequencyList.getEntries();
+                mergedFrequencyList.addAll(ns.getFrequenciesList());
+                mFrequencyList = new LruList<>(MAX_FREQUENCIES_PER_SSID);
+                for (int i = mergedFrequencyList.size() - 1; i >= 0; i--) {
+                    mFrequencyList.add(mergedFrequencyList.get(i));
+                }
             }
             return this;
         }

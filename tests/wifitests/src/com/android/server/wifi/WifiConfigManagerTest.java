@@ -49,6 +49,7 @@ import android.util.Pair;
 import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
+import com.android.server.wifi.WifiScoreCard.PerNetwork;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
@@ -139,6 +140,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     @Mock private MacAddressUtil mMacAddressUtil;
     @Mock private BssidBlocklistMonitor mBssidBlocklistMonitor;
     @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    @Mock private WifiScoreCard mWifiScoreCard;
+    @Mock private PerNetwork mPerNetwork;
 
     private MockResources mResources;
     private InOrder mContextConfigStoreMockOrder;
@@ -217,6 +220,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .thenReturn(false);
         when(mWifiInjector.getMacAddressUtil()).thenReturn(mMacAddressUtil);
         when(mMacAddressUtil.calculatePersistentMac(any(), any())).thenReturn(TEST_RANDOMIZED_MAC);
+        when(mWifiScoreCard.lookupNetwork(any())).thenReturn(mPerNetwork);
 
         mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager,
                 mock(FrameworkFacade.class), mock(Context.class), mock(Handler.class));
@@ -3123,6 +3127,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
             assertNotNull(
                     mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
                             networkScanDetail));
+            verify(mPerNetwork).addFrequency(TEST_FREQ_LIST[i]);
 
         }
         // Ensure that the fetched list size is limited.
@@ -5050,7 +5055,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                         mWifiPermissionsUtil, mWifiPermissionsWrapper, mWifiInjector,
                         mNetworkListSharedStoreData, mNetworkListUserStoreData,
                         mRandomizedMacStoreData,
-                        mFrameworkFacade, new Handler(mLooper.getLooper()), mDeviceConfigFacade);
+                        mFrameworkFacade, new Handler(mLooper.getLooper()), mDeviceConfigFacade,
+                        mWifiScoreCard);
         mWifiConfigManager.enableVerboseLogging(1);
     }
 
