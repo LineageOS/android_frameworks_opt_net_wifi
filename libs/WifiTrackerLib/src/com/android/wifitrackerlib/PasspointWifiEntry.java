@@ -298,19 +298,17 @@ class PasspointWifiEntry extends WifiEntry {
 
     @Override
     public boolean isAutoJoinEnabled() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return mPasspointConfig.isAutoJoinEnabled();
     }
 
     @Override
     public boolean canSetAutoJoinEnabled() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return true;
     }
 
     @Override
     public void setAutoJoinEnabled(boolean enabled) {
-        // TODO(b/70983952): Fill this method in
+        mWifiManager.allowAutojoinPasspoint(mPasspointConfig.getHomeSp().getFqdn(), enabled);
     }
 
     @Override
