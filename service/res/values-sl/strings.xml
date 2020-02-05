@@ -17,18 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Sistemska sredstva za Wi-Fi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">Na voljo so omrežja Wi-Fi</item>
-      <item quantity="two">Na voljo so omrežja Wi-Fi</item>
-      <item quantity="few">Na voljo so omrežja Wi-Fi</item>
-      <item quantity="other">Na voljo so omrežja Wi-Fi</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">Na voljo so odprta omrežja Wi-Fi</item>
-      <item quantity="two">Na voljo so odprta omrežja Wi-Fi</item>
-      <item quantity="few">Na voljo so odprta omrežja Wi-Fi</item>
-      <item quantity="other">Na voljo so odprta omrežja Wi-Fi</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Vzpostavite povezavo z odprtim omrežjem Wi‑Fi"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Vzpostavljanje povezave z omrežjem Wi-Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Povezava z omrežjem Wi-Fi je vzpostavljena"</string>
@@ -43,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> – predlagana omrežja. Naprava se lahko poveže samodejno."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Dovoli"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Ne, hvala"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Opozorilo glede zasebnosti za varnost IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"Operater <xliff:g id="CARRIERNAME">%s</xliff:g> je na podlagi podatkov o kartici SIM predlagal omrežja brez varovanja zasebnosti. Ali želite dovoliti samodejno vzpostavitev povezave z omrežjem?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Dovoli"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Ne dovoli"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Povezava Wi‑Fi se bo samodejno vklopila"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Ko ste v bližini zanesljivega shranjenega omrežja"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Ne vklopi znova"</string>

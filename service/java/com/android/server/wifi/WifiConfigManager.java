@@ -2796,7 +2796,7 @@ public class WifiConfigManager {
         Iterator<WifiConfiguration> iter = networks.iterator();
         while (iter.hasNext()) {
             WifiConfiguration config = iter.next();
-            if (config.ephemeral || config.isPasspoint()
+            if (config.ephemeral || config.isPasspoint() || !config.allowAutojoin
                     || config.getNetworkSelectionStatus().isNetworkPermanentlyDisabled()
                     || config.getNetworkSelectionStatus().isNetworkTemporaryDisabled()) {
                 iter.remove();

@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"सिस्टम के वाई-फ़ाई के संसाधन"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">वाई-फ़ाई नेटवर्क उपलब्‍ध</item>
-      <item quantity="other">वाई-फ़ाई नेटवर्क उपलब्‍ध</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">खुले वाई-फ़ाई नेटवर्क उपलब्‍ध</item>
-      <item quantity="other">खुले वाई-फ़ाई नेटवर्क उपलब्‍ध</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"खुले वाई-फ़ाई नेटवर्क से कनेक्ट करें"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"वाई-फ़ाई नेटवर्क से जोड़ा जा रहा है"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"वाई-फ़ाई नेटवर्क से कनेक्‍ट हो गया है"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> के सुझाए गए नेटवर्क. डिवाइस अपने आप कनेक्ट हो सकता है."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"अनुमति दें"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"रहने दें"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"वाई-फ़ाई अपने आप चालू हो जाएगा"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"जब आप किसी अच्छी क्वालिटी वाले सेव किए गए नेटवर्क के पास हों"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"वापस चालू न करें"</string>
@@ -79,5 +79,5 @@
     <string name="wifi_eap_error_message_code_32766" msgid="6907401733158262194">"<xliff:g id="SSID">%1$s</xliff:g> : EAP authentication error 32766"</string>
     <string name="wifi_softap_auto_shutdown_timeout_expired_title" msgid="6772994319428197481">"मोबाइल हॉटस्पॉट बंद है"</string>
     <string name="wifi_softap_auto_shutdown_timeout_expired_summary" msgid="2784340491027490290">"मोबाइल हॉटस्पॉट बंद कर दिया गया है"</string>
-    <string name="wifi_softap_auto_shutdown_timeout_expired_detail" msgid="7203939001058203709">"टाइम आउट खत्म होने तक कोई गतिविधि न होने की वजह से, मोबाइल हॉटस्पॉट बंद कर दिया गया है."</string>
+    <string name="wifi_softap_auto_shutdown_timeout_expired_detail" msgid="7203939001058203709">"टाइम आउट यानी तय समय तक कोई गतिविधि न होने की वजह से, मोबाइल हॉटस्पॉट बंद कर दिया गया है."</string>
 </resources>

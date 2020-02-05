@@ -17,16 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Sistēmas Wi-Fi resursi"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="zero">Pieejami Wi-Fi tīkli</item>
-      <item quantity="one">Pieejami Wi-Fi tīkli</item>
-      <item quantity="other">Pieejami Wi-Fi tīkli</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="zero">Ir pieejami atvērti Wi-Fi tīkli</item>
-      <item quantity="one">Ir pieejami atvērti Wi-Fi tīkli</item>
-      <item quantity="other">Ir pieejami atvērti Wi-Fi tīkli</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Savienojuma izveide ar atvērtu Wi-Fi tīklu"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Savienojuma izveide ar Wi-Fi tīklu"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Ir izveidots savienojums ar Wi-Fi tīklu"</string>
@@ -41,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Lietotnes <xliff:g id="NAME">%s</xliff:g> ieteiktie tīkli. Ierīcē var tikt automātiski izveidots savienojums."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Atļaut"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nē, paldies"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi tiks automātiski ieslēgts"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Kad atrodaties saglabāta augstas kvalitātes tīkla tuvumā"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Neieslēgt atkārtoti"</string>

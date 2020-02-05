@@ -2398,6 +2398,13 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertEquals(2, pnoNetworks.size());
         assertEquals(network1.SSID, pnoNetworks.get(0).ssid);
         assertEquals(network2.SSID, pnoNetworks.get(1).ssid);
+
+        // Now set network1 autojoin disabled. This should remove network 1 from the list.
+        assertTrue(mWifiConfigManager.allowAutojoin(network1.networkId, false));
+        // Retrieve the Pno network list again & verify the order of the networks returned.
+        pnoNetworks = mWifiConfigManager.retrievePnoNetworkList();
+        assertEquals(1, pnoNetworks.size());
+        assertEquals(network2.SSID, pnoNetworks.get(0).ssid);
     }
 
     /**

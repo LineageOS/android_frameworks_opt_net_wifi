@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"පද්ධති Wi-Fi සම්පත්"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">Wi-Fi ජාල තිබේ</item>
-      <item quantity="other">Wi-Fi ජාල තිබේ</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">විවෘත Wi-Fi ජාල තිබේ</item>
-      <item quantity="other">විවෘත Wi-Fi ජාල තිබේ</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"විවෘත Wi-Fi ජාලය වෙත සම්බන්ධ වෙන්න"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Wi-Fi ජාලයට සම්බන්ධ වෙමින්"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Wi-Fi ජාලයක් වෙත සම්බන්ධ විය"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> යෝජිත ජාල. උපාංගය ස්වයංක්‍රියව සම්බන්ධ වනු ඇත."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"ඉඩ දෙන්න"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"එපා, ස්තූතියි"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"IMSI ආරක්ෂණය සඳහා රහස්‍යතා අනතුරු ඇඟවීම"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"රහස්‍යතා ආරක්ෂණය නොමැතිව ඔබේ SIM කාඩ්පත් තොරතුරු භාවිතයෙන් <xliff:g id="CARRIERNAME">%s</xliff:g> ජාල යෝජනා කරන ලදී, ජාලයට ස්වයංක්‍රියව සම්බන්ධ වීමට ඉඩ දෙන්නද?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"ඉඩ දෙන්න"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"ඉඩ නොදෙන්න"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi ස්වයංක්‍රියව ක්‍රියාත්මක වනු ඇත"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"ඔබ උසස් තත්ත්වයේ සුරැකි ජාලයක් අවට සිටින විට"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"නැවත ක්‍රියාත්මක නොකරන්න"</string>

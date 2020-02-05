@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Recursos Wi‑Fi del sistema"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">Redes Wi-Fi disponibles</item>
-      <item quantity="one">Red Wi-Fi disponible</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">Redes Wi-Fi abiertas disponibles</item>
-      <item quantity="one">Red Wi-Fi abierta disponible</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Conectarse a una red Wi-Fi abierta"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Estableciendo conexión con la red Wi‑Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Conectado a la red Wi-Fi"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> te ha sugerido alguna red. El dispositivo puede que se conecte automáticamente."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Permitir"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"No, gracias"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Advertencia por privacidad de la protección IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"Las redes sugeridas de <xliff:g id="CARRIERNAME">%s</xliff:g> están usando la información de tu tarjeta SIM sin proteger tu privacidad, ¿quieres permitir que estas redes se conecten automáticamente?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Permitir"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"No permitir"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"La conexión Wi‑Fi se activará automáticamente"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Cuando estés cerca de una red de alta calidad guardada"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"No volver a activar"</string>

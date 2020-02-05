@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Wifi-bronnen systeem"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">Wifi-netwerken beschikbaar</item>
-      <item quantity="one">Wifi-netwerk beschikbaar</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">Open wifi-netwerken beschikbaar</item>
-      <item quantity="one">Open wifi-netwerk beschikbaar</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Verbinding maken met een open wifi-netwerk"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Verbinden met wifi-netwerk"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Verbonden met een wifi-netwerk"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> heeft netwerken voorgesteld. Apparaat kan automatisch verbinding maken."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Toestaan"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nee, bedankt"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Privacywaarschuwing voor IMSI-beveiliging"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> heeft netwerken voorgesteld die je simkaartgegevens gebruiken zonder privacybescherming. Wil je dit netwerk automatisch verbinding laten maken?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Toestaan"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Niet toestaan"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wifi wordt automatisch ingeschakeld"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Wanneer je in de buurt van een opgeslagen netwerk van hoge kwaliteit bent"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Niet weer inschakelen"</string>

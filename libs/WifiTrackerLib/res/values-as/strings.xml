@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"নেটৱৰ্ক ৰেটিং প্ৰদানকাৰীৰ জৰিয়তে স্বয়ং সংয়োগ কৰা হ’ল"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"ইণ্টাৰনেট সংযোগ সীমিত"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"ব্যক্তিগত DNS ছাৰ্ভাৰ এক্সেছ কৰিব নোৱাৰি"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"সংযোজিত, ইণ্টাৰনেট নাই"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"নাই"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"ম্যাদ উকলিছে"</string>
 </resources>

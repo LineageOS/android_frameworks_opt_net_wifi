@@ -17,16 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Resurse Wi-Fi pentru sistem"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="few">Rețele Wi-Fi disponibile</item>
-      <item quantity="other">Rețele Wi-Fi disponibile</item>
-      <item quantity="one">Rețea Wi-Fi disponibilă</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="few">Rețele Wi-Fi deschise disponibile</item>
-      <item quantity="other">Rețele Wi-Fi deschise disponibile</item>
-      <item quantity="one">Rețea Wi-Fi deschisă disponibilă</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Conectați-vă la o rețea Wi‑Fi deschisă"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Se conectează la rețeaua Wi-Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"S-a realizat conexiunea la rețeaua Wi-Fi"</string>
@@ -41,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> a sugerat rețele. Dispozitivul se poate conecta automat."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Permiteți"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nu, mulțumesc"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Avertisment privind confidențialitatea pentru protecția IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> a sugerat rețele care vă folosesc informațiile despre cardul SIM fără a vă proteja confidențialitatea. Permiteți conectarea automată la rețea?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Permiteți"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Nu permiteți"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi se va activa automat"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Când vă aflați lângă o rețea salvată, de înaltă calitate"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Nu reactivați"</string>

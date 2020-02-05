@@ -36,6 +36,7 @@ import android.util.ArraySet;
 import com.android.server.wifi.WifiNative;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -53,37 +54,37 @@ public class KnownBandsChannelHelper extends ChannelHelper {
 
     private WifiScanner.ChannelSpec[][] mBandsToChannels;
 
-    protected void setBandChannels(int[] channels2G, int[] channels5G, int[] channelsDfs,
-            int[] channels6G) {
+    protected void setBandChannels(List<Integer> channels2G, List<Integer> channels5G,
+            List<Integer> channelsDfs, List<Integer> channels6G) {
         mBandsToChannels = new WifiScanner.ChannelSpec[WIFI_BAND_COUNT][];
 
-        if (channels2G.length != 0) {
+        if (!channels2G.isEmpty()) {
             mBandsToChannels[WIFI_BAND_INDEX_24_GHZ] =
-                    new WifiScanner.ChannelSpec[channels2G.length];
+                    new WifiScanner.ChannelSpec[channels2G.size()];
             copyChannels(mBandsToChannels[WIFI_BAND_INDEX_24_GHZ], channels2G);
         } else {
             mBandsToChannels[WIFI_BAND_INDEX_24_GHZ] = NO_CHANNELS;
         }
 
-        if (channels5G.length != 0) {
+        if (!channels5G.isEmpty()) {
             mBandsToChannels[WIFI_BAND_INDEX_5_GHZ] =
-                    new WifiScanner.ChannelSpec[channels5G.length];
+                    new WifiScanner.ChannelSpec[channels5G.size()];
             copyChannels(mBandsToChannels[WIFI_BAND_INDEX_5_GHZ], channels5G);
         } else {
             mBandsToChannels[WIFI_BAND_INDEX_5_GHZ] = NO_CHANNELS;
         }
 
-        if (channelsDfs.length != 0) {
+        if (!channelsDfs.isEmpty()) {
             mBandsToChannels[WIFI_BAND_INDEX_5_GHZ_DFS_ONLY] =
-                    new WifiScanner.ChannelSpec[channelsDfs.length];
+                    new WifiScanner.ChannelSpec[channelsDfs.size()];
             copyChannels(mBandsToChannels[WIFI_BAND_INDEX_5_GHZ_DFS_ONLY], channelsDfs);
         } else {
             mBandsToChannels[WIFI_BAND_INDEX_5_GHZ_DFS_ONLY] = NO_CHANNELS;
         }
 
-        if (channels6G.length != 0) {
+        if (!channels6G.isEmpty()) {
             mBandsToChannels[WIFI_BAND_INDEX_6_GHZ] =
-                    new WifiScanner.ChannelSpec[channels6G.length];
+                    new WifiScanner.ChannelSpec[channels6G.size()];
             copyChannels(mBandsToChannels[WIFI_BAND_INDEX_6_GHZ], channels6G);
         } else {
             mBandsToChannels[WIFI_BAND_INDEX_6_GHZ] = NO_CHANNELS;
@@ -91,9 +92,9 @@ public class KnownBandsChannelHelper extends ChannelHelper {
     }
 
     private static void copyChannels(
-            WifiScanner.ChannelSpec[] channelSpec, int[] channels) {
-        for (int i = 0; i < channels.length; i++) {
-            channelSpec[i] = new WifiScanner.ChannelSpec(channels[i]);
+            WifiScanner.ChannelSpec[] channelSpec, List<Integer> channels) {
+        for (int i = 0; i < channels.size(); i++) {
+            channelSpec[i] = new WifiScanner.ChannelSpec(channels.get(i));
         }
     }
 

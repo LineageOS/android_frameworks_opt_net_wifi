@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"ନେଟୱର୍କ ମୂଲ୍ୟାୟନ ପ୍ରଦାତାଙ୍କ ମାଧ୍ୟମରେ ଅଟୋମେଟିକାଲ୍ୟ ସଂଯୁକ୍ତ"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"ସୀମିତ ସଂଯୋଗ"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"ବ୍ୟକ୍ତିଗତ DNS ସର୍ଭର୍ ଆକ୍ସେସ୍ କରିହେବ ନାହିଁ"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"ସଂଯୁକ୍ତ, ଇଣ୍ଟର୍‌ନେଟ୍‌ ନାହିଁ"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"କିଛି ନାହିଁ"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"ମିଆଦ ଶେଷ ହୋଇଯାଇଛି"</string>
 </resources>

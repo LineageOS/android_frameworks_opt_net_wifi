@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"ทรัพยากร Wi-Fi ของระบบ"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">มีหลายเครือข่าย Wi-Fi ที่ใช้งานได้</item>
-      <item quantity="one">มี 1 เครือข่าย Wi-Fi ที่ใช้งานได้</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">มีหลายเครือข่าย Wi-Fi สาธารณะที่ใช้งานได้</item>
-      <item quantity="one">มี 1 เครือข่าย Wi-Fi สาธารณะที่ใช้งานได้</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"เชื่อมต่อเครือข่าย Wi‑Fi แบบเปิด"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"กำลังเชื่อมต่อกับเครือข่าย Wi-Fi"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"เชื่อมต่อเครือข่าย Wi-Fi แล้ว"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"เครือข่ายที่แนะนำโดย <xliff:g id="NAME">%s</xliff:g> และอุปกรณ์อาจเชื่อมต่อโดยอัตโนมัติ"</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"อนุญาต"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"ไม่เป็นไร"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"คำเตือนด้านความเป็นส่วนตัวสำหรับการคุ้มครอง IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"เครือข่ายแนะนำของ <xliff:g id="CARRIERNAME">%s</xliff:g> กำลังใช้ข้อมูลซิมการ์ดโดยไม่มีการคุ้มครองความเป็นส่วนตัว อนุญาตให้เชื่อมต่อเครือข่ายโดยอัตโนมัติไหม"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"อนุญาต"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"ไม่อนุญาต"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi จะเปิดโดยอัตโนมัติ"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"เมื่อคุณอยู่ใกล้เครือข่ายคุณภาพสูงที่บันทึกไว้"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"ไม่ต้องเปิดอีกครั้ง"</string>

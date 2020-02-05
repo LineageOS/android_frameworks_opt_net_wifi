@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"ସିଷ୍ଟମ୍ ୱାଇ-ଫାଇ ରିସୋର୍ସ"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="other">ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କଗୁଡ଼ିକ ଉପଲବ୍ଧ</item>
-      <item quantity="one">ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କ ଉପଲବ୍ଧ</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="other">ମୁକ୍ତ ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କଗୁଡ଼ିକ ଉପଲବ୍ଧ</item>
-      <item quantity="one">ମୁକ୍ତ ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କ ଉପଲବ୍ଧ</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"ୱାଇ‑ଫାଇ ନେଟୱର୍କ ଖୋଲିବାକୁ କନେକ୍ଟ କରନ୍ତୁ"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କ ସହିତ କନେକ୍ଟ ହେଉଛି"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"ୱାଇ-ଫାଇ ନେଟ୍‌ୱର୍କରେ କନେକ୍ଟ ହୋଇଛି"</string>
@@ -39,6 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> ପ୍ରସ୍ତାବିତ ନେଟ୍‌ୱାର୍କଗୁଡ଼ିକ। ଡିଭାଇସ୍ ହୁଏତ ସ୍ୱଚାଳିତ ଭାବେ ସଂଯୋଗ ହୋଇପାରେ।"</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"ଅନୁମତି ଦିଅନ୍ତୁ"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"ନାହିଁ, ଥାଉ"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (5072368033308094465) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (5050532382656368119) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (5500037364868978935) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (7020127735591720299) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"ୱାଇ-ଫାଇ ସ୍ୱଚାଳିତ ଭାବେ ଅନ୍ ହେବ"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"ଆପଣ ଏକ ଉଚ୍ଚ-କ୍ୱାଲିଟୀ ବିଶିଷ୍ଟ ସେଭ୍‌ କରାଯାଇଥିବା ନେଟ୍‌ୱର୍କ ପାଖରେ ଥିବା ସମୟରେ"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"ପୁଣି ଅନ୍‍ କରନ୍ତୁ ନାହିଁ"</string>
@@ -77,7 +77,7 @@
     <string name="wifi_eap_error_message_code_32764" msgid="6883041845648321423">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ପ୍ରମାଣିକତାରେ ତ୍ରୁଟି 32764"</string>
     <string name="wifi_eap_error_message_code_32765" msgid="3134805513440435314">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ପ୍ରମାଣିକତାରେ ତ୍ରୁଟି 32765"</string>
     <string name="wifi_eap_error_message_code_32766" msgid="6907401733158262194">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ପ୍ରମାଣିକତାରେ ତ୍ରୁଟି 32766"</string>
-    <string name="wifi_softap_auto_shutdown_timeout_expired_title" msgid="6772994319428197481">"ମୋବାଇଲ୍ ହଟସ୍ପଟକୁ ଅକ୍ଷମ କରାଯାଇଛି"</string>
+    <string name="wifi_softap_auto_shutdown_timeout_expired_title" msgid="6772994319428197481">"ମୋବାଇଲ୍ ହଟସ୍ପଟ ଅକ୍ଷମ ହୋଇଯାଇଛି"</string>
     <string name="wifi_softap_auto_shutdown_timeout_expired_summary" msgid="2784340491027490290">"ମୋବାଇଲ୍ ହଟସ୍ପଟକୁ ଅକ୍ଷମ କରାଯାଇଛି"</string>
     <string name="wifi_softap_auto_shutdown_timeout_expired_detail" msgid="7203939001058203709">"ନିଷ୍କ୍ରିୟ ସମୟ ସୀମା ସମାପ୍ତ ହୋଇଥିବା ଯୋଗୁଁ ମୋବାଇଲ୍ ହଟସ୍ପଟ୍ ଅକ୍ଷମ କରାଯାଇଛି।"</string>
 </resources>

@@ -25,7 +25,7 @@ import android.os.Binder;
 import com.android.server.wifi.util.ApConfigUtil;
 
 import java.io.PrintWriter;
-import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -399,28 +399,16 @@ public class WifiShellCommand extends BasicShellCommandHandler {
     }
 
     private boolean isApChannelMHzValid(int apChannelMHz) {
-        int[] allowed2gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_24_GHZ);
-        int[] allowed5gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ);
-        int[] allowed5gDfsFreq =
+        List<Integer> allowed2gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_24_GHZ);
+        List<Integer> allowed5gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ);
+        List<Integer> allowed5gDfsFreq =
             mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY);
-        int[] allowed6gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ);
-        if (allowed2gFreq == null) {
-            allowed2gFreq = new int[0];
-        }
-        if (allowed5gFreq == null) {
-            allowed5gFreq = new int[0];
-        }
-        if (allowed5gDfsFreq == null) {
-            allowed5gDfsFreq = new int[0];
-        }
-        if (allowed6gFreq == null) {
-            allowed6gFreq = new int[0];
-        }
+        List<Integer> allowed6gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ);
 
-        return (Arrays.binarySearch(allowed2gFreq, apChannelMHz) >= 0
-                || Arrays.binarySearch(allowed5gFreq, apChannelMHz) >= 0
-                || Arrays.binarySearch(allowed5gDfsFreq, apChannelMHz) >= 0)
-                || Arrays.binarySearch(allowed6gFreq, apChannelMHz) >= 0;
+        return allowed2gFreq.contains(apChannelMHz)
+                || allowed5gFreq.contains(apChannelMHz)
+                || allowed5gDfsFreq.contains(apChannelMHz)
+                || allowed6gFreq.contains(apChannelMHz);
     }
 
     private void checkRootPermission() {

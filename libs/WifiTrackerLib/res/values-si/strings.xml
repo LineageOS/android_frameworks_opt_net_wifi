@@ -35,6 +35,8 @@
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"ජාල ශ්‍රේණිගත සපයන්නා හරහා ස්වයංක්‍රියව සම්බන්ධ විය"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"සීමිත සම්බන්ධතාව"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"පුද්ගලික DNS සේවාදායකයට ප්‍රවේශ වීමට නොහැකිය"</string>
-    <string name="wifi_connected_no_internet" msgid="4568217438332924176">"සම්බන්ධයි, අන්තර්ජාලය නැත"</string>
+    <!-- no translation found for wifi_connected_no_internet (7273909077465731259) -->
+    <skip />
     <string name="wifi_security_none" msgid="6680263031386719053">"කිසිවක් නැත"</string>
+    <string name="wifi_passpoint_expired" msgid="3257021415099577815">"කල් ඉකුත් විය"</string>
 </resources>

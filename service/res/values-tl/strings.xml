@@ -17,14 +17,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="wifiResourcesAppLabel" product="default" msgid="4965162975090543792">"Mga Resource ng Wi-Fi ng System"</string>
-    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
-      <item quantity="one">Available ang mga Wi-Fi network</item>
-      <item quantity="other">Available ang mga Wi-Fi network</item>
-    </plurals>
-    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
-      <item quantity="one">Available ang mga bukas na Wi-Fi network</item>
-      <item quantity="other">Available ang mga bukas na Wi-Fi network</item>
-    </plurals>
     <string name="wifi_available_title" msgid="2844963247498642107">"Kumonekta sa bukas na Wi‑Fi network"</string>
     <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Kumokonekta sa Wi‑Fi network"</string>
     <string name="wifi_available_title_connected" msgid="922603556292157664">"Nakakonekta sa Wi‑Fi network"</string>
@@ -39,6 +31,10 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Mga iminumungkahing network ng <xliff:g id="NAME">%s</xliff:g>. Posibleng awtomatikong kumonekta ang device."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Payagan"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Hindi, salamat na lang"</string>
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"Babala sa privacy para sa proteksyon ng IMSI"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"Nagmungkahi ng mga network ang <xliff:g id="CARRIERNAME">%s</xliff:g> gamit ang impormasyon ng iyong SIM card nang walang proteksyon sa privacy, payagan ang network na awtomatikong kumonekta?"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"Payagan"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"Huwag Payagan"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Awtomatikong mag-o-on ang Wi‑Fi"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Kapag malapit ka sa naka-save na network na mataas ang kalidad"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Huwag i-on muli"</string>

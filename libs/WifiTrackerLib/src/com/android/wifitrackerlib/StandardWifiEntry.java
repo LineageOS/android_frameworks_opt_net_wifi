@@ -538,15 +538,14 @@ class StandardWifiEntry extends WifiEntry {
             return;
         }
 
-        final WifiConfiguration saveConfig = new WifiConfiguration(mWifiConfig);
         if (meteredChoice == METERED_CHOICE_AUTO) {
-            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NONE;
+            mWifiConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NONE;
         } else if (meteredChoice == METERED_CHOICE_METERED) {
-            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
+            mWifiConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
         } else if (meteredChoice == METERED_CHOICE_UNMETERED) {
-            saveConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
+            mWifiConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_NOT_METERED;
         }
-        mWifiManager.save(saveConfig, null /* listener */);
+        mWifiManager.save(mWifiConfig, null /* listener */);
     }
 
     @Override
