@@ -854,9 +854,9 @@ public class WifiConnectivityManager {
 
         // If current network link quality is sufficient or has active stream,
         // skip scan (with firmware roaming) or do partial scan only (without firmware roaming).
-        if (mWifiState == WIFI_STATE_CONNECTED
-                && (mNetworkSelector.hasSufficientLinkQuality(mWifiInfo, mScoringParams)
-                || mNetworkSelector.hasActiveStream(mWifiInfo, mScoringParams))) {
+        if (mWifiState == WIFI_STATE_CONNECTED && (
+                mNetworkSelector.isNetworkSufficient(mWifiInfo)
+                || mNetworkSelector.hasActiveStream(mWifiInfo))) {
             // If only partial scan is proposed and firmware roaming control is supported,
             // we will not issue any scan because firmware roaming will take care of
             // intra-SSID roam.
