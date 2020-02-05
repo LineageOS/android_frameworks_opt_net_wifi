@@ -2302,4 +2302,25 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         mWifiConnectivityManager.setBluetoothConnected(false);
         verify(mWifiNS).setBluetoothConnected(false);
     }
+
+    /**
+     *  Verify that WifiChannelUtilization is updated
+     */
+    @Test
+    public void verifyForceConnectivityScan() {
+        // Auto-join enabled
+        mWifiConnectivityManager.setAutoJoinEnabledExternal(true);
+        mWifiConnectivityManager.forceConnectivityScan(WIFI_WORK_SOURCE);
+        verify(mWifiScanner).startScan(any(), any(), any(), any());
+
+        // Auto-join disabled
+        mWifiConnectivityManager.setAutoJoinEnabledExternal(false);
+        mWifiConnectivityManager.forceConnectivityScan(WIFI_WORK_SOURCE);
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any(), any());
+
+        // Wifi disabled, no new scans
+        mWifiConnectivityManager.setWifiEnabled(false);
+        mWifiConnectivityManager.forceConnectivityScan(WIFI_WORK_SOURCE);
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any(), any());
+    }
 }
