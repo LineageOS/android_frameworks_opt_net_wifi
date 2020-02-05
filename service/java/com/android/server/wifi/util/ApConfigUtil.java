@@ -457,8 +457,7 @@ public class ApConfigUtil {
     @NonNull
     public static SoftApCapability updateCapabilityFromResource(@NonNull Context context) {
         int features = 0;
-        if (context.getResources().getBoolean(
-                R.bool.config_wifi_softap_acs_supported)) {
+        if (isAcsSupported(context)) {
             Log.d(TAG, "Update Softap capability, add acs feature support");
             features |= SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
         }
@@ -503,6 +502,17 @@ public class ApConfigUtil {
     public static boolean isWpa3SaeSupported(@NonNull Context context) {
         return context.getResources().getBoolean(
                 R.bool.config_wifi_softap_sae_supported);
+    }
+
+    /**
+     * Helper function to get ACS support or not.
+     *
+     * @param context the caller context used to get value from resource file.
+     * @return true if supported, false otherwise.
+     */
+    public static boolean isAcsSupported(@NonNull Context context) {
+        return context.getResources().getBoolean(
+                R.bool.config_wifi_softap_acs_supported);
     }
 
     /**
