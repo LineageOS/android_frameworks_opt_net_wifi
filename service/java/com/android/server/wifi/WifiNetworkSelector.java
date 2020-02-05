@@ -741,31 +741,18 @@ public class WifiNetworkSelector {
             localLog("Connectable: " + mConnectableNetworks.size()
                     + " Candidates: " + wifiCandidates.size());
         }
-
+        final WifiCandidates.CandidateScorer activeScorer = getActiveCandidateScorer();
         // Update the NetworkSelectionStatus in the configs for the current candidates
         // This is needed for the legacy user connect choice, at least
         Collection<Collection<WifiCandidates.Candidate>> groupedCandidates =
                 wifiCandidates.getGroupedCandidates();
         for (Collection<WifiCandidates.Candidate> group: groupedCandidates) {
-            WifiCandidates.Candidate best = null;
-            for (WifiCandidates.Candidate candidate: group) {
-                // Of all the candidates with the same networkId, choose the
-                // one with the smallest nominatorId, and break ties by
-                // picking the one with the highest score.
-                if (best == null
-                        || candidate.getNominatorId() < best.getNominatorId()
-                        || (candidate.getNominatorId() == best.getNominatorId()
-                            && candidate.getNominatorScore() > best.getNominatorScore())) {
-                    best = candidate;
-                }
+            WifiCandidates.ScoredCandidate choice = activeScorer.scoreCandidates(group);
+            if (choice == null || choice.scanDetail == null) {
+                continue;
             }
-            if (best != null) {
-                ScanDetail scanDetail = best.getScanDetail();
-                if (scanDetail != null) {
-                    mWifiConfigManager.setNetworkCandidateScanResult(best.getNetworkConfigId(),
-                            scanDetail.getScanResult(), best.getNominatorScore());
-                }
-            }
+            mWifiConfigManager.setNetworkCandidateScanResult(choice.candidateKey.networkId,
+                    choice.scanDetail.getScanResult(), 0);
         }
 
         ArrayMap<Integer, Integer> experimentNetworkSelections = new ArrayMap<>(); // for metrics
@@ -774,7 +761,6 @@ public class WifiNetworkSelector {
 
         // Run all the CandidateScorers
         boolean legacyOverrideWanted = true;
-        final WifiCandidates.CandidateScorer activeScorer = getActiveCandidateScorer();
         for (WifiCandidates.CandidateScorer candidateScorer : mCandidateScorers.values()) {
             WifiCandidates.ScoredCandidate choice;
             try {

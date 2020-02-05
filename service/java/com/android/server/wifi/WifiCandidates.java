@@ -299,12 +299,14 @@ public class WifiCandidates {
         public final double err;
         public final Key candidateKey;
         public final boolean userConnectChoiceOverride;
+        public final ScanDetail scanDetail;
         public ScoredCandidate(double value, double err, boolean userConnectChoiceOverride,
                 Candidate candidate) {
             this.value = value;
             this.err = err;
             this.candidateKey = (candidate == null) ? null : candidate.getKey();
             this.userConnectChoiceOverride = userConnectChoiceOverride;
+            this.scanDetail = (candidate == null) ? null : candidate.getScanDetail();
         }
         /**
          * Represents no score

@@ -1195,7 +1195,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                 setUpTwoNetworks(-35, -40),
                 EMPTY_BLACKLIST, mWifiInfo, false, true, true);
 
-        verify(mCandidateScorer).scoreCandidates(any());
+        verify(mCandidateScorer, atLeastOnce()).scoreCandidates(any());
     }
 
     /**
