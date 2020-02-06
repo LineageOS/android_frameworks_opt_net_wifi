@@ -38,13 +38,16 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * WifiEntry representation of a subscribed Passpoint network, uniquely identified by FQDN.
  */
-class PasspointWifiEntry extends WifiEntry {
+@VisibleForTesting
+public class PasspointWifiEntry extends WifiEntry {
     static final String KEY_PREFIX = "PasspointWifiEntry:";
 
     private final List<ScanResult> mCurrentHomeScanResults = new ArrayList<>();
