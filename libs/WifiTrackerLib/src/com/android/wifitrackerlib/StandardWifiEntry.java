@@ -49,6 +49,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
@@ -62,7 +64,8 @@ import java.util.stream.Collectors;
  *
  * This type of WifiEntry can represent both open and saved networks.
  */
-class StandardWifiEntry extends WifiEntry {
+@VisibleForTesting
+public class StandardWifiEntry extends WifiEntry {
     static final String KEY_PREFIX = "StandardWifiEntry:";
 
     @Retention(RetentionPolicy.SOURCE)
