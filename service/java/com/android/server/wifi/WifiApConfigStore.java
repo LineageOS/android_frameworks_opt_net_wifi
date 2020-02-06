@@ -248,42 +248,14 @@ public class WifiApConfigStore {
             convertedConfigBuilder.setBssid(null);
         }
 
-        if (mActiveModeWarden.canSupportAtleastOneConcurrentClientAndSoftApManager()) {
-            // some devices are unable to support 5GHz only operation, check for 5GHz and
-            // allow for 2GHz if apBand conversion is required.
-            if (config.getBand() == SoftApConfiguration.BAND_5GHZ) {
-                Log.w(TAG, "Supplied ap config band was 5GHz only, Allowing for 2.4GHz");
-                if (convertedConfigBuilder == null) {
-                    convertedConfigBuilder = new SoftApConfiguration.Builder(config);
-                }
-                convertedConfigBuilder.setBand(SoftApConfiguration.BAND_5GHZ
-                        | SoftApConfiguration.BAND_2GHZ);
+        // some countries are unable to support 5GHz only operation, always allow for 2GHz when
+        // config doesn't force channel
+        if (config.getChannel() == 0 && (config.getBand() & SoftApConfiguration.BAND_2GHZ) == 0) {
+            Log.w(TAG, "Supplied ap config band without 2.4G, add allowing for 2.4GHz");
+            if (convertedConfigBuilder == null) {
+                convertedConfigBuilder = new SoftApConfiguration.Builder(config);
             }
-        } else {
-            // this is a single mode device, convert band to 5GHz if allowed
-            int targetBand = 0;
-            int apBand = config.getBand();
-            if (ApConfigUtil.isMultiband(apBand)) {
-                if (ApConfigUtil.containsBand(apBand, SoftApConfiguration.BAND_5GHZ)) {
-                    Log.w(TAG, "Supplied ap config band is multiband , converting to 5GHz");
-                    targetBand = SoftApConfiguration.BAND_5GHZ;
-                } else if (ApConfigUtil.containsBand(apBand,
-                        SoftApConfiguration.BAND_2GHZ)) {
-                    Log.w(TAG, "Supplied ap config band is multiband , converting to 2GHz");
-                    targetBand = SoftApConfiguration.BAND_2GHZ;
-                } else if (ApConfigUtil.containsBand(apBand,
-                        SoftApConfiguration.BAND_6GHZ)) {
-                    Log.w(TAG, "Supplied ap config band is multiband , converting to 6GHz");
-                    targetBand = SoftApConfiguration.BAND_6GHZ;
-                }
-            }
-
-            if (targetBand != 0) {
-                if (convertedConfigBuilder == null) {
-                    convertedConfigBuilder = new SoftApConfiguration.Builder(config);
-                }
-                convertedConfigBuilder.setBand(targetBand);
-            }
+            convertedConfigBuilder.setBand(config.getBand() | SoftApConfiguration.BAND_2GHZ);
         }
         return convertedConfigBuilder == null ? config : convertedConfigBuilder.build();
     }
