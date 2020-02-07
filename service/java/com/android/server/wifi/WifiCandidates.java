@@ -126,72 +126,75 @@ public class WifiCandidates {
      * Represents a connectable candidate
      */
     private static class CandidateImpl implements Candidate {
-        public final Key key;                   // SSID/sectype/BSSID/configId
-        public final WifiConfiguration config;
-        // First nominator to nominate this config
-        public final @WifiNetworkSelector.NetworkNominator.NominatorId int nominatorId;
-        public final double lastSelectionWeight; // Value between 0 and 1
-
+        private final Key mKey;                   // SSID/sectype/BSSID/configId
+        private final @WifiNetworkSelector.NetworkNominator.NominatorId int mNominatorId;
         private final int mScanRssi;
         private final int mFrequency;
+        private final double mLastSelectionWeight;
         private final WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
         private final boolean mIsCurrentNetwork;
         private final boolean mIsCurrentBssid;
         private final boolean mIsMetered;
+        private final boolean mIsOpenNetwork;
+        private final boolean mPasspoint;
+        private final boolean mEphemeral;
+        private final boolean mTrusted;
         private final int mPredictedThroughputMbps;
 
-        CandidateImpl(Key key,
-                ScanDetail scanDetail,
-                WifiConfiguration config,
-                @WifiNetworkSelector.NetworkNominator.NominatorId int nominatorId,
+        CandidateImpl(Key key, WifiConfiguration config,
                 WifiScoreCard.PerBssid perBssid,
+                @WifiNetworkSelector.NetworkNominator.NominatorId int nominatorId,
+                int scanRssi,
+                int frequency,
                 double lastSelectionWeight,
                 boolean isCurrentNetwork,
                 boolean isCurrentBssid,
                 boolean isMetered,
                 int predictedThroughputMbps) {
-            this.key = key;
-            this.config = config;
-            this.nominatorId = nominatorId;
-            this.mScanRssi = scanDetail.getScanResult().level;
-            this.mFrequency = scanDetail.getScanResult().frequency;
+            this.mKey = key;
+            this.mNominatorId = nominatorId;
+            this.mScanRssi = scanRssi;
+            this.mFrequency = frequency;
             this.mPerBssid = perBssid;
-            this.lastSelectionWeight = lastSelectionWeight;
+            this.mLastSelectionWeight = lastSelectionWeight;
             this.mIsCurrentNetwork = isCurrentNetwork;
             this.mIsCurrentBssid = isCurrentBssid;
             this.mIsMetered = isMetered;
+            this.mIsOpenNetwork = WifiConfigurationUtil.isConfigForOpenNetwork(config);
+            this.mPasspoint = config.isPasspoint();
+            this.mEphemeral = config.ephemeral;
+            this.mTrusted = config.trusted;
             this.mPredictedThroughputMbps = predictedThroughputMbps;
         }
 
         @Override
         public Key getKey() {
-            return key;
+            return mKey;
         }
 
         @Override
         public int getNetworkConfigId() {
-            return key.networkId;
+            return mKey.networkId;
         }
 
         @Override
         public boolean isOpenNetwork() {
-            // TODO - should be able to base this on key.matchInfo.securityType
-            return WifiConfigurationUtil.isConfigForOpenNetwork(config);
+            return mIsOpenNetwork;
         }
 
         @Override
         public boolean isPasspoint() {
-            return config.isPasspoint();
+            return mPasspoint;
         }
 
         @Override
         public boolean isEphemeral() {
-            return config.ephemeral;
+            return mEphemeral;
         }
 
         @Override
         public boolean isTrusted() {
-            return config.trusted;
+            return mTrusted;
         }
 
         @Override
@@ -201,12 +204,12 @@ public class WifiCandidates {
 
         @Override
         public @WifiNetworkSelector.NetworkNominator.NominatorId int getNominatorId() {
-            return nominatorId;
+            return mNominatorId;
         }
 
         @Override
         public double getLastSelectionWeight() {
-            return lastSelectionWeight;
+            return mLastSelectionWeight;
         }
 
         @Override
@@ -364,7 +367,7 @@ public class WifiCandidates {
         CandidateImpl old = mCandidates.get(key);
         if (old != null) {
             // check if we want to replace this old candidate
-            if (nominatorId > old.nominatorId) return false;
+            if (nominatorId > old.mNominatorId) return false;
             remove(old);
         }
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.lookupBssid(
@@ -373,8 +376,8 @@ public class WifiCandidates {
         perBssid.setSecurityType(
                 WifiScoreCardProto.SecurityType.forNumber(key.matchInfo.networkType));
         perBssid.setNetworkConfigId(config.networkId);
-        CandidateImpl candidate = new CandidateImpl(key,
-                scanDetail, config, nominatorId, perBssid,
+        CandidateImpl candidate = new CandidateImpl(key, config, perBssid, nominatorId,
+                scanResult.level, scanResult.frequency,
                 Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0),
                 config.networkId == mCurrentNetworkId,
                 bssid.equals(mCurrentBssid),
@@ -414,13 +417,14 @@ public class WifiCandidates {
         return true;
     }
 
+
     /**
      * Removes a candidate
      * @return true if the candidate was successfully removed
      */
     public boolean remove(Candidate candidate) {
         if (!(candidate instanceof CandidateImpl)) return failure();
-        return mCandidates.remove(((CandidateImpl) candidate).key, candidate);
+        return mCandidates.remove(candidate.getKey(), candidate);
     }
 
     /**
@@ -436,10 +440,10 @@ public class WifiCandidates {
     public Collection<Collection<Candidate>> getGroupedCandidates() {
         Map<Integer, Collection<Candidate>> candidatesForNetworkId = new ArrayMap<>();
         for (CandidateImpl candidate : mCandidates.values()) {
-            Collection<Candidate> cc = candidatesForNetworkId.get(candidate.key.networkId);
+            Collection<Candidate> cc = candidatesForNetworkId.get(candidate.getNetworkConfigId());
             if (cc == null) {
                 cc = new ArrayList<>(2); // Guess 2 bssids per network
-                candidatesForNetworkId.put(candidate.key.networkId, cc);
+                candidatesForNetworkId.put(candidate.getNetworkConfigId(), cc);
             }
             cc.add(candidate);
         }
