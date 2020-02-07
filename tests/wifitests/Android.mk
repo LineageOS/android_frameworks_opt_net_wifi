@@ -78,7 +78,6 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libbacktrace \
 	libbase \
 	libbinder \
-	libbinderthreadstate \
 	libc++ \
 	ld-android \
 	libdl_android \
