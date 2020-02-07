@@ -1119,6 +1119,7 @@ public class ClientModeImpl extends StateMachine {
         mMboOceController.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiScoreCard.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiHealthMonitor.enableVerboseLogging(mVerboseLoggingEnabled);
+        mWifiInjector.getThroughputPredictor().enableVerboseLogging(mVerboseLoggingEnabled);
     }
 
     private boolean setRandomMacOui() {
