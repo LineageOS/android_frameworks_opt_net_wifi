@@ -107,9 +107,6 @@ public class StandardWifiEntry extends WifiEntry {
     private @EapType int mEapType = EAP_UNKNOWN;
     private @PskType int mPskType = PSK_UNKNOWN;
     @Nullable private WifiConfiguration mWifiConfig;
-    @Nullable private ConnectCallback mConnectCallback;
-    @Nullable private DisconnectCallback mDisconnectCallback;
-    @Nullable private ForgetCallback mForgetCallback;
     @Nullable private String mRecommendationServiceLabel;
 
     StandardWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
