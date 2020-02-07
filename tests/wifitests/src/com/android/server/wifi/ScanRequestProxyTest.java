@@ -28,7 +28,6 @@ import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
-import android.database.ContentObserver;
 import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
@@ -102,8 +101,6 @@ public class ScanRequestProxyTest extends WifiBaseTest {
             ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
     private ArgumentCaptor<WifiScanner.ScanListener> mGlobalScanListenerArgumentCaptor =
             ArgumentCaptor.forClass(WifiScanner.ScanListener.class);
-    private ArgumentCaptor<ContentObserver> mThrottleEnabledSettingObservorCaptor =
-            ArgumentCaptor.forClass(ContentObserver.class);
     private WifiScanner.ScanData[] mTestScanDatas1;
     private WifiScanner.ScanData[] mTestScanDatas2;
     private InOrder mInOrder;
@@ -647,15 +644,10 @@ public class ScanRequestProxyTest extends WifiBaseTest {
     public void testSuccessiveScanRequestFromSameAppWhenThrottlingIsDisabledNotThrottled() {
         // Triggers the scan throttle setting registration.
         testEnableScanning();
-        verify(mFrameworkFacade).registerContentObserver(any(),
-                eq(Settings.Global.getUriFor(Settings.Global.WIFI_SCAN_THROTTLE_ENABLED)),
-                anyBoolean(), mThrottleEnabledSettingObservorCaptor.capture());
-        assertNotNull(mThrottleEnabledSettingObservorCaptor);
         // Disable scan throttling & invoke the content observer callback.
-        when(mFrameworkFacade.getIntegerSetting(
-                eq(mContext), eq(Settings.Global.WIFI_SCAN_THROTTLE_ENABLED), anyInt()))
-                .thenReturn(0);
-        mThrottleEnabledSettingObservorCaptor.getValue().onChange(false);
+        mScanRequestProxy.setScanThrottleEnabled(false);
+        verify(mFrameworkFacade).setIntegerSetting(
+                eq(mContext), eq(Settings.Global.WIFI_SCAN_THROTTLE_ENABLED), anyInt());
 
         long firstRequestMs = 782;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(firstRequestMs);

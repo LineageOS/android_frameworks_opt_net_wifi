@@ -19,24 +19,24 @@ package com.android.server.wifi;
 import android.annotation.Nullable;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiOemConfigStoreMigrationHook;
-import android.net.wifi.WifiOemConfigStoreMigrationHook.MigrationData;
+import android.net.wifi.WifiOemMigrationHook;
+import android.net.wifi.WifiOemMigrationHook.ConfigStoreMigrationData;
 
 import java.util.List;
 
 /**
  * Caches the data migrated out of OEM config store. This class helps to avoid invoking the
- * {@link WifiOemConfigStoreMigrationHook#load()} multiple times from different instances of
+ * {@link WifiOemMigrationHook#loadFromConfigStore()} multiple times from different instances of
  * {@link WifiConfigStore.StoreData}.
  *
  */
 public class WifiOemConfigStoreMigrationDataHolder {
-    private MigrationData mData;
+    private ConfigStoreMigrationData mData;
     private boolean mLoaded = false;
 
     private void loadOemMigrationData() {
         if (!mLoaded) {
-            mData = WifiOemConfigStoreMigrationHook.load();
+            mData = WifiOemMigrationHook.loadFromConfigStore();
             mLoaded = true;
         }
     }
