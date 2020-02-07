@@ -90,10 +90,10 @@ public class WifiCandidatesTest extends WifiBaseTest {
      */
     @Test
     public void testDontDieFromNulls() throws Exception {
-        mWifiCandidates.add(null, mConfig1, 1, 42, 0.0, false, 100);
-        mWifiCandidates.add(mScanDetail1, null, 2, 16, 0.0, false, 100);
+        mWifiCandidates.add(null, mConfig1, 1, 0.0, false, 100);
+        mWifiCandidates.add(mScanDetail1, null, 2, 0.0, false, 100);
         doReturn(null).when(mScanDetail2).getScanResult();
-        mWifiCandidates.add(mScanDetail2, mConfig2, 3, 314, 1.0, true, 100);
+        mWifiCandidates.add(mScanDetail2, mConfig2, 3, 1.0, true, 100);
         assertFalse(mWifiCandidates.remove(null));
 
         assertEquals(0, mWifiCandidates.size());
@@ -104,7 +104,7 @@ public class WifiCandidatesTest extends WifiBaseTest {
      */
     @Test
     public void testAddJustOne() throws Exception {
-        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, false, 100));
+        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100));
 
         assertEquals(1, mWifiCandidates.size());
         assertEquals(0, mWifiCandidates.getFaultCount());
@@ -119,7 +119,7 @@ public class WifiCandidatesTest extends WifiBaseTest {
     public void testQuotingBotch() throws Exception {
         // Unfortunately ScanResult.SSID is not quoted; make sure we catch that
         mScanResult1.SSID = mConfig1.SSID;
-        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, true, 100);
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, true, 100);
 
         // Should not have added this one
         assertEquals(0, mWifiCandidates.size());
@@ -178,7 +178,7 @@ public class WifiCandidatesTest extends WifiBaseTest {
         assertTrue(mWifiCandidates == mWifiCandidates.setPicky(true));
         try {
             mScanResult1.SSID = mConfig1.SSID; // As in testQuotingBotch()
-            mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, false, 100);
+            mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100);
             fail("Exception not raised in picky mode");
         } catch (IllegalArgumentException e) {
             assertEquals(1, mWifiCandidates.getFaultCount());
@@ -192,25 +192,32 @@ public class WifiCandidatesTest extends WifiBaseTest {
     @Test
     public void testNoOverwriteCases() throws Exception {
         // Setup is to add the first candidate
-        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, false, 100);
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100);
         assertEquals(1, mWifiCandidates.size());
 
-        // Same nominator
-        // , same score. Should not add.
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, false, 100));
-        assertEquals(0, mWifiCandidates.getFaultCount()); // But not considered a fault
-        // Same nominator, lower score. Should not add.
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 13, 0.0, false, 100));
-        assertEquals(0, mWifiCandidates.getFaultCount()); // Also not a fault
-        // Later nominator. Should not add (regardless of score).
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 5, 13, 0.0, false, 100));
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 5, 15, 0.0, false, 100));
+        // Later nominator. Should not add.
+        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 5, 0.0, false, 100));
+        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 5, 0.0, false, 100));
         assertEquals(0, mWifiCandidates.getFaultCount()); // Still no faults
-        // Nominator out of order. Should not add (regardless of score).
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 1, 12, 0.0, false, 100));
-        assertNotNull(mWifiCandidates.getLastFault()); // This one is considered a caller error
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 1, 15, 0.0, false, 100));
-        assertEquals(2, mWifiCandidates.getFaultCount());
+        // After all that, only one candidate should be there.
+        assertEquals(1, mWifiCandidates.size());
+    }
+
+    /**
+     * Try cases where we do overwrite existing candidates
+     */
+    @Test
+    public void testOverwriteCases() throws Exception {
+        // Setup is to add the first candidate
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100);
+        assertEquals(1, mWifiCandidates.size());
+
+        // Same nominator, should replace.
+        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100));
+        assertEquals(0, mWifiCandidates.getFaultCount()); // No fault
+        // Nominator out of order. Should replace.
+        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 1, 0.0, false, 100));
+        assertEquals(0, mWifiCandidates.getFaultCount());  // But not considered a fault
         // After all that, only one candidate should be there.
         assertEquals(1, mWifiCandidates.size());
     }
@@ -222,12 +229,12 @@ public class WifiCandidatesTest extends WifiBaseTest {
     public void testBssidValidation() throws Exception {
         // Null BSSID.
         mScanResult1.BSSID = null;
-        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, false, 100);
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100);
         assertTrue("Expecting NPE, got " + mWifiCandidates.getLastFault(),
                 mWifiCandidates.getLastFault() instanceof NullPointerException);
         // Malformed BSSID
         mScanResult1.BSSID = "NotaBssid!";
-        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, false, 100);
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100);
         assertTrue("Expecting IAE, got " + mWifiCandidates.getLastFault(),
                 mWifiCandidates.getLastFault() instanceof IllegalArgumentException);
         assertEquals(0, mWifiCandidates.size());
@@ -244,8 +251,8 @@ public class WifiCandidatesTest extends WifiBaseTest {
         mScanResult2.SSID = mScanResult1.SSID;
         mScanResult2.BSSID = mScanResult1.BSSID.replace('1', '2');
         // Add both
-        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0, false, 100);
-        mWifiCandidates.add(mScanDetail2, mConfig2, 2, 14, 0.0, false, 100);
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 100);
+        mWifiCandidates.add(mScanDetail2, mConfig2, 2, 0.0, false, 100);
         // We expect them both to be there
         assertEquals(2, mWifiCandidates.size());
         // But just one group
@@ -276,18 +283,16 @@ public class WifiCandidatesTest extends WifiBaseTest {
         // And the scan result
         mScanResult2.SSID = mScanResult1.SSID;
         mScanResult2.BSSID = mScanResult1.BSSID;
-        // Try adding them both, the higher-scoring one second
-        assertTrue(mWifiCandidates.add(mScanDetail2, mConfig2, 2, 14, 0.0, false, 100));
-        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 15, 0.0, false, 90));
+        // Try adding them both, in a known order
+        assertTrue(mWifiCandidates.add(mScanDetail2, mConfig2, 2, 0.0, false, 100));
+        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0, false, 90));
         // Only one should survive
         assertEquals(1, mWifiCandidates.size());
-        // And no faults
         assertEquals(0, mWifiCandidates.getFaultCount());
-        // Make sure we kept the one with a higher nominator score
+        // Make sure we kept the second one
         WifiCandidates.Candidate c;
         c = mWifiCandidates.getGroupedCandidates().iterator().next().iterator().next();
         assertEquals(90, c.getPredictedThroughputMbps());
-        assertEquals(15, c.getNominatorScore());
     }
 
     /**
@@ -300,8 +305,8 @@ public class WifiCandidatesTest extends WifiBaseTest {
         WifiConfiguration config1 = WifiConfigurationTestUtil.createPasspointNetwork();
         mScanResult2.BSSID = mScanResult1.BSSID.replace('1', '2');
         // Add candidates with different scanDetail for same passpoint WifiConfig.
-        assertTrue(mWifiCandidates.add(mScanDetail1, config1, 2, 0, 0.0, false, 100));
-        assertTrue(mWifiCandidates.add(mScanDetail2, config1, 2, 0, 0.0, false, 100));
+        assertTrue(mWifiCandidates.add(mScanDetail1, config1, 2, 0.0, false, 100));
+        assertTrue(mWifiCandidates.add(mScanDetail2, config1, 2, 0.0, false, 100));
         // Both should survive and no faults.
         assertEquals(2, mWifiCandidates.size());
         assertEquals(0, mWifiCandidates.getFaultCount());

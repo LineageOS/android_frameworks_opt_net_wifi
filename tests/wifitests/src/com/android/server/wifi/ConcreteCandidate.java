@@ -33,7 +33,6 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     private boolean mIsTrusted;
     private boolean mIsMetered;
     private int mNominatorId = -1;
-    private int mNominatorScore = Integer.MIN_VALUE;
     private double mLastSelectionWeight;
     private int mScanRssi = -127;
     private int mFrequency = -1;
@@ -56,7 +55,6 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
         mIsTrusted = candidate.isTrusted();
         mIsMetered = candidate.isMetered();
         mNominatorId = candidate.getNominatorId();
-        mNominatorScore = candidate.getNominatorScore();
         mLastSelectionWeight = candidate.getLastSelectionWeight();
         mScanRssi = candidate.getScanRssi();
         mFrequency = candidate.getFrequency();
@@ -147,16 +145,6 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     @Override
     public int getNominatorId() {
         return mNominatorId;
-    }
-
-    public ConcreteCandidate setNominatorScore(int nominatorScore) {
-        mNominatorScore = nominatorScore;
-        return this;
-    }
-
-    @Override
-    public int getNominatorScore() {
-        return mNominatorScore;
     }
 
     public ConcreteCandidate setLastSelectionWeight(double lastSelectionWeight) {

@@ -714,7 +714,6 @@ public class WifiNetworkSelector {
                         if (config != null) {
                             boolean added = wifiCandidates.add(scanDetail, config,
                                     registeredNominator.getId(),
-                                    0,
                                     (config.networkId == lastUserSelectedNetworkId)
                                             ? lastSelectionWeight : 0.0,
                                     WifiConfiguration.isMetered(config, wifiInfo),
