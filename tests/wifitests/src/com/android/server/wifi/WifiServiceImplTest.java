@@ -5480,4 +5480,38 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 mWifiServiceImpl.getSupportedFeatures());
         mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
+
+    @Test
+    public void testSetScanThrottleEnabledWithNetworkSettingsPermission() {
+        doNothing().when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.setScanThrottleEnabled(true);
+        mLooper.dispatchAll();
+        verify(mScanRequestProxy).setScanThrottleEnabled(true);
+
+        mWifiServiceImpl.setScanThrottleEnabled(false);
+        mLooper.dispatchAll();
+        verify(mScanRequestProxy).setScanThrottleEnabled(false);
+    }
+
+    @Test(expected = SecurityException.class)
+    public void testSetScanThrottleEnabledWithNoNetworkSettingsPermission() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+
+        mWifiServiceImpl.setScanThrottleEnabled(true);
+        mLooper.dispatchAll();
+        verify(mScanRequestProxy, never()).setScanThrottleEnabled(true);
+    }
+
+    @Test
+    public void testIsScanThrottleEnabled() {
+        when(mScanRequestProxy.isScanThrottleEnabled()).thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.isScanThrottleEnabled());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mScanRequestProxy).isScanThrottleEnabled();
+    }
 }

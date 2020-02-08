@@ -37,6 +37,12 @@ filegroup {
     ],
 }
 
+filegroup {
+    name: "wifi-service-BaseWifiService",
+    srcs: ["java/com/android/server/wifi/BaseWifiService.java"],
+    path: "java",
+}
+
 // pre-jarjar version of wifi-service that builds against pre-jarjar version of framework-wifi
 java_library {
     name: "wifi-service-pre-jarjar",

@@ -664,8 +664,8 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         assertEquals(mTestThisDevice.groupCapability, device.groupCapability);
         assertEquals(mTestThisDevice.status, device.status);
         if (mTestThisDevice.wfdInfo != null) {
-            assertEquals(mTestThisDevice.wfdInfo.isWfdEnabled(),
-                    device.wfdInfo.isWfdEnabled());
+            assertEquals(mTestThisDevice.wfdInfo.isEnabled(),
+                    device.wfdInfo.isEnabled());
             assertEquals(mTestThisDevice.wfdInfo.getDeviceInfoHex(),
                     device.wfdInfo.getDeviceInfoHex());
             assertEquals(mTestThisDevice.wfdInfo.getControlPort(),
@@ -2839,7 +2839,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         mTestThisDevice.status = mTestThisDevice.AVAILABLE;
 
         mTestThisDevice.wfdInfo = new WifiP2pWfdInfo();
-        mTestThisDevice.wfdInfo.setWfdEnabled(true);
+        mTestThisDevice.wfdInfo.setEnabled(true);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiPermissionsWrapper.getUidPermission(anyString(), anyInt()))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
@@ -2868,7 +2868,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         mTestThisDevice.status = mTestThisDevice.AVAILABLE;
 
         mTestThisDevice.wfdInfo = new WifiP2pWfdInfo();
-        mTestThisDevice.wfdInfo.setWfdEnabled(false);
+        mTestThisDevice.wfdInfo.setEnabled(false);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiPermissionsWrapper.getUidPermission(anyString(), anyInt()))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
@@ -2942,7 +2942,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         mTestThisDevice.status = mTestThisDevice.AVAILABLE;
 
         mTestThisDevice.wfdInfo = new WifiP2pWfdInfo();
-        mTestThisDevice.wfdInfo.setWfdEnabled(true);
+        mTestThisDevice.wfdInfo.setEnabled(true);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiPermissionsWrapper.getUidPermission(anyString(), anyInt()))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
@@ -2970,7 +2970,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         mTestThisDevice.status = mTestThisDevice.AVAILABLE;
 
         mTestThisDevice.wfdInfo = new WifiP2pWfdInfo();
-        mTestThisDevice.wfdInfo.setWfdEnabled(true);
+        mTestThisDevice.wfdInfo.setEnabled(true);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiPermissionsWrapper.getUidPermission(anyString(), anyInt()))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
@@ -3000,7 +3000,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         mTestThisDevice.status = mTestThisDevice.AVAILABLE;
 
         mTestThisDevice.wfdInfo = new WifiP2pWfdInfo();
-        mTestThisDevice.wfdInfo.setWfdEnabled(false);
+        mTestThisDevice.wfdInfo.setEnabled(false);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiPermissionsWrapper.getUidPermission(anyString(), anyInt()))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
