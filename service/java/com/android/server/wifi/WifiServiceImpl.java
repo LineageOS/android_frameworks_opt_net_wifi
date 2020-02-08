@@ -360,6 +360,10 @@ public class WifiServiceImpl extends BaseWifiService {
                     new BroadcastReceiver() {
                         @Override
                         public void onReceive(Context context, Intent intent) {
+                            if (intent.getBooleanExtra(
+                                    Intent.EXTRA_REBROADCAST_ON_UNLOCK, false)) {
+                                return;
+                            }
                             String state = intent.getStringExtra(Intent.EXTRA_SIM_STATE);
                             if (Intent.SIM_STATE_ABSENT.equals(state)) {
                                 Log.d(TAG, "resetting networks because SIM was removed");
