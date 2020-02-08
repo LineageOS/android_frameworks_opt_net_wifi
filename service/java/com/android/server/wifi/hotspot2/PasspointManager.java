@@ -204,6 +204,7 @@ public class PasspointManager {
         public void setProviders(List<PasspointProvider> providers) {
             mProviders.clear();
             for (PasspointProvider provider : providers) {
+                provider.enableVerboseLogging(mVerboseLoggingEnabled ? 1 : 0);
                 mProviders.put(provider.getConfig().getHomeSp().getFqdn(), provider);
                 if (provider.getPackageName() != null) {
                     startTrackingAppOpsChange(provider.getPackageName(),
@@ -363,6 +364,9 @@ public class PasspointManager {
     public void enableVerboseLogging(int verbose) {
         mVerboseLoggingEnabled = (verbose > 0) ? true : false;
         mPasspointProvisioner.enableVerboseLogging(verbose);
+        for (PasspointProvider provider : mProviders.values()) {
+            provider.enableVerboseLogging(verbose);
+        }
     }
 
     /**
@@ -427,6 +431,7 @@ public class PasspointManager {
                         newProvider.getWifiConfig().getKey());
             }
         }
+        newProvider.enableVerboseLogging(mVerboseLoggingEnabled ? 1 : 0);
         mProviders.put(config.getHomeSp().getFqdn(), newProvider);
         mWifiConfigManager.saveToStore(true /* forceWrite */);
         if (!isFromSuggestion && newProvider.getPackageName() != null) {
@@ -677,6 +682,11 @@ public class PasspointManager {
             PasspointProvider provider = entry.getValue();
             if (provider.tryUpdateCarrierId()) {
                 anyProviderUpdated = true;
+            }
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Matching provider " + provider.getConfig().getHomeSp().getFqdn()
+                        + " with "
+                        + anqpEntry.getElements().get(Constants.ANQPElementType.ANQPDomName));
             }
             PasspointMatch matchStatus = provider.match(anqpEntry.getElements(),
                     roamingConsortium);
@@ -1049,6 +1059,7 @@ public class PasspointManager {
                 mProviderIndex++, wifiConfig.creatorUid, null, false,
                 Arrays.asList(enterpriseConfig.getCaCertificateAlias()),
                 enterpriseConfig.getClientCertificateAlias(), null, false, false);
+        provider.enableVerboseLogging(mVerboseLoggingEnabled ? 1 : 0);
         mProviders.put(passpointConfig.getHomeSp().getFqdn(), provider);
         return true;
     }
