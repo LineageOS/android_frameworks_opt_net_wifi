@@ -16,7 +16,6 @@
 
 package com.android.server.wifi.hotspot2;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -116,18 +115,18 @@ public class ANQPMatcherTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that an indeterminate match will be returned when matching a null NAI Realm
+     * Verify that no match will be returned when matching a null NAI Realm
      * ANQP element.
      *
      * @throws Exception
      */
     @Test
     public void matchNAIRealmWithNullElement() throws Exception {
-        assertEquals(AuthMatch.INDETERMINATE, ANQPMatcher.matchNAIRealm(null, "test.com"));
+        assertFalse(ANQPMatcher.matchNAIRealm(null, "test.com"));
     }
 
     /**
-     * Verify that an indeterminate match will be returned when matching a NAI Realm
+     * Verify that no match will be returned when matching a NAI Realm
      * ANQP element contained no NAI realm data.
      *
      * @throws Exception
@@ -135,7 +134,7 @@ public class ANQPMatcherTest extends WifiBaseTest {
     @Test
     public void matchNAIRealmWithEmtpyRealmData() throws Exception {
         NAIRealmElement element = new NAIRealmElement(new ArrayList<NAIRealmData>());
-        assertEquals(AuthMatch.INDETERMINATE, ANQPMatcher.matchNAIRealm(element, "test.com"));
+        assertFalse(ANQPMatcher.matchNAIRealm(element, "test.com"));
     }
 
     /**
@@ -151,35 +150,11 @@ public class ANQPMatcherTest extends WifiBaseTest {
                 Arrays.asList(new String[] {realm}), new ArrayList<EAPMethod>());
         NAIRealmElement element = new NAIRealmElement(
                 Arrays.asList(new NAIRealmData[] {realmData}));
-        assertEquals(AuthMatch.REALM, ANQPMatcher.matchNAIRealm(element, realm));
+        assertTrue(ANQPMatcher.matchNAIRealm(element, realm));
     }
 
     /**
-     * Verify that method match will be returned when the specified EAP
-     * method only matches a eap method in the NAI Realm ANQP element if the element does not have
-     * auth params.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void matchNAIRealmWithMethodMatch() throws Exception {
-        // Test data.
-        String providerRealm = "test.com";
-        String anqpRealm = "test2.com";
-        int eapMethodID = EAPConstants.EAP_TLS;
-
-        // Setup NAI Realm element that has EAP method and no auth params.
-        EAPMethod method = new EAPMethod(eapMethodID, new HashMap<Integer, Set<AuthParam>>());
-        NAIRealmData realmData = new NAIRealmData(
-                Arrays.asList(new String[]{anqpRealm}), Arrays.asList(new EAPMethod[]{method}));
-        NAIRealmElement element = new NAIRealmElement(
-                Arrays.asList(new NAIRealmData[]{realmData}));
-
-        assertEquals(AuthMatch.NONE, ANQPMatcher.matchNAIRealm(element, providerRealm));
-    }
-
-    /**
-     * Verify that a realm and method match will be returned when the specified realm and EAP
+     * Verify that a realm match will be returned when the specified realm and EAP
      * method matches a realm in the NAI Realm ANQP element.
      *
      * @throws Exception
@@ -197,11 +172,11 @@ public class ANQPMatcherTest extends WifiBaseTest {
         NAIRealmElement element = new NAIRealmElement(
                 Arrays.asList(new NAIRealmData[] {realmData}));
 
-        assertEquals(AuthMatch.REALM, ANQPMatcher.matchNAIRealm(element, realm));
+        assertTrue(ANQPMatcher.matchNAIRealm(element, realm));
     }
 
     /**
-     * Verify that an exact match will be returned when the specified realm, EAP
+     * Verify that a realm match will be returned when the specified realm, EAP
      * method, and the authentication parameter matches a realm with the associated EAP method and
      * authentication parameter in the NAI Realm ANQP element.
      *
@@ -225,11 +200,11 @@ public class ANQPMatcherTest extends WifiBaseTest {
         NAIRealmElement element = new NAIRealmElement(
                 Arrays.asList(new NAIRealmData[] {realmData}));
 
-        assertEquals(AuthMatch.REALM, ANQPMatcher.matchNAIRealm(element, realm));
+        assertTrue(ANQPMatcher.matchNAIRealm(element, realm));
     }
 
     /**
-     * Verify that a REALM match will be returned when the specified EAP method
+     * Verify that a realm match will be returned when the specified EAP method
      * doesn't match with the corresponding EAP method in the NAI Realm ANQP element.
      *
      * @throws Exception
@@ -252,11 +227,11 @@ public class ANQPMatcherTest extends WifiBaseTest {
         NAIRealmElement element = new NAIRealmElement(
                 Arrays.asList(new NAIRealmData[] {realmData}));
 
-        assertEquals(AuthMatch.REALM, ANQPMatcher.matchNAIRealm(element, realm));
+        assertTrue(ANQPMatcher.matchNAIRealm(element, realm));
     }
 
     /**
-     * Verify that a REALM match will be returned when the specified authentication
+     * Verify that a realm match will be returned when the specified authentication
      * parameter doesn't match with the corresponding authentication parameter in the NAI Realm
      * ANQP element.
      *
@@ -280,8 +255,8 @@ public class ANQPMatcherTest extends WifiBaseTest {
         NAIRealmElement element = new NAIRealmElement(
                 Arrays.asList(new NAIRealmData[] {realmData}));
 
-        // Mismatch in authentication type.
-        assertEquals(AuthMatch.REALM, ANQPMatcher.matchNAIRealm(element, realm));
+        // Mismatch in authentication type which we ignore.
+        assertTrue(ANQPMatcher.matchNAIRealm(element, realm));
     }
 
     /**
