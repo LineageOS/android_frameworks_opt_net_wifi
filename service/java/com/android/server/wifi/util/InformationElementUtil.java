@@ -21,7 +21,7 @@ import android.net.wifi.WifiAnnotations.Cipher;
 import android.net.wifi.WifiAnnotations.KeyMgmt;
 import android.net.wifi.WifiAnnotations.Protocol;
 import android.net.wifi.wificond.NativeScanResult;
-import android.net.wifi.wificond.WifiCondManager;
+import android.net.wifi.wificond.WifiNl80211Manager;
 import android.util.Log;
 
 import com.android.server.wifi.ByteBufferReader;
@@ -1182,8 +1182,8 @@ public class InformationElementUtil {
             isIBSS = (beaconCap & NativeScanResult.BSS_CAPABILITY_IBSS) != 0;
             isPrivacy = (beaconCap & NativeScanResult.BSS_CAPABILITY_PRIVACY) != 0;
             for (InformationElement ie : ies) {
-                WifiCondManager.OemSecurityType oemSecurityType =
-                        WifiCondManager.parseOemSecurityTypeElement(
+                WifiNl80211Manager.OemSecurityType oemSecurityType =
+                        WifiNl80211Manager.parseOemSecurityTypeElement(
                         ie.id, ie.idExt, ie.bytes);
                 if (oemSecurityType != null
                         && oemSecurityType.protocol != ScanResult.PROTOCOL_NONE) {

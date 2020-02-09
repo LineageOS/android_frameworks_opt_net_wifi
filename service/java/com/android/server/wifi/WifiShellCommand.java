@@ -19,7 +19,7 @@ package com.android.server.wifi;
 import android.content.Context;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.wificond.WifiCondManager;
+import android.net.wifi.wificond.WifiNl80211Manager;
 import android.os.BasicShellCommandHandler;
 import android.os.Binder;
 
@@ -384,11 +384,11 @@ public class WifiShellCommand extends BasicShellCommandHandler {
     }
 
     private int sendLinkProbe(PrintWriter pw) throws InterruptedException {
-        // Note: should match WifiCondManager#SEND_MGMT_FRAME_TIMEOUT_MS
+        // Note: should match WifiNl80211Manager#SEND_MGMT_FRAME_TIMEOUT_MS
         final int sendMgmtFrameTimeoutMs = 1000;
 
         ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(1);
-        mClientModeImpl.probeLink(new WifiCondManager.SendMgmtFrameCallback() {
+        mClientModeImpl.probeLink(new WifiNl80211Manager.SendMgmtFrameCallback() {
             @Override
             public void onAck(int elapsedTimeMs) {
                 queue.offer("Link probe succeeded after " + elapsedTimeMs + " ms");
