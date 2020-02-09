@@ -102,10 +102,10 @@ public class SoftApManagerTest extends WifiBaseTest {
     private static final MacAddress TEST_MAC_ADDRESS_2 = MacAddress.fromString("aa:bb:cc:dd:ee:ff");
     private static final WifiClient TEST_CONNECTED_CLIENT = new WifiClient(TEST_MAC_ADDRESS);
     private static final NativeWifiClient TEST_NATIVE_CLIENT = new NativeWifiClient(
-            TEST_MAC_ADDRESS.toByteArray());
+            TEST_MAC_ADDRESS);
     private static final WifiClient TEST_CONNECTED_CLIENT_2 = new WifiClient(TEST_MAC_ADDRESS_2);
     private static final NativeWifiClient TEST_NATIVE_CLIENT_2 = new NativeWifiClient(
-            TEST_MAC_ADDRESS_2.toByteArray());
+            TEST_MAC_ADDRESS_2);
     private static final int TEST_AP_FREQUENCY = 2412;
     private static final int TEST_AP_BANDWIDTH_FROM_IFACE_CALLBACK =
             SoftApInfo.CHANNEL_WIDTH_20MHZ_NOHT;

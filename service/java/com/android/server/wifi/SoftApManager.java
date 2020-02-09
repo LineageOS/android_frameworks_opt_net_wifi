@@ -884,12 +884,11 @@ public class SoftApManager implements ActiveModeManager {
                         }
                         NativeWifiClient nativeClient = (NativeWifiClient) message.obj;
                         boolean isConnected = (message.arg1 == 1);
-                        if (nativeClient != null && nativeClient.macAddress != null) {
-                            MacAddress clientMacAddress =
-                                    MacAddress.fromBytes(nativeClient.macAddress);
-                            WifiClient client = new WifiClient(clientMacAddress);
+                        if (nativeClient != null && nativeClient.getMacAddress() != null) {
+                            WifiClient client = new WifiClient(nativeClient.getMacAddress());
                             Log.d(TAG, "CMD_ASSOCIATED_STATIONS_CHANGED, Client: "
-                                    + clientMacAddress.toString() + " isConnected: " + isConnected);
+                                    + nativeClient.getMacAddress().toString() + " isConnected: "
+                                    + isConnected);
                             updateConnectedClients(client, isConnected);
                         }
                         break;

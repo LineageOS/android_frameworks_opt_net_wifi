@@ -1486,17 +1486,12 @@ public class WifiNative {
         ArrayList<ScanDetail> results = new ArrayList<>();
         for (NativeScanResult result : nativeResults) {
             WifiSsid wifiSsid = WifiSsid.createFromByteArray(result.getSsid());
-            String bssid;
-            try {
-                bssid = NativeUtil.macAddressFromByteArray(result.getBssid());
-            } catch (IllegalArgumentException e) {
-                Log.e(TAG, "Illegal argument " + result.getBssid(), e);
+            MacAddress bssidMac = result.getBssid();
+            if (bssidMac == null) {
+                Log.e(TAG, "Invalid MAC (BSSID) for SSID " + wifiSsid);
                 continue;
             }
-            if (bssid == null) {
-                Log.e(TAG, "Illegal null bssid");
-                continue;
-            }
+            String bssid = bssidMac.toString();
             ScanResult.InformationElement[] ies =
                     InformationElementUtil.parseInformationElements(result.getInformationElements());
             InformationElementUtil.Capabilities capabilities =
