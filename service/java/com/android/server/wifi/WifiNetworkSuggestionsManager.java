@@ -398,7 +398,7 @@ public class WifiNetworkSuggestionsManager {
                             extNetworkSuggestions.iterator().next().perAppInfo.uid);
                 }
                 for (ExtendedWifiNetworkSuggestion ewns : extNetworkSuggestions) {
-                    if (ewns.wns.wifiConfiguration.FQDN != null) {
+                    if (ewns.wns.wifiConfiguration.isPasspoint()) {
                         addToPasspointInfoMap(ewns);
                     } else {
                         addToScanResultMatchInfoMap(ewns);
@@ -924,12 +924,12 @@ public class WifiNetworkSuggestionsManager {
         }
         // Clear the cache.
         for (ExtendedWifiNetworkSuggestion ewns : extNetworkSuggestions) {
-            if (ewns.wns.wifiConfiguration.FQDN != null) {
+            if (ewns.wns.wifiConfiguration.isPasspoint()) {
                 // Clear the Passpoint config.
                 mWifiInjector.getPasspointManager().removeProvider(
                         ewns.perAppInfo.uid,
                         false,
-                        ewns.wns.wifiConfiguration.FQDN);
+                        ewns.wns.wifiConfiguration.getKey(), null);
                 removeFromPassPointInfoMap(ewns);
             } else {
                 removeFromScanResultMatchInfoMap(ewns);
@@ -1814,7 +1814,8 @@ public class WifiNetworkSuggestionsManager {
         Set<ExtendedWifiNetworkSuggestion> matchingExtendedWifiNetworkSuggestions =
                 getNetworkSuggestionsForWifiConfiguration(config, config.BSSID);
         if (config.isPasspoint()) {
-            if (!mWifiInjector.getPasspointManager().enableAutojoin(config.FQDN, choice)) {
+            if (!mWifiInjector.getPasspointManager().enableAutojoin(config.getKey(),
+                    null, choice)) {
                 return false;
             }
         }

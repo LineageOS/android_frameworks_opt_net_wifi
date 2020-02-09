@@ -122,6 +122,7 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Binder;
 import android.os.Build;
@@ -3112,8 +3113,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * permissions and NETWORK_SETUP_WIZARD.
      */
     @Test(expected = SecurityException.class)
-    public void testGetAllMatchingFqdnsForScanResultsWithoutPermissions() {
-        mWifiServiceImpl.getAllMatchingFqdnsForScanResults(new ArrayList<>());
+    public void testGetAllMatchingPasspointProfilesForScanResultsWithoutPermissions() {
+        mWifiServiceImpl.getAllMatchingPasspointProfilesForScanResults(new ArrayList<>());
     }
 
     /**
@@ -3270,7 +3271,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.startAutoDispatch();
         mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
         mLooper.stopAutoDispatchAndIgnoreExceptions();
-        verify(mPasspointManager).removeProvider(Binder.getCallingUid(), false, TEST_FQDN);
+        verify(mPasspointManager).removeProvider(Binder.getCallingUid(), false, null,
+                TEST_FQDN);
     }
 
     /**
@@ -3285,7 +3287,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.startAutoDispatch();
         mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
         mLooper.stopAutoDispatchAndIgnoreExceptions();
-        verify(mPasspointManager).removeProvider(Binder.getCallingUid(), true, TEST_FQDN);
+        verify(mPasspointManager).removeProvider(Binder.getCallingUid(), true, null,
+                TEST_FQDN);
     }
 
     /**
@@ -3963,6 +3966,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(fqdn);
         config.setHomeSp(homeSp);
+        Credential credential = new Credential();
+        credential.setRealm("example.com");
+        config.setCredential(credential);
 
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
         when(mWifiConfigManager.getSavedNetworks(anyInt()))
@@ -3979,7 +3985,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         verify(mWifiConfigManager).removeNetwork(
                 network.networkId, Binder.getCallingUid(), TEST_PACKAGE_NAME);
-        verify(mPasspointManager).removeProvider(anyInt(), anyBoolean(), eq(fqdn));
+        verify(mPasspointManager).removeProvider(anyInt(), anyBoolean(), isNull(),
+                eq(config.getUniqueId()));
         verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();
@@ -4828,13 +4835,15 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
 
         String fqdn = "test.com";
-        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(true);
+        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), isNull(), eq(fqdn)))
+                .thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.removePasspointConfiguration(fqdn, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatchAndIgnoreExceptions();
         reset(mPasspointManager);
 
-        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(false);
+        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), isNull(), eq(fqdn)))
+                .thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.removePasspointConfiguration(fqdn, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatchAndIgnoreExceptions();
