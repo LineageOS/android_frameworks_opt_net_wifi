@@ -316,6 +316,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                         break;
                     case XML_TAG_IS_TRUSTED:
                         isTrusted = (boolean) value;
+                        break;
                     default:
                         Log.w(TAG, "Ignoring unknown value name found " + name[0]);
                         break;
@@ -351,7 +352,9 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                 providerId, creatorUid, packageName, isFromSuggestion, caCertificateAliases,
                 clientPrivateKeyAndCertificateAlias, remediationCaCertificateAlias,
                 hasEverConnected, shared);
-        provider.setTrusted(isTrusted);
+        if (isFromSuggestion) {
+            provider.setTrusted(isTrusted);
+        }
         return provider;
     }
 }
