@@ -42,8 +42,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Unit tests for {@link com.android.server.wifi.util.ApConfigUtil}.
@@ -116,10 +114,10 @@ public class ApConfigUtilTest extends WifiBaseTest {
             6100, SoftApConfiguration.BAND_6GHZ, 32
     };
 
-    private static final List<Integer> EMPTY_CHANNEL_LIST = Collections.emptyList();
-    private static final List<Integer> ALLOWED_2G_FREQS = Arrays.asList(2462); //ch# 11
-    private static final List<Integer> ALLOWED_5G_FREQS = Arrays.asList(5745, 5765); //ch# 149, 153
-    private static final List<Integer> ALLOWED_6G_FREQS = Arrays.asList(5945, 5965);
+    private static final int[] EMPTY_CHANNEL_LIST = {};
+    private static final int[] ALLOWED_2G_FREQS = {2462}; //ch# 11
+    private static final int[] ALLOWED_5G_FREQS = {5745, 5765}; //ch# 149, 153
+    private static final int[] ALLOWED_6G_FREQS = {5945, 5965};
 
     @Mock Context mContext;
     @Mock Resources mResources;
@@ -290,7 +288,7 @@ public class ApConfigUtilTest extends WifiBaseTest {
      */
     @Test
     public void chooseApChannel2GBandWithNoAllowedChannel() throws Exception {
-        List<Integer> allowed2gChannels = Collections.emptyList();
+        int[] allowed2gChannels = {};
         when(mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_24_GHZ))
                 .thenReturn(allowed2gChannels);
         int freq = ApConfigUtil.chooseApChannel(SoftApConfiguration.BAND_2GHZ, mWifiNative,
@@ -325,7 +323,7 @@ public class ApConfigUtilTest extends WifiBaseTest {
 
         int freq = ApConfigUtil.chooseApChannel(
                 SoftApConfiguration.BAND_5GHZ, mWifiNative, mResources);
-        assertTrue(ALLOWED_5G_FREQS.contains(freq));
+        assertTrue(ArrayUtils.contains(ALLOWED_5G_FREQS, freq));
     }
 
     /**

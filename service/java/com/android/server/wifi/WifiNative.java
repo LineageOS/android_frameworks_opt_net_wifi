@@ -57,7 +57,6 @@ import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1428,12 +1427,11 @@ public class WifiNative {
      * WifiScanner.WIFI_BAND_5_GHZ
      * WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY
      * WifiScanner.WIFI_BAND_6_GHZ
-     * @return frequencies List of valid frequencies (MHz), or an empty list for error.
+     * @return frequencies vector of valid frequencies (MHz), or null for error.
      * @throws IllegalArgumentException if band is not recognized.
      */
-    public List<Integer> getChannelsForBand(@WifiAnnotations.WifiBandBasic int band) {
-        List<Integer> result = mWifiCondManager.getChannelsMhzForBand(band);
-        return (result == null) ? Collections.emptyList() : result; // insurance on external mgr
+    public int [] getChannelsForBand(@WifiAnnotations.WifiBandBasic int band) {
+        return mWifiCondManager.getChannelsMhzForBand(band);
     }
 
     /**
