@@ -17,20 +17,26 @@
 package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
+import android.content.Context;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiOemMigrationHook;
 import android.util.Xml;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 
@@ -40,6 +46,8 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlSerializer;
 
@@ -63,6 +71,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
     private static final int TEST_OLD_BAND = WifiConfiguration.AP_BAND_ANY;
     private static final int TEST_SECURITY = SoftApConfiguration.SECURITY_TYPE_WPA2_PSK;
     private static final boolean TEST_CLIENT_CONTROL_BY_USER = false;
+    private static final boolean TEST_AUTO_SHUTDOWN_ENABLED = true;
     private static final int TEST_MAX_NUMBER_OF_CLIENTS = 10;
     private static final int TEST_SHUTDOWN_TIMEOUT_MILLIS = 600_000;
     private static final ArrayList<MacAddress> TEST_BLOCKEDLIST = new ArrayList<>();
@@ -97,6 +106,8 @@ public class SoftApStoreDataTest extends WifiBaseTest {
                     + TEST_MAX_NUMBER_OF_CLIENTS + "\" />\n"
                     + "<boolean name=\"ClientControlByUser\" value=\""
                     + TEST_CLIENT_CONTROL_BY_USER + "\" />\n"
+                    + "<boolean name=\"AutoShutdownEnabled\" value=\""
+                    + TEST_AUTO_SHUTDOWN_ENABLED + "\" />\n"
                     + "<int name=\"ShutdownTimeoutMillis\" value=\""
                     + TEST_SHUTDOWN_TIMEOUT_MILLIS + "\" />\n"
                     + "<BlockedClientList>\n"
@@ -106,6 +117,27 @@ public class SoftApStoreDataTest extends WifiBaseTest {
                     + "<string name=\"ClientMacAddress\">" + TEST_ALLOWED_CLIENT + "</string>\n"
                     + "</AllowedClientList>\n";
 
+    private static final String TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG_EXCEPT_AUTO_SHUTDOWN =
+            "<string name=\"SSID\">" + TEST_SSID + "</string>\n"
+                    + "<int name=\"ApBand\" value=\"" + TEST_BAND + "\" />\n"
+                    + "<int name=\"Channel\" value=\"" + TEST_CHANNEL + "\" />\n"
+                    + "<boolean name=\"HiddenSSID\" value=\"" + TEST_HIDDEN + "\" />\n"
+                    + "<int name=\"SecurityType\" value=\"" + TEST_SECURITY + "\" />\n"
+                    + "<string name=\"Passphrase\">" + TEST_PASSPHRASE + "</string>\n"
+                    + "<int name=\"MaxNumberOfClients\" value=\""
+                    + TEST_MAX_NUMBER_OF_CLIENTS + "\" />\n"
+                    + "<boolean name=\"ClientControlByUser\" value=\""
+                    + TEST_CLIENT_CONTROL_BY_USER + "\" />\n"
+                    + "<int name=\"ShutdownTimeoutMillis\" value=\""
+                    + TEST_SHUTDOWN_TIMEOUT_MILLIS + "\" />\n"
+                    + "<BlockedClientList>\n"
+                    + "<string name=\"ClientMacAddress\">" + TEST_BLOCKED_CLIENT + "</string>\n"
+                    + "</BlockedClientList>\n"
+                    + "<AllowedClientList>\n"
+                    + "<string name=\"ClientMacAddress\">" + TEST_ALLOWED_CLIENT + "</string>\n"
+                    + "</AllowedClientList>\n";
+
+    @Mock private Context mContext;
     @Mock SoftApStoreData.DataSource mDataSource;
     @Mock WifiOemConfigStoreMigrationDataHolder mWifiOemConfigStoreMigrationDataHolder;
     SoftApStoreData mSoftApStoreData;
@@ -113,7 +145,8 @@ public class SoftApStoreDataTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mSoftApStoreData = new SoftApStoreData(mDataSource, mWifiOemConfigStoreMigrationDataHolder);
+        mSoftApStoreData =
+                new SoftApStoreData(mContext, mDataSource, mWifiOemConfigStoreMigrationDataHolder);
         TEST_BLOCKEDLIST.add(MacAddress.fromString(TEST_BLOCKED_CLIENT));
         TEST_ALLOWEDLIST.add(MacAddress.fromString(TEST_ALLOWED_CLIENT));
     }
@@ -150,6 +183,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         softApConfigBuilder.setBand(TEST_BAND);
         softApConfigBuilder.enableClientControlByUser(TEST_CLIENT_CONTROL_BY_USER);
         softApConfigBuilder.setMaxNumberOfClients(TEST_MAX_NUMBER_OF_CLIENTS);
+        softApConfigBuilder.setAutoShutdownEnabled(true);
         softApConfigBuilder.setShutdownTimeoutMillis(TEST_SHUTDOWN_TIMEOUT_MILLIS);
         softApConfigBuilder.setClientList(TEST_BLOCKEDLIST, TEST_ALLOWEDLIST);
         return softApConfigBuilder.build();
@@ -229,6 +263,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         assertEquals(softApConfig.getBand(), TEST_BAND);
         assertEquals(softApConfig.isClientControlByUserEnabled(), TEST_CLIENT_CONTROL_BY_USER);
         assertEquals(softApConfig.getMaxNumberOfClients(), TEST_MAX_NUMBER_OF_CLIENTS);
+        assertTrue(softApConfig.isAutoShutdownEnabled());
         assertEquals(softApConfig.getShutdownTimeoutMillis(), TEST_SHUTDOWN_TIMEOUT_MILLIS);
         assertEquals(softApConfig.getBlockedClientList(), TEST_BLOCKEDLIST);
         assertEquals(softApConfig.getAllowedClientList(), TEST_ALLOWEDLIST);
@@ -417,6 +452,48 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         assertEquals(softApConfig.getShutdownTimeoutMillis(), TEST_SHUTDOWN_TIMEOUT_MILLIS);
         assertEquals(softApConfig.getBlockedClientList(), TEST_BLOCKEDLIST);
         assertEquals(softApConfig.getAllowedClientList(), TEST_ALLOWEDLIST);
+    }
+
+    /**
+     * Verify that the store data is deserialized correctly using the predefined test XML data
+     * when the auto shutdown tag is retrieved from
+     * {@link WifiOemMigrationHook.loadFromSettings(Context)}.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void deserializeSoftApWithNoAutoShutdownTag() throws Exception {
+        MockitoSession session = ExtendedMockito.mockitoSession()
+                .mockStatic(WifiConfigStore.class, withSettings().lenient())
+                .strictness(Strictness.LENIENT)
+                .startMocking();
+        WifiOemMigrationHook.SettingsMigrationData migrationData = mock(
+                WifiOemMigrationHook.SettingsMigrationData.class);
+        when(WifiOemMigrationHook.loadFromSettings(any())).thenReturn(migrationData);
+
+        // Toggle on when migrating.
+        when(migrationData.isSoftApTimeoutEnabled()).thenReturn(true);
+        deserializeData(
+                TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG_EXCEPT_AUTO_SHUTDOWN.getBytes());
+        ArgumentCaptor<SoftApConfiguration> softapConfigCaptor =
+                ArgumentCaptor.forClass(SoftApConfiguration.class);
+        verify(mDataSource).fromDeserialized(softapConfigCaptor.capture());
+        SoftApConfiguration softApConfig = softapConfigCaptor.getValue();
+        assertNotNull(softApConfig);
+        assertEquals(softApConfig.getSsid(), TEST_SSID);
+        assertTrue(softApConfig.isAutoShutdownEnabled());
+
+        // Toggle off when migrating.
+        when(migrationData.isSoftApTimeoutEnabled()).thenReturn(false);
+        deserializeData(
+                TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG_EXCEPT_AUTO_SHUTDOWN.getBytes());
+        verify(mDataSource).fromDeserialized(softapConfigCaptor.capture());
+        softApConfig = softapConfigCaptor.getValue();
+        assertNotNull(softApConfig);
+        assertEquals(softApConfig.getSsid(), TEST_SSID);
+        assertFalse(softApConfig.isAutoShutdownEnabled());
+
+        session.finishMocking();
     }
 
 }

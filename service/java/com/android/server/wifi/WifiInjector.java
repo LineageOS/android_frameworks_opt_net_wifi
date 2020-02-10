@@ -197,7 +197,7 @@ public class WifiInjector {
         mWifiPermissionsUtil = new WifiPermissionsUtil(mWifiPermissionsWrapper, mContext,
                 mUserManager, this);
         mWifiBackupRestore = new WifiBackupRestore(mWifiPermissionsUtil);
-        mSoftApBackupRestore = new SoftApBackupRestore();
+        mSoftApBackupRestore = new SoftApBackupRestore(mContext);
         mWifiStateTracker = new WifiStateTracker(mBatteryStats);
         mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
@@ -672,7 +672,7 @@ public class WifiInjector {
      */
     public SoftApStoreData makeSoftApStoreData(
             SoftApStoreData.DataSource dataSource) {
-        return new SoftApStoreData(dataSource, mOemConfigStoreMigrationDataHolder);
+        return new SoftApStoreData(mContext, dataSource, mOemConfigStoreMigrationDataHolder);
     }
 
     public WifiPermissionsUtil getWifiPermissionsUtil() {
