@@ -76,8 +76,9 @@ public class PasspointWifiEntry extends WifiEntry {
      */
     PasspointWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
             @NonNull PasspointConfiguration passpointConfig,
-            @NonNull WifiManager wifiManager) throws IllegalArgumentException {
-        super(callbackHandler, wifiManager, false /* forSavedNetworksPage */);
+            @NonNull WifiManager wifiManager,
+            boolean forSavedNetworksPage) throws IllegalArgumentException {
+        super(callbackHandler, wifiManager, forSavedNetworksPage);
 
         checkNotNull(passpointConfig, "Cannot construct with null PasspointConfiguration!");
 

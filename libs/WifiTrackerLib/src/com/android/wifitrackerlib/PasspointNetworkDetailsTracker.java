@@ -76,7 +76,7 @@ class PasspointNetworkDetailsTracker extends NetworkDetailsTracker {
         checkNotNull(passpointConfig, "Cannot find PasspointConfiguration with matching FQDN!");
 
         mChosenEntry = new PasspointWifiEntry(mContext, mMainHandler, passpointConfig,
-                mWifiManager);
+                mWifiManager, false /* forSavedNetworksPage */);
         cacheNewScanResults();
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
         conditionallyUpdateConfig();
