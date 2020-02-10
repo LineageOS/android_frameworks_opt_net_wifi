@@ -54,6 +54,7 @@ import com.android.server.wifi.hotspot2.PasspointMatch;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.hotspot2.Utils;
 import com.android.server.wifi.p2p.WifiP2pMetrics;
+import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
@@ -1098,12 +1099,51 @@ public class WifiMetrics {
                 mCurrentConnectionEvent.mConnectionEvent.connectivityLevelFailureCode =
                         connectivityFailureCode;
                 mCurrentConnectionEvent.mConnectionEvent.level2FailureReason = level2FailureReason;
+
+                // Write metrics to WestWorld
+                int wwFailureCode = getConnectionResultFailureCode(level2FailureCode,
+                        level2FailureReason);
+                if (wwFailureCode != -1) {
+                    WifiStatsLog.write(WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED, result,
+                            wwFailureCode, mCurrentConnectionEvent.mConnectionEvent.signalStrength);
+                }
                 // ConnectionEvent already added to ConnectionEvents List. Safe to null current here
                 mCurrentConnectionEvent = null;
                 if (!result) {
                     mScanResultRssiTimestampMillis = -1;
                 }
             }
+        }
+    }
+
+    private int getConnectionResultFailureCode(int level2FailureCode, int level2FailureReason) {
+        switch (level2FailureCode) {
+            case ConnectionEvent.FAILURE_NONE:
+                return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_UNKNOWN;
+            case ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT:
+                return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_ASSOCIATION_TIMEOUT;
+            case ConnectionEvent.FAILURE_ASSOCIATION_REJECTION:
+                return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_ASSOCIATION_REJECTION;
+            case ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE:
+                switch (level2FailureReason) {
+                    case WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_EAP_FAILURE:
+                        return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_AUTHENTICATION_EAP;
+                    case WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD:
+                        return -1;
+                    default:
+                        return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_AUTHENTICATION_GENERAL;
+                }
+            case ConnectionEvent.FAILURE_DHCP:
+                return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_DHCP;
+            case ConnectionEvent.FAILURE_NETWORK_DISCONNECTION:
+                return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_NETWORK_DISCONNECTION;
+            case ConnectionEvent.FAILURE_ROAM_TIMEOUT:
+                return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_ROAM_TIMEOUT;
+            case ConnectionEvent.FAILURE_NEW_CONNECTION_ATTEMPT:
+            case ConnectionEvent.FAILURE_REDUNDANT_CONNECTION_ATTEMPT:
+                return -1;
+            default:
+                return WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_UNKNOWN;
         }
     }
 

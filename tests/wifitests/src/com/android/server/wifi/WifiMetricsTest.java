@@ -75,12 +75,14 @@ import android.util.SparseIntArray;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointMatch;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.p2p.WifiP2pMetrics;
+import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
@@ -111,6 +113,8 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
@@ -138,6 +142,7 @@ public class WifiMetricsTest extends WifiBaseTest {
     Random mRandom = new Random();
     private static final int TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER = 2;
     private static final int TEST_NETWORK_ID = 42;
+    private MockitoSession mSession;
     @Mock Context mContext;
     MockResources mResources;
     @Mock FrameworkFacade mFacade;
@@ -1618,6 +1623,40 @@ public class WifiMetricsTest extends WifiBaseTest {
         dumpProtoAndDeserialize();
         //Check there are only 2 connection events
         assertEquals(2, mDecodedProto.connectionEvent.length);
+    }
+
+    /**
+     * Test logging to WestWorld when a connection event finishes.
+     */
+    @Test
+    public void testLogWifiConnectionResultWestworld() throws Exception {
+        // static mocking for WifiStatsLog
+        mSession = ExtendedMockito.mockitoSession()
+                .strictness(Strictness.LENIENT)
+                .mockStatic(WifiStatsLog.class)
+                .startMocking();
+
+        WifiConfiguration network = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiConfiguration.NetworkSelectionStatus networkSelectionStatus =
+                mock(WifiConfiguration.NetworkSelectionStatus.class);
+        ScanResult scanResult = mock(ScanResult.class);
+        scanResult.level = -55;
+        when(networkSelectionStatus.getCandidate()).thenReturn(scanResult);
+        network.setNetworkSelectionStatus(networkSelectionStatus);
+
+        // Start and end Connection event
+        mWifiMetrics.startConnectionEvent(network, "RED",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
+                WifiMetricsProto.ConnectionEvent.HLF_DHCP,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
+
+        ExtendedMockito.verify(() -> WifiStatsLog.write(
+                WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED, false,
+                WifiStatsLog.WIFI_CONNECTION_RESULT_REPORTED__FAILURE_CODE__FAILURE_AUTHENTICATION_GENERAL,
+                -55));
+        mSession.finishMocking();
     }
 
     /**
