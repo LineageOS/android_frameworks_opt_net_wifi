@@ -477,6 +477,7 @@ public class XmlUtilTest extends WifiBaseTest {
     public void testLegacyPasspointConfigSerializeDeserialize() throws Exception {
         WifiConfiguration config = WifiConfigurationTestUtil.createPasspointNetwork();
         config.isLegacyPasspointConfig = true;
+        config.setPasspointUniqueId(null); // Did not exist for legacy Passpoint
         config.roamingConsortiumIds = new long[] {0x12345678};
         config.enterpriseConfig.setPlmn("1234");
         config.enterpriseConfig.setRealm("test.com");

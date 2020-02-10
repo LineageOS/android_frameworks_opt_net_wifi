@@ -3468,7 +3468,7 @@ public class ClientModeImpl extends StateMachine {
             // Notify PasspointManager of Passpoint network connected event.
             WifiConfiguration currentNetwork = getCurrentWifiConfiguration();
             if (currentNetwork != null && currentNetwork.isPasspoint()) {
-                mPasspointManager.onPasspointNetworkConnected(currentNetwork.FQDN);
+                mPasspointManager.onPasspointNetworkConnected(currentNetwork.getKey());
             }
         }
     }
@@ -5382,11 +5382,13 @@ public class ClientModeImpl extends StateMachine {
                         // Update Passpoint information before setNetworkDetailedState as
                         // WifiTracker monitors NETWORK_STATE_CHANGED_ACTION to update UI.
                         mWifiInfo.setFQDN(null);
+                        mWifiInfo.setPasspointUniqueId(null);
                         mWifiInfo.setOsuAp(false);
                         mWifiInfo.setProviderFriendlyName(null);
                         if (config != null && (config.isPasspoint() || config.osu)) {
                             if (config.isPasspoint()) {
                                 mWifiInfo.setFQDN(config.FQDN);
+                                mWifiInfo.setPasspointUniqueId(config.getPasspointUniqueId());
                             } else {
                                 mWifiInfo.setOsuAp(true);
                             }

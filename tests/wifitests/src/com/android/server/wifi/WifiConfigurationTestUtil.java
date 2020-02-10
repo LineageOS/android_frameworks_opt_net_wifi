@@ -115,6 +115,11 @@ public class WifiConfigurationTestUtil {
                 : WifiConfiguration.Status.DISABLED;
         config.FQDN = fqdn;
         config.providerFriendlyName = providerFriendlyName;
+        if (config.FQDN != null) {
+            int uniqueId = config.FQDN.hashCode() + config.networkId + config.creatorUid;
+            // Generate a Passpoint unique id locally for the test
+            config.setPasspointUniqueId(config.FQDN + "_" + uniqueId);
+        }
         return config;
     }
 

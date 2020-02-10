@@ -1119,6 +1119,7 @@ public class WifiConfigManager {
         newInternalConfig.useExternalScores = externalConfig.useExternalScores;
         newInternalConfig.shared = externalConfig.shared;
         newInternalConfig.updateIdentifier = externalConfig.updateIdentifier;
+        newInternalConfig.setPasspointUniqueId(externalConfig.getPasspointUniqueId());
 
         // Add debug information for network addition.
         newInternalConfig.creatorUid = newInternalConfig.lastUpdateUid = uid;
