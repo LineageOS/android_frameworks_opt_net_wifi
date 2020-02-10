@@ -360,10 +360,40 @@ public class WifiCandidates {
             double lastSelectionWeightBetweenZeroAndOne,
             boolean isMetered,
             int predictedThroughputMbps) {
-        if (!validConfigAndScanDetail(config, scanDetail)) return false;
+        Key key = keyFromScanDetailAndConfig(scanDetail, config);
+        if (key == null) return false;
+        return add(key, config, nominatorId,
+                scanDetail.getScanResult().level,
+                scanDetail.getScanResult().frequency,
+                lastSelectionWeightBetweenZeroAndOne,
+                isMetered,
+                predictedThroughputMbps);
+    }
+
+    /**
+     * Makes a Key from a ScanDetail and WifiConfiguration (null if error).
+     */
+    public @Nullable Key keyFromScanDetailAndConfig(ScanDetail scanDetail,
+            WifiConfiguration config) {
+        if (!validConfigAndScanDetail(config, scanDetail)) return null;
         ScanResult scanResult = scanDetail.getScanResult();
         MacAddress bssid = MacAddress.fromString(scanResult.BSSID);
-        Key key = new Key(ScanResultMatchInfo.fromScanResult(scanResult), bssid, config.networkId);
+        return new Key(ScanResultMatchInfo.fromScanResult(scanResult), bssid, config.networkId);
+    }
+
+    /**
+     * Adds a new candidate
+     *
+     * @return true if added or replaced, false otherwise
+     */
+    public boolean add(@NonNull Key key,
+            WifiConfiguration config,
+            @WifiNetworkSelector.NetworkNominator.NominatorId int nominatorId,
+            int scanRssi,
+            int frequency,
+            double lastSelectionWeightBetweenZeroAndOne,
+            boolean isMetered,
+            int predictedThroughputMbps) {
         CandidateImpl old = mCandidates.get(key);
         if (old != null) {
             // check if we want to replace this old candidate
@@ -377,10 +407,11 @@ public class WifiCandidates {
                 WifiScoreCardProto.SecurityType.forNumber(key.matchInfo.networkType));
         perBssid.setNetworkConfigId(config.networkId);
         CandidateImpl candidate = new CandidateImpl(key, config, perBssid, nominatorId,
-                scanResult.level, scanResult.frequency,
+                scanRssi,
+                frequency,
                 Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0),
                 config.networkId == mCurrentNetworkId,
-                bssid.equals(mCurrentBssid),
+                key.bssid.equals(mCurrentBssid),
                 isMetered,
                 predictedThroughputMbps);
         mCandidates.put(key, candidate);
@@ -416,7 +447,6 @@ public class WifiCandidates {
         }
         return true;
     }
-
 
     /**
      * Removes a candidate

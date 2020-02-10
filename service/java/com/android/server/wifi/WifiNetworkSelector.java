@@ -711,9 +711,13 @@ public class WifiNetworkSelector {
                     new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
                     untrustedNetworkAllowed,
                     (scanDetail, config) -> {
-                        if (config != null) {
-                            boolean added = wifiCandidates.add(scanDetail, config,
+                        WifiCandidates.Key key = wifiCandidates.keyFromScanDetailAndConfig(
+                                scanDetail, config);
+                        if (key != null) {
+                            boolean added = wifiCandidates.add(key, config,
                                     registeredNominator.getId(),
+                                    scanDetail.getScanResult().level,
+                                    scanDetail.getScanResult().frequency,
                                     (config.networkId == lastUserSelectedNetworkId)
                                             ? lastSelectionWeight : 0.0,
                                     WifiConfiguration.isMetered(config, wifiInfo),
