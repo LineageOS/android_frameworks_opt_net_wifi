@@ -57,7 +57,6 @@ import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1428,12 +1427,11 @@ public class WifiNative {
      * WifiScanner.WIFI_BAND_5_GHZ
      * WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY
      * WifiScanner.WIFI_BAND_6_GHZ
-     * @return frequencies List of valid frequencies (MHz), or an empty list for error.
+     * @return frequencies vector of valid frequencies (MHz), or null for error.
      * @throws IllegalArgumentException if band is not recognized.
      */
-    public List<Integer> getChannelsForBand(@WifiAnnotations.WifiBandBasic int band) {
-        List<Integer> result = mWifiCondManager.getChannelsMhzForBand(band);
-        return (result == null) ? Collections.emptyList() : result; // insurance on external mgr
+    public int [] getChannelsForBand(@WifiAnnotations.WifiBandBasic int band) {
+        return mWifiCondManager.getChannelsMhzForBand(band);
     }
 
     /**
@@ -1488,17 +1486,12 @@ public class WifiNative {
         ArrayList<ScanDetail> results = new ArrayList<>();
         for (NativeScanResult result : nativeResults) {
             WifiSsid wifiSsid = WifiSsid.createFromByteArray(result.getSsid());
-            String bssid;
-            try {
-                bssid = NativeUtil.macAddressFromByteArray(result.getBssid());
-            } catch (IllegalArgumentException e) {
-                Log.e(TAG, "Illegal argument " + result.getBssid(), e);
+            MacAddress bssidMac = result.getBssid();
+            if (bssidMac == null) {
+                Log.e(TAG, "Invalid MAC (BSSID) for SSID " + wifiSsid);
                 continue;
             }
-            if (bssid == null) {
-                Log.e(TAG, "Illegal null bssid");
-                continue;
-            }
+            String bssid = bssidMac.toString();
             ScanResult.InformationElement[] ies =
                     InformationElementUtil.parseInformationElements(result.getInformationElements());
             InformationElementUtil.Capabilities capabilities =

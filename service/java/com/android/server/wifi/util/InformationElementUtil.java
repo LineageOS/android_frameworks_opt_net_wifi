@@ -20,6 +20,7 @@ import android.net.wifi.ScanResult.InformationElement;
 import android.net.wifi.WifiAnnotations.Cipher;
 import android.net.wifi.WifiAnnotations.KeyMgmt;
 import android.net.wifi.WifiAnnotations.Protocol;
+import android.net.wifi.wificond.NativeScanResult;
 import android.net.wifi.wificond.WifiCondManager;
 import android.util.Log;
 
@@ -892,10 +893,6 @@ public class InformationElementUtil {
      * by wpa_supplicant.
      */
     public static class Capabilities {
-        private static final int CAP_ESS_BITMASK = 0x1 << 0;
-        private static final int CAP_IBSS_BITMASK = 0x1 << 1;
-        private static final int CAP_PRIVACY_BITMASK = 0x1 << 4;
-
         private static final int WPA_VENDOR_OUI_TYPE_ONE = 0x01f25000;
         private static final int WPS_VENDOR_OUI_TYPE = 0x04f25000;
         private static final short WPA_VENDOR_OUI_VERSION = 0x0001;
@@ -1181,9 +1178,9 @@ public class InformationElementUtil {
             if (ies == null) {
                 return;
             }
-            isESS = (beaconCap & CAP_ESS_BITMASK) != 0;
-            isIBSS = (beaconCap & CAP_IBSS_BITMASK) != 0;
-            isPrivacy = (beaconCap & CAP_PRIVACY_BITMASK) != 0;
+            isESS = (beaconCap & NativeScanResult.BSS_CAPABILITY_ESS) != 0;
+            isIBSS = (beaconCap & NativeScanResult.BSS_CAPABILITY_IBSS) != 0;
+            isPrivacy = (beaconCap & NativeScanResult.BSS_CAPABILITY_PRIVACY) != 0;
             for (InformationElement ie : ies) {
                 WifiCondManager.OemSecurityType oemSecurityType =
                         WifiCondManager.parseOemSecurityTypeElement(

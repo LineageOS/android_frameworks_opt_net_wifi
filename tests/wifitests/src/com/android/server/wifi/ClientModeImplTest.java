@@ -129,7 +129,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -4431,9 +4430,9 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported5gNoOverrideNoChannels() throws Exception {
-        final List<Integer> emptyList = Collections.emptyList();
+        final int[] emptyArray = {};
         mResources.setBoolean(R.bool.config_wifi5ghzSupport, false);
-        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyList);
+        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyArray);
         assertFalse(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ));
         verify(mWifiNative).getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ);
     }
@@ -4443,7 +4442,7 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported5gNoOverrideWithChannels() throws Exception {
-        final List<Integer> channelArray = Arrays.asList(5170);
+        final int[] channelArray = {5170};
         mResources.setBoolean(R.bool.config_wifi5ghzSupport, false);
         when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(channelArray);
         assertTrue(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ));
@@ -4455,9 +4454,9 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported6gNoOverrideNoChannels() throws Exception {
-        final List<Integer> emptyList = Collections.emptyList();
+        final int[] emptyArray = {};
         mResources.setBoolean(R.bool.config_wifi6ghzSupport, false);
-        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyList);
+        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyArray);
         assertFalse(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_6_GHZ));
         verify(mWifiNative).getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ);
     }
@@ -4467,7 +4466,7 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported6gNoOverrideWithChannels() throws Exception {
-        final List<Integer> channelArray = Arrays.asList(6420);
+        final int[] channelArray = {6420};
         mResources.setBoolean(R.bool.config_wifi6ghzSupport, false);
         when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(channelArray);
         assertTrue(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_6_GHZ));

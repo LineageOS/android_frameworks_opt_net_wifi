@@ -298,9 +298,14 @@ public class WakeupController {
 
     /** Returns a list of ScanResults with DFS channels removed. */
     private List<ScanResult> filterDfsScanResults(Collection<ScanResult> scanResults) {
-        final Set<Integer> dfsChannelSet = new HashSet<>(
-                mWifiInjector.getWifiNative().getChannelsForBand(
-                        WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY));
+        int[] dfsChannels = mWifiInjector.getWifiNative()
+                .getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY);
+        if (dfsChannels == null) {
+            dfsChannels = new int[0];
+        }
+
+        final Set<Integer> dfsChannelSet = Arrays.stream(dfsChannels).boxed()
+                .collect(Collectors.toSet());
 
         return scanResults.stream()
                 .filter(scanResult -> !dfsChannelSet.contains(scanResult.frequency))
