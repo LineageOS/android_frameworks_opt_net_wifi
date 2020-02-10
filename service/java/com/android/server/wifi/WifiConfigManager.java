@@ -1050,6 +1050,7 @@ public class WifiConfigManager {
         // Copy over macRandomizationSetting
         internalConfig.macRandomizationSetting = externalConfig.macRandomizationSetting;
         internalConfig.carrierId = externalConfig.carrierId;
+        internalConfig.isHomeProviderNetwork = externalConfig.isHomeProviderNetwork;
     }
 
     /**
