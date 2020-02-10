@@ -286,6 +286,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock PowerProfile mPowerProfile;
     @Mock WifiTrafficPoller mWifiTrafficPolller;
     @Mock ScanRequestProxy mScanRequestProxy;
+    @Mock WakeupController mWakeupController;
     @Mock ITrafficStateCallback mTrafficStateCallback;
     @Mock INetworkRequestMatchCallback mNetworkRequestMatchCallback;
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
@@ -358,6 +359,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiSettingsStore()).thenReturn(mSettingsStore);
         when(mWifiInjector.getClock()).thenReturn(mClock);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
+        when(mWifiInjector.getWakeupController()).thenReturn(mWakeupController);
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
@@ -5522,5 +5524,39 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertTrue(mWifiServiceImpl.isScanThrottleEnabled());
         mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mScanRequestProxy).isScanThrottleEnabled();
+    }
+
+    @Test
+    public void testSetAutoWakeupEnabledWithNetworkSettingsPermission() {
+        doNothing().when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.setAutoWakeupEnabled(true);
+        mLooper.dispatchAll();
+        verify(mWakeupController).setEnabled(true);
+
+        mWifiServiceImpl.setAutoWakeupEnabled(false);
+        mLooper.dispatchAll();
+        verify(mWakeupController).setEnabled(false);
+    }
+
+    @Test(expected = SecurityException.class)
+    public void testSetAutoWakeupEnabledWithNoNetworkSettingsPermission() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+
+        mWifiServiceImpl.setAutoWakeupEnabled(true);
+        mLooper.dispatchAll();
+        verify(mWakeupController, never()).setEnabled(true);
+    }
+
+    @Test
+    public void testIsAutoWakeupEnabled() {
+        when(mWakeupController.isEnabled()).thenReturn(true);
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.isAutoWakeupEnabled());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mWakeupController).isEnabled();
     }
 }
