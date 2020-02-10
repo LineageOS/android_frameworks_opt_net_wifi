@@ -3786,6 +3786,27 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies that sim state change does not set or reset the country code
+     */
+    @Test
+    public void testSimStateChangeDoesNotResetCountryCodeForRebroadcastedIntent() {
+        mWifiServiceImpl.checkAndStartWifi();
+        mLooper.dispatchAll();
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat((IntentFilter filter) ->
+                        filter.hasAction(TelephonyIntents.ACTION_SIM_STATE_CHANGED)));
+
+        int userHandle = TEST_USER_HANDLE;
+        // Send the broadcast
+        Intent intent = new Intent(TelephonyIntents.ACTION_SIM_STATE_CHANGED);
+        intent.putExtra(Intent.EXTRA_USER_HANDLE, userHandle);
+        intent.putExtra(Intent.EXTRA_REBROADCAST_ON_UNLOCK, true);
+        intent.putExtra(Intent.EXTRA_SIM_STATE, Intent.SIM_STATE_ABSENT);
+        mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
+        verifyNoMoreInteractions(mWifiCountryCode);
+    }
+
+    /**
      * Verifies that entering airplane mode does not reset country code.
      */
     @Test
