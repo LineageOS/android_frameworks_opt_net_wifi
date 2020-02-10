@@ -661,16 +661,11 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertEquals(ephemeralNetwork.networkId, wifiConfigCaptor.getValue().networkId);
     }
 
-    /**
-     * Verifies the addition of a single passpoint network using
-     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)} and verifies that
-     * the {@link WifiConfigManager#getSavedNetworks(int)} ()} does not return this network.
-     */
-    @Test
-    public void testAddSinglePasspointNetwork() throws Exception {
+    private void addSinglePasspointNetwork(boolean isHomeProviderNetwork) throws Exception {
         ArgumentCaptor<WifiConfiguration> wifiConfigCaptor =
                 ArgumentCaptor.forClass(WifiConfiguration.class);
         WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+        passpointNetwork.isHomeProviderNetwork = isHomeProviderNetwork;
 
         verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
         // Ensure that configured network list is not empty.
@@ -680,6 +675,28 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertTrue(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID).isEmpty());
         verify(mWcmListener).onNetworkAdded(wifiConfigCaptor.capture());
         assertEquals(passpointNetwork.networkId, wifiConfigCaptor.getValue().networkId);
+        assertEquals(passpointNetwork.isHomeProviderNetwork,
+                wifiConfigCaptor.getValue().isHomeProviderNetwork);
+    }
+
+    /**
+     * Verifies the addition of a single home Passpoint network using
+     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)} and verifies that
+     * the {@link WifiConfigManager#getSavedNetworks(int)} ()} does not return this network.
+     */
+    @Test
+    public void testAddSingleHomePasspointNetwork() throws Exception {
+        addSinglePasspointNetwork(true);
+    }
+
+    /**
+     * Verifies the addition of a single roaming Passpoint network using
+     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)} and verifies that
+     * the {@link WifiConfigManager#getSavedNetworks(int)} ()} does not return this network.
+     */
+    @Test
+    public void testAddSingleRoamingPasspointNetwork() throws Exception {
+        addSinglePasspointNetwork(false);
     }
 
     /**
