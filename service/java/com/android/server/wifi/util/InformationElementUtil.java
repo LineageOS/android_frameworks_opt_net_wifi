@@ -702,7 +702,8 @@ public class InformationElementUtil {
     }
 
     public static class Vsa {
-        private static final int ANQP_DOMID_BIT = 0x04;
+        private static final int ANQP_DOMAIN_ID_PRESENT_BIT = 0x04;
+        private static final int ANQP_PPS_MO_ID_BIT = 0x02;
         private static final int OUI_WFA_ALLIANCE = 0x506F9a;
         private static final int OUI_TYPE_HS20 = 0x10;
         private static final int OUI_TYPE_MBO_OCE = 0x16;
@@ -777,8 +778,20 @@ public class InformationElementUtil {
                         hsRelease = NetworkDetail.HSRelease.Unknown;
                         break;
                 }
-                if ((hsConf & ANQP_DOMID_BIT) != 0) {
-                    if (ie.bytes.length < 7) {
+                if ((hsConf & ANQP_DOMAIN_ID_PRESENT_BIT) != 0) {
+                    // According to Hotspot 2.0 Specification v3.0 section 3.1.1 HS2.0 Indication
+                    // element, the size of the element is 5 bytes, and 2 bytes are optionally added
+                    // for each optional field; ANQP PPS MO ID and ANQP Domain ID present.
+                    int expectedSize = 7;
+                    if ((hsConf & ANQP_PPS_MO_ID_BIT) != 0) {
+                        expectedSize += 2;
+                        if (ie.bytes.length < expectedSize) {
+                            throw new IllegalArgumentException(
+                                    "HS20 indication element too short: " + ie.bytes.length);
+                        }
+                        data.getShort(); // Skip 2 bytes
+                    }
+                    if (ie.bytes.length < expectedSize) {
                         throw new IllegalArgumentException(
                                 "HS20 indication element too short: " + ie.bytes.length);
                     }

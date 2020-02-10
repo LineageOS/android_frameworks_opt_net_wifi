@@ -947,7 +947,7 @@ public class InformationElementUtilTest extends WifiBaseTest {
      * @throws Exception
      */
     @Test
-    public void getHS2VendorSpecificIE() throws Exception {
+    public void getHS2VendorSpecificIEWithDomainIdOnly() throws Exception {
         InformationElement ie = new InformationElement();
         ie.id = InformationElement.EID_VSA;
         /**
@@ -967,6 +967,65 @@ public class InformationElementUtilTest extends WifiBaseTest {
                 InformationElementUtil.getHS2VendorSpecificIE(new InformationElement[] {ie});
         assertEquals(NetworkDetail.HSRelease.R2, vsa.hsRelease);
         assertEquals(0x2211, vsa.anqpDomainID);
+    }
+
+    /**
+     * Verify that the expected Hotspot 2.0 Vendor Specific information element is parsed and
+     * retrieved from the list of IEs.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getHS2VendorSpecificIEWithDomainIdAndPpsMoId() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VSA;
+        /**
+         * Vendor Specific OI Format:
+         * | OI | Type | Hotspot Configuration | PPS MO ID (optional) | ANQP Domain ID (optional)
+         *    3    1              1                    2                        2
+         *
+         * With OI=0x506F9A and Type=0x10 for Hotspot 2.0
+         *
+         * The Format of Hotspot Configuration:
+         *        B0               B1                   B2             B3    B4              B7
+         * | DGAF Disabled | PPS MO ID Flag | ANQP Domain ID Flag | reserved | Release Number |
+         */
+        ie.bytes = new byte[] { (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x10,
+                (byte) 0x16 /* Hotspot Configuration */, (byte) 0x44, (byte) 0x33 /* PPS MO */,
+                (byte) 0x11, (byte) 0x22 /* ANQP Domain */};
+        InformationElementUtil.Vsa vsa =
+                InformationElementUtil.getHS2VendorSpecificIE(new InformationElement[] {ie});
+        assertEquals(NetworkDetail.HSRelease.R2, vsa.hsRelease);
+        assertEquals(0x2211, vsa.anqpDomainID);
+    }
+
+    /**
+     * Verify that the expected Hotspot 2.0 Vendor Specific information element is parsed and
+     * retrieved from the list of IEs.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testHS2VendorSpecificIEWithDomainIdAndPpsMoIdBitsIncorrectSize() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VSA;
+        /**
+         * Vendor Specific OI Format:
+         * | OI | Type | Hotspot Configuration | PPS MO ID (optional) | ANQP Domain ID (optional)
+         *    3    1              1                    2                        2
+         *
+         * With OI=0x506F9A and Type=0x10 for Hotspot 2.0
+         *
+         * The Format of Hotspot Configuration:
+         *        B0               B1                   B2             B3    B4              B7
+         * | DGAF Disabled | PPS MO ID Flag | ANQP Domain ID Flag | reserved | Release Number |
+         */
+        ie.bytes = new byte[] { (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x10,
+                (byte) 0x16 /* Hotspot Configuration */, (byte) 0x44, (byte) 0x33 /* PPS MO */
+                /* ANQP Domain missing */};
+        InformationElementUtil.Vsa vsa =
+                InformationElementUtil.getHS2VendorSpecificIE(new InformationElement[] {ie});
+        assertEquals(0, vsa.anqpDomainID);
     }
 
     /**
