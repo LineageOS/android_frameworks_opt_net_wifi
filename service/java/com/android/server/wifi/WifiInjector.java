@@ -158,6 +158,7 @@ public class WifiInjector {
     private NetdWrapper mNetdWrapper;
     private final WifiHealthMonitor mWifiHealthMonitor;
     private final WifiOemConfigStoreMigrationDataHolder mOemConfigStoreMigrationDataHolder;
+    private final WifiSettingsConfigStore mSettingsConfigStore;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -186,7 +187,6 @@ public class WifiInjector {
         mConnectionFailureNotificationBuilder = new ConnectionFailureNotificationBuilder(
                 mContext, getWifiStackPackageName(), mFrameworkFacade);
         mBatteryStats = context.getSystemService(BatteryStatsManager.class);
-        mSettingsStore = new WifiSettingsStore(mContext);
         mWifiPermissionsWrapper = new WifiPermissionsWrapper(mContext);
         mNetworkScoreManager = mContext.getSystemService(NetworkScoreManager.class);
         mWifiNetworkScoreCache = new WifiNetworkScoreCache(mContext);
@@ -264,6 +264,9 @@ public class WifiInjector {
                 new NetworkListUserStoreData(mContext, mOemConfigStoreMigrationDataHolder),
                 new RandomizedMacStoreData(), mFrameworkFacade, wifiHandler, mDeviceConfigFacade,
                 mWifiScoreCard);
+        mSettingsConfigStore = new WifiSettingsConfigStore(context, wifiHandler, mWifiConfigManager,
+                mWifiConfigStore);
+        mSettingsStore = new WifiSettingsStore(mContext, mSettingsConfigStore);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
 
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
@@ -307,7 +310,7 @@ public class WifiInjector {
                 (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
                 (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
                 this, mWifiConfigManager,
-                mWifiPermissionsUtil, mWifiMetrics, mClock, mFrameworkFacade, wifiHandler);
+                mWifiPermissionsUtil, mWifiMetrics, mClock, wifiHandler, mSettingsConfigStore);
         mSarManager = new SarManager(mContext, makeTelephonyManager(), wifiLooper,
                 mWifiNative);
         mWifiDiagnostics = new WifiDiagnostics(
@@ -812,5 +815,9 @@ public class WifiInjector {
 
     public ThroughputPredictor getThroughputPredictor() {
         return mThroughputPredictor;
+    }
+
+    public WifiSettingsConfigStore getSettingsConfigStore() {
+        return mSettingsConfigStore;
     }
 }

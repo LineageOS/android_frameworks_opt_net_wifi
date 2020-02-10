@@ -27,6 +27,8 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 
+import static com.android.server.wifi.WifiSettingsConfigStore.WIFI_VERBOSE_LOGGING_ENABLED;
+
 import android.annotation.CheckResult;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -338,6 +340,9 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     public void checkAndStartWifi() {
         mWifiThreadRunner.post(() -> {
+            if (!mWifiConfigManager.loadFromStore()) {
+                Log.e(TAG, "Failed to load from config store");
+            }
             // Check if wi-fi needs to be enabled
             boolean wifiEnabled = mSettingsStore.isWifiToggleEnabled();
             Log.i(TAG,
@@ -405,9 +410,6 @@ public class WifiServiceImpl extends BaseWifiService {
             }
             mContext.registerReceiver(mReceiver, intentFilter);
             mMemoryStoreImpl.start();
-            if (!mWifiConfigManager.loadFromStore()) {
-                Log.e(TAG, "Failed to load from config store");
-            }
             mPasspointManager.initializeProvisioner(
                     mWifiInjector.getPasspointProvisionerHandlerThread().getLooper());
             mClientModeImpl.handleBootCompleted();
@@ -3269,8 +3271,8 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("enableVerboseLogging uid=% verbose=%")
                 .c(Binder.getCallingUid())
                 .c(verbose).flush();
-        mFacade.setIntegerSetting(
-                mContext, Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, verbose);
+        mWifiInjector.getSettingsConfigStore().putBoolean(
+                WIFI_VERBOSE_LOGGING_ENABLED, verbose > 0);
         enableVerboseLoggingInternal(verbose);
     }
 
@@ -3287,8 +3289,8 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getVerboseLoggingLevel uid=%").c(Binder.getCallingUid()).flush();
         }
-        return mFacade.getIntegerSetting(
-                mContext, Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0);
+        return mWifiInjector.getSettingsConfigStore().getBoolean(
+                WIFI_VERBOSE_LOGGING_ENABLED, false) ? 1 : 0;
     }
 
     @Override

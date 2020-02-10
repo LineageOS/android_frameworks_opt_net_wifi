@@ -37,6 +37,7 @@ import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
+import static com.android.server.wifi.WifiSettingsConfigStore.WIFI_VERBOSE_LOGGING_ENABLED;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -304,6 +305,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock ISuggestionConnectionStatusListener mSuggestionConnectionStatusListener;
     @Mock IOnWifiActivityEnergyInfoListener mOnWifiActivityEnergyInfoListener;
     @Mock IWifiConnectedNetworkScorer mWifiConnectedNetworkScorer;
+    @Mock WifiSettingsConfigStore mWifiSettingsConfigStore;
 
     WifiLog mLog = new LogcatLog(TAG);
 
@@ -374,6 +376,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(mock(WifiNetworkScoreCache.class));
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
+        when(mWifiInjector.getSettingsConfigStore()).thenReturn(mWifiSettingsConfigStore);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         // Create an OSU provider that can be provisioned via an open OSU AP
@@ -1194,6 +1197,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
         mLooper.dispatchAll();
+        verify(mWifiConfigManager).loadFromStore();
         verify(mActiveModeWarden).start();
         verify(mActiveModeWarden, never()).wifiToggled();
     }
@@ -1211,6 +1215,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         mWifiServiceImpl.checkAndStartWifi();
         mLooper.dispatchAll();
+        verify(mWifiConfigManager).loadFromStore();
         verify(mActiveModeWarden).start();
     }
 
@@ -3374,6 +3379,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         // before invocation.
         reset(mClientModeImpl);
         mWifiServiceImpl.enableVerboseLogging(1);
+        verify(mWifiSettingsConfigStore).putBoolean(WIFI_VERBOSE_LOGGING_ENABLED, true);
         verify(mClientModeImpl).enableVerboseLogging(anyInt());
     }
 
@@ -3390,6 +3396,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         // before invocation.
         reset(mClientModeImpl);
         mWifiServiceImpl.enableVerboseLogging(1);
+        verify(mWifiSettingsConfigStore, never()).putBoolean(
+                WIFI_VERBOSE_LOGGING_ENABLED, anyBoolean());
         verify(mClientModeImpl, never()).enableVerboseLogging(anyInt());
     }
 
@@ -5036,7 +5044,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.handleBootCompleted();
         mLooper.dispatchAll();
 
-        verify(mWifiConfigManager).loadFromStore();
         verify(mPasspointManager).initializeProvisioner(any());
         verify(mClientModeImpl).handleBootCompleted();
     }

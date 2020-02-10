@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringDef;
 import android.content.Context;
+import android.net.wifi.WifiOemMigrationHook;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
@@ -42,16 +43,47 @@ import java.util.Map;
 /**
  * Store data for storing wifi settings. These are key (string) / value pairs that are stored in
  * WifiConfigStore.xml file in a separate section.
+ * TODO(b/149738301): Rework this class.
  */
 public class WifiSettingsConfigStore {
     private static final String TAG = "WifiSettingsConfigStore";
 
     /******** Wifi shared pref keys ***************/
     @StringDef({
+            WIFI_P2P_DEVICE_NAME,
+            WIFI_P2P_PENDING_FACTORY_RESET,
+            WIFI_SCAN_ALWAYS_AVAILABLE,
+            WIFI_SCAN_THROTTLE_ENABLED,
+            WIFI_VERBOSE_LOGGING_ENABLED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface WifiSettingsKey {}
 
+    /**
+     * The Wi-Fi peer-to-peer device name
+     */
+    public static final String WIFI_P2P_DEVICE_NAME = "wifi_p2p_device_name";
+
+    /**
+     * Indicate whether factory reset request is pending.
+     */
+    public static final String WIFI_P2P_PENDING_FACTORY_RESET = "wifi_p2p_pending_factory_reset";
+
+    /**
+     * Allow scans to be enabled even wifi is turned off.
+     */
+    public static final String WIFI_SCAN_ALWAYS_AVAILABLE = "wifi_scan_always_enabled";
+
+    /**
+     * Whether wifi scan throttle is enabled or not.
+     */
+    public static final String WIFI_SCAN_THROTTLE_ENABLED = "wifi_scan_throttle_enabled";
+
+    /**
+     * Setting to enable verbose logging in Wi-Fi; disabled by default, and setting to 1
+     * will enable it. In the future, additional values may be supported.
+     */
+    public static final String WIFI_VERBOSE_LOGGING_ENABLED = "wifi_verbose_logging_enabled";
     /******** Wifi shared pref keys ***************/
 
     private final Context mContext;
@@ -115,6 +147,18 @@ public class WifiSettingsConfigStore {
     /**
      * Trigger config store writes and invoke listeners in the main wifi service looper's handler.
      */
+    private void triggerSaveToStoreAndInvokeAllListeners() {
+        mHandler.post(() -> {
+            mHasNewDataToSerialize = true;
+            mWifiConfigManager.saveToStore(true);
+
+            invokeAllListeners();
+        });
+    }
+
+    /**
+     * Trigger config store writes and invoke listeners in the main wifi service looper's handler.
+     */
     private void triggerSaveToStoreAndInvokeListeners(@NonNull @WifiSettingsKey String key) {
         mHandler.post(() -> {
             mHasNewDataToSerialize = true;
@@ -122,6 +166,28 @@ public class WifiSettingsConfigStore {
 
             invokeListeners(key);
         });
+    }
+
+    /**
+     * Performs a one time migration from Settings.Global values to settings store. Only
+     * performed one time if the settings store is empty.
+     */
+    private void migrateFromSettingsIfNeeded() {
+        if (!mSettings.isEmpty()) return; // already migrated.
+
+        WifiOemMigrationHook.SettingsMigrationData dataToMigrate =
+                WifiOemMigrationHook.loadFromSettings(mContext);
+        if (dataToMigrate == null) {
+            Log.e(TAG, "Not settings data to migrate");
+            return;
+        }
+        Log.i(TAG, "Migrating data out of settings to shared preferences");
+
+        mSettings.put(WIFI_P2P_DEVICE_NAME, dataToMigrate.getP2pDeviceName());
+        mSettings.put(WIFI_P2P_PENDING_FACTORY_RESET, dataToMigrate.isP2pFactoryResetPending());
+        mSettings.put(WIFI_SCAN_THROTTLE_ENABLED, dataToMigrate.isScanThrottleEnabled());
+        mSettings.put(WIFI_VERBOSE_LOGGING_ENABLED, dataToMigrate.isVerboseLoggingEnabled());
+        triggerSaveToStoreAndInvokeAllListeners();
     }
 
     /**
@@ -258,8 +324,10 @@ public class WifiSettingsConfigStore {
                 @WifiConfigStore.Version int version,
                 @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
-            // Ignore empty reads.
             if (in == null) {
+                // Empty read triggers the migration since it indicates that there is no settings
+                // data stored in the settings store.
+                migrateFromSettingsIfNeeded();
                 return;
             }
             Map<String, Object> values = null;
@@ -308,7 +376,7 @@ public class WifiSettingsConfigStore {
         @Override
         public @WifiConfigStore.StoreFileId int getStoreFileId() {
             // Shared general store.
-            return WifiConfigStore.STORE_FILE_USER_GENERAL;
+            return WifiConfigStore.STORE_FILE_SHARED_GENERAL;
         }
     }
 }
