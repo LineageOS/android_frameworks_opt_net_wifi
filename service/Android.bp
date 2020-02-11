@@ -66,8 +66,7 @@ java_library {
         // compile time
         "framework-wifi-pre-jarjar",
         "android_module_lib_stubs_current",
-        // TODO(b/146167933): Use framework-statsd-stubs instead.
-        "framework-statsd",
+        "framework-statsd-stubs-module_libs_api",
         "unsupportedappusage",
     ],
 
