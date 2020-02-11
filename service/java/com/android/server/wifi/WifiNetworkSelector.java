@@ -22,7 +22,6 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
-import android.net.NetworkKey;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -352,7 +351,6 @@ public class WifiNetworkSelector {
 
     private List<ScanDetail> filterScanResults(List<ScanDetail> scanDetails,
                 Set<String> bssidBlacklist, boolean isConnected, String currentBssid) {
-        ArrayList<NetworkKey> unscoredNetworks = new ArrayList<>();
         List<ScanDetail> validScanDetails = new ArrayList<>();
         StringBuffer noValidSsid = new StringBuffer();
         StringBuffer blacklistedBssid = new StringBuffer();
@@ -676,11 +674,11 @@ public class WifiNetworkSelector {
         // roaming happened.
         String currentBssid = wifiInfo.getBSSID();
 
+        // Update the scan detail cache at the start, even if we skip network selection
+        updateScanDetailCache(scanDetails);
+
         // Shall we start network selection at all?
         if (!isNetworkSelectionNeeded(scanDetails, wifiInfo, connected, disconnected)) {
-            // If network selection is skipped, update scan detail cache before exit.
-            // Otherwise, scan detail cache will be updated in each nominator.
-            updateScanDetailCache(scanDetails);
             return null;
         }
 
@@ -696,9 +694,6 @@ public class WifiNetworkSelector {
         mFilteredNetworks = filterScanResults(scanDetails, bssidBlacklist,
                 connected && wifiInfo.getScore() >= WIFI_POOR_SCORE, currentBssid);
         if (mFilteredNetworks.size() == 0) {
-            // If network selection is skipped, update scan detail cache before exit.
-            // Otherwise, scan detail cache will be updated in each nominator.
-            updateScanDetailCache(scanDetails);
             return null;
         }
 
@@ -717,16 +712,20 @@ public class WifiNetworkSelector {
                     untrustedNetworkAllowed,
                     (scanDetail, config) -> {
                         if (config != null) {
-                            mConnectableNetworks.add(Pair.create(scanDetail, config));
-                            wifiCandidates.add(scanDetail, config,
+                            boolean added = wifiCandidates.add(scanDetail, config,
                                     registeredNominator.getId(),
                                     0,
                                     (config.networkId == lastUserSelectedNetworkId)
                                             ? lastSelectionWeight : 0.0,
                                     WifiConfiguration.isMetered(config, wifiInfo),
                                     predictThroughput(scanDetail));
-                            mWifiMetrics.setNominatorForNetwork(config.networkId,
-                                    toProtoNominatorId(registeredNominator.getId()));
+                            if (added) {
+                                mConnectableNetworks.add(Pair.create(scanDetail, config));
+                                mWifiConfigManager.updateScanDetailForNetwork(
+                                        config.networkId, scanDetail);
+                                mWifiMetrics.setNominatorForNetwork(config.networkId,
+                                        toProtoNominatorId(registeredNominator.getId()));
+                            }
                         }
                     });
         }
@@ -742,11 +741,11 @@ public class WifiNetworkSelector {
                 wifiCandidates.getGroupedCandidates();
         for (Collection<WifiCandidates.Candidate> group: groupedCandidates) {
             WifiCandidates.ScoredCandidate choice = activeScorer.scoreCandidates(group);
-            if (choice == null || choice.scanDetail == null) {
-                continue;
-            }
+            if (choice == null) continue;
+            ScanDetail scanDetail = getScanDetailForCandidateKey(choice.candidateKey);
+            if (scanDetail == null) continue;
             mWifiConfigManager.setNetworkCandidateScanResult(choice.candidateKey.networkId,
-                    choice.scanDetail.getScanResult(), 0);
+                    scanDetail.getScanResult(), 0);
         }
 
         ArrayMap<Integer, Integer> experimentNetworkSelections = new ArrayMap<>(); // for metrics
@@ -796,12 +795,28 @@ public class WifiNetworkSelector {
         // Get a fresh copy of WifiConfiguration reflecting any scan result updates
         WifiConfiguration selectedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(selectedNetworkId);
-        // TODO (b/136675430): the legacyOverrideWanted check seems unnecessary
         if (selectedNetwork != null && legacyOverrideWanted) {
             selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
+        }
+        if (selectedNetwork != null) {
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
         return selectedNetwork;
+    }
+
+    /**
+     * Returns the ScanDetail given the candidate key, using the saved list of connectible networks.
+     */
+    private ScanDetail getScanDetailForCandidateKey(WifiCandidates.Key candidateKey) {
+        if (candidateKey == null) return null;
+        String bssid = candidateKey.bssid.toString();
+        for (Pair<ScanDetail, WifiConfiguration> pair : mConnectableNetworks) {
+            if (candidateKey.networkId == pair.second.networkId
+                    && bssid.equals(pair.first.getBSSIDString())) {
+                return pair.first;
+            }
+        }
+        return null;
     }
 
     private void updateChosenPasspointNetwork(WifiCandidates.ScoredCandidate choice) {

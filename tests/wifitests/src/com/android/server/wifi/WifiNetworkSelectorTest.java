@@ -361,7 +361,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         assertEquals("Expect null configuration", null, candidate);
         assertTrue(mWifiNetworkSelector.getConnectableScanDetails().isEmpty());
 
-        verify(mWifiConfigManager, times(2)).updateScanDetailCacheFromScanDetail(any());
+        verify(mWifiConfigManager, atLeast(2)).updateScanDetailCacheFromScanDetail(any());
     }
 
     /**
@@ -625,7 +625,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // missing from the scan results.
         assertEquals("Expect null configuration", null, candidate);
         assertTrue(mWifiNetworkSelector.getConnectableScanDetails().isEmpty());
-        verify(mWifiConfigManager, times(1)).updateScanDetailCacheFromScanDetail(any());
+        verify(mWifiConfigManager, atLeast(1)).updateScanDetailCacheFromScanDetail(any());
     }
 
     /**
