@@ -2797,7 +2797,7 @@ public class ClientModeImpl extends StateMachine {
 
         if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NONE) {
 
-            int bssidBlocklistMonitorReason = convertToBssidBlocklistMonitorFailureReason(
+            int blocklistReason = convertToBssidBlocklistMonitorFailureReason(
                     level2FailureCode, level2FailureReason);
 
             String bssid = mLastBssid == null ? mTargetRoamBSSID : mLastBssid;
@@ -2806,26 +2806,29 @@ public class ClientModeImpl extends StateMachine {
                 ssid = getTargetSsid();
             }
 
-            if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION) {
+            if (blocklistReason != -1) {
                 int networkId = (configuration == null) ? WifiConfiguration.INVALID_NETWORK_ID
                         : configuration.networkId;
                 int scanRssi = mWifiConfigManager.findScanRssi(networkId, SCAN_RSSI_VALID_TIME_MS);
-                mWifiScoreCard.noteConnectionFailure(mWifiInfo, scanRssi, ssid,
-                        bssidBlocklistMonitorReason);
-            }
-            if (bssidBlocklistMonitorReason != -1) {
-                int networkId = (configuration == null) ? WifiConfiguration.INVALID_NETWORK_ID
-                        : configuration.networkId;
-                ScanDetailCache scanDetailCache =
-                        mWifiConfigManager.getScanDetailCacheForNetwork(networkId);
-                boolean isLowRssi = false;
-                int rssi = mWifiConfigManager.findScanRssi(networkId, SCAN_RSSI_VALID_TIME_MS);
-                int sufficientRssi = getSufficientRssi(networkId, bssid);
-                if (rssi != WifiInfo.INVALID_RSSI && sufficientRssi != WifiInfo.INVALID_RSSI) {
-                    isLowRssi = rssi < sufficientRssi;
+                mWifiScoreCard.noteConnectionFailure(mWifiInfo, scanRssi, ssid, blocklistReason);
+                boolean isNonWrongPwdAuthFailure =
+                        blocklistReason == BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE
+                        || blocklistReason == BssidBlocklistMonitor.REASON_EAP_FAILURE;
+                boolean isEnterpriseNetwork = configuration != null && configuration.isEnterprise();
+                if (isNonWrongPwdAuthFailure && isEnterpriseNetwork
+                        && mWifiScoreCard.detectAbnormalAuthFailure(ssid)) {
+                    String bugTitle = "Wi-Fi BugReport";
+                    String bugDetail = "Abnormal authentication failure with enterprise network";
+                    mWifiDiagnostics.takeBugReport(bugTitle, bugDetail);
                 }
-                mBssidBlocklistMonitor.handleBssidConnectionFailure(bssid, ssid,
-                        bssidBlocklistMonitorReason, isLowRssi);
+
+                boolean isLowRssi = false;
+                int sufficientRssi = getSufficientRssi(networkId, bssid);
+                if (scanRssi != WifiInfo.INVALID_RSSI && sufficientRssi != WifiInfo.INVALID_RSSI) {
+                    isLowRssi = scanRssi < sufficientRssi;
+                }
+                mBssidBlocklistMonitor.handleBssidConnectionFailure(bssid, ssid, blocklistReason,
+                        isLowRssi);
             }
         }
 

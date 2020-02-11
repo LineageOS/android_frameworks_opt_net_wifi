@@ -149,6 +149,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
                 DeviceConfigFacade.DEFAULT_DISCONNECTION_NONLOCAL_LOW_THR_PERCENT);
         when(mDeviceConfigFacade.getHealthMonitorMinRssiThrDbm()).thenReturn(
                 DeviceConfigFacade.DEFAULT_HEALTH_MONITOR_MIN_RSSI_THR_DBM);
+        mWifiScoreCard.enableVerboseLogging(true);
     }
 
     /**
@@ -757,6 +758,13 @@ public class WifiScoreCardTest extends WifiBaseTest {
                 BssidBlocklistMonitor.REASON_WRONG_PASSWORD);
     }
 
+    private void makeAuthFailureExample() {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        millisecondsPass(500);
+        mWifiScoreCard.noteConnectionFailure(mWifiInfo, -53, mWifiInfo.getSSID(),
+                BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE);
+    }
+
     /**
      * Check network stats after authentication failure and wrong password.
      */
@@ -1051,7 +1059,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
     private void makeRecentStatsWithAuthFailure() {
         for (int i = 0; i < MIN_NUM_CONNECTION_ATTEMPT; i++) {
-            makeAuthFailureAndWrongPassword();
+            makeAuthFailureExample();
         }
     }
 
@@ -1159,5 +1167,12 @@ public class WifiScoreCardTest extends WifiBaseTest {
         checkStatsDeltaExample(statsDec, 0);
         checkStatsDeltaExample(statsInc, 0);
         checkStatsDeltaExample(statsHigh, 1);
+        assertEquals(false, mWifiScoreCard.detectAbnormalAuthFailure(mWifiInfo.getSSID()));
+    }
+
+    @Test
+    public void testHighAuthFailureRate() throws Exception {
+        makeRecentStatsWithAuthFailure();
+        assertEquals(true, mWifiScoreCard.detectAbnormalAuthFailure(mWifiInfo.getSSID()));
     }
 }
