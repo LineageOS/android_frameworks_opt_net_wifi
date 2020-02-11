@@ -25,6 +25,11 @@ import java.io.File;
  */
 public class Environment {
     /**
+     * Directory to store the wifi config store / shared preference files under.
+     */
+    private static final String WIFI_STORE_DIRECTORY_NAME = "wifi";
+
+    /**
      * Get data/misc directory
      */
     public static File getDataMiscDirectory() {
@@ -54,4 +59,18 @@ public class Environment {
         return cur;
     }
 
+
+    /**
+     * TODO (b/148660313): Move to apex folder.
+     */
+    public static File getWifiSharedFolder() {
+        return new File(Environment.getDataMiscDirectory(), WIFI_STORE_DIRECTORY_NAME);
+    }
+
+    /**
+     * TODO (b/148660313): Move to apex folder.
+     */
+    public static File getWifiUserFolder(int userId) {
+        return new File(Environment.getDataMiscCeDirectory(userId), WIFI_STORE_DIRECTORY_NAME);
+    }
 }
