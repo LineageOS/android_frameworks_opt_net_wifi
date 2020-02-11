@@ -360,6 +360,10 @@ public class WifiServiceImpl extends BaseWifiService {
                     new BroadcastReceiver() {
                         @Override
                         public void onReceive(Context context, Intent intent) {
+                            if (intent.getBooleanExtra(
+                                    Intent.EXTRA_REBROADCAST_ON_UNLOCK, false)) {
+                                return;
+                            }
                             String state = intent.getStringExtra(Intent.EXTRA_SIM_STATE);
                             if (Intent.SIM_STATE_ABSENT.equals(state)) {
                                 Log.d(TAG, "resetting networks because SIM was removed");
@@ -4202,5 +4206,29 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("isScanThrottleEnabled uid=%").c(Binder.getCallingUid()).flush();
         }
         return mWifiThreadRunner.call(()-> mScanRequestProxy.isScanThrottleEnabled(), true);
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#setAutoWakeupEnabled(boolean)}
+     */
+    @Override
+    public void setAutoWakeupEnabled(boolean enable) {
+        enforceNetworkSettingsPermission();
+        mLog.info("setWalkeupEnabled uid=% verbose=%")
+                .c(Binder.getCallingUid())
+                .c(enable).flush();
+        mWifiThreadRunner.post(()-> mWifiInjector.getWakeupController().setEnabled(enable));
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#isAutoWakeupEnabled()}
+     */
+    @Override
+    public boolean isAutoWakeupEnabled() {
+        enforceAccessPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("isAutoWakeupEnabled uid=%").c(Binder.getCallingUid()).flush();
+        }
+        return mWifiThreadRunner.call(()-> mWifiInjector.getWakeupController().isEnabled(), false);
     }
 }

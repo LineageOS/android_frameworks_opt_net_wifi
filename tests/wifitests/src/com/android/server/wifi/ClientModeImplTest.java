@@ -129,7 +129,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -1582,9 +1581,9 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiLastResortWatchdog, times(2)).noteConnectionFailureAndTriggerIfNeeded(
                 sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_DHCP);
         verify(mBssidBlocklistMonitor, times(2)).handleBssidConnectionFailure(sBSSID,
-                sSSID, BssidBlocklistMonitor.REASON_DHCP_FAILURE);
+                sSSID, BssidBlocklistMonitor.REASON_DHCP_FAILURE, false);
         verify(mBssidBlocklistMonitor, times(2)).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_DHCP_FAILURE);
+                BssidBlocklistMonitor.REASON_DHCP_FAILURE, false);
         verify(mBssidBlocklistMonitor, never()).handleDhcpProvisioningSuccess(sBSSID, sSSID);
         verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID, sSSID);
     }
@@ -2922,11 +2921,45 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testAbnormalDisconnectNotifiesBssidBlocklistMonitor() throws Exception {
+        // trigger RSSI poll to update WifiInfo
+        mCmi.enableRssiPolling(true);
+        WifiLinkLayerStats llStats = new WifiLinkLayerStats();
+        llStats.txmpdu_be = 1000;
+        llStats.rxmpdu_bk = 2000;
+        WifiCondManager.SignalPollResult signalPollResult = new WifiCondManager.SignalPollResult(
+                TEST_RSSI, 65, 54, sFreq);
+        when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(llStats);
+        when(mWifiNative.signalPoll(any())).thenReturn(signalPollResult);
+
         connect();
+        mLooper.dispatchAll();
         mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
+
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT, false);
+    }
+
+    /**
+     * Verify that ClientModeImpl notifies BssidBlocklistMonitor correctly when the RSSI is
+     * too low.
+     */
+    @Test
+    public void testNotifiesBssidBlocklistMonitorLowRssi() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, FRAMEWORK_NETWORK_ID, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 1, 0, sBSSID);
+        when(mWifiConfigManager.findScanRssi(eq(FRAMEWORK_NETWORK_ID), anyInt())).thenReturn(-80);
+        when(mWifiConfigManager.getScanDetailCacheForNetwork(FRAMEWORK_NETWORK_ID))
+                .thenReturn(mScanDetailCache);
+        when(mScanDetailCache.getScanDetail(sBSSID)).thenReturn(
+                getGoogleGuestScanDetail(-80, sBSSID, sFreq));
+        when(mScanDetailCache.getScanResult(sBSSID)).thenReturn(
+                getGoogleGuestScanDetail(-80, sBSSID, sFreq).getScanResult());
+        mLooper.dispatchAll();
+
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_ASSOCIATION_TIMEOUT, true);
     }
 
     /**
@@ -2945,7 +2978,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA);
+                BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA, false);
     }
 
     /**
@@ -2962,7 +2995,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION);
+                BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION, false);
     }
 
     /**
@@ -2983,7 +3016,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_WRONG_PASSWORD);
+                BssidBlocklistMonitor.REASON_WRONG_PASSWORD, false);
     }
 
     /**
@@ -3004,7 +3037,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_EAP_FAILURE);
+                BssidBlocklistMonitor.REASON_EAP_FAILURE, false);
     }
 
     /**
@@ -3024,7 +3057,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE);
+                BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE, false);
     }
 
     /**
@@ -3290,6 +3323,16 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void verifyAutoConnectedNetworkWithInternetValidationFailure() throws Exception {
+        // Setup RSSI poll to update WifiInfo with low RSSI
+        mCmi.enableRssiPolling(true);
+        WifiLinkLayerStats llStats = new WifiLinkLayerStats();
+        llStats.txmpdu_be = 1000;
+        llStats.rxmpdu_bk = 2000;
+        WifiCondManager.SignalPollResult signalPollResult = new WifiCondManager.SignalPollResult(
+                RSSI_THRESHOLD_BREACH_MIN, 65, 54, sFreq);
+        when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(llStats);
+        when(mWifiNative.signalPoll(any())).thenReturn(signalPollResult);
+
         // Simulate the first connection.
         connect();
         ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
@@ -3318,7 +3361,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
                 FRAMEWORK_NETWORK_ID, DISABLED_NO_INTERNET_TEMPORARY);
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
-                BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE);
+                BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE, true);
         verify(mWifiScoreCard).noteValidationFailure(any());
     }
 
@@ -4387,9 +4430,9 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported5gNoOverrideNoChannels() throws Exception {
-        final List<Integer> emptyList = Collections.emptyList();
+        final int[] emptyArray = {};
         mResources.setBoolean(R.bool.config_wifi5ghzSupport, false);
-        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyList);
+        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyArray);
         assertFalse(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ));
         verify(mWifiNative).getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ);
     }
@@ -4399,7 +4442,7 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported5gNoOverrideWithChannels() throws Exception {
-        final List<Integer> channelArray = Arrays.asList(5170);
+        final int[] channelArray = {5170};
         mResources.setBoolean(R.bool.config_wifi5ghzSupport, false);
         when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(channelArray);
         assertTrue(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_5_GHZ));
@@ -4411,9 +4454,9 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported6gNoOverrideNoChannels() throws Exception {
-        final List<Integer> emptyList = Collections.emptyList();
+        final int[] emptyArray = {};
         mResources.setBoolean(R.bool.config_wifi6ghzSupport, false);
-        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyList);
+        when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(emptyArray);
         assertFalse(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_6_GHZ));
         verify(mWifiNative).getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ);
     }
@@ -4423,7 +4466,7 @@ public class ClientModeImplTest extends WifiBaseTest {
      */
     @Test
     public void testIsWifiBandSupported6gNoOverrideWithChannels() throws Exception {
-        final List<Integer> channelArray = Arrays.asList(6420);
+        final int[] channelArray = {6420};
         mResources.setBoolean(R.bool.config_wifi6ghzSupport, false);
         when(mWifiNative.getChannelsForBand(anyInt())).thenReturn(channelArray);
         assertTrue(mCmi.isWifiBandSupported(WifiScanner.WIFI_BAND_6_GHZ));

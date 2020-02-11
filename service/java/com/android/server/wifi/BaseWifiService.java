@@ -652,4 +652,14 @@ public class BaseWifiService extends IWifiManager.Stub {
             getAllMatchingPasspointProfilesForScanResults(List<ScanResult> scanResults) {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public void setAutoWakeupEnabled(boolean enable) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isAutoWakeupEnabled() {
+        throw new UnsupportedOperationException();
+    }
 }

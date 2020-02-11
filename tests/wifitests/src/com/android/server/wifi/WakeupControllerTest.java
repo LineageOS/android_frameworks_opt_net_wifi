@@ -100,7 +100,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
         when(mWifiInjector.getWifiNative()).thenReturn(mWifiNative);
         when(mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY))
-                .thenReturn(Arrays.asList(DFS_CHANNEL_FREQ));
+                .thenReturn(new int[]{DFS_CHANNEL_FREQ});
 
         when(mWifiSettingsStore.handleWifiToggled(anyBoolean())).thenReturn(true);
 
@@ -187,7 +187,7 @@ public class WakeupControllerTest extends WifiBaseTest {
     public void verifyEnabledWhenToggledOn() {
         initializeWakeupController(true /* enabled */);
 
-        assertTrue(mWakeupController.isEnabled());
+        assertTrue(mWakeupController.isEnabledAndReady());
     }
 
     /**
@@ -197,7 +197,7 @@ public class WakeupControllerTest extends WifiBaseTest {
     public void verifyDisabledWhenToggledOff() {
         initializeWakeupController(false /* enabled */);
 
-        assertFalse(mWakeupController.isEnabled());
+        assertFalse(mWakeupController.isEnabledAndReady());
     }
 
     /**

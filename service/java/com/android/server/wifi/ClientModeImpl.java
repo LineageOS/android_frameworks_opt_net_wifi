@@ -1265,14 +1265,14 @@ public class ClientModeImpl extends StateMachine {
             if (mContext.getResources().getBoolean(R.bool.config_wifi5ghzSupport)) {
                 return true;
             }
-            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ).size() > 0);
+            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ).length > 0);
         }
 
         if (band == WifiScanner.WIFI_BAND_6_GHZ) {
             if (mContext.getResources().getBoolean(R.bool.config_wifi6ghzSupport)) {
                 return true;
             }
-            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ).size() > 0);
+            return (mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ).length > 0);
         }
 
         return false;
@@ -2814,8 +2814,18 @@ public class ClientModeImpl extends StateMachine {
                         bssidBlocklistMonitorReason);
             }
             if (bssidBlocklistMonitorReason != -1) {
+                int networkId = (configuration == null) ? WifiConfiguration.INVALID_NETWORK_ID
+                        : configuration.networkId;
+                ScanDetailCache scanDetailCache =
+                        mWifiConfigManager.getScanDetailCacheForNetwork(networkId);
+                boolean isLowRssi = false;
+                int rssi = mWifiConfigManager.findScanRssi(networkId, SCAN_RSSI_VALID_TIME_MS);
+                int sufficientRssi = getSufficientRssi(networkId, bssid);
+                if (rssi != WifiInfo.INVALID_RSSI && sufficientRssi != WifiInfo.INVALID_RSSI) {
+                    isLowRssi = rssi < sufficientRssi;
+                }
                 mBssidBlocklistMonitor.handleBssidConnectionFailure(bssid, ssid,
-                        bssidBlocklistMonitorReason);
+                        bssidBlocklistMonitorReason, isLowRssi);
             }
         }
 
@@ -2839,6 +2849,22 @@ public class ClientModeImpl extends StateMachine {
                     level2FailureCode, configuration, getCurrentBSSID());
         }
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
+    }
+
+    /**
+     * Returns the sufficient RSSI for the frequency that this network is last seen on.
+     */
+    private int getSufficientRssi(int networkId, String bssid) {
+        ScanDetailCache scanDetailCache =
+                mWifiConfigManager.getScanDetailCacheForNetwork(networkId);
+        if (scanDetailCache == null) {
+            return WifiInfo.INVALID_RSSI;
+        }
+        ScanResult scanResult = scanDetailCache.getScanResult(bssid);
+        if (scanResult == null) {
+            return WifiInfo.INVALID_RSSI;
+        }
+        return mWifiInjector.getScoringParams().getSufficientRssi(scanResult.frequency);
     }
 
     private int convertToBssidBlocklistMonitorFailureReason(
@@ -5114,10 +5140,14 @@ public class ClientModeImpl extends StateMachine {
                                             config.networkId,
                                             DISABLED_NO_INTERNET_TEMPORARY);
                                 }
+                                int rssi = mWifiInfo.getRssi();
+                                int sufficientRssi = mWifiInjector.getScoringParams()
+                                        .getSufficientRssi(mWifiInfo.getFrequency());
+                                boolean isLowRssi = rssi < sufficientRssi;
                                 mBssidBlocklistMonitor.handleBssidConnectionFailure(
                                         mLastBssid, config.SSID,
-                                        BssidBlocklistMonitor
-                                                .REASON_NETWORK_VALIDATION_FAILURE);
+                                        BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE,
+                                        isLowRssi);
                                 mWifiScoreCard.noteValidationFailure(mWifiInfo);
                             }
                         }
@@ -5172,9 +5202,13 @@ public class ClientModeImpl extends StateMachine {
                     boolean localGen = message.arg1 == 1;
                     if (!localGen) { // ignore disconnects initiated by wpa_supplicant.
                         mWifiScoreCard.noteNonlocalDisconnect(message.arg2);
+                        int rssi = mWifiInfo.getRssi();
+                        int sufficientRssi = mWifiInjector.getScoringParams()
+                                .getSufficientRssi(mWifiInfo.getFrequency());
+                        boolean isLowRssi = rssi < sufficientRssi;
                         mBssidBlocklistMonitor.handleBssidConnectionFailure(mWifiInfo.getBSSID(),
                                 mWifiInfo.getSSID(),
-                                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
+                                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT, isLowRssi);
                     }
                     config = getCurrentWifiConfiguration();
 
