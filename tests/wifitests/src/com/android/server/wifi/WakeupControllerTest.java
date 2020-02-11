@@ -187,7 +187,7 @@ public class WakeupControllerTest extends WifiBaseTest {
     public void verifyEnabledWhenToggledOn() {
         initializeWakeupController(true /* enabled */);
 
-        assertTrue(mWakeupController.isEnabled());
+        assertTrue(mWakeupController.isEnabledAndReady());
     }
 
     /**
@@ -197,7 +197,7 @@ public class WakeupControllerTest extends WifiBaseTest {
     public void verifyDisabledWhenToggledOff() {
         initializeWakeupController(false /* enabled */);
 
-        assertFalse(mWakeupController.isEnabled());
+        assertFalse(mWakeupController.isEnabledAndReady());
     }
 
     /**
