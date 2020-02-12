@@ -56,8 +56,9 @@ class OsuWifiEntry extends WifiEntry {
      */
     OsuWifiEntry(@NonNull Context context, @NonNull Handler callbackHandler,
             @NonNull OsuProvider osuProvider,
-            @NonNull WifiManager wifiManager) throws IllegalArgumentException {
-        super(callbackHandler, wifiManager, false /* forSavedNetworksPage */);
+            @NonNull WifiManager wifiManager,
+            boolean forSavedNetworksPage) throws IllegalArgumentException {
+        super(callbackHandler, wifiManager, forSavedNetworksPage);
 
         checkNotNull(osuProvider, "Cannot construct with null osuProvider!");
 
