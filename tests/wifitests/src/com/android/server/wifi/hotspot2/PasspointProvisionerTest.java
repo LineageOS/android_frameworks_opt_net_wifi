@@ -62,6 +62,7 @@ import android.telephony.TelephonyManager;
 import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
+import com.android.server.wifi.MockResources;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
@@ -79,6 +80,7 @@ import com.android.server.wifi.hotspot2.soap.UpdateResponseMessage;
 import com.android.server.wifi.hotspot2.soap.command.BrowserUri;
 import com.android.server.wifi.hotspot2.soap.command.PpsMoData;
 import com.android.server.wifi.hotspot2.soap.command.SppCommand;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -260,6 +262,9 @@ public class PasspointProvisionerTest extends WifiBaseTest {
         when(mOsuServerConnection.exchangeSoapMessage(
                 any(SoapSerializationEnvelope.class))).thenReturn(true);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
+        MockResources mockResources = new MockResources();
+        mockResources.setString(R.string.config_wifiOsuLoginPackage, OSU_APP_PACKAGE);
+        when(mContext.getResources()).thenReturn(mockResources);
         ResolveInfo resolveInfo = new ResolveInfo();
         resolveInfo.activityInfo = new ActivityInfo();
         resolveInfo.activityInfo.applicationInfo = new ApplicationInfo();
