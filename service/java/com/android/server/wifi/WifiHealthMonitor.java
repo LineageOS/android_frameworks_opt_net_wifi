@@ -41,6 +41,7 @@ import com.android.server.wifi.WifiScoreCard.MemoryStoreAccessBase;
 import com.android.server.wifi.WifiScoreCard.PerNetwork;
 import com.android.server.wifi.proto.WifiScoreCardProto.SoftwareBuildInfo;
 import com.android.server.wifi.proto.WifiScoreCardProto.SystemInfoStats;
+import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.HealthMonitorFailureStats;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.HealthMonitorMetrics;
 import com.android.server.wifi.util.ScanResultUtil;
@@ -312,6 +313,7 @@ public class WifiHealthMonitor {
             if (detectionFlag == WifiScoreCard.SUFFICIENT_RECENT_PREV_STATS) {
                 mNumNetworkSufficientRecentPrevStats++;
             }
+
             connectionDurationSec += perNetwork.getRecentStats().getCount(
                     WifiScoreCard.CNT_CONNECTION_DURATION_SEC);
             // Update historical stats with dailyStats and clear dailyStats
@@ -322,10 +324,58 @@ public class WifiHealthMonitor {
         logd("#networks w/ sufficient recent stats: " + mNumNetworkSufficientRecentStatsOnly);
         logd("#networks w/ sufficient recent and prev stats: "
                 + mNumNetworkSufficientRecentPrevStats);
-        // TODO: Report numNetworkSufficientRecentStatsOnly, numNetworkSufficientRecentPrevStats
-        //  mFailureStatsDecrease, mFailureStatsIncrease and mFailureStatsHigh to metrics
+        // Write metrics to WestWorld
+        writeToWifiStatsLog();
         doWrites();
         mWifiScoreCard.doWrites();
+    }
+
+    private void writeToWifiStatsLog() {
+        writeToWifiStatsLogPerStats(mFailureStatsIncrease,
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__ABNORMALITY_TYPE__SIGNIFICANT_INCREASE);
+        writeToWifiStatsLogPerStats(mFailureStatsDecrease,
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__ABNORMALITY_TYPE__SIGNIFICANT_DECREASE);
+        writeToWifiStatsLogPerStats(mFailureStatsHigh,
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__ABNORMALITY_TYPE__SIMPLY_HIGH);
+    }
+
+    private void writeToWifiStatsLogPerStats(FailureStats failureStats, int abnormalityType) {
+        int cntAssocRejection = failureStats.getCount(REASON_ASSOC_REJECTION);
+        if (cntAssocRejection > 0) {
+            WifiStatsLog.write(WifiStatsLog.WIFI_FAILURE_STAT_REPORTED, abnormalityType,
+                    WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_ASSOCIATION_REJECTION,
+                    cntAssocRejection);
+        }
+        int cntAssocTimeout = failureStats.getCount(REASON_ASSOC_TIMEOUT);
+        if (cntAssocTimeout > 0) {
+            WifiStatsLog.write(WifiStatsLog.WIFI_FAILURE_STAT_REPORTED, abnormalityType,
+                    WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_ASSOCIATION_TIMEOUT,
+                    cntAssocTimeout);
+        }
+        int cntAuthFailure = failureStats.getCount(REASON_AUTH_FAILURE);
+        if (cntAuthFailure > 0) {
+            WifiStatsLog.write(WifiStatsLog.WIFI_FAILURE_STAT_REPORTED, abnormalityType,
+                    WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_AUTHENTICATION,
+                    cntAuthFailure);
+        }
+        int cntConnectionFailure = failureStats.getCount(REASON_CONNECTION_FAILURE);
+        if (cntConnectionFailure > 0) {
+            WifiStatsLog.write(WifiStatsLog.WIFI_FAILURE_STAT_REPORTED, abnormalityType,
+                    WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_CONNECTION,
+                    cntConnectionFailure);
+        }
+        int cntDisconnectionNonlocal =  failureStats.getCount(REASON_DISCONNECTION_NONLOCAL);
+        if (cntDisconnectionNonlocal > 0) {
+            WifiStatsLog.write(WifiStatsLog.WIFI_FAILURE_STAT_REPORTED, abnormalityType,
+                    WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_NON_LOCAL_DISCONNECTION,
+                    cntDisconnectionNonlocal);
+        }
+        int cntShortConnectionNonlocal = failureStats.getCount(REASON_SHORT_CONNECTION_NONLOCAL);
+        if (cntShortConnectionNonlocal > 0) {
+            WifiStatsLog.write(WifiStatsLog.WIFI_FAILURE_STAT_REPORTED, abnormalityType,
+                    WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_SHORT_CONNECTION_DUE_TO_NON_LOCAL_DISCONNECTION,
+                    cntShortConnectionNonlocal);
+        }
     }
 
     /**
