@@ -169,6 +169,34 @@ public class WifiCandidatesTest extends WifiBaseTest {
     }
 
     /**
+     * Test toString method
+     */
+    @Test
+    public void testCandidateToString() throws Exception {
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 0.0015001, false, 100);
+        WifiCandidates.Candidate c = mWifiCandidates.getGroupedCandidates()
+                .iterator().next().iterator().next();
+        String s = c.toString();
+        assertTrue(s, s.contains(" nominator = 2, "));
+        assertTrue(s, s.contains(" networkId = " + mConfig1.networkId + ", "));
+        assertTrue(s, s.contains(" lastSelectionWeight = 0.002, ")); // should be rounded
+        for (String x : s.split(",")) {
+            if (x.startsWith("Candidate {")) x = x.substring("Candidate {".length());
+            if (x.endsWith(" }")) x = x.substring(0, x.length() - 2);
+            String diagnose = s + " !! " + x;
+            assertTrue(diagnose, x.startsWith(" ")); // space between items
+            assertFalse(diagnose, x.contains("  ")); // no double spaces
+            if (x.contains("=")) {
+                // Only one equals sign, if there is one
+                assertTrue(diagnose, x.indexOf("=") == x.lastIndexOf("="));
+                assertTrue(diagnose, x.matches(" [A-Za-z]+ = [^ ]+"));
+            } else {
+                assertTrue(diagnose, x.matches(" [a-z]+"));
+            }
+        }
+    }
+
+    /**
      * Test that picky mode works
      */
     @Test

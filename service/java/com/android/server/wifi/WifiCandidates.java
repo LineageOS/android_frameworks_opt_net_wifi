@@ -249,6 +249,32 @@ public class WifiCandidates {
             return perSignal.toSignal();
         }
 
+        @Override
+        public String toString() {
+            Key key = getKey();
+            String lastSelectionWeightString = "";
+            if (getLastSelectionWeight() != 0.0) {
+                // Round this to 3 places
+                lastSelectionWeightString = "lastSelectionWeight = "
+                        + Math.round(getLastSelectionWeight() * 1000.0) / 1000.0
+                        + ", ";
+            }
+            return "Candidate { "
+                    + "networkId = " + getNetworkConfigId() + ", "
+                    + "bssid = " + key.bssid + ", "
+                    + "frequency = " + getFrequency() + ", "
+                    + "rssi = " + getScanRssi() + ", "
+                    + "Mbps = " + getPredictedThroughputMbps() + ", "
+                    + "nominator = " + getNominatorId() + ", "
+                    + lastSelectionWeightString
+                    + (isCurrentBssid() ? "connected, " : "")
+                    + (isCurrentNetwork() ? "current, " : "")
+                    + (isEphemeral() ? "ephemeral" : "saved") + ", "
+                    + (isTrusted() ? "trusted, " : "")
+                    + (isMetered() ? "metered, " : "")
+                    + (isPasspoint() ? "passpoint, " : "")
+                    + (isOpenNetwork() ? "open" : "secure") + " }";
+        }
     }
 
     /**
