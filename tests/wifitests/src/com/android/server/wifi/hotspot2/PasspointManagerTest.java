@@ -887,8 +887,8 @@ public class PasspointManagerTest extends WifiBaseTest {
         List<PasspointConfiguration> installedConfigs =
                 mManager.getProviderConfigs(TEST_CREATOR_UID, true);
         assertEquals(2, installedConfigs.size());
-        assertEquals(origConfig, installedConfigs.get(1));
-        assertEquals(newConfig, installedConfigs.get(0));
+        assertTrue(installedConfigs.contains(origConfig));
+        assertTrue(installedConfigs.contains(newConfig));
 
         verify(mWifiConfigManager).saveToStore(true);
         verify(mWifiMetrics).incrementNumPasspointProviderInstallation();
@@ -897,7 +897,8 @@ public class PasspointManagerTest extends WifiBaseTest {
         // Verify data source content.
         List<PasspointProvider> newProviders = mUserDataSource.getProviders();
         assertEquals(2, newProviders.size());
-        assertEquals(newConfig, newProviders.get(0).getConfig());
+        assertTrue(newConfig.equals(newProviders.get(0).getConfig())
+                || newConfig.equals(newProviders.get(1).getConfig()));
         assertEquals(2, mSharedDataSource.getProviderIndex());
     }
 
@@ -2079,8 +2080,10 @@ public class PasspointManagerTest extends WifiBaseTest {
         // Verify data source content.
         List<PasspointProvider> newProviders = mUserDataSource.getProviders();
         assertEquals(2, newProviders.size());
-        assertEquals(origConfig, newProviders.get(1).getConfig());
-        assertEquals(newConfig, newProviders.get(0).getConfig());
+        assertTrue(newConfig.equals(newProviders.get(0).getConfig())
+                || newConfig.equals(newProviders.get(1).getConfig()));
+        assertTrue(origConfig.equals(newProviders.get(0).getConfig())
+                || origConfig.equals(newProviders.get(1).getConfig()));
         assertEquals(3, mSharedDataSource.getProviderIndex());
     }
 
@@ -2131,8 +2134,10 @@ public class PasspointManagerTest extends WifiBaseTest {
         // Verify data source content.
         List<PasspointProvider> newProviders = mUserDataSource.getProviders();
         assertEquals(2, newProviders.size());
-        assertEquals(newConfig, newProviders.get(0).getConfig());
-        assertEquals(origConfig, newProviders.get(1).getConfig());
+        assertTrue(newConfig.equals(newProviders.get(0).getConfig())
+                || newConfig.equals(newProviders.get(1).getConfig()));
+        assertTrue(origConfig.equals(newProviders.get(0).getConfig())
+                || origConfig.equals(newProviders.get(1).getConfig()));
         assertEquals(2, mSharedDataSource.getProviderIndex());
     }
 
@@ -2186,7 +2191,9 @@ public class PasspointManagerTest extends WifiBaseTest {
         // Verify data source content.
         List<PasspointProvider> newProviders = mUserDataSource.getProviders();
         assertEquals(2, newProviders.size());
-        assertEquals(origConfig, newProviders.get(1).getConfig());
+        assertTrue(origConfig.equals(newProviders.get(0).getConfig())
+                || origConfig.equals(newProviders.get(1).getConfig()));
+
         assertEquals(2, mSharedDataSource.getProviderIndex());
     }
 
