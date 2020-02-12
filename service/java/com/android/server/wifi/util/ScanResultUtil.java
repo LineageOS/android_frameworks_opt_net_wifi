@@ -167,6 +167,10 @@ public class ScanResultUtil {
             WifiConfiguration config) {
         if (isScanResultForSaeNetwork(scanResult)) {
             config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_SAE);
+        } else if (isScanResultForWapiPskNetwork(scanResult)) {
+            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WAPI_PSK);
+        } else if (isScanResultForWapiCertNetwork(scanResult)) {
+            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WAPI_CERT);
         } else if (isScanResultForPskNetwork(scanResult)) {
             config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_PSK);
         } else if (isScanResultForEapSuiteBNetwork(scanResult)) {
@@ -177,10 +181,6 @@ public class ScanResultUtil {
             config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_WEP);
         } else if (isScanResultForOweNetwork(scanResult)) {
             config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_OWE);
-        } else if (isScanResultForWapiPskNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WAPI_PSK);
-        } else if (isScanResultForWapiCertNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WAPI_CERT);
         } else {
             config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_OPEN);
         }
