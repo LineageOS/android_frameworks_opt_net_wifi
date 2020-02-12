@@ -150,7 +150,8 @@ public class WifiInjector {
     private final MacAddressUtil mMacAddressUtil;
     private final MboOceController mMboOceController;
     private final TelephonyUtil mTelephonyUtil;
-    private WifiChannelUtilization mWifiChannelUtilization;
+    private WifiChannelUtilization mWifiChannelUtilizationScan;
+    private WifiChannelUtilization mWifiChannelUtilizationConnected;
     private final KeyStore mKeyStore;
     private final ConnectionFailureNotificationBuilder mConnectionFailureNotificationBuilder;
     private final ThroughputPredictor mThroughputPredictor;
@@ -311,8 +312,9 @@ public class WifiInjector {
         mWifiDiagnostics = new WifiDiagnostics(
                 mContext, this, mWifiNative, mBuildProperties,
                 new LastMileLogger(this), mClock);
-        mWifiDataStall = new WifiDataStall(mContext, mFrameworkFacade, mWifiMetrics,
-                mDeviceConfigFacade, mClock);
+        mWifiChannelUtilizationConnected = new WifiChannelUtilization(mClock);
+        mWifiDataStall = new WifiDataStall(mFrameworkFacade, mWifiMetrics, mDeviceConfigFacade,
+                mWifiChannelUtilizationConnected, mClock);
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
                 mFrameworkFacade, wifiHandler, mContext);
@@ -593,7 +595,7 @@ public class WifiInjector {
         mBssidBlocklistMonitor = new BssidBlocklistMonitor(mContext, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mClock, mConnectivityLocalLog, mWifiScoreCard);
         mWifiMetrics.setBssidBlocklistMonitor(mBssidBlocklistMonitor);
-        mWifiChannelUtilization = new WifiChannelUtilization(mClock);
+        mWifiChannelUtilizationScan = new WifiChannelUtilization(mClock);
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,
                 mWifiConfigManager, clientModeImpl.getWifiInfo(),
@@ -783,8 +785,8 @@ public class WifiInjector {
         return mWifiThreadRunner;
     }
 
-    public WifiChannelUtilization getWifiChannelUtilization() {
-        return mWifiChannelUtilization;
+    public WifiChannelUtilization getWifiChannelUtilizationScan() {
+        return mWifiChannelUtilizationScan;
     }
 
     public WifiNetworkScoreCache getWifiNetworkScoreCache() {

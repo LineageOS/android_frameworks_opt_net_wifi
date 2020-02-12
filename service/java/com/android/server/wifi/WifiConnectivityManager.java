@@ -241,7 +241,7 @@ public class WifiConnectivityManager {
      */
     private boolean handleScanResults(List<ScanDetail> scanDetails, String listenerName) {
         mWifiChannelUtilization.refreshChannelStatsAndChannelUtilization(
-                mStateMachine.getWifiLinkLayerStats());
+                mStateMachine.getWifiLinkLayerStats(), WifiChannelUtilization.UNKNOWN_FREQ);
 
         // Check if any blocklisted BSSIDs can be freed.
         Set<String> bssidBlocklist = mBssidBlocklistMonitor.updateAndGetBssidBlocklist();
@@ -610,7 +610,7 @@ public class WifiConnectivityManager {
         // Listen to WifiConfigManager network update events
         mConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
-        mWifiChannelUtilization = mWifiInjector.getWifiChannelUtilization();
+        mWifiChannelUtilization = mWifiInjector.getWifiChannelUtilizationScan();
         mNetworkSelector.setWifiChannelUtilization(mWifiChannelUtilization);
     }
 

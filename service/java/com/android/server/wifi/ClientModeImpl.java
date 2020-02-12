@@ -1120,6 +1120,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiScoreCard.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiHealthMonitor.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiInjector.getThroughputPredictor().enableVerboseLogging(mVerboseLoggingEnabled);
+        mWifiDataStall.enableVerboseLogging(mVerboseLoggingEnabled);
     }
 
     private boolean setRandomMacOui() {
@@ -4600,7 +4601,7 @@ public class ClientModeImpl extends StateMachine {
                             }
                             mWifiScoreReport.noteIpCheck();
                         }
-                        int statusDataStall = mWifiDataStall.checkForDataStall(
+                        int statusDataStall = mWifiDataStall.checkDataStallAndThroughputSufficiency(
                                 mLastLinkLayerStats, stats, mWifiInfo);
                         if (mDataStallTriggerTimeMs == -1
                                 && statusDataStall != WifiIsUnusableEvent.TYPE_UNKNOWN) {
@@ -5781,6 +5782,7 @@ public class ClientModeImpl extends StateMachine {
     public void setDeviceMobilityState(@DeviceMobilityState int state) {
         mWifiConnectivityManager.setDeviceMobilityState(state);
         mWifiHealthMonitor.setDeviceMobilityState(state);
+        mWifiDataStall.setDeviceMobilityState(state);
     }
 
     /**
