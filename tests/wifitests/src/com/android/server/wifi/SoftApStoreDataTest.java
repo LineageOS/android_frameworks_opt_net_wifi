@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -140,11 +141,21 @@ public class SoftApStoreDataTest extends WifiBaseTest {
     @Mock private Context mContext;
     @Mock SoftApStoreData.DataSource mDataSource;
     @Mock WifiOemConfigStoreMigrationDataHolder mWifiOemConfigStoreMigrationDataHolder;
+    @Mock private WifiOemMigrationHook.SettingsMigrationData mOemMigrationData;
+    MockitoSession mSession;
     SoftApStoreData mSoftApStoreData;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        mSession = ExtendedMockito.mockitoSession()
+                .mockStatic(WifiOemMigrationHook.class, withSettings().lenient())
+                .strictness(Strictness.LENIENT)
+                .startMocking();
+        when(WifiOemMigrationHook.loadFromSettings(any(Context.class)))
+                .thenReturn(mOemMigrationData);
+        when(mOemMigrationData.isSoftApTimeoutEnabled()).thenReturn(true);
+
         mSoftApStoreData =
                 new SoftApStoreData(mContext, mDataSource, mWifiOemConfigStoreMigrationDataHolder);
         TEST_BLOCKEDLIST.add(MacAddress.fromString(TEST_BLOCKED_CLIENT));
@@ -158,6 +169,7 @@ public class SoftApStoreDataTest extends WifiBaseTest {
     public void cleanup() {
         TEST_BLOCKEDLIST.clear();
         TEST_ALLOWEDLIST.clear();
+        mSession.finishMocking();
     }
 
     /**
@@ -463,16 +475,9 @@ public class SoftApStoreDataTest extends WifiBaseTest {
      */
     @Test
     public void deserializeSoftApWithNoAutoShutdownTag() throws Exception {
-        MockitoSession session = ExtendedMockito.mockitoSession()
-                .mockStatic(WifiConfigStore.class, withSettings().lenient())
-                .strictness(Strictness.LENIENT)
-                .startMocking();
-        WifiOemMigrationHook.SettingsMigrationData migrationData = mock(
-                WifiOemMigrationHook.SettingsMigrationData.class);
-        when(WifiOemMigrationHook.loadFromSettings(any())).thenReturn(migrationData);
 
         // Toggle on when migrating.
-        when(migrationData.isSoftApTimeoutEnabled()).thenReturn(true);
+        when(mOemMigrationData.isSoftApTimeoutEnabled()).thenReturn(true);
         deserializeData(
                 TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG_EXCEPT_AUTO_SHUTDOWN.getBytes());
         ArgumentCaptor<SoftApConfiguration> softapConfigCaptor =
@@ -484,16 +489,14 @@ public class SoftApStoreDataTest extends WifiBaseTest {
         assertTrue(softApConfig.isAutoShutdownEnabled());
 
         // Toggle off when migrating.
-        when(migrationData.isSoftApTimeoutEnabled()).thenReturn(false);
+        when(mOemMigrationData.isSoftApTimeoutEnabled()).thenReturn(false);
         deserializeData(
                 TEST_SOFTAP_CONFIG_XML_STRING_WITH_ALL_CONFIG_EXCEPT_AUTO_SHUTDOWN.getBytes());
-        verify(mDataSource).fromDeserialized(softapConfigCaptor.capture());
+        verify(mDataSource, times(2)).fromDeserialized(softapConfigCaptor.capture());
         softApConfig = softapConfigCaptor.getValue();
         assertNotNull(softApConfig);
         assertEquals(softApConfig.getSsid(), TEST_SSID);
         assertFalse(softApConfig.isAutoShutdownEnabled());
-
-        session.finishMocking();
     }
 
 }

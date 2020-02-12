@@ -41,7 +41,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.ResolveInfo;
-import android.database.ContentObserver;
 import android.net.DhcpInfo;
 import android.net.DhcpResultsParcelable;
 import android.net.InetAddresses;
@@ -344,7 +343,6 @@ public class WifiServiceImpl extends BaseWifiService {
             Log.i(TAG,
                     "WifiService starting up with Wi-Fi " + (wifiEnabled ? "enabled" : "disabled"));
 
-            registerForScanModeChange();
             mContext.registerReceiver(
                     new BroadcastReceiver() {
                         @Override
@@ -1886,6 +1884,17 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * see {@link android.net.wifi.WifiManager#setScanAlwaysAvailable(boolean)}
+     */
+    @Override
+    public void setScanAlwaysAvailable(boolean isAvailable) {
+        enforceNetworkSettingsPermission();
+        mLog.info("setScanAlwaysAvailable uid=%").c(Binder.getCallingUid()).flush();
+        mSettingsStore.handleWifiScanAlwaysAvailableToggled(isAvailable);
+        mActiveModeWarden.scanAlwaysModeChanged();
+    }
+
+    /**
      * see {@link android.net.wifi.WifiManager#isScanAlwaysAvailable()}
      */
     @Override
@@ -3020,23 +3029,6 @@ public class WifiServiceImpl extends BaseWifiService {
             }
         }
     };
-
-    /**
-     * Observes settings changes to scan always mode.
-     */
-    private void registerForScanModeChange() {
-        ContentObserver contentObserver = new ContentObserver(null) {
-            @Override
-            public void onChange(boolean selfChange) {
-                mSettingsStore.handleWifiScanAlwaysAvailableToggled();
-                mActiveModeWarden.scanAlwaysModeChanged();
-            }
-        };
-        mFrameworkFacade.registerContentObserver(mContext,
-                Settings.Global.getUriFor(Settings.Global.WIFI_SCAN_ALWAYS_AVAILABLE),
-                false, contentObserver);
-
-    }
 
     private void registerForBroadcasts() {
         IntentFilter intentFilter = new IntentFilter();

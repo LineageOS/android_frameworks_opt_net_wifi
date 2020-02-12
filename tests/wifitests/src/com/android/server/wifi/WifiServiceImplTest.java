@@ -5580,4 +5580,29 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mWakeupController).isEnabled();
     }
+
+    @Test
+    public void testSetScanAlwaysAvailableWithNetworkSettingsPermission() {
+        doNothing().when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.setScanAlwaysAvailable(true);
+        verify(mSettingsStore).handleWifiScanAlwaysAvailableToggled(true);
+        verify(mActiveModeWarden).scanAlwaysModeChanged();
+
+        mWifiServiceImpl.setScanAlwaysAvailable(false);
+        verify(mSettingsStore).handleWifiScanAlwaysAvailableToggled(false);
+        verify(mActiveModeWarden, times(2)).scanAlwaysModeChanged();
+    }
+
+    @Test(expected = SecurityException.class)
+    public void testSetScanAlwaysAvailableWithNoNetworkSettingsPermission() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+
+        mWifiServiceImpl.setScanAlwaysAvailable(true);
+        verify(mSettingsStore, never()).handleWifiScanAlwaysAvailableToggled(anyBoolean());
+        verify(mActiveModeWarden, never()).scanAlwaysModeChanged();
+    }
 }
