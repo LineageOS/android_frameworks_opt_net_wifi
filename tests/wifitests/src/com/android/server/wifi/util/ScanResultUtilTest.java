@@ -115,6 +115,16 @@ public class ScanResultUtilTest extends WifiBaseTest {
         assertEquals(config.SSID, ScanResultUtil.createQuotedSSID(ssid));
         assertTrue(config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         assertTrue(config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X));
+
+        scanResult.capabilities = "WAPI-PSK";
+        config = ScanResultUtil.createNetworkFromScanResult(scanResult);
+        assertEquals(config.SSID, ScanResultUtil.createQuotedSSID(ssid));
+        assertTrue(config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WAPI_PSK));
+
+        scanResult.capabilities = "WAPI-CERT";
+        config = ScanResultUtil.createNetworkFromScanResult(scanResult);
+        assertEquals(config.SSID, ScanResultUtil.createQuotedSSID(ssid));
+        assertTrue(config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WAPI_CERT));
     }
 
     /**
