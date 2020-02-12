@@ -251,6 +251,8 @@ public class WifiInjector {
         mTelephonyUtil = new TelephonyUtil(makeTelephonyManager(), subscriptionManager,
                 mFrameworkFacade, mContext, wifiHandler);
         mOemConfigStoreMigrationDataHolder = new WifiOemConfigStoreMigrationDataHolder();
+        String l2KeySeed = Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID);
+        mWifiScoreCard = new WifiScoreCard(mClock, l2KeySeed, mDeviceConfigFacade);
         // Config Manager
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
                 mUserManager, mTelephonyUtil,
@@ -258,9 +260,8 @@ public class WifiInjector {
                 mWifiPermissionsWrapper, this,
                 new NetworkListSharedStoreData(mContext, mOemConfigStoreMigrationDataHolder),
                 new NetworkListUserStoreData(mContext, mOemConfigStoreMigrationDataHolder),
-                new RandomizedMacStoreData(), mFrameworkFacade, wifiHandler, mDeviceConfigFacade);
-        String l2KeySeed = Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID);
-        mWifiScoreCard = new WifiScoreCard(mClock, l2KeySeed, mDeviceConfigFacade);
+                new RandomizedMacStoreData(), mFrameworkFacade, wifiHandler, mDeviceConfigFacade,
+                mWifiScoreCard);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
 
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);

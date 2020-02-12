@@ -64,6 +64,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 /**
  * Unit tests for {@link com.android.server.wifi.WifiScoreCard}.
  */
@@ -378,6 +379,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
      */
     private byte[] makeSerializedAccessPointExample() {
         mWifiScoreCard.noteConnectionAttempt(mWifiInfo, -53, mWifiInfo.getSSID());
+        PerNetwork perNetwork = mWifiScoreCard.lookupNetwork(mWifiInfo.getSSID());
         millisecondsPass(10);
         // Association completes, a NetworkAgent is created
         mWifiScoreCard.noteNetworkAgentCreated(mWifiInfo, TEST_NETWORK_AGENT_ID);
@@ -386,12 +388,14 @@ public class WifiScoreCardTest extends WifiBaseTest {
         mWifiInfo.setFrequency(5805);
         mWifiInfo.setLinkSpeed(384);
         mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        perNetwork.addFrequency(mWifiInfo.getFrequency());
         millisecondsPass(888);
         mWifiScoreCard.noteSignalPoll(mWifiInfo);
         millisecondsPass(1000);
         mWifiInfo.setRssi(-44);
         mWifiScoreCard.noteSignalPoll(mWifiInfo);
         mWifiInfo.setFrequency(2432);
+        perNetwork.addFrequency(mWifiInfo.getFrequency());
         for (int round = 0; round < 4; round++) {
             for (int i = 0; i < HISTOGRAM_COUNT.length; i++) {
                 if (HISTOGRAM_COUNT[i] > round) {
@@ -461,6 +465,11 @@ public class WifiScoreCardTest extends WifiBaseTest {
         assertEquals(diag, 0, dailyStats.getCount(CNT_ASSOCIATION_REJECTION));
         assertEquals(diag, 0, dailyStats.getCount(CNT_ASSOCIATION_TIMEOUT));
         assertEquals(diag, 0, dailyStats.getCount(CNT_AUTHENTICATION_FAILURE));
+        List<Integer> frequencies = perNetwork.getFrequencies();
+        assertEquals(diag, 2, frequencies.size());
+        List<Integer> expectedFrequencies =
+                new ArrayList<>(Arrays.asList(new Integer[] {2432, 5805}));
+        assertEquals(diag, expectedFrequencies, frequencies);
     }
 
     /**
