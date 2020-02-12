@@ -286,7 +286,8 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         } else {
             if (changeReason != WifiManager.CHANGE_REASON_REMOVED) {
                 mStandardWifiEntryCache.put(key,
-                        new StandardWifiEntry(mContext, mMainHandler, key, config, mWifiManager));
+                        new StandardWifiEntry(mContext, mMainHandler, key, config, mWifiManager,
+                                true /* forSavedNetworksPage */));
             }
         }
     }
@@ -314,7 +315,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         for (String key : wifiConfigsByKey.keySet()) {
             mStandardWifiEntryCache.put(key,
                     new StandardWifiEntry(mContext, mMainHandler, key, wifiConfigsByKey.get(key),
-                            mWifiManager));
+                            mWifiManager, true /* forSavedNetworksPage */));
         }
     }
 
@@ -345,7 +346,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         for (String key : passpointConfigsByKey.keySet()) {
             mPasspointWifiEntryCache.put(key,
                     new PasspointWifiEntry(mContext, mMainHandler, passpointConfigsByKey.get(key),
-                            mWifiManager));
+                            mWifiManager, true /* forSavedNetworksPage */));
         }
     }
 

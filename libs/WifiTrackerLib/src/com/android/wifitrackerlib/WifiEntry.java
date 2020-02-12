@@ -35,6 +35,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.annotation.WorkerThread;
 
 import java.lang.annotation.Retention;
@@ -177,7 +178,9 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
      */
     protected static final int MAX_VERBOSE_LOG_DISPLAY_SCANRESULT_COUNT = 4;
 
-    protected final boolean mForSavedNetworksPage;
+    @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+    final boolean mForSavedNetworksPage;
+
     protected final WifiManager mWifiManager;
 
     // Callback associated with this WifiEntry. Subclasses should call its methods appropriately.

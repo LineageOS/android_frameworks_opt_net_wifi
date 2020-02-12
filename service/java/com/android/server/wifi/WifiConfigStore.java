@@ -146,10 +146,6 @@ public class WifiConfigStore {
      */
     private static final String TAG = "WifiConfigStore";
     /**
-     * Directory to store the config store files in.
-     */
-    private static final String STORE_DIRECTORY_NAME = "wifi";
-    /**
      * Time interval for buffering file writes for non-forced writes
      */
     private static final int BUFFERED_WRITE_ALARM_INTERVAL_MS = 10 * 1000;
@@ -296,15 +292,14 @@ public class WifiConfigStore {
      * Note: The method creates the store directory if not already present. This may be needed for
      * user store files.
      *
-     * @param storeBaseDir Base directory under which the store file is to be stored. The store file
-     *                     will be at <storeBaseDir>/wifi/WifiConfigStore.xml.
+     * @param storeDir Base directory under which the store file is to be stored. The store file
+     *                 will be at <storeDir>/WifiConfigStore.xml.
      * @param fileId Identifier for the file. See {@link StoreFileId}.
      * @param shouldEncryptCredentials Whether to encrypt credentials or not.
      * @return new instance of the store file or null if the directory cannot be created.
      */
-    private static @Nullable StoreFile createFile(File storeBaseDir, @StoreFileId int fileId,
+    private static @Nullable StoreFile createFile(File storeDir, @StoreFileId int fileId,
             boolean shouldEncryptCredentials) {
-        File storeDir = new File(storeBaseDir, STORE_DIRECTORY_NAME);
         if (!storeDir.exists()) {
             if (!storeDir.mkdir()) {
                 Log.w(TAG, "Could not create store directory " + storeDir);
@@ -319,11 +314,11 @@ public class WifiConfigStore {
         return new StoreFile(file, fileId, encryptionUtil);
     }
 
-    private static @Nullable List<StoreFile> createFiles(File storeBaseDir,
+    private static @Nullable List<StoreFile> createFiles(File storeDir,
             List<Integer> storeFileIds, boolean shouldEncryptCredentials) {
         List<StoreFile> storeFiles = new ArrayList<>();
         for (int fileId : storeFileIds) {
-            StoreFile storeFile = createFile(storeBaseDir, fileId, shouldEncryptCredentials);
+            StoreFile storeFile = createFile(storeDir, fileId, shouldEncryptCredentials);
             if (storeFile == null) {
                 return null;
             }
@@ -340,7 +335,7 @@ public class WifiConfigStore {
      */
     public static @NonNull List<StoreFile> createSharedFiles(boolean shouldEncryptCredentials) {
         return createFiles(
-                Environment.getDataMiscDirectory(),
+                Environment.getWifiSharedFolder(),
                 Arrays.asList(STORE_FILE_SHARED_GENERAL, STORE_FILE_SHARED_SOFTAP),
                 shouldEncryptCredentials);
     }
@@ -357,7 +352,7 @@ public class WifiConfigStore {
     public static @Nullable List<StoreFile> createUserFiles(int userId,
             boolean shouldEncryptCredentials) {
         return createFiles(
-                Environment.getDataMiscCeDirectory(userId),
+                Environment.getWifiUserFolder(userId),
                 Arrays.asList(STORE_FILE_USER_GENERAL, STORE_FILE_USER_NETWORK_SUGGESTIONS),
                 shouldEncryptCredentials);
     }

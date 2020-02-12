@@ -314,7 +314,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
         // Create new StandardWifiEntry objects for each leftover group of scan results.
         for (Map.Entry<String, List<ScanResult>> e: scanResultsByKey.entrySet()) {
             final StandardWifiEntry newEntry = new StandardWifiEntry(mContext, mMainHandler,
-                    e.getKey(), e.getValue(), mWifiManager);
+                    e.getKey(), e.getValue(), mWifiManager, false /* forSavedNetworksPage */);
             // Populate with a saved config, if available
             newEntry.updateConfig(mWifiConfigCache.get(newEntry.getKey()));
             mStandardWifiEntryCache.put(newEntry.getKey(), newEntry);
@@ -342,7 +342,8 @@ public class WifiPickerTracker extends BaseWifiTracker {
             // Create PasspointWifiEntry if one doesn't exist for the seen key yet.
             if (!mPasspointWifiEntryCache.containsKey(key)) {
                 mPasspointWifiEntryCache.put(key, new PasspointWifiEntry(mContext,
-                        mMainHandler, mPasspointConfigCache.get(key), mWifiManager));
+                        mMainHandler, mPasspointConfigCache.get(key), mWifiManager,
+                        false /* forSavedNetworksPage */));
             }
             mPasspointWifiEntryCache.get(key).updateScanResultInfo(wifiConfig,
                     homeScans, roamingScans);
@@ -363,7 +364,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
             final String key = osuProviderToOsuWifiEntryKey(osuProvider);
             if (!mOsuWifiEntryCache.containsKey(key)) {
                 mOsuWifiEntryCache.put(key, new OsuWifiEntry(mContext,
-                        mMainHandler, osuProvider, mWifiManager));
+                        mMainHandler, osuProvider, mWifiManager, false /* forSavedNetworksPage */));
             }
             mOsuWifiEntryCache.get(key).updateScanResultInfo(osuProviderToScans.get(osuProvider));
         }
@@ -509,7 +510,8 @@ public class WifiPickerTracker extends BaseWifiTracker {
                 .findAny().ifPresent(config -> {
                     final StandardWifiEntry connectedEntry =
                             new StandardWifiEntry(mContext, mMainHandler,
-                                    wifiConfigToStandardWifiEntryKey(config), config, mWifiManager);
+                                    wifiConfigToStandardWifiEntryKey(config), config, mWifiManager,
+                                    false /* forSavedNetworksPage */);
                     connectedEntry.updateConnectionInfo(wifiInfo, networkInfo);
                     mStandardWifiEntryCache.put(connectedEntry.getKey(), connectedEntry);
                 });
@@ -536,7 +538,8 @@ public class WifiPickerTracker extends BaseWifiTracker {
                                         fqdnToPasspointWifiEntryKey(connectedFqdn)))
                 .findAny().ifPresent(config -> {
                     final PasspointWifiEntry connectedEntry =
-                            new PasspointWifiEntry(mContext, mMainHandler, config, mWifiManager);
+                            new PasspointWifiEntry(mContext, mMainHandler, config, mWifiManager,
+                                    false /* forSavedNetworksPage */);
                     connectedEntry.updateConnectionInfo(wifiInfo, networkInfo);
                     mPasspointWifiEntryCache.put(connectedEntry.getKey(), connectedEntry);
                 });

@@ -60,7 +60,7 @@ public class PasspointWifiEntryTest {
         when(mMockResources.getString(R.string.wifi_passpoint_expired)).thenReturn(expired);
 
         PasspointWifiEntry passpointWifiEntry = new PasspointWifiEntry(mMockContext, mTestHandler,
-                passpointConfiguration, mMockWifiManager);
+                passpointConfiguration, mMockWifiManager, false /* forSavedNetworksPage */);
 
         assertThat(passpointWifiEntry.getSummary()).isNotEqualTo(expired);
     }
@@ -71,7 +71,7 @@ public class PasspointWifiEntryTest {
         String expired = "Expired";
         when(mMockResources.getString(R.string.wifi_passpoint_expired)).thenReturn(expired);
         PasspointWifiEntry passpointWifiEntry = new PasspointWifiEntry(mMockContext, mTestHandler,
-                passpointConfiguration, mMockWifiManager);
+                passpointConfiguration, mMockWifiManager, false /* forSavedNetworksPage */);
         PasspointWifiEntry spyEntry = spy(passpointWifiEntry);
         when(spyEntry.isExpired()).thenReturn(true);
 
@@ -89,7 +89,7 @@ public class PasspointWifiEntryTest {
     @Test
     public void testGetMeteredChoice_afterSetMeteredChoice_getCorrectValue() {
         PasspointWifiEntry entry = new PasspointWifiEntry(mMockContext, mTestHandler,
-                getPasspointConfiguration(), mMockWifiManager);
+                getPasspointConfiguration(), mMockWifiManager, false /* forSavedNetworksPage */);
 
         entry.setMeteredChoice(WifiEntry.METERED_CHOICE_UNMETERED);
 

@@ -205,7 +205,9 @@ public class SavedNetworkTrackerTest {
                 any(), any(), any());
         mTestLooper.dispatchAll();
 
-        assertThat(savedNetworkTracker.getSavedWifiEntries().stream().map(WifiEntry::getTitle)
+        assertThat(savedNetworkTracker.getSavedWifiEntries().stream()
+                .filter(entry -> entry.mForSavedNetworksPage)
+                .map(WifiEntry::getTitle)
                 .collect(Collectors.toSet()))
                 .containsExactly("ssid0", "ssid1", "ssid2");
     }
@@ -231,7 +233,10 @@ public class SavedNetworkTrackerTest {
                         .putExtra(WifiManager.EXTRA_CHANGE_REASON,
                                 WifiManager.CHANGE_REASON_ADDED));
 
-        assertThat(savedNetworkTracker.getSavedWifiEntries()).hasSize(1);
+        assertThat(savedNetworkTracker.getSavedWifiEntries().stream()
+                .filter(entry -> entry.mForSavedNetworksPage)
+                .collect(Collectors.toSet()))
+                .hasSize(1);
     }
 
     /**
