@@ -579,6 +579,9 @@ message WifiLog {
 
   // Metrics collected by health monitor
   optional HealthMonitorMetrics health_monitor_metrics = 158;
+
+  // Metrics related to the BssidBlocklistMonitor
+  optional BssidBlocklistStats bssid_blocklist_stats = 159;
 }
 
 // Information that gets logged for every WiFi connection.
@@ -1839,6 +1842,11 @@ message ExperimentValues {
 
   // Threshold of CCA level above which to trigger a data stall in percentage
   optional int32 data_stall_cca_level_thr = 9;
+}
+
+message BssidBlocklistStats {
+  // Distributions of number of blocked BSSIDs filtered out from network selection.
+  repeated Int32Count network_selection_filtered_bssid_count = 1;
 }
 
 message WifiIsUnusableEvent {
