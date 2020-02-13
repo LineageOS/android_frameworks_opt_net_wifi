@@ -22,6 +22,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.hotspot2.anqp.Constants;
 
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -165,8 +166,9 @@ public class ANQPRequestManager {
         long currentTime = mClock.getElapsedSinceBootMillis();
         HoldOffInfo info = mHoldOffInfo.get(bssid);
         if (info != null && info.holdOffExpirationTime > currentTime) {
-            Log.d(TAG, "Not allowed to send ANQP request to " + bssid + " for another "
-                    + (info.holdOffExpirationTime - currentTime) / 1000 + " seconds");
+            Log.d(TAG, "Not allowed to send ANQP request to " + Utils.macToString(bssid)
+                    + " for another " + (info.holdOffExpirationTime - currentTime) / 1000
+                    + " seconds");
             return false;
         }
 
@@ -211,5 +213,23 @@ public class ANQPRequestManager {
             requestList.addAll(R2_ANQP_BASE_SET);
         }
         return requestList;
+    }
+
+    /**
+     * Dump the current state of ANQPRequestManager to the provided output stream.
+     *
+     * @param pw The output stream to write to
+     */
+    public void dump(PrintWriter pw) {
+        pw.println("ANQPRequestManager - Begin ---");
+        for (Map.Entry<Long, HoldOffInfo> holdOffInfo : mHoldOffInfo.entrySet()) {
+            long bssid = holdOffInfo.getKey();
+            pw.println("For BBSID: " + Utils.macToString(bssid));
+            pw.println("holdOffCount: " + holdOffInfo.getValue().holdOffCount);
+            pw.println("Not allowed to send ANQP request for another "
+                    + (holdOffInfo.getValue().holdOffExpirationTime
+                    - mClock.getElapsedSinceBootMillis()) / 1000 + " seconds");
+        }
+        pw.println("ANQPRequestManager - End ---");
     }
 }
