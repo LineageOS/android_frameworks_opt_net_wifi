@@ -22,6 +22,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
+import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -50,8 +51,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * This class looks at all the connectivity scan results then
- * selects a network for the phone to connect or roam to.
+ * WifiNetworkSelector looks at all the connectivity scan results and
+ * runs all the nominators to find or create matching configurations.
+ * Then it makes a final selection from among the resulting candidates.
  */
 public class WifiNetworkSelector {
     private static final String TAG = "WifiNetworkSelector";
@@ -114,13 +116,6 @@ public class WifiNetworkSelector {
     private WifiChannelUtilization mWifiChannelUtilization;
 
     /**
-     * WiFi Network Selector supports various categories of networks. Each category
-     * has an nominator to choose the best WiFi network to connect to.
-     * Wifi Network Selector iterates through the registered scorers in registration order
-     * before making a final selection from among the candidates.
-     */
-
-    /**
      * Interface for WiFi Network Nominator
      *
      * A network nominator examines the scan results reports the
@@ -130,16 +125,14 @@ public class WifiNetworkSelector {
         /** Type of nominators */
         int NOMINATOR_ID_SAVED = 0;
         int NOMINATOR_ID_SUGGESTION = 1;
-        int NOMINATOR_ID_PASSPOINT = 2;
-        int NOMINATOR_ID_CARRIER = 3;
         int NOMINATOR_ID_SCORED = 4;
+        int NOMINATOR_ID_CURRENT = 5; // Should always be last
 
         @IntDef(prefix = {"NOMINATOR_ID_"}, value = {
                 NOMINATOR_ID_SAVED,
                 NOMINATOR_ID_SUGGESTION,
-                NOMINATOR_ID_PASSPOINT,
-                NOMINATOR_ID_CARRIER,
-                NOMINATOR_ID_SCORED})
+                NOMINATOR_ID_SCORED,
+                NOMINATOR_ID_CURRENT})
         @Retention(RetentionPolicy.SOURCE)
         public @interface NominatorId {
         }
@@ -374,6 +367,8 @@ public class WifiNetworkSelector {
             // Check if the scan results contain the currently connected BSSID
             if (scanResult.BSSID.equals(currentBssid)) {
                 scanResultsHaveCurrentBssid = true;
+                validScanDetails.add(scanDetail);
+                continue;
             }
 
             final String scanId = toScanId(scanResult);
@@ -410,6 +405,7 @@ public class WifiNetworkSelector {
         // the channel of the currently connected network, so the currently connected
         // network won't show up in the scan results. We don't act on these scan results
         // to avoid aggressive network switching which might trigger disconnection.
+        // TODO(b/147751334) this may no longer be needed
         if (isConnected && !scanResultsHaveCurrentBssid) {
             localLog("Current connected BSSID " + currentBssid + " is not in the scan results."
                     + " Skip network selection.");
@@ -422,7 +418,7 @@ public class WifiNetworkSelector {
         }
 
         if (blacklistedBssid.length() != 0) {
-            localLog("Networks filtered out due to blacklist: " + blacklistedBssid);
+            localLog("Networks filtered out due to blocklist: " + blacklistedBssid);
         }
 
         if (lowRssi.length() != 0) {
@@ -709,6 +705,20 @@ public class WifiNetworkSelector {
         WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard, mContext);
         if (currentNetwork != null) {
             wifiCandidates.setCurrent(currentNetwork.networkId, currentBssid);
+            // We always want the current network to be a candidate so that it can particpate.
+            // It may also get re-added by a nominator, in which case this fallback
+            // will be replaced.
+            MacAddress bssid = MacAddress.fromString(currentBssid);
+            WifiCandidates.Key key = new WifiCandidates.Key(
+                    ScanResultMatchInfo.fromWifiConfiguration(currentNetwork),
+                    bssid, currentNetwork.networkId);
+            wifiCandidates.add(key, currentNetwork,
+                    NetworkNominator.NOMINATOR_ID_CURRENT,
+                    wifiInfo.getRssi(),
+                    wifiInfo.getFrequency(),
+                    lastSelectionWeight,
+                    WifiConfiguration.isMetered(currentNetwork, wifiInfo),
+                    0 /* Mbps */);
         }
         for (NetworkNominator registeredNominator : mNominators) {
             localLog("About to run " + registeredNominator.getName() + " :");
@@ -860,12 +870,11 @@ public class WifiNetworkSelector {
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED;
             case NetworkNominator.NOMINATOR_ID_SUGGESTION:
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION;
-            case NetworkNominator.NOMINATOR_ID_PASSPOINT:
-                return WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT;
-            case NetworkNominator.NOMINATOR_ID_CARRIER:
-                return WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER;
             case NetworkNominator.NOMINATOR_ID_SCORED:
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED;
+            case NetworkNominator.NOMINATOR_ID_CURRENT:
+                Log.e(TAG, "Unexpected NOMINATOR_ID_CURRENT", new RuntimeException());
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
             default:
                 Log.e(TAG, "UnrecognizedNominatorId" + nominatorId);
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
