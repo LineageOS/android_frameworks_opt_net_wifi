@@ -17,15 +17,22 @@
 package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.net.wifi.WifiInfo;
+import android.os.Handler;
+import android.os.test.TestLooper;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 
@@ -34,8 +41,10 @@ import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
 
 /**
  * Unit tests for {@link com.android.server.wifi.WifiDataStall}.
@@ -56,17 +65,23 @@ public class WifiDataStallTest extends WifiBaseTest {
     @Mock Clock mClock;
     @Mock DeviceConfigFacade mDeviceConfigFacade;
     @Mock WifiInfo mWifiInfo;
+    @Mock TelephonyManager mTelephonyManager;
+    @Mock Handler mHandler;
 
     private final WifiLinkLayerStats mOldLlStats = new WifiLinkLayerStats();
     private final WifiLinkLayerStats mNewLlStats = new WifiLinkLayerStats();
-
+    private MockitoSession mSession;
     /**
      * Sets up for unit test
      */
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        // Ensure Looper exists
+        // Required by TelephonyManager.listen()
+        TestLooper looper = new TestLooper();
         when(mContext.getResources()).thenReturn(mMockResources);
+        when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
 
         mMockResources.setInteger(
                 R.integer.config_wifiDataStallMinTxBad, TEST_MIN_TX_BAD);
@@ -101,9 +116,8 @@ public class WifiDataStallTest extends WifiBaseTest {
         when(mWifiInfo.getFrequency()).thenReturn(5850);
         when(mWifiInfo.getBSSID()).thenReturn("5G_WiFi");
 
-        mWifiDataStall = new WifiDataStall(mFrameworkFacade, mWifiMetrics, mDeviceConfigFacade,
-                mWifiChannelUtilization, mClock);
-        mWifiDataStall.enableVerboseLogging(true);
+        mWifiDataStall = new WifiDataStall(mFrameworkFacade, mWifiMetrics, mContext,
+                mDeviceConfigFacade, mWifiChannelUtilization, mClock, mHandler);
         mOldLlStats.txmpdu_be = 1000;
         mOldLlStats.retries_be = 1000;
         mOldLlStats.lostmpdu_be = 3000;
@@ -138,6 +152,40 @@ public class WifiDataStallTest extends WifiBaseTest {
                 mNewLlStats.lostmpdu_be - mOldLlStats.lostmpdu_be,
                 mNewLlStats.rxmpdu_be - mOldLlStats.rxmpdu_be,
                 mNewLlStats.timeStampInMs - mOldLlStats.timeStampInMs);
+    }
+
+    private PhoneStateListener mockPhoneStateListener() {
+        PhoneStateListener dataConnectionStateListener = null;
+        /* Capture the PhoneStateListener */
+        ArgumentCaptor<PhoneStateListener> phoneStateListenerCaptor =
+                ArgumentCaptor.forClass(PhoneStateListener.class);
+        verify(mTelephonyManager).listen(phoneStateListenerCaptor.capture(),
+                eq(PhoneStateListener.LISTEN_DATA_CONNECTION_STATE));
+        dataConnectionStateListener = phoneStateListenerCaptor.getValue();
+        assertNotNull(dataConnectionStateListener);
+        return dataConnectionStateListener;
+    }
+
+    /**
+     * Test cellular data connection is on and then off
+     */
+    @Test
+    public void testCellularDataConnectionOnOff() throws Exception {
+        mWifiDataStall.disablePhoneStateListener();
+        mWifiDataStall.enablePhoneStateListener();
+        PhoneStateListener phoneStateListener = mockPhoneStateListener();
+        phoneStateListener.onDataConnectionStateChanged(TelephonyManager.DATA_CONNECTED,
+                TelephonyManager.NETWORK_TYPE_LTE);
+        assertEquals(true, mWifiDataStall.isCellularDataAvailable());
+        phoneStateListener.onDataConnectionStateChanged(
+                TelephonyManager.DATA_DISCONNECTED, TelephonyManager.NETWORK_TYPE_LTE);
+        assertEquals(false, mWifiDataStall.isCellularDataAvailable());
+        mWifiDataStall.disablePhoneStateListener();
+        verify(mTelephonyManager, times(1)).listen(phoneStateListener,
+                PhoneStateListener.LISTEN_NONE);
+        mWifiDataStall.disablePhoneStateListener();
+        verify(mTelephonyManager, times(1)).listen(phoneStateListener,
+                PhoneStateListener.LISTEN_NONE);
     }
 
     /**
