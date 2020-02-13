@@ -44,18 +44,22 @@ import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.wifi.WifiConfigManager.OnNetworkUpdateListener;
 import com.android.server.wifi.WifiHealthMonitor.ScanStats;
 import com.android.server.wifi.WifiHealthMonitor.WifiSoftwareBuildInfo;
 import com.android.server.wifi.WifiHealthMonitor.WifiSystemInfoStats;
 import com.android.server.wifi.WifiScoreCard.PerNetwork;
 import com.android.server.wifi.proto.WifiScoreCardProto.SystemInfoStats;
+import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.HealthMonitorMetrics;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -73,6 +77,7 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
 
     private WifiScoreCard mWifiScoreCard;
     private WifiHealthMonitor mWifiHealthMonitor;
+    private MockitoSession mSession;
 
     @Mock
     Clock mClock;
@@ -442,6 +447,36 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
     }
 
     /**
+     * Check WestWorld logging after one daily detection with high non-local disconnection rate
+     */
+    @Test
+    public void testWifiStatsLogWrite() throws Exception {
+        // static mocking for WifiStatsLog
+        mSession = ExtendedMockito.mockitoSession()
+                .strictness(Strictness.LENIENT)
+                .mockStatic(WifiStatsLog.class)
+                .startMocking();
+
+        mWifiHealthMonitor.installMemoryStoreSetUpDetectionAlarm(mMemoryStore);
+        makeRecentStatsWithSufficientConnectionAttempt();
+        mAlarmManager.dispatch(WifiHealthMonitor.DAILY_DETECTION_TIMER_TAG);
+        mLooper.dispatchAll();
+
+        ExtendedMockito.verify(() -> WifiStatsLog.write(
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED,
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__ABNORMALITY_TYPE__SIMPLY_HIGH,
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_NON_LOCAL_DISCONNECTION,
+                1));
+
+        ExtendedMockito.verify(() -> WifiStatsLog.write(
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED,
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__ABNORMALITY_TYPE__SIMPLY_HIGH,
+                WifiStatsLog.WIFI_FAILURE_STAT_REPORTED__FAILURE_TYPE__FAILURE_SHORT_CONNECTION_DUE_TO_NON_LOCAL_DISCONNECTION,
+                1));
+        mSession.finishMocking();
+    }
+
+    /**
      * test stats after a SW build change
      */
     @Test
@@ -606,5 +641,4 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
         perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
         assertNotNull(perNetwork);
     }
-    // TODO: add test for metric report
 }
