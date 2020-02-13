@@ -236,6 +236,7 @@ public class WifiConfigManager {
     private final WifiInjector mWifiInjector;
     private final MacAddressUtil mMacAddressUtil;
     private final TelephonyUtil mTelephonyUtil;
+    private final WifiScoreCard mWifiScoreCard;
 
     /**
      * Local log used for debugging any WifiConfigManager issues.
@@ -333,7 +334,7 @@ public class WifiConfigManager {
             NetworkListUserStoreData networkListUserStoreData,
             RandomizedMacStoreData randomizedMacStoreData,
             FrameworkFacade frameworkFacade, Handler handler,
-            DeviceConfigFacade deviceConfigFacade) {
+            DeviceConfigFacade deviceConfigFacade, WifiScoreCard wifiScoreCard) {
         mContext = context;
         mClock = clock;
         mUserManager = userManager;
@@ -344,6 +345,7 @@ public class WifiConfigManager {
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mWifiPermissionsWrapper = wifiPermissionsWrapper;
         mWifiInjector = wifiInjector;
+        mWifiScoreCard = wifiScoreCard;
 
         mConfiguredNetworks = new ConfigurationMap(userManager);
         mScanDetailCaches = new HashMap<>(16, 0.75f);
@@ -2264,6 +2266,8 @@ public class WifiConfigManager {
             WifiConfiguration config, ScanDetail scanDetail) {
         ScanResult scanResult = scanDetail.getScanResult();
 
+        WifiScoreCard.PerNetwork network = mWifiScoreCard.lookupNetwork(config.SSID);
+        network.addFrequency(scanResult.frequency);
         ScanDetailCache scanDetailCache = getOrCreateScanDetailCacheForNetwork(config);
         if (scanDetailCache == null) {
             Log.e(TAG, "Could not allocate scan cache for " + config.getPrintableSsid());

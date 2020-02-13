@@ -3543,7 +3543,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(newLLStats);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
-        verify(mWifiDataStall).checkForDataStall(oldLLStats, newLLStats, mCmi.getWifiInfo());
+        verify(mWifiDataStall).checkDataStallAndThroughputSufficiency(
+                oldLLStats, newLLStats, mCmi.getWifiInfo());
         verify(mWifiMetrics).incrementWifiLinkLayerUsageStats(newLLStats);
     }
 
@@ -3559,7 +3560,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         WifiLinkLayerStats stats = new WifiLinkLayerStats();
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(stats);
-        when(mWifiDataStall.checkForDataStall(any(), any(), any()))
+        when(mWifiDataStall.checkDataStallAndThroughputSufficiency(any(), any(), any()))
                 .thenReturn(WifiIsUnusableEvent.TYPE_UNKNOWN);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
@@ -3567,7 +3568,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiMetrics, never()).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
                 eq(anyInt()), eq(-1));
 
-        when(mWifiDataStall.checkForDataStall(any(), any(), any()))
+        when(mWifiDataStall.checkDataStallAndThroughputSufficiency(any(), any(), any()))
                 .thenReturn(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(10L);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
@@ -3727,6 +3728,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiConnectivityManager).setDeviceMobilityState(
                 WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
         verify(mWifiHealthMonitor).setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        verify(mWifiDataStall).setDeviceMobilityState(
                 WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
     }
 

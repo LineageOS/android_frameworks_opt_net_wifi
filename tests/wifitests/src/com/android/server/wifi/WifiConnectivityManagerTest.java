@@ -100,7 +100,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         when(mWifiNetworkSuggestionsManager.retrieveHiddenNetworkList())
                 .thenReturn(new ArrayList<>());
         when(mWifiInjector.getBssidBlocklistMonitor()).thenReturn(mBssidBlocklistMonitor);
-        when(mWifiInjector.getWifiChannelUtilization()).thenReturn(mWifiChannelUtilization);
+        when(mWifiInjector.getWifiChannelUtilizationScan()).thenReturn(mWifiChannelUtilization);
         mWifiConnectivityManager = createConnectivityManager();
         verify(mWifiConfigManager).addOnNetworkUpdateListener(anyObject());
         mWifiConnectivityManager.setTrustedConnectionAllowed(true);
@@ -2257,7 +2257,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         // Force a connectivity scan
         mWifiConnectivityManager.forceConnectivityScan(WIFI_WORK_SOURCE);
 
-        verify(mWifiChannelUtilization).refreshChannelStatsAndChannelUtilization(llstats);
+        verify(mWifiChannelUtilization).refreshChannelStatsAndChannelUtilization(
+                llstats, WifiChannelUtilization.UNKNOWN_FREQ);
     }
 
     /**
