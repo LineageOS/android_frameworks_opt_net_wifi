@@ -67,6 +67,7 @@ import com.android.server.wifi.util.TelephonyUtil;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1010,9 +1011,12 @@ public class PasspointManager {
      * @return List of {@link WifiConfiguration} converted from {@link PasspointProvider}
      */
     public List<WifiConfiguration> getWifiConfigsForPasspointProfiles(List<String> idList) {
+        if (mProviders.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<WifiConfiguration> configs = new ArrayList<>();
         Set<String> uniqueIdSet = new HashSet<>();
         uniqueIdSet.addAll(idList);
-        List<WifiConfiguration> configs = new ArrayList<>();
         for (String uniqueId : uniqueIdSet) {
             PasspointProvider provider = mProviders.get(uniqueId);
             if (provider == null) {
@@ -1191,5 +1195,14 @@ public class PasspointManager {
         }
 
         return filteredScanResults;
+    }
+
+    /**
+     * Check if the providers list is empty
+     *
+     * @return true if the providers list is empty, false otherwise
+     */
+    public boolean isProvidersListEmpty() {
+        return mProviders.isEmpty();
     }
 }
