@@ -89,7 +89,7 @@ public class PasspointWifiEntry extends WifiEntry {
         mFriendlyName = homeSp.getFriendlyName();
         mSecurity = SECURITY_NONE; //TODO: Should this always be Enterprise?
         mSubscriptionExpirationTimeInMillis =
-                passpointConfig.getSubscriptionExpirationTimeInMillis();
+                passpointConfig.getSubscriptionExpirationTimeMillis();
         mMeteredOverride = mPasspointConfig.getMeteredOverride();
     }
 
@@ -336,7 +336,7 @@ public class PasspointWifiEntry extends WifiEntry {
         mPasspointConfig = passpointConfig;
         mFriendlyName = passpointConfig.getHomeSp().getFriendlyName();
         mSubscriptionExpirationTimeInMillis =
-                passpointConfig.getSubscriptionExpirationTimeInMillis();
+                passpointConfig.getSubscriptionExpirationTimeMillis();
         mMeteredOverride = mPasspointConfig.getMeteredOverride();
         notifyOnUpdated();
     }
