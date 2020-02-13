@@ -24,7 +24,7 @@ import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pGroupList;
 import android.net.wifi.p2p.nsd.WifiP2pServiceInfo;
-import android.net.wifi.wificond.WifiCondManager;
+import android.net.wifi.wificond.WifiNl80211Manager;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
@@ -615,7 +615,7 @@ public class WifiP2pNative {
     private void abortWifiRunningScanIfNeeded(boolean isJoin) {
         if (!isJoin) return;
 
-        WifiCondManager wifiCondManager = mWifiInjector.getWifiCondManager();
+        WifiNl80211Manager wifiCondManager = mWifiInjector.getWifiCondManager();
         WifiNative wifiNative = mWifiInjector.getWifiNative();
         Set<String> wifiClientInterfaces = wifiNative.getClientInterfaceNames();
 
