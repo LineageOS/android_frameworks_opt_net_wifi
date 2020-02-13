@@ -2697,7 +2697,6 @@ public class ClientModeImpl extends StateMachine {
             msg.what = WifiP2pServiceImpl.BLOCK_DISCOVERY;
             msg.arg1 = WifiP2pServiceImpl.ENABLED;
             msg.arg2 = CMD_PRE_DHCP_ACTION_COMPLETE;
-            msg.obj = ClientModeImpl.this;
             mWifiP2pChannel.sendMessage(msg);
         } else {
             // If the p2p service is not running, we can proceed directly.

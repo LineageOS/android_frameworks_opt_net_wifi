@@ -963,17 +963,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         // always reset this - we went to a state that doesn't support discovery so
                         // it would have stopped regardless
                         mDiscoveryPostponed = false;
-                        if (mDiscoveryBlocked) {
-                            if (message.obj == null) {
-                                Log.e(TAG, "Illegal argument(s)");
-                                break;
-                            }
-                            StateMachine m = (StateMachine) message.obj;
-                            try {
-                                m.sendMessage(message.arg2);
-                            } catch (Exception e) {
-                                loge("unable to send BLOCK_DISCOVERY response: " + e);
-                            }
+                        if (mDiscoveryBlocked && mWifiChannel != null) {
+                            mWifiChannel.replyToMessage(message, message.arg2);
                         }
                         break;
                     case WifiP2pManager.DISCOVER_PEERS:
@@ -1525,17 +1516,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             mDiscoveryPostponed = false;
                             mWifiNative.p2pFind(DISCOVER_TIMEOUT_S);
                         }
-                        if (blocked) {
-                            if (message.obj == null) {
-                                Log.e(TAG, "Illegal argument(s)");
-                                break;
-                            }
-                            StateMachine m = (StateMachine) message.obj;
-                            try {
-                                m.sendMessage(message.arg2);
-                            } catch (Exception e) {
-                                loge("unable to send BLOCK_DISCOVERY response: " + e);
-                            }
+                        if (blocked && mWifiChannel != null) {
+                            mWifiChannel.replyToMessage(message, message.arg2);
                         }
                         break;
                     case WifiP2pManager.DISCOVER_PEERS:
