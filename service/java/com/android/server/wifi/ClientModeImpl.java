@@ -77,7 +77,7 @@ import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.wificond.DeviceWiphyCapabilities;
-import android.net.wifi.wificond.WifiCondManager;
+import android.net.wifi.wificond.WifiNl80211Manager;
 import android.os.BatteryStatsManager;
 import android.os.Bundle;
 import android.os.ConditionVariable;
@@ -2313,7 +2313,7 @@ public class ClientModeImpl extends StateMachine {
      * Fetch RSSI, linkspeed, and frequency on current connection
      */
     private void fetchRssiLinkSpeedAndFrequencyNative() {
-        WifiCondManager.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
+        WifiNl80211Manager.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
         if (pollResult == null) {
             return;
         }
@@ -2697,7 +2697,6 @@ public class ClientModeImpl extends StateMachine {
             msg.what = WifiP2pServiceImpl.BLOCK_DISCOVERY;
             msg.arg1 = WifiP2pServiceImpl.ENABLED;
             msg.arg2 = CMD_PRE_DHCP_ACTION_COMPLETE;
-            msg.obj = ClientModeImpl.this;
             mWifiP2pChannel.sendMessage(msg);
         } else {
             // If the p2p service is not running, we can proceed directly.
@@ -4649,7 +4648,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_PKT_CNT_FETCH:
                     callbackIdentifier = message.arg2;
-                    WifiCondManager.TxPacketCounters counters =
+                    WifiNl80211Manager.TxPacketCounters counters =
                             mWifiNative.getTxPacketCounters(mInterfaceName);
                     if (counters != null) {
                         sendTxPacketCountListenerSuccess(callbackIdentifier,
@@ -5799,7 +5798,7 @@ public class ClientModeImpl extends StateMachine {
      * Sends a link probe.
      */
     @VisibleForTesting
-    public void probeLink(WifiCondManager.SendMgmtFrameCallback callback, int mcs) {
+    public void probeLink(WifiNl80211Manager.SendMgmtFrameCallback callback, int mcs) {
         mWifiNative.probeLink(mInterfaceName, MacAddress.fromString(mWifiInfo.getBSSID()),
                 callback, mcs);
     }

@@ -63,7 +63,7 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.ProvisioningCallback;
 import android.net.wifi.hotspot2.pps.Credential;
-import android.net.wifi.wificond.WifiCondManager;
+import android.net.wifi.wificond.WifiNl80211Manager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -3507,13 +3507,13 @@ public class WifiMetricsTest extends WifiBaseTest {
     public void testLogLinkProbeMetrics() throws Exception {
         mWifiMetrics.logLinkProbeSuccess(10000, -75, 50, 5);
         mWifiMetrics.logLinkProbeFailure(30000, -80, 10,
-                WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_NO_ACK);
         mWifiMetrics.logLinkProbeSuccess(3000, -71, 160, 12);
         mWifiMetrics.logLinkProbeFailure(40000, -80, 6,
-                WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_NO_ACK);
         mWifiMetrics.logLinkProbeSuccess(5000, -73, 160, 10);
         mWifiMetrics.logLinkProbeFailure(2000, -78, 6,
-                WifiCondManager.SEND_MGMT_FRAME_ERROR_TIMEOUT);
+                WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_TIMEOUT);
 
         dumpProtoAndDeserialize();
 

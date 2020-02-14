@@ -31,7 +31,7 @@ import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiUsabilityStatsEntry.ProbeStatus;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.ProvisioningCallback;
-import android.net.wifi.wificond.WifiCondManager;
+import android.net.wifi.wificond.WifiNl80211Manager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -3442,13 +3442,13 @@ public class WifiMetrics {
 
     private static int linkProbeFailureReasonToProto(int reason) {
         switch (reason) {
-            case WifiCondManager.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
+            case WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_MCS_UNSUPPORTED;
-            case WifiCondManager.SEND_MGMT_FRAME_ERROR_NO_ACK:
+            case WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_NO_ACK:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_NO_ACK;
-            case WifiCondManager.SEND_MGMT_FRAME_ERROR_TIMEOUT:
+            case WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_TIMEOUT:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_TIMEOUT;
-            case WifiCondManager.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED:
+            case WifiNl80211Manager.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_ALREADY_STARTED;
             default:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_UNKNOWN;
@@ -4761,7 +4761,8 @@ public class WifiMetrics {
      *                                 {@link WifiInfo#txSuccess}).
      * @param rssi The Rx RSSI at {@code startTimestampMs}.
      * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
-     * @param reason The error code for the failure. See {@link WifiCondManager.SendMgmtFrameError}.
+     * @param reason The error code for the failure. See
+     * {@link WifiNl80211Manager.SendMgmtFrameError}.
      */
     public void logLinkProbeFailure(long timeSinceLastTxSuccessMs,
             int rssi, int linkSpeed, int reason) {

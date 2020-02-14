@@ -228,6 +228,10 @@ public class ThroughputPredictor {
         int numTonePerSym;
         int symDurationNs;
         int maxBitsPerTone;
+        if (maxNumSpatialStream < 1) {
+            Log.e(TAG, "maxNumSpatialStream < 1 due to wrong implementation. Overridden to 1");
+            maxNumSpatialStream = 1;
+        }
         if (wifiStandard == ScanResult.WIFI_STANDARD_UNKNOWN) {
             return WifiInfo.LINK_SPEED_UNKNOWN;
         } else if (wifiStandard == ScanResult.WIFI_STANDARD_LEGACY) {

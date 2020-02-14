@@ -1080,6 +1080,7 @@ public class PasspointManager {
         pw.println("PasspointManager - Providers End ---");
         pw.println("PasspointManager - Next provider ID to be assigned " + mProviderIndex);
         mAnqpCache.dump(pw);
+        mAnqpRequestManager.dump(pw);
     }
 
     /**

@@ -28,7 +28,7 @@ import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.wificond.WifiCondManager;
+import android.net.wifi.wificond.WifiNl80211Manager;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.HandlerExecutor;
@@ -104,7 +104,7 @@ public class WifiInjector {
     private final WifiSettingsStore mSettingsStore;
     private OpenNetworkNotifier mOpenNetworkNotifier;
     private final WifiLockManager mLockManager;
-    private final WifiCondManager mWifiCondManager;
+    private final WifiNl80211Manager mWifiCondManager;
     private final Clock mClock = new Clock();
     private final WifiMetrics mWifiMetrics;
     private final WifiP2pMetrics mWifiP2pMetrics;
@@ -220,7 +220,8 @@ public class WifiInjector {
         mSupplicantStaIfaceHal = new SupplicantStaIfaceHal(
                 mContext, mWifiMonitor, mFrameworkFacade, wifiHandler, mClock);
         mHostapdHal = new HostapdHal(mContext, wifiHandler);
-        mWifiCondManager = (WifiCondManager) mContext.getSystemService(Context.WIFI_COND_SERVICE);
+        mWifiCondManager = (WifiNl80211Manager) mContext.getSystemService(
+                Context.WIFI_NL80211_SERVICE);
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWifiCondManager,
                 mWifiMonitor, mPropertyService, mWifiMetrics,
@@ -800,7 +801,7 @@ public class WifiInjector {
         return mNetdWrapper;
     }
 
-    public WifiCondManager getWifiCondManager() {
+    public WifiNl80211Manager getWifiCondManager() {
         return mWifiCondManager;
     }
 
