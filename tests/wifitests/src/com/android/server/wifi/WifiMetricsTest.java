@@ -1567,6 +1567,26 @@ public class WifiMetricsTest extends WifiBaseTest {
     }
 
     /**
+     * Test the logging of BssidBlocklistStats.
+     */
+    @Test
+    public void testBssidBlocklistMetrics() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            mWifiMetrics.incrementNetworkSelectionFilteredBssidCount(i);
+        }
+        mWifiMetrics.incrementNetworkSelectionFilteredBssidCount(2);
+        dumpProtoAndDeserialize();
+
+        Int32Count[] expectedHistogram = {
+                buildInt32Count(0, 1),
+                buildInt32Count(1, 1),
+                buildInt32Count(2, 2),
+        };
+        assertKeyCountsEqual(expectedHistogram,
+                mDecodedProto.bssidBlocklistStats.networkSelectionFilteredBssidCount);
+    }
+
+    /**
      * Test that WifiMetrics is being cleared after dumping via proto
      */
     @Test

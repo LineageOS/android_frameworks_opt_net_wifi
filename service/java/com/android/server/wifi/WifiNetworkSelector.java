@@ -355,6 +355,7 @@ public class WifiNetworkSelector {
         StringBuffer lowRssi = new StringBuffer();
         StringBuffer mboAssociationDisallowedBssid = new StringBuffer();
         boolean scanResultsHaveCurrentBssid = false;
+        int numBssidFiltered = 0;
 
         for (ScanDetail scanDetail : scanDetails) {
             ScanResult scanResult = scanDetail.getScanResult();
@@ -375,6 +376,7 @@ public class WifiNetworkSelector {
 
             if (bssidBlacklist.contains(scanResult.BSSID)) {
                 blacklistedBssid.append(scanId).append(" / ");
+                numBssidFiltered++;
                 continue;
             }
 
@@ -400,6 +402,7 @@ public class WifiNetworkSelector {
 
             validScanDetails.add(scanDetail);
         }
+        mWifiMetrics.incrementNetworkSelectionFilteredBssidCount(numBssidFiltered);
 
         // WNS listens to all single scan results. Some scan requests may not include
         // the channel of the currently connected network, so the currently connected

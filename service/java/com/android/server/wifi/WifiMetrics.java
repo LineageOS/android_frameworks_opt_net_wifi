@@ -406,6 +406,7 @@ public class WifiMetrics {
     private static final int[] WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS =
             {1, 10, 60, 600, 3600};
     private final WifiToggleStats mWifiToggleStats = new WifiToggleStats();
+    private BssidBlocklistStats mBssidBlocklistStats = new BssidBlocklistStats();
 
     private final IntHistogram mWifiLockHighPerfAcqDurationSecHistogram =
             new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
@@ -510,6 +511,23 @@ public class WifiMetrics {
                     }
                 }
             }
+        }
+    }
+
+    class BssidBlocklistStats {
+        public IntCounter networkSelectionFilteredBssidCount = new IntCounter();
+
+        public WifiMetricsProto.BssidBlocklistStats toProto() {
+            WifiMetricsProto.BssidBlocklistStats proto = new WifiMetricsProto.BssidBlocklistStats();
+            proto.networkSelectionFilteredBssidCount = networkSelectionFilteredBssidCount.toProto();
+            return proto;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("networkSelectionFilteredBssidCount=" + networkSelectionFilteredBssidCount);
+            return sb.toString();
         }
     }
 
@@ -2718,6 +2736,8 @@ public class WifiMetrics {
 
                 pw.println("mWifiLogProto.observed80211mcSupportingApsInScanHistogram"
                         + mObserved80211mcApInScanHistogram);
+                pw.println("mWifiLogProto.bssidBlocklistStats:");
+                pw.println(mBssidBlocklistStats.toString());
 
                 pw.println("mSoftApTetheredEvents:");
                 for (SoftApConnectedClientsEvent event : mSoftApEventListTethered) {
@@ -3437,6 +3457,7 @@ public class WifiMetrics {
             if (healthMonitorMetrics != null) {
                 mWifiLogProto.healthMonitorMetrics = healthMonitorMetrics;
             }
+            mWifiLogProto.bssidBlocklistStats = mBssidBlocklistStats.toProto();
         }
     }
 
@@ -3631,6 +3652,7 @@ public class WifiMetrics {
             mWifiToggleStats.clear();
             mPasspointProvisionFailureCounts.clear();
             mNumProvisionSuccess = 0;
+            mBssidBlocklistStats = new BssidBlocklistStats();
         }
     }
 
@@ -5117,6 +5139,13 @@ public class WifiMetrics {
             }
             mPasspointProvisionFailureCounts.increment(provisionFailureCode);
         }
+    }
+
+    /**
+     * Add to the histogram of number of BSSIDs filtered out from network selection.
+     */
+    public void incrementNetworkSelectionFilteredBssidCount(int numBssid) {
+        mBssidBlocklistStats.networkSelectionFilteredBssidCount.increment(numBssid);
     }
 
     /**
