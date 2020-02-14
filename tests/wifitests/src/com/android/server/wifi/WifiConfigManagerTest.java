@@ -31,7 +31,6 @@ import android.content.pm.UserInfo;
 import android.database.ContentObserver;
 import android.net.IpConfiguration;
 import android.net.MacAddress;
-import android.net.util.MacAddressUtils;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
@@ -1953,7 +1952,7 @@ public class WifiConfigManagerTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
 
-        MacAddress testMac = MacAddressUtils.createRandomUnicastAddress();
+        MacAddress testMac = MacAddress.createRandomUnicastAddress();
         mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
 
         // Verify that randomized MAC address is masked when obtaining saved networks from
@@ -2000,7 +1999,7 @@ public class WifiConfigManagerTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
 
-        MacAddress testMac = MacAddressUtils.createRandomUnicastAddress();
+        MacAddress testMac = MacAddress.createRandomUnicastAddress();
         mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
 
         // Verify macRandomizationSetting is not masked out when feature is supported.
@@ -2021,7 +2020,7 @@ public class WifiConfigManagerTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
 
-        MacAddress testMac = MacAddressUtils.createRandomUnicastAddress();
+        MacAddress testMac = MacAddress.createRandomUnicastAddress();
         mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
 
         // Verify macRandomizationSetting is masked out when feature is unsupported.
@@ -4367,7 +4366,7 @@ public class WifiConfigManagerTest {
 
         // Verify that changing randomized MAC address through setNetworkRandomizedMacAddress
         // changes the internal randomized MAC address
-        MacAddress newMac = MacAddressUtils.createRandomUnicastAddress();
+        MacAddress newMac = MacAddress.createRandomUnicastAddress();
         mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), newMac);
         retrievedConfig = mWifiConfigManager
                 .getConfiguredNetworkWithoutMasking(result.getNetworkId());
