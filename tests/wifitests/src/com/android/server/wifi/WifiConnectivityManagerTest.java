@@ -1553,6 +1553,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
 
         // Verify the BSSID blacklist is cleared again.
         verify(mBssidBlocklistMonitor, times(2)).clearBssidBlocklist();
+        // Verify WifiNetworkSelector is informed of the disable.
+        verify(mWifiNS).resetOnDisable();
     }
 
     /**

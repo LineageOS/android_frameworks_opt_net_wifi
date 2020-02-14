@@ -1464,7 +1464,6 @@ public class WifiConnectivityManager {
         if (!mRunning) return;
         mRunning = false;
         stopConnectivityScan();
-        mBssidBlocklistMonitor.clearBssidBlocklist();
         resetLastPeriodicSingleScanTimeStamp();
         mOpenNetworkNotifier.clearPendingNotification(true /* resetRepeatDelay */);
         mLastConnectionAttemptBssid = null;
@@ -1493,6 +1492,10 @@ public class WifiConnectivityManager {
     public void setWifiEnabled(boolean enable) {
         localLog("Set WiFi " + (enable ? "enabled" : "disabled"));
 
+        if (mWifiEnabled && !enable) {
+            mNetworkSelector.resetOnDisable();
+            mBssidBlocklistMonitor.clearBssidBlocklist();
+        }
         mWifiEnabled = enable;
         updateRunningState();
     }
