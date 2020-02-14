@@ -30,7 +30,6 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.PasspointConfiguration;
-import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
 import android.text.TextUtils;
 
@@ -84,9 +83,8 @@ public class PasspointWifiEntry extends WifiEntry {
 
         mContext = context;
         mPasspointConfig = passpointConfig;
-        final HomeSp homeSp = passpointConfig.getHomeSp();
-        mKey = fqdnToPasspointWifiEntryKey(homeSp.getFqdn());
-        mFriendlyName = homeSp.getFriendlyName();
+        mKey = uniqueIdToPasspointWifiEntryKey(passpointConfig.getUniqueId());
+        mFriendlyName = passpointConfig.getHomeSp().getFriendlyName();
         mSecurity = SECURITY_NONE; //TODO: Should this always be Enterprise?
         mSubscriptionExpirationTimeInMillis =
                 passpointConfig.getSubscriptionExpirationTimeInMillis();
@@ -387,9 +385,9 @@ public class PasspointWifiEntry extends WifiEntry {
     }
 
     @NonNull
-    static String fqdnToPasspointWifiEntryKey(@NonNull String fqdn) {
-        checkNotNull(fqdn, "Cannot create key with null fqdn!");
-        return KEY_PREFIX + fqdn;
+    static String uniqueIdToPasspointWifiEntryKey(@NonNull String uniqueId) {
+        checkNotNull(uniqueId, "Cannot create key with null unique id!");
+        return KEY_PREFIX + uniqueId;
     }
 
     @Override

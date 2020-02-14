@@ -34,6 +34,7 @@ import android.net.NetworkScoreManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -321,6 +322,7 @@ public class SavedNetworkTrackerTest {
         homeSp.setFqdn("fqdn");
         homeSp.setFriendlyName("friendlyName");
         passpointConfig.setHomeSp(homeSp);
+        passpointConfig.setCredential(new Credential());
         when(mMockWifiManager.getPasspointConfigurations())
                 .thenReturn(Collections.singletonList(passpointConfig));
 
