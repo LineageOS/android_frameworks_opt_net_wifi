@@ -752,13 +752,19 @@ public class WifiNetworkSelector {
                         WifiCandidates.Key key = wifiCandidates.keyFromScanDetailAndConfig(
                                 scanDetail, config);
                         if (key != null) {
+                            boolean metered;
+                            if (config.networkId == wifiInfo.getNetworkId()) {
+                                metered = WifiConfiguration.isMetered(config, wifiInfo);
+                            } else {
+                                metered = WifiConfiguration.isMetered(config, null);
+                            }
                             boolean added = wifiCandidates.add(key, config,
                                     registeredNominator.getId(),
                                     scanDetail.getScanResult().level,
                                     scanDetail.getScanResult().frequency,
                                     (config.networkId == lastUserSelectedNetworkId)
                                             ? lastSelectionWeight : 0.0,
-                                    WifiConfiguration.isMetered(config, wifiInfo),
+                                    metered,
                                     predictThroughput(scanDetail));
                             if (added) {
                                 mConnectableNetworks.add(Pair.create(scanDetail, config));
