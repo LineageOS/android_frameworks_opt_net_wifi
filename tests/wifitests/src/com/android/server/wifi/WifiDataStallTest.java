@@ -84,6 +84,9 @@ public class WifiDataStallTest extends WifiBaseTest {
         when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
 
         mMockResources.setInteger(
+                R.integer.config_wifiPollRssiIntervalMilliseconds,
+                3000);
+        mMockResources.setInteger(
                 R.integer.config_wifiDataStallMinTxBad, TEST_MIN_TX_BAD);
         mMockResources.setInteger(
                 R.integer.config_wifiDataStallMinTxSuccessWithoutRx,
@@ -430,5 +433,49 @@ public class WifiDataStallTest extends WifiBaseTest {
         verify(mWifiMetrics, never()).updateWifiIsUnusableLinkLayerStats(
                 anyLong(), anyLong(), anyLong(), anyLong(), anyLong());
         verify(mWifiMetrics, never()).logWifiIsUnusableEvent(anyInt());
+    }
+
+    /**
+     * Check incrementConnectionDuration under various conditions
+     */
+    @Test
+    public void testIncrementConnectionDuration() throws Exception {
+        mWifiDataStall.enablePhoneStateListener();
+        PhoneStateListener phoneStateListener = mockPhoneStateListener();
+        phoneStateListener.onDataConnectionStateChanged(TelephonyManager.DATA_CONNECTED,
+                TelephonyManager.NETWORK_TYPE_LTE);
+        assertEquals(true, mWifiDataStall.isCellularDataAvailable());
+        mNewLlStats.timeStampInMs = mOldLlStats.timeStampInMs + 1000;
+        // Expect 1st throughput sufficiency check to return true
+        // because it hits mLastTxBytes == 0 || mLastRxBytes == 0
+        mWifiDataStall.checkDataStallAndThroughputSufficiency(
+                mOldLlStats, mNewLlStats, mWifiInfo);
+        verify(mWifiMetrics, times(1)).incrementConnectionDuration(
+                1000, true, true);
+
+        // Expect 2nd throughput sufficiency check to return false
+        mWifiDataStall.checkDataStallAndThroughputSufficiency(
+                mOldLlStats, mNewLlStats, mWifiInfo);
+        verify(mWifiMetrics, times(1)).incrementConnectionDuration(
+                1000, false, true);
+
+
+        mNewLlStats.timeStampInMs = mOldLlStats.timeStampInMs + 2000;
+        phoneStateListener.onDataConnectionStateChanged(
+                TelephonyManager.DATA_DISCONNECTED, TelephonyManager.NETWORK_TYPE_LTE);
+        assertEquals(false, mWifiDataStall.isCellularDataAvailable());
+        mWifiDataStall.checkDataStallAndThroughputSufficiency(
+                mOldLlStats, mNewLlStats, mWifiInfo);
+        verify(mWifiMetrics, times(1)).incrementConnectionDuration(
+                2000, false, false);
+
+        // Expect this update to be ignored by connection duration counters due to its
+        // too large poll interval
+        mNewLlStats.timeStampInMs = mOldLlStats.timeStampInMs + 10000;
+        mWifiDataStall.checkDataStallAndThroughputSufficiency(
+                mOldLlStats, mNewLlStats, mWifiInfo);
+        verify(mWifiMetrics, never()).incrementConnectionDuration(
+                10000, false, false);
+        mWifiDataStall.disablePhoneStateListener();
     }
 }

@@ -29,6 +29,7 @@ import android.util.Log;
 
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.util.InformationElementUtil.BssLoad;
+import com.android.wifi.resources.R;
 
 /**
  * Looks for Wifi data stalls
@@ -47,8 +48,10 @@ public class WifiDataStall {
     public static final int DEFAULT_CCA_LEVEL_ABOVE_2G = CHANNEL_UTILIZATION_SCALE * 6 / 100;
     // Minimum time interval in ms between two link layer stats cache updates
     private static final int LLSTATS_CACHE_UPDATE_INTERVAL_MIN_MS = 6 * 1000;
+    // Maximum time margin between two link layer stats for connection duration update
+    public static final int MAX_TIME_MARGIN_LAST_TWO_POLLS_MS = 200;
 
-    FrameworkFacade mFacade;
+    private final FrameworkFacade mFacade;
     private final DeviceConfigFacade mDeviceConfigFacade;
     private final WifiMetrics mWifiMetrics;
     private final Context mContext;
@@ -246,6 +249,14 @@ public class WifiDataStall {
 
         mIsThroughputSufficient = isThroughputSufficientInternal(txTputKbps, rxTputKbps,
                 isTxTrafficHigh, isRxTrafficHigh, timeDeltaLastTwoPollsMs);
+
+        int maxTimeDeltaMs = mContext.getResources().getInteger(
+                R.integer.config_wifiPollRssiIntervalMilliseconds)
+                + MAX_TIME_MARGIN_LAST_TWO_POLLS_MS;
+        if (timeDeltaLastTwoPollsMs > 0 && timeDeltaLastTwoPollsMs <= maxTimeDeltaMs) {
+            mWifiMetrics.incrementConnectionDuration(timeDeltaLastTwoPollsMs,
+                    mIsThroughputSufficient, mIsCellularDataAvailable);
+        }
 
         boolean possibleDataStallTx = isTxTputLow
                 || ccaLevel >= mDeviceConfigFacade.getDataStallCcaLevelThr()

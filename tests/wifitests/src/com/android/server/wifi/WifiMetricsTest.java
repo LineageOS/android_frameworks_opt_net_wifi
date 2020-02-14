@@ -4157,4 +4157,25 @@ public class WifiMetricsTest extends WifiBaseTest {
         dumpProtoAndDeserialize();
         assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
     }
+
+    /**
+     * Test the logging of connection duration stats
+     */
+    @Test
+    public void testConnectionDurationStats() throws Exception {
+        for (int i = 0; i < 2; i++) {
+            mWifiMetrics.incrementConnectionDuration(5000, false, true);
+            mWifiMetrics.incrementConnectionDuration(3000, true, true);
+            mWifiMetrics.incrementConnectionDuration(1000, false, false);
+            mWifiMetrics.incrementConnectionDuration(500, true, false);
+        }
+        dumpProtoAndDeserialize();
+
+        assertEquals(6000,
+                mDecodedProto.connectionDurationStats.totalTimeSufficientThroughputMs);
+        assertEquals(10000,
+                mDecodedProto.connectionDurationStats.totalTimeInsufficientThroughputMs);
+        assertEquals(3000,
+                mDecodedProto.connectionDurationStats.totalTimeCellularDataOffMs);
+    }
 }
