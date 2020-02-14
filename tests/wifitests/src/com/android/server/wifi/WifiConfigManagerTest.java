@@ -2006,8 +2006,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         verifyAddNetworkHasEverConnectedFalse(pskNetwork);
         verifyUpdateNetworkAfterConnectHasEverConnectedTrue(pskNetwork.networkId);
 
-        assertFalse(pskNetwork.requirePMF);
-        pskNetwork.requirePMF = true;
+        assertFalse(pskNetwork.requirePmf);
+        pskNetwork.requirePmf = true;
 
         NetworkUpdateResult result =
                 verifyUpdateNetworkToWifiConfigManagerWithoutIpChange(pskNetwork);

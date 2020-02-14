@@ -220,7 +220,7 @@ public class SupplicantStaNetworkHalTest extends WifiBaseTest {
     @Test
     public void testPskPassphraseNetworkWifiConfigurationSaveLoad() throws Exception {
         WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
-        config.requirePMF = true;
+        config.requirePmf = true;
         testWifiConfigurationSaveLoad(config);
         verify(mISupplicantStaNetworkMock).setPskPassphrase(anyString());
         verify(mISupplicantStaNetworkMock)

@@ -150,12 +150,12 @@ public class WifiConfigurationTestUtil {
 
             if ((security & SECURITY_SAE) != 0) {
                 config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
-                config.requirePMF = true;
+                config.requirePmf = true;
             }
 
             if ((security & SECURITY_OWE) != 0) {
                 config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.OWE);
-                config.requirePMF = true;
+                config.requirePmf = true;
             }
 
             if ((security & SECURITY_EAP) != 0) {
@@ -166,7 +166,7 @@ public class WifiConfigurationTestUtil {
 
             if ((security & SECURITY_EAP_SUITE_B) != 0) {
                 config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SUITE_B_192);
-                config.requirePMF = true;
+                config.requirePmf = true;
             }
 
             if ((security & SECURITY_WAPI_PSK) != 0) {
@@ -311,7 +311,7 @@ public class WifiConfigurationTestUtil {
 
         // SAE password uses the same member.
         configuration.preSharedKey = TEST_PSK;
-        configuration.requirePMF = true;
+        configuration.requirePmf = true;
         return configuration;
     }
 
@@ -375,7 +375,7 @@ public class WifiConfigurationTestUtil {
                 generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true,
                         null, null, SECURITY_EAP_SUITE_B);
 
-        configuration.requirePMF = true;
+        configuration.requirePmf = true;
         configuration.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.TLS);
         configuration.enterpriseConfig.setPhase2Method(WifiEnterpriseConfig.Phase2.NONE);
         return configuration;
@@ -581,7 +581,7 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.wepKeys, actual.wepKeys);
         assertEquals(expected.wepTxKeyIndex, actual.wepTxKeyIndex);
         assertEquals(expected.hiddenSSID, actual.hiddenSSID);
-        assertEquals(expected.requirePMF, actual.requirePMF);
+        assertEquals(expected.requirePmf, actual.requirePmf);
         assertEquals(expected.allowedKeyManagement, actual.allowedKeyManagement);
         assertEquals(expected.allowedProtocols, actual.allowedProtocols);
         assertEquals(expected.allowedAuthAlgorithms, actual.allowedAuthAlgorithms);
@@ -693,7 +693,7 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.wepKeys, actual.wepKeys);
         assertEquals(expected.wepTxKeyIndex, actual.wepTxKeyIndex);
         assertEquals(expected.hiddenSSID, actual.hiddenSSID);
-        assertEquals(expected.requirePMF, actual.requirePMF);
+        assertEquals(expected.requirePmf, actual.requirePmf);
         assertEquals(expected.allowedKeyManagement, actual.allowedKeyManagement);
         assertEquals(expected.allowedProtocols, actual.allowedProtocols);
         assertEquals(expected.allowedAuthAlgorithms, actual.allowedAuthAlgorithms);
