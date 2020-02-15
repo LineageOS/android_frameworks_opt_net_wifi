@@ -135,6 +135,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private @Mock ISuggestionConnectionStatusListener mListener;
     private @Mock IBinder mBinder;
     private @Mock ActivityManager mActivityManager;
+    private @Mock WifiScoreCard mWifiScoreCard;
     private TestLooper mLooper;
     private ArgumentCaptor<AppOpsManager.OnOpChangedListener> mAppOpChangedListenerCaptor =
             ArgumentCaptor.forClass(AppOpsManager.OnOpChangedListener.class);
@@ -163,6 +164,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 .thenReturn(mImsiPrivacyProtectionExemptionStoreData);
         when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
         when(mWifiInjector.getPasspointManager()).thenReturn(mPasspointManager);
+        when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mFrameworkFacade.getBroadcast(any(), anyInt(), any(), anyInt()))
                 .thenReturn(mock(PendingIntent.class));
         when(mContext.getResources()).thenReturn(mResources);
@@ -329,6 +331,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                         TEST_UID_2, TEST_PACKAGE_2));
         verify(mPasspointManager).removeProvider(eq(TEST_UID_2), eq(false),
                 eq(dummyConfiguration.getPasspointUniqueId()), isNull());
+        verify(mWifiScoreCard).removeNetwork(anyString());
 
         assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
 
