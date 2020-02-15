@@ -25,6 +25,7 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -83,6 +84,7 @@ public class PasspointWifiEntryTest {
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn("fqdn");
         passpointConfiguration.setHomeSp(homeSp);
+        passpointConfiguration.setCredential(new Credential());
         return passpointConfiguration;
     }
 

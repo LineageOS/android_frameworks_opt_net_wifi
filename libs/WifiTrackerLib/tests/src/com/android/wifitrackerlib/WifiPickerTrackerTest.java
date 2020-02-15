@@ -22,6 +22,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +37,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -510,6 +512,7 @@ public class WifiPickerTrackerTest {
         homeSp.setFqdn("fqdn");
         homeSp.setFriendlyName("friendlyName");
         passpointConfig.setHomeSp(homeSp);
+        passpointConfig.setCredential(new Credential());
         when(mMockWifiManager.getPasspointConfigurations())
                 .thenReturn(Collections.singletonList(passpointConfig));
         wifiPickerTracker.onStart();
@@ -517,8 +520,8 @@ public class WifiPickerTrackerTest {
                 any(), any(), any());
         mTestLooper.dispatchAll();
 
-        final WifiConfiguration wifiConfig = new WifiConfiguration();
-        wifiConfig.FQDN = "fqdn";
+        final WifiConfiguration wifiConfig = spy(new WifiConfiguration());
+        when(wifiConfig.getKey()).thenReturn(passpointConfig.getUniqueId());
         final Map<Integer, List<ScanResult>> mapping = new HashMap<>();
         mapping.put(WifiManager.PASSPOINT_HOME_NETWORK, Collections.singletonList(
                 buildScanResult("ssid", "bssid", START_MILLIS)));
@@ -537,13 +540,14 @@ public class WifiPickerTrackerTest {
         final String fqdn = "fqdn";
         final String friendlyName = "friendlyName";
         final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
-        final PasspointConfiguration config = new PasspointConfiguration();
+        final PasspointConfiguration passpointConfig = new PasspointConfiguration();
         final HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(fqdn);
         homeSp.setFriendlyName(friendlyName);
-        config.setHomeSp(homeSp);
+        passpointConfig.setHomeSp(homeSp);
+        passpointConfig.setCredential(new Credential());
         when(mMockWifiManager.getPasspointConfigurations())
-                .thenReturn(Collections.singletonList(config));
+                .thenReturn(Collections.singletonList(passpointConfig));
         when(mMockWifiInfo.isPasspointAp()).thenReturn(true);
         when(mMockWifiInfo.getPasspointFqdn()).thenReturn(fqdn);
         when(mMockWifiInfo.getRssi()).thenReturn(-50);
