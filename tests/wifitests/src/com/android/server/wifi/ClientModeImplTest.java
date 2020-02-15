@@ -408,6 +408,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock SubscriptionManager mSubscriptionManager;
     @Mock ConnectionFailureNotifier mConnectionFailureNotifier;
     @Mock EapFailureNotifier mEapFailureNotifier;
+    @Mock SimRequiredNotifier mSimRequiredNotifier;
     @Mock ThroughputPredictor mThroughputPredictor;
     @Mock ScanRequestProxy mScanRequestProxy;
 
@@ -585,7 +586,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
                 mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller,
                 mLinkProbeManager, mBatteryStatsManager, mSupplicantStateTracker,
-                mMboOceController, mTelephonyUtil, mEapFailureNotifier);
+                mMboOceController, mTelephonyUtil, mEapFailureNotifier, mSimRequiredNotifier);
         mCmi.start();
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
@@ -1022,7 +1023,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * When the SIM card was removed, if the current wifi connection is notusing it, the connection
+     * When the SIM card was removed, if the current wifi connection is not using it, the connection
      * should be kept.
      */
     @Test
@@ -1051,8 +1052,10 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         doReturn(true).when(mTelephonyUtil).isSimPresent(eq(DATA_SUBID));
-        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, false);
+        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, 0);
         mLooper.dispatchAll();
+
+        verify(mSimRequiredNotifier, never()).showSimRequiredNotification(any(), any());
 
         assertEquals("ObtainingIpState", getCurrentState().getName());
     }
@@ -1087,9 +1090,10 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         doReturn(false).when(mTelephonyUtil).isSimPresent(eq(DATA_SUBID));
-        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, false);
+        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, 0);
         mLooper.dispatchAll();
 
+        verify(mSimRequiredNotifier).showSimRequiredNotification(any(), any());
         assertEquals("DisconnectingState", getCurrentState().getName());
     }
 
@@ -3783,7 +3787,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         startSupplicantAndDispatchMessages();
 
         // Indicate that sim is removed.
-        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, false);
+        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, 0);
         mLooper.dispatchAll();
 
         verify(mWifiConfigManager).resetSimNetworks();
@@ -3791,18 +3795,21 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify inserting sim will rest carrier privileged suggestor apps.
+     * Verify inserting sim will reset carrier privileged suggestor apps.
+     * and remove any previous notifications due to sim removal
      */
     @Test
     public void testResetCarrierPrivilegedAppsWhenInsertingSim() throws Exception {
         // Switch to connect mode and verify wifi is reported as enabled
         startSupplicantAndDispatchMessages();
 
-        // Indicate that sim is removed.
-        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, true);
+        // Indicate that sim is inserted.
+        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, 1);
         mLooper.dispatchAll();
 
+        verify(mWifiConfigManager, never()).resetSimNetworks();
         verify(mWifiNetworkSuggestionsManager).resetCarrierPrivilegedApps();
+        verify(mSimRequiredNotifier).dismissSimRequiredNotification();
     }
 
     /**
