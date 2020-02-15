@@ -172,12 +172,6 @@ public class WifiConfigManager {
     private static final int MAX_BLOCKED_BSSID_PER_NETWORK = 10;
 
     /**
-     * Maximum age of frequencies last seen to be included in pno scans. (30 days)
-     */
-    @VisibleForTesting
-    public static final long MAX_PNO_SCAN_FREQUENCY_AGE_MS = (long) 1000 * 3600 * 24 * 30;
-
-    /**
      * Enforce a minimum time to wait after the last disconnect to generate a new randomized MAC,
      * since IPv6 networks don't provide the DHCP lease duration.
      * 4 hours.
@@ -954,7 +948,7 @@ public class WifiConfigManager {
             internalConfig.BSSID = externalConfig.BSSID.toLowerCase();
         }
         internalConfig.hiddenSSID = externalConfig.hiddenSSID;
-        internalConfig.requirePMF = externalConfig.requirePMF;
+        internalConfig.requirePmf = externalConfig.requirePmf;
 
         if (externalConfig.preSharedKey != null
                 && !externalConfig.preSharedKey.equals(PASSWORD_MASK)) {
@@ -1112,7 +1106,7 @@ public class WifiConfigManager {
         // Copy over the hidden configuration parameters. These are the only parameters used by
         // system apps to indicate some property about the network being added.
         // These are only copied over for network additions and ignored for network updates.
-        newInternalConfig.requirePMF = externalConfig.requirePMF;
+        newInternalConfig.requirePmf = externalConfig.requirePmf;
         newInternalConfig.noInternetAccessExpected = externalConfig.noInternetAccessExpected;
         newInternalConfig.ephemeral = externalConfig.ephemeral;
         newInternalConfig.osu = externalConfig.osu;
@@ -2749,42 +2743,6 @@ public class WifiConfigManager {
     }
 
     /**
-     * Retrieve a set of channels on which AP's for the provided network was seen using the
-     * internal ScanResult's cache {@link #mScanDetailCaches}. This is used to reduced the list
-     * of frequencies for pno scans.
-     *
-     * @param networkId       network ID corresponding to the network.
-     * @param ageInMillis     only consider scan details whose timestamps are earlier than this.
-     * @return Set containing the frequencies on which this network was found, null if the network
-     * was not found or there are no associated scan details in the cache.
-     */
-    private Set<Integer> fetchChannelSetForNetworkForPnoScan(int networkId, long ageInMillis) {
-        WifiConfiguration config = getInternalConfiguredNetwork(networkId);
-        if (config == null) {
-            return null;
-        }
-        ScanDetailCache scanDetailCache = getScanDetailCacheForNetwork(networkId);
-        if (scanDetailCache == null) {
-            return null;
-        }
-        if (mVerboseLoggingEnabled) {
-            Log.v(TAG, new StringBuilder("fetchChannelSetForNetworkForPnoScan ageInMillis ")
-                    .append(ageInMillis)
-                    .append(" for ")
-                    .append(config.getKey())
-                    .append(" bssids " + scanDetailCache.size())
-                    .toString());
-        }
-        Set<Integer> channelSet = new HashSet<>();
-        long nowInMillis = mClock.getWallClockMillis();
-
-        // Add channels for the network to the output.
-        addToChannelSetForNetworkFromScanDetailCache(channelSet, scanDetailCache, nowInMillis,
-                ageInMillis, Integer.MAX_VALUE);
-        return channelSet;
-    }
-
-    /**
      * Retrieves a list of all the saved networks before enabling disconnected/connected PNO.
      *
      * PNO network list sent to the firmware has limited size. If there are a lot of saved
@@ -2825,13 +2783,9 @@ public class WifiConfigManager {
             if (!mContext.getResources().getBoolean(R.bool.config_wifiPnoFrequencyCullingEnabled)) {
                 continue;
             }
-            Set<Integer> channelSet = fetchChannelSetForNetworkForPnoScan(config.networkId,
-                    MAX_PNO_SCAN_FREQUENCY_AGE_MS);
-            if (channelSet != null) {
-                pnoNetwork.frequencies = channelSet.stream()
-                        .mapToInt(Integer::intValue)
-                        .toArray();
-            }
+            WifiScoreCard.PerNetwork network = mWifiScoreCard.lookupNetwork(config.SSID);
+            List<Integer> channelList = network.getFrequencies();
+            pnoNetwork.frequencies = channelList.stream().mapToInt(Integer::intValue).toArray();
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "retrievePnoNetworkList " + pnoNetwork.ssid + ":"
                         + Arrays.toString(pnoNetwork.frequencies));

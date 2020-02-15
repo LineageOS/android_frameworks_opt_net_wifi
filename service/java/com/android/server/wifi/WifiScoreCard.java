@@ -111,6 +111,10 @@ public class WifiScoreCard {
     private static final int MIN_NUM_DISCONNECTION = 20;
     private static final int MIN_NUM_DISCONNECTION_PREV = 40;
 
+    // Minimum number of connection attempts to qualify abnormal auth detection
+    static final int MIN_NUM_CONNECTION_ATTEMPT_ABNORMAL_AUTH_FAILURE = 5;
+    static final int FAILURE_PERCENT_THRESHOLD_ABNORMAL_AUTH_FAILURE = 80;
+
     static final int INSUFFICIENT_RECENT_STATS = 0;
     static final int SUFFICIENT_RECENT_STATS_ONLY = 1;
     static final int SUFFICIENT_RECENT_PREV_STATS = 2;
@@ -566,6 +570,23 @@ public class WifiScoreCard {
                 perBssid.blocklistStreakCount[i] = 0;
             }
         }
+    }
+
+    /**
+     * Detect abnormal authentication failure at high RSSI with enough connection attempts
+     * and high failure rate
+     * @return true if abnormal auth failure is detected, false otherwise
+     */
+    public boolean detectAbnormalAuthFailure(String ssid) {
+        PerNetwork perNetwork = lookupNetwork(ssid);
+        NetworkConnectionStats recentStats = perNetwork.getRecentStats();
+        logd("detectAbnormalAuthFailure: " + recentStats.toString());
+        int numAuthFailure = recentStats.getCount(CNT_AUTHENTICATION_FAILURE);
+        int numAttempt = recentStats.getCount(CNT_CONNECTION_ATTEMPT);
+        boolean hasEnoughAttempt = numAttempt >=  MIN_NUM_CONNECTION_ATTEMPT_ABNORMAL_AUTH_FAILURE;
+        boolean isAuthFailureRateHigh = (numAuthFailure * 100)
+                >= (numAttempt * FAILURE_PERCENT_THRESHOLD_ABNORMAL_AUTH_FAILURE);
+        return hasEnoughAttempt && isAuthFailureRateHigh;
     }
 
     final class PerBssid extends MemoryStoreAccessBase {

@@ -225,7 +225,7 @@ public class XmlUtilTest extends WifiBaseTest {
         configuration.linkedConfigurations = new HashMap<>();
         configuration.linkedConfigurations.put(TEST_DUMMY_CONFIG_KEY, Integer.valueOf(1));
         configuration.defaultGwMacAddress = TEST_STATIC_IP_GATEWAY_ADDRESS;
-        configuration.requirePMF = true;
+        configuration.requirePmf = true;
         configuration.validatedInternetAccess = true;
         configuration.noInternetAccessExpected = true;
         configuration.meteredHint = true;

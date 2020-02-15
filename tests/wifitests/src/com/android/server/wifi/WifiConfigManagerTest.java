@@ -142,6 +142,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     @Mock private WifiScoreCard mWifiScoreCard;
     @Mock private PerNetwork mPerNetwork;
+    @Mock private PerNetwork mPerNetwork1;
 
     private MockResources mResources;
     private InOrder mContextConfigStoreMockOrder;
@@ -2006,8 +2007,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         verifyAddNetworkHasEverConnectedFalse(pskNetwork);
         verifyUpdateNetworkAfterConnectHasEverConnectedTrue(pskNetwork.networkId);
 
-        assertFalse(pskNetwork.requirePMF);
-        pskNetwork.requirePMF = true;
+        assertFalse(pskNetwork.requirePmf);
+        pskNetwork.requirePmf = true;
 
         NetworkUpdateResult result =
                 verifyUpdateNetworkToWifiConfigManagerWithoutIpChange(pskNetwork);
@@ -2440,8 +2441,9 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
         verifyAddNetworkToWifiConfigManager(network1);
         verifyAddNetworkToWifiConfigManager(network2);
-
-        // Enable all of them.
+        when(mWifiScoreCard.lookupNetwork(network1.SSID)).thenReturn(mPerNetwork);
+        when(mWifiScoreCard.lookupNetwork(network2.SSID)).thenReturn(mPerNetwork1);
+                // Enable all of them.
         assertTrue(mWifiConfigManager.enableNetwork(
                 network1.networkId, false, TEST_CREATOR_UID, TEST_CREATOR_NAME));
         assertTrue(mWifiConfigManager.enableNetwork(
@@ -2468,27 +2470,28 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         ScanDetail scanDetail4 = createScanDetailForNetwork(network1, TEST_BSSID + "4",
                 TEST_RSSI, TEST_FREQUENCY_3);
 
-        // Set last seen timestamps so that when retrieving the frequencies for |network1|
-        // |TEST_FREQUENCY_2| gets included but |TEST_FREQUENCY_3| gets excluded.
-        scanDetail3.getScanResult().seen =
-                mClock.getWallClockMillis() - WifiConfigManager.MAX_PNO_SCAN_FREQUENCY_AGE_MS + 1;
-        scanDetail4.getScanResult().seen =
-                mClock.getWallClockMillis() - WifiConfigManager.MAX_PNO_SCAN_FREQUENCY_AGE_MS;
         mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail1);
         mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail2);
         mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail3);
         mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail4);
+        ArgumentCaptor<Integer> argumentCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(mPerNetwork, times(4)).addFrequency(argumentCaptor.capture());
+        verify(mPerNetwork1, never()).addFrequency(anyInt());
 
-        // Verify the frequencies are correct for |network1| and |TEST_FREQUENCY_3| is not in the
-        // list because it's older than the max age.
+        Set<Integer> channelSet = new HashSet<>();
+        channelSet.addAll(argumentCaptor.getAllValues());
+        assertEquals(3, channelSet.size());
+        when(mPerNetwork.getFrequencies()).thenReturn(new ArrayList<>(channelSet));
+        when(mPerNetwork1.getFrequencies()).thenReturn(new ArrayList<>());
         pnoNetworks = mWifiConfigManager.retrievePnoNetworkList();
         assertEquals(2, pnoNetworks.size());
         assertEquals(network1.SSID, pnoNetworks.get(0).ssid);
         assertEquals(network2.SSID, pnoNetworks.get(1).ssid);
-        assertEquals(2, pnoNetworks.get(0).frequencies.length);
+        assertEquals(3, pnoNetworks.get(0).frequencies.length);
         Arrays.sort(pnoNetworks.get(0).frequencies);
         assertEquals(TEST_FREQUENCY_1, pnoNetworks.get(0).frequencies[0]);
         assertEquals(TEST_FREQUENCY_2, pnoNetworks.get(0).frequencies[1]);
+        assertEquals(TEST_FREQUENCY_3, pnoNetworks.get(0).frequencies[2]);
         assertTrue("frequencies should be empty", pnoNetworks.get(1).frequencies.length == 0);
     }
 
