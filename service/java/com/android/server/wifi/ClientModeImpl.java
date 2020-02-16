@@ -245,6 +245,7 @@ public class ClientModeImpl extends StateMachine {
     private int mLastNetworkId; // The network Id we successfully joined
     // The subId used by WifiConfiguration with SIM credential which was connected successfully
     private int mLastSubId;
+    private String mLastSimBasedConnectionCarrierName;
 
     private boolean mIpReachabilityDisconnectEnabled = true;
 
@@ -703,6 +704,7 @@ public class ClientModeImpl extends StateMachine {
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
     private final EapFailureNotifier mEapFailureNotifier;
+    private final SimRequiredNotifier mSimRequiredNotifier;
     private final ConnectionFailureNotifier mConnectionFailureNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     // Maximum duration to continue to log Wifi usability stats after a data stall is triggered.
@@ -720,7 +722,8 @@ public class ClientModeImpl extends StateMachine {
                             BatteryStatsManager batteryStatsManager,
                             SupplicantStateTracker supplicantStateTracker,
                             MboOceController mboOceController,
-                            TelephonyUtil telephonyUtil, EapFailureNotifier eapFailureNotifier) {
+                            TelephonyUtil telephonyUtil, EapFailureNotifier eapFailureNotifier,
+                            SimRequiredNotifier simRequiredNotifier) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -734,6 +737,7 @@ public class ClientModeImpl extends StateMachine {
         mBackupManagerProxy = backupManagerProxy;
         mWrongPasswordNotifier = wrongPasswordNotifier;
         mEapFailureNotifier = eapFailureNotifier;
+        mSimRequiredNotifier = simRequiredNotifier;
         mSarManager = sarManager;
         mWifiTrafficPoller = wifiTrafficPoller;
         mLinkProbeManager = linkProbeManager;
@@ -771,6 +775,7 @@ public class ClientModeImpl extends StateMachine {
         mLastBssid = null;
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
         mLastSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        mLastSimBasedConnectionCarrierName = null;
         mLastSignalLevel = -1;
 
         mCountryCode = countryCode;
@@ -1768,6 +1773,7 @@ public class ClientModeImpl extends StateMachine {
         pw.println("mLastBssid " + mLastBssid);
         pw.println("mLastNetworkId " + mLastNetworkId);
         pw.println("mLastSubId " + mLastSubId);
+        pw.println("mLastSimBasedConnectionCarrierName " + mLastSimBasedConnectionCarrierName);
         pw.println("mOperationalMode " + mOperationalMode);
         pw.println("mSuspendOptimizationsEnabled " + mContext.getResources().getBoolean(
                 R.bool.config_wifiSuspendOptimizationsEnabled));
@@ -2654,6 +2660,7 @@ public class ClientModeImpl extends StateMachine {
         registerDisconnected();
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
         mLastSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        mLastSimBasedConnectionCarrierName = null;
         mWifiScoreCard.resetConnectionState();
         updateL2KeyAndGroupHint();
     }
@@ -3426,6 +3433,7 @@ public class ClientModeImpl extends StateMachine {
         mLastBssid = null;
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
         mLastSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        mLastSimBasedConnectionCarrierName = null;
         mLastSignalLevel = -1;
         mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
         // TODO: b/79504296 This broadcast has been deprecated and should be removed
@@ -4010,6 +4018,8 @@ public class ClientModeImpl extends StateMachine {
                         if (config.enterpriseConfig != null
                                 && config.enterpriseConfig.isAuthenticationSimBased()) {
                             mLastSubId = mTelephonyUtil.getBestMatchSubscriptionId(config);
+                            mLastSimBasedConnectionCarrierName =
+                                mTelephonyUtil.getCarrierNameforSubId(mLastSubId);
                             String anonymousIdentity =
                                     mWifiNative.getEapAnonymousIdentity(mInterfaceName);
                             if (!TextUtils.isEmpty(anonymousIdentity)
@@ -4071,7 +4081,10 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_RESET_SIM_NETWORKS:
                     log("resetting EAP-SIM/AKA/AKA' networks since SIM was changed");
                     boolean simPresent = message.arg1 == 1;
-                    if (!simPresent) {
+                    if (simPresent) {
+                        // whenever a SIM is inserted clear all SIM related notifications
+                        mSimRequiredNotifier.dismissSimRequiredNotification();
+                    } else {
                         mWifiConfigManager.resetSimNetworks();
                     }
                     mWifiNetworkSuggestionsManager.resetCarrierPrivilegedApps();
@@ -4707,6 +4720,8 @@ public class ClientModeImpl extends StateMachine {
 
                             mWifiNative.disconnect(mInterfaceName);
                             mWifiNative.removeNetworkCachedData(mLastNetworkId);
+                            mSimRequiredNotifier.showSimRequiredNotification(
+                                    config, mLastSimBasedConnectionCarrierName);
                             transitionTo(mDisconnectingState);
                         }
                     }

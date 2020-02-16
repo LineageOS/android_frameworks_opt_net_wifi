@@ -331,7 +331,8 @@ public class WifiInjector {
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager, mBatteryStats,
                 supplicantStateTracker, mMboOceController, mTelephonyUtil,
-                new EapFailureNotifier(mContext, mFrameworkFacade, mTelephonyUtil));
+                new EapFailureNotifier(mContext, mFrameworkFacade, mTelephonyUtil),
+                new SimRequiredNotifier(mContext, mFrameworkFacade));
         mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
                 mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics,
                 mContext, mClientModeImpl, mSettingsStore, mFrameworkFacade, mWifiPermissionsUtil);

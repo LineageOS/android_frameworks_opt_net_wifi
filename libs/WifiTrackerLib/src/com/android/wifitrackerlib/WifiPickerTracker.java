@@ -19,7 +19,7 @@ package com.android.wifitrackerlib;
 import static androidx.core.util.Preconditions.checkNotNull;
 
 import static com.android.wifitrackerlib.OsuWifiEntry.osuProviderToOsuWifiEntryKey;
-import static com.android.wifitrackerlib.PasspointWifiEntry.fqdnToPasspointWifiEntryKey;
+import static com.android.wifitrackerlib.PasspointWifiEntry.uniqueIdToPasspointWifiEntryKey;
 import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
 import static com.android.wifitrackerlib.Utils.mapScanResultsToKey;
 import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_CONNECTED;
@@ -333,8 +333,8 @@ public class WifiPickerTracker extends BaseWifiTracker {
                     pair.second.get(WifiManager.PASSPOINT_HOME_NETWORK);
             final List<ScanResult> roamingScans =
                     pair.second.get(WifiManager.PASSPOINT_ROAMING_NETWORK);
-            final String key = fqdnToPasspointWifiEntryKey(wifiConfig.FQDN);
-            // Skip in case we don't have a Passpoint configuration for the returned fqdn
+            final String key = uniqueIdToPasspointWifiEntryKey(wifiConfig.getKey());
+            // Skip in case we don't have a Passpoint configuration for the returned unique key
             if (!mPasspointConfigCache.containsKey(key)) {
                 continue;
             }
@@ -455,8 +455,8 @@ public class WifiPickerTracker extends BaseWifiTracker {
 
         mPasspointConfigCache.clear();
         mPasspointConfigCache.putAll(configs.stream().collect(
-                toMap((config) -> fqdnToPasspointWifiEntryKey(
-                        config.getHomeSp().getFqdn()), Function.identity())));
+                toMap((config) -> uniqueIdToPasspointWifiEntryKey(
+                        config.getUniqueId()), Function.identity())));
 
         // Iterate through current entries and update each entry's config or remove if no config
         // matches the entry anymore.
@@ -530,12 +530,16 @@ public class WifiPickerTracker extends BaseWifiTracker {
             return;
         }
 
+        // TODO(b/148556276): This logic will match the fqdn of the connected passpoint network to
+        // the first PasspointConfiguration found. This may or may not represent the actual
+        // connection, so we will need to use WifiInfo.getPasspointUniqueId() once it is ready to be
+        // a public API.
         final String connectedFqdn = wifiInfo.getPasspointFqdn();
         mPasspointConfigCache.values().stream()
                 .filter(config ->
                         config.getHomeSp().getFqdn() == connectedFqdn
                                 && !mPasspointWifiEntryCache.containsKey(
-                                        fqdnToPasspointWifiEntryKey(connectedFqdn)))
+                                        uniqueIdToPasspointWifiEntryKey(config.getUniqueId())))
                 .findAny().ifPresent(config -> {
                     final PasspointWifiEntry connectedEntry =
                             new PasspointWifiEntry(mContext, mMainHandler, config, mWifiManager,

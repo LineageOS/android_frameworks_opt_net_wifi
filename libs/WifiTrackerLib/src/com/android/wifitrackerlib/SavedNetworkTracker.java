@@ -18,7 +18,7 @@ package com.android.wifitrackerlib;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
-import static com.android.wifitrackerlib.PasspointWifiEntry.fqdnToPasspointWifiEntryKey;
+import static com.android.wifitrackerlib.PasspointWifiEntry.uniqueIdToPasspointWifiEntryKey;
 import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
 import static com.android.wifitrackerlib.Utils.mapScanResultsToKey;
 
@@ -221,8 +221,8 @@ public class SavedNetworkTracker extends BaseWifiTracker {
                 mWifiManager.getAllMatchingWifiConfigs(scanResults);
         for (Pair<WifiConfiguration, Map<Integer, List<ScanResult>>> pair : matchingWifiConfigs) {
             final WifiConfiguration wifiConfig = pair.first;
-            final String key = fqdnToPasspointWifiEntryKey(wifiConfig.FQDN);
-            // Skip in case we don't have a PasspointWifiEntry for the returned fqdn
+            final String key = uniqueIdToPasspointWifiEntryKey(wifiConfig.getKey());
+            // Skip in case we don't have a PasspointWifiEntry for the returned unique identifier.
             if (!mPasspointWifiEntryCache.containsKey(key)) {
                 continue;
             }
@@ -325,7 +325,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
 
         final Map<String, PasspointConfiguration> passpointConfigsByKey =
                 configs.stream().collect(toMap(
-                        (config) -> fqdnToPasspointWifiEntryKey(config.getHomeSp().getFqdn()),
+                        (config) -> uniqueIdToPasspointWifiEntryKey(config.getUniqueId()),
                         Function.identity()));
 
         // Iterate through current entries and update each entry's config or remove if no config
