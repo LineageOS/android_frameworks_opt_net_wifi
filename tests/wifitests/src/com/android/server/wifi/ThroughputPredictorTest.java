@@ -25,7 +25,7 @@ import static org.mockito.Mockito.validateMockitoUsage;
 import static org.mockito.Mockito.when;
 
 import android.net.wifi.ScanResult;
-import android.net.wifi.wificond.DeviceWiphyCapabilities;
+import android.net.wifi.nl80211.DeviceWiphyCapabilities;
 
 import androidx.test.filters.SmallTest;
 

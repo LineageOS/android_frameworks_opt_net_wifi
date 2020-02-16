@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 import android.app.test.MockAnswerUtil;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.os.Handler;
 import android.os.test.TestLooper;
 

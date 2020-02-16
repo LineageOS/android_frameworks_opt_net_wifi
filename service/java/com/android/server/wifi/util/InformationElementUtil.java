@@ -20,8 +20,8 @@ import android.net.wifi.ScanResult.InformationElement;
 import android.net.wifi.WifiAnnotations.Cipher;
 import android.net.wifi.WifiAnnotations.KeyMgmt;
 import android.net.wifi.WifiAnnotations.Protocol;
-import android.net.wifi.wificond.NativeScanResult;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.NativeScanResult;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.util.Log;
 
 import com.android.server.wifi.ByteBufferReader;

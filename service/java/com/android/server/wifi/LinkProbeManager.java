@@ -19,7 +19,7 @@ package com.android.server.wifi;
 import android.content.Context;
 import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.os.Handler;
 import android.util.Log;
 

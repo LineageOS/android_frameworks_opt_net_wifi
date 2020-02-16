@@ -21,7 +21,7 @@ import static com.android.server.wifi.util.InformationElementUtil.BssLoad.MIN_CH
 import android.annotation.NonNull;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
-import android.net.wifi.wificond.DeviceWiphyCapabilities;
+import android.net.wifi.nl80211.DeviceWiphyCapabilities;
 import android.util.Log;
 
 /**

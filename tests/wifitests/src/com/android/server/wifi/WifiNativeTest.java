@@ -35,10 +35,10 @@ import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.wificond.NativeScanResult;
-import android.net.wifi.wificond.RadioChainInfo;
-import android.net.wifi.wificond.WifiNl80211Manager;
-import android.net.wifi.wificond.WifiNl80211Manager.SendMgmtFrameCallback;
+import android.net.wifi.nl80211.NativeScanResult;
+import android.net.wifi.nl80211.RadioChainInfo;
+import android.net.wifi.nl80211.WifiNl80211Manager;
+import android.net.wifi.nl80211.WifiNl80211Manager.SendMgmtFrameCallback;
 import android.os.Handler;
 
 import androidx.test.filters.SmallTest;
