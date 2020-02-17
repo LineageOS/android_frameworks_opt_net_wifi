@@ -60,6 +60,7 @@ import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientManager;
 import android.net.shared.Inet4AddressUtils;
 import android.net.shared.ProvisioningConfiguration;
+import android.net.shared.ProvisioningConfiguration.ScanResultInfo;
 import android.net.util.NetUtils;
 import android.net.wifi.IActionListener;
 import android.net.wifi.INetworkRequestMatchCallback;
@@ -4855,13 +4856,35 @@ public class ClientModeImpl extends StateMachine {
                             R.string.config_wifi_tcp_buffers));
                 }
             }
+
+            WifiConfiguration config = getCurrentWifiConfiguration();
+            ScanDetailCache scanDetailCache =
+                    mWifiConfigManager.getScanDetailCacheForNetwork(config.networkId);
+            ScanResult scanResult = null;
+            if (scanDetailCache != null && mLastBssid != null) {
+                scanResult = scanDetailCache.getScanResult(mLastBssid);
+            }
+
             final ProvisioningConfiguration prov;
+            ProvisioningConfiguration.ScanResultInfo scanResultInfo = null;
+            if (scanResult != null) {
+                final List<ScanResultInfo.InformationElement> ies =
+                        new ArrayList<ScanResultInfo.InformationElement>();
+                for (ScanResult.InformationElement ie : scanResult.getInformationElements()) {
+                    ScanResultInfo.InformationElement scanResultInfoIe =
+                            new ScanResultInfo.InformationElement(ie.getId(), ie.getBytes());
+                    ies.add(scanResultInfoIe);
+                }
+                scanResultInfo = new ProvisioningConfiguration.ScanResultInfo(scanResult.SSID, ies);
+            }
+
             if (!isUsingStaticIp) {
                 prov = new ProvisioningConfiguration.Builder()
                             .withPreDhcpAction()
                             .withApfCapabilities(mWifiNative.getApfCapabilities(mInterfaceName))
                             .withNetwork(getCurrentNetwork())
                             .withDisplayName(currentConfig.SSID)
+                            .withScanResultInfo(scanResultInfo)
                             .build();
             } else {
                 StaticIpConfiguration staticIpConfig = currentConfig.getStaticIpConfiguration();
