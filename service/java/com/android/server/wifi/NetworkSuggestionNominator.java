@@ -169,8 +169,7 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
                 int creatorUid = wCmConfiguredNetwork.creatorUid;
                 Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsFromSamePackage =
                         autojoinEnableSuggestions.stream()
-                                .filter(ewns -> ewns.wns.wifiConfiguration.creatorUid
-                                        == creatorUid)
+                                .filter(ewns -> ewns.perAppInfo.uid == creatorUid)
                                 .collect(Collectors.toSet());
                 if (matchingExtNetworkSuggestionsFromSamePackage.isEmpty()) {
                     continue;
