@@ -448,6 +448,9 @@ public class ApConfigUtil {
         } catch (IllegalArgumentException iae) {
             Log.e(TAG, "Invalid WifiConfiguration" + iae);
             return null;
+        } catch (IllegalStateException ise) {
+            Log.e(TAG, "Invalid WifiConfiguration" + ise);
+            return null;
         }
         return configBuilder.build();
     }

@@ -1156,7 +1156,7 @@ public class PasspointManager {
      * @return True if the configuration is expired, false if not or expiration is unset
      */
     private boolean isExpired(@NonNull PasspointConfiguration config) {
-        long expirationTime = config.getSubscriptionExpirationTimeInMillis();
+        long expirationTime = config.getSubscriptionExpirationTimeMillis();
 
         if (expirationTime != Long.MIN_VALUE) {
             long curTime = System.currentTimeMillis();
