@@ -25,7 +25,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioAttributes;
-import android.media.AudioDevice;
+import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.wifi.WifiManager;
@@ -156,9 +156,9 @@ public class SarManager {
         final AudioAttributes voiceCallAttr = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                 .build();
-        List<AudioDevice> devices = mAudioManager.getDevicesForAttributes(voiceCallAttr);
-        for (AudioDevice device : devices) {
-            if (device.getRole() == AudioDevice.ROLE_OUTPUT
+        List<AudioDeviceAttributes> devices = mAudioManager.getDevicesForAttributes(voiceCallAttr);
+        for (AudioDeviceAttributes device : devices) {
+            if (device.getRole() == AudioDeviceAttributes.ROLE_OUTPUT
                     && device.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
                 return true;
             }
