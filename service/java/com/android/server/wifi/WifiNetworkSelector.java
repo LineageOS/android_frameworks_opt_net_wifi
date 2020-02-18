@@ -650,6 +650,13 @@ public class WifiNetworkSelector {
     }
 
     /**
+     * Cleans up state that should go away when wifi is disabled.
+     */
+    public void resetOnDisable() {
+        mWifiConfigManager.clearLastSelectedNetwork();
+    }
+
+    /**
      * Select the best network from the ones in range. Scan detail cache is also updated here.
      *
      * @param scanDetails             List of ScanDetail for all the APs in range

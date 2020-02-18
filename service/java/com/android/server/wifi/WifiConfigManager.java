@@ -2162,7 +2162,7 @@ public class WifiConfigManager {
      * Helper method to clear out the {@link #mNextNetworkId} user/app network selection. This
      * is done when either the corresponding network is either removed or disabled.
      */
-    private void clearLastSelectedNetwork() {
+    public void clearLastSelectedNetwork() {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Clearing last selected network");
         }
