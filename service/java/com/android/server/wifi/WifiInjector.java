@@ -28,7 +28,7 @@ import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.HandlerExecutor;

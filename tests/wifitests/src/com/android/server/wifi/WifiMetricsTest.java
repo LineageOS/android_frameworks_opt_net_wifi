@@ -63,7 +63,7 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.ProvisioningCallback;
 import android.net.wifi.hotspot2.pps.Credential;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;

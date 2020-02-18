@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.net.wifi.WifiInfo;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.os.Handler;
 import android.os.test.TestLooper;
 

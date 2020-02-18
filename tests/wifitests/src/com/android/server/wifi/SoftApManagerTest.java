@@ -64,7 +64,7 @@ import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.wificond.NativeWifiClient;
+import android.net.wifi.nl80211.NativeWifiClient;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.provider.Settings;
