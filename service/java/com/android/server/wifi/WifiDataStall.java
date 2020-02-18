@@ -27,7 +27,9 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
+import com.android.server.wifi.scanner.KnownBandsChannelHelper;
 import com.android.server.wifi.util.InformationElementUtil.BssLoad;
 import com.android.wifi.resources.R;
 
@@ -256,6 +258,8 @@ public class WifiDataStall {
         if (timeDeltaLastTwoPollsMs > 0 && timeDeltaLastTwoPollsMs <= maxTimeDeltaMs) {
             mWifiMetrics.incrementConnectionDuration(timeDeltaLastTwoPollsMs,
                     mIsThroughputSufficient, mIsCellularDataAvailable);
+            reportWifiHealthStat(currFrequency, timeDeltaLastTwoPollsMs, mIsThroughputSufficient,
+                    mIsCellularDataAvailable);
         }
 
         boolean possibleDataStallTx = isTxTputLow
@@ -405,6 +409,42 @@ public class WifiDataStall {
         return  possibleFalseInsufficient ? lastIsTputSufficient : isTputSufficient;
     }
 
+    /**
+     * Report the latest Wifi connection health to WestWorld
+     */
+    private void reportWifiHealthStat(int frequency, int timeDeltaLastTwoPollsMs,
+            boolean isThroughputSufficient,
+            boolean isCellularDataAvailable) {
+        int band = getBand(frequency);
+        WifiStatsLog.write(WifiStatsLog.WIFI_HEALTH_STAT_REPORTED, timeDeltaLastTwoPollsMs,
+                isThroughputSufficient,  isCellularDataAvailable, band);
+    }
+
+    private int getBand(int frequency) {
+        int band;
+        if (frequency >= KnownBandsChannelHelper.BAND_24_GHZ_START_FREQ
+                && frequency <= KnownBandsChannelHelper.BAND_24_GHZ_END_FREQ) {
+            band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__BAND_2G;
+        } else if (frequency >= KnownBandsChannelHelper.BAND_5_GHZ_START_FREQ
+                && frequency <= KnownBandsChannelHelper.BAND_6_GHZ_END_FREQ) {
+            if (frequency <= KnownBandsChannelHelper.BAND_5_GHZ_LOW_END_FREQ) {
+                band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__BAND_5G_LOW;
+            } else if (frequency <= KnownBandsChannelHelper.BAND_5_GHZ_MID_END_FREQ) {
+                band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__BAND_5G_MIDDLE;
+            } else if (frequency <= KnownBandsChannelHelper.BAND_5_GHZ_END_FREQ) {
+                band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__BAND_5G_HIGH;
+            } else if (frequency <= KnownBandsChannelHelper.BAND_6_GHZ_LOW_END_FREQ) {
+                band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__BAND_6G_LOW;
+            } else if (frequency <= KnownBandsChannelHelper.BAND_6_GHZ_MID_END_FREQ) {
+                band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__BAND_6G_MIDDLE;
+            } else {
+                band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__BAND_6G_HIGH;
+            }
+        } else {
+            band = WifiStatsLog.WIFI_HEALTH_STAT_REPORTED__BAND__UNKNOWN;
+        }
+        return band;
+    }
     private void logd(String string) {
         if (mVerboseLoggingEnabled) {
             Log.d(TAG, string);
