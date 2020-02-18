@@ -386,6 +386,17 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     /** Returns whether subscription of the entry is expired */
     public abstract boolean isExpired();
 
+    /** Returns whether a user can manage their subscription through this WifiEntry */
+    public boolean canManageSubscription() {
+        // Subclasses should implement this method.
+        return false;
+    };
+
+    /** Allows the user to manage their subscription via an external flow */
+    public void manageSubscription() {
+        // Subclasses should implement this method.
+    };
+
     /** Returns the ScanResult information of a WifiEntry */
     abstract String getScanResultDescription();
 
