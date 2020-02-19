@@ -317,8 +317,8 @@ public class WifiInjector {
                 mContext, this, mWifiNative, mBuildProperties,
                 new LastMileLogger(this), mClock);
         mWifiChannelUtilizationConnected = new WifiChannelUtilization(mClock);
-        mWifiDataStall = new WifiDataStall(mFrameworkFacade, mWifiMetrics, mDeviceConfigFacade,
-                mWifiChannelUtilizationConnected, mClock);
+        mWifiDataStall = new WifiDataStall(mFrameworkFacade, mWifiMetrics, mContext,
+                mDeviceConfigFacade, mWifiChannelUtilizationConnected, mClock, wifiHandler);
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
                 mFrameworkFacade, wifiHandler, mContext);

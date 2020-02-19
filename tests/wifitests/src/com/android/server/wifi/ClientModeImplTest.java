@@ -4030,15 +4030,17 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that MboOce initialization/Deinitialization methods are called in ClientMode.
+     * Verify that MboOce/WifiDataStall enable/disable methods are called in ClientMode.
      */
     @Test
-    public void verifyMboOceInitAndDeinitInClientMode() throws Exception {
+    public void verifyMboOceWifiDataStallSetupInClientMode() throws Exception {
         startSupplicantAndDispatchMessages();
         verify(mMboOceController).enable();
+        verify(mWifiDataStall).enablePhoneStateListener();
         mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
         verify(mMboOceController).disable();
+        verify(mWifiDataStall).disablePhoneStateListener();
     }
 
     /**

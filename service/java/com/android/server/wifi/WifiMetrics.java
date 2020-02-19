@@ -439,6 +439,9 @@ public class WifiMetrics {
     /** Mapping of failure code to the respective passpoint provision failure count. */
     private final IntCounter mPasspointProvisionFailureCounts = new IntCounter();
 
+    // Connection duration stats collected while link layer stats reports are on
+    private final ConnectionDurationStats mConnectionDurationStats = new ConnectionDurationStats();
+
     @VisibleForTesting
     static class NetworkSelectionExperimentResults {
         public static final int MAX_CHOICES = 10;
@@ -527,6 +530,49 @@ public class WifiMetrics {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("networkSelectionFilteredBssidCount=" + networkSelectionFilteredBssidCount);
+            return sb.toString();
+        }
+    }
+
+    class ConnectionDurationStats {
+        private int mConnectionDurationCellularDataOffMs;
+        private int mConnectionDurationSufficientThroughputMs;
+        private int mConnectionDurationInSufficientThroughputMs;
+
+        public WifiMetricsProto.ConnectionDurationStats toProto() {
+            WifiMetricsProto.ConnectionDurationStats proto =
+                    new WifiMetricsProto.ConnectionDurationStats();
+            proto.totalTimeSufficientThroughputMs = mConnectionDurationSufficientThroughputMs;
+            proto.totalTimeInsufficientThroughputMs = mConnectionDurationInSufficientThroughputMs;
+            proto.totalTimeCellularDataOffMs = mConnectionDurationCellularDataOffMs;
+            return proto;
+        }
+        public void clear() {
+            mConnectionDurationCellularDataOffMs = 0;
+            mConnectionDurationSufficientThroughputMs = 0;
+            mConnectionDurationInSufficientThroughputMs = 0;
+        }
+        public void incrementDurationCount(int timeDeltaLastTwoPollsMs,
+                boolean isThroughputSufficient, boolean isCellularDataAvailable) {
+            if (!isCellularDataAvailable) {
+                mConnectionDurationCellularDataOffMs += timeDeltaLastTwoPollsMs;
+            } else {
+                if (isThroughputSufficient) {
+                    mConnectionDurationSufficientThroughputMs += timeDeltaLastTwoPollsMs;
+                } else {
+                    mConnectionDurationInSufficientThroughputMs += timeDeltaLastTwoPollsMs;
+                }
+            }
+        }
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("connectionDurationSufficientThroughputMs=")
+                    .append(mConnectionDurationSufficientThroughputMs)
+                    .append(", connectionDurationInSufficientThroughputMs=")
+                    .append(mConnectionDurationInSufficientThroughputMs)
+                    .append(", connectionDurationCellularDataOffMs=")
+                    .append(mConnectionDurationCellularDataOffMs);
             return sb.toString();
         }
     }
@@ -2897,6 +2943,8 @@ public class WifiMetrics {
                 pw.println("mWifiLogProto.rxLinkSpeedCount5gHigh=" + mRxLinkSpeedCount5gHigh);
                 pw.println("mWifiLogProto.numIpRenewalFailure="
                         + mWifiLogProto.numIpRenewalFailure);
+                pw.println("mWifiLogProto.connectionDurationStats="
+                        + mConnectionDurationStats.toString());
             }
         }
     }
@@ -3458,6 +3506,7 @@ public class WifiMetrics {
                 mWifiLogProto.healthMonitorMetrics = healthMonitorMetrics;
             }
             mWifiLogProto.bssidBlocklistStats = mBssidBlocklistStats.toProto();
+            mWifiLogProto.connectionDurationStats = mConnectionDurationStats.toProto();
         }
     }
 
@@ -3653,6 +3702,8 @@ public class WifiMetrics {
             mPasspointProvisionFailureCounts.clear();
             mNumProvisionSuccess = 0;
             mBssidBlocklistStats = new BssidBlocklistStats();
+            mConnectionDurationStats.clear();
+
         }
     }
 
@@ -5208,6 +5259,17 @@ public class WifiMetrics {
     public void setDataStallCcaLevelThr(int ccaLevel) {
         synchronized (mLock) {
             mExperimentValues.dataStallCcaLevelThr = ccaLevel;
+        }
+    }
+
+    /**
+     * Increment connection duration while link layer stats report are on
+     */
+    public void incrementConnectionDuration(int timeDeltaLastTwoPollsMs,
+            boolean isThroughputSufficient, boolean isCellularDataAvailable) {
+        synchronized (mLock) {
+            mConnectionDurationStats.incrementDurationCount(timeDeltaLastTwoPollsMs,
+                    isThroughputSufficient, isCellularDataAvailable);
         }
     }
 }
