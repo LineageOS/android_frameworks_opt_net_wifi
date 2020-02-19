@@ -135,16 +135,16 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     /**
      * Helper method to create and verify actions for the ApConfigStore used in the following tests.
      */
-    private WifiApConfigStore createWifiApConfigStore(String legacyFilePath) {
+    private WifiApConfigStore createWifiApConfigStore(File legacyFile) {
         WifiApConfigStore store;
-        if (legacyFilePath == null) {
+        if (legacyFile == null) {
             store = new WifiApConfigStore(
                     mContext, mWifiInjector, mHandler, mBackupManagerProxy,
                     mWifiConfigStore, mWifiConfigManager, mActiveModeWarden);
         } else {
             store = new WifiApConfigStore(
                     mContext, mWifiInjector, mHandler, mBackupManagerProxy,
-                    mWifiConfigStore, mWifiConfigManager, mActiveModeWarden, legacyFilePath);
+                    mWifiConfigStore, mWifiConfigManager, mActiveModeWarden, legacyFile);
         }
 
         verify(mWifiConfigStore).registerStoreData(any());
@@ -325,7 +325,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         assertWifiConfigurationEqualSoftApConfiguration(backupConfig, expectedConfig);
 
         writeLegacyApConfigFile(backupConfig);
-        WifiApConfigStore store = createWifiApConfigStore(mLegacyApConfigFile.getPath());
+        WifiApConfigStore store = createWifiApConfigStore(mLegacyApConfigFile);
         verify(mWifiConfigManager).saveToStore(true);
         verify(mBackupManagerProxy).notifyDataChanged();
         verifyApConfig(expectedConfig, store.getApConfiguration());
