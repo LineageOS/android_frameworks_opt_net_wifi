@@ -224,9 +224,10 @@ public class WifiNetworkSelector {
     }
 
     /**
-     * Check if one of following conditions is met to avoid a new network selection
-     * 1) current network is in OSU process
-     * 2) current network has internet access, sufficient link quality and active traffic
+     * Determines whether the currently connected network is sufficient.
+     *
+     * If the network is good enough, or if switching to a new network is likely to
+     * be disruptive, we should avoid doing a network selection.
      *
      * @param wifiInfo info of currently connected network
      * @return true if the network is sufficient
@@ -245,6 +246,18 @@ public class WifiNetworkSelector {
         if (network == null) {
             localLog("Current network was removed");
             return false;
+        }
+
+        // Skip autojoin for the first few seconds of a user-initiated connection.
+        // This delays network selection during the time that connectivity service may be posting
+        // a dialog about a no-internet network.
+        if (mWifiConfigManager.getLastSelectedNetwork() == network.networkId
+                && (mClock.getElapsedSinceBootMillis()
+                    - mWifiConfigManager.getLastSelectedTimeStamp())
+                <= mContext.getResources().getInteger(
+                    R.integer.config_wifiSufficientDurationAfterUserSelectionMilliseconds)) {
+            localLog("Current network is recently user-selected");
+            return true;
         }
 
         // Set OSU (Online Sign Up) network for Passpoint Release 2 to sufficient
