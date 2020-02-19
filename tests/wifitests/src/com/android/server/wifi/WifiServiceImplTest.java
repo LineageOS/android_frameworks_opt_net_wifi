@@ -131,6 +131,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.IPowerManager;
+import android.os.IThermalService;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.Process;
@@ -342,7 +343,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.getSystemService(Context.ACTIVITY_SERVICE)).thenReturn(mActivityManager);
         when(mContext.getSystemService(Context.APP_OPS_SERVICE)).thenReturn(mAppOpsManager);
         IPowerManager powerManagerService = mock(IPowerManager.class);
-        mPowerManager = new PowerManager(mContext, powerManagerService, new Handler());
+        IThermalService thermalService = mock(IThermalService.class);
+        mPowerManager =
+                new PowerManager(mContext, powerManagerService, thermalService, new Handler());
         when(mContext.getSystemServiceName(PowerManager.class)).thenReturn(Context.POWER_SERVICE);
         when(mContext.getSystemService(PowerManager.class)).thenReturn(mPowerManager);
         WifiAsyncChannel wifiAsyncChannel = new WifiAsyncChannel("WifiServiceImplTest");
