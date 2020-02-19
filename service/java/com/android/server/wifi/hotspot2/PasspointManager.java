@@ -1215,4 +1215,12 @@ public class PasspointManager {
     public boolean isProvidersListEmpty() {
         return mProviders.isEmpty();
     }
+
+    /**
+     * Clear ANQP requests and flush ANQP Cache (for factory reset)
+     */
+    public void clearAnqpRequestsAndFlushCache() {
+        mAnqpRequestManager.clear();
+        mAnqpCache.flush();
+    }
 }
