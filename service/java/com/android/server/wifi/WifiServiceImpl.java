@@ -2720,16 +2720,29 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     @Override
     public boolean removePasspointConfiguration(String fqdn, String packageName) {
+        return removePasspointConfigurationInternal(fqdn, null);
+    }
+
+    /**
+     * Remove a Passpoint profile based on either FQDN (multiple matching profiles) or a unique
+     * identifier (one matching profile).
+     *
+     * @param fqdn The FQDN of the Passpoint configuration to be removed
+     * @param uniqueId The unique identifier of the Passpoint configuration to be removed
+     * @return true on success or false on failure
+     */
+    private boolean removePasspointConfigurationInternal(String fqdn, String uniqueId) {
         final int uid = Binder.getCallingUid();
         boolean privileged = false;
         if (mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 || mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
             privileged = true;
         }
-        mLog.info("removePasspointConfiguration uid=%").c(Binder.getCallingUid()).flush();
+        mLog.info("removePasspointConfigurationInternal uid=%").c(Binder.getCallingUid()).flush();
         final boolean privilegedFinal = privileged;
         return mWifiThreadRunner.call(
-                () -> mPasspointManager.removeProvider(uid, privilegedFinal, null, fqdn), false);
+                () -> mPasspointManager.removeProvider(uid, privilegedFinal, uniqueId, fqdn),
+                false);
     }
 
     /**
@@ -3329,7 +3342,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 () -> mPasspointManager.getProviderConfigs(Process.WIFI_UID /* ignored */, true),
                 Collections.emptyList());
         for (PasspointConfiguration config : configs) {
-            removePasspointConfiguration(config.getUniqueId(), packageName);
+            removePasspointConfigurationInternal(null, config.getUniqueId());
         }
         mWifiThreadRunner.post(() -> {
             mWifiConfigManager.clearDeletedEphemeralNetworks();

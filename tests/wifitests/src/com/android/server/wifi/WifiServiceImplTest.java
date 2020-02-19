@@ -4019,8 +4019,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         verify(mWifiConfigManager).removeNetwork(
                 network.networkId, Binder.getCallingUid(), TEST_PACKAGE_NAME);
-        verify(mPasspointManager).removeProvider(anyInt(), anyBoolean(), isNull(),
-                eq(config.getUniqueId()));
+        verify(mPasspointManager).removeProvider(anyInt(), anyBoolean(), eq(config.getUniqueId()),
+                isNull());
         verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();

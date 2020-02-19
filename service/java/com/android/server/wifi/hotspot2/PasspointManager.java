@@ -486,14 +486,14 @@ public class PasspointManager {
     public boolean removeProvider(int callingUid, boolean privileged, String uniqueId,
             String fqdn) {
         if (uniqueId == null && fqdn == null) {
+            mWifiMetrics.incrementNumPasspointProviderUninstallation();
             Log.e(TAG, "Cannot remove provider, both FQDN and unique ID are null");
             return false;
         }
 
-        mWifiMetrics.incrementNumPasspointProviderUninstallation();
-
         if (uniqueId != null) {
             // Unique identifier provided
+            mWifiMetrics.incrementNumPasspointProviderUninstallation();
             PasspointProvider provider = mProviders.get(uniqueId);
             if (provider == null) {
                 Log.e(TAG, "Config doesn't exist");
@@ -504,16 +504,26 @@ public class PasspointManager {
 
         // FQDN provided, loop through all profiles with matching FQDN
         ArrayList<PasspointProvider> passpointProviders = new ArrayList<>(mProviders.values());
-        boolean removed = false;
-
+        int removedProviders = 0;
+        int numOfUninstallations = 0;
         for (PasspointProvider provider : passpointProviders) {
             if (!TextUtils.equals(provider.getConfig().getHomeSp().getFqdn(), fqdn)) {
                 continue;
             }
-            removed = removed || removeProviderInternal(provider, callingUid, privileged);
+            mWifiMetrics.incrementNumPasspointProviderUninstallation();
+            numOfUninstallations++;
+            if (removeProviderInternal(provider, callingUid, privileged)) {
+                removedProviders++;
+            }
         }
 
-        return removed;
+        if (numOfUninstallations == 0) {
+            // Update uninstallation requests metrics here to cover the corner case of trying to
+            // uninstall a non-existent provider.
+            mWifiMetrics.incrementNumPasspointProviderUninstallation();
+        }
+
+        return removedProviders > 0;
     }
 
     /**
