@@ -62,6 +62,7 @@ import android.net.wifi.rtt.WifiRttManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.IPowerManager;
+import android.os.IThermalService;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -215,7 +216,7 @@ public class RttServiceImplTest extends WifiBaseTest {
                 true);
 
         mMockPowerManager = new PowerManager(mockContext, mock(IPowerManager.class),
-                new Handler(mMockLooper.getLooper()));
+                mock(IThermalService.class), new Handler(mMockLooper.getLooper()));
         when(mMockPowerManager.isDeviceIdleMode()).thenReturn(false);
         when(mockContext.getSystemServiceName(PowerManager.class)).thenReturn(
                 Context.POWER_SERVICE);
