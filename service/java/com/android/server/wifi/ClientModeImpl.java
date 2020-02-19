@@ -57,6 +57,7 @@ import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientManager;
 import android.net.shared.ProvisioningConfiguration;
+import android.net.shared.ProvisioningConfiguration.ScanResultInfo;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.RssiPacketCountInfo;
 import android.net.wifi.ScanResult;
@@ -5387,12 +5388,34 @@ public class ClientModeImpl extends StateMachine {
                     mIpClient.setTcpBufferSizes(mTcpBufferSizes);
                 }
             }
+
+            WifiConfiguration config = getCurrentWifiConfiguration();
+            ScanDetailCache scanDetailCache =
+                    mWifiConfigManager.getScanDetailCacheForNetwork(config.networkId);
+            ScanResult scanResult = null;
+            if (scanDetailCache != null && mLastBssid != null) {
+                scanResult = scanDetailCache.getScanResult(mLastBssid);
+            }
+
             final ProvisioningConfiguration prov;
+            ProvisioningConfiguration.ScanResultInfo scanResultInfo = null;
+            if (scanResult != null) {
+                final List<ScanResultInfo.InformationElement> ies =
+                        new ArrayList<ScanResultInfo.InformationElement>();
+                for (ScanResult.InformationElement ie : scanResult.getInformationElements()) {
+                    ScanResultInfo.InformationElement scanResultInfoIe =
+                            new ScanResultInfo.InformationElement(ie.getId(), ie.getBytes());
+                    ies.add(scanResultInfoIe);
+                }
+                scanResultInfo = new ProvisioningConfiguration.ScanResultInfo(scanResult.SSID, ies);
+            }
+
             if (!isUsingStaticIp) {
                 prov = new ProvisioningConfiguration.Builder()
                             .withPreDhcpAction()
                             .withApfCapabilities(mWifiNative.getApfCapabilities(mInterfaceName))
                             .withNetwork(getCurrentNetwork())
+                            .withScanResultInfo(scanResultInfo)
                             .withDisplayName(currentConfig.SSID)
                             .build();
             } else {
