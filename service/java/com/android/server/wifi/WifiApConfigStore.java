@@ -23,7 +23,6 @@ import android.net.MacAddress;
 import android.net.util.MacAddressUtils;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Process;
 import android.text.TextUtils;
@@ -31,6 +30,7 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.ApConfigUtil;
+import com.android.server.wifi.util.Environment;
 import com.android.wifi.resources.R;
 
 import java.io.BufferedInputStream;
@@ -59,8 +59,7 @@ public class WifiApConfigStore {
 
     // Note: This is the legacy Softap config file. This is only used for migrating data out
     // of this file on first reboot.
-    private static final String LEGACY_AP_CONFIG_FILE =
-            Environment.getDataDirectory() + "/misc/wifi/softap.conf";
+    private static final String LEGACY_AP_CONFIG_FILE = "softap.conf";
 
     @VisibleForTesting
     public static final int AP_CONFIG_FILE_VERSION = 3;
@@ -122,7 +121,8 @@ public class WifiApConfigStore {
             BackupManagerProxy backupManagerProxy, WifiConfigStore wifiConfigStore,
             WifiConfigManager wifiConfigManager, ActiveModeWarden activeModeWarden) {
         this(context, wifiInjector, handler, backupManagerProxy, wifiConfigStore,
-                wifiConfigManager, activeModeWarden, LEGACY_AP_CONFIG_FILE);
+                wifiConfigManager, activeModeWarden,
+                new File(Environment.getWifiSharedFolder(), LEGACY_AP_CONFIG_FILE));
     }
 
     WifiApConfigStore(Context context,
@@ -132,7 +132,7 @@ public class WifiApConfigStore {
             WifiConfigStore wifiConfigStore,
             WifiConfigManager wifiConfigManager,
             ActiveModeWarden activeModeWarden,
-            String apConfigFile) {
+            File apConfigFile) {
         mContext = context;
         mHandler = handler;
         mBackupManagerProxy = backupManagerProxy;
@@ -141,7 +141,7 @@ public class WifiApConfigStore {
 
         // One time migration from legacy config store.
         try {
-            File file = new File(apConfigFile);
+            File file = apConfigFile;
             FileInputStream fis = new FileInputStream(apConfigFile);
             /* Load AP configuration from persistent storage. */
             SoftApConfiguration config = loadApConfigurationFromLegacyFile(fis);
