@@ -29,10 +29,10 @@ import android.net.wifi.WifiAnnotations;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
-import android.net.wifi.wificond.DeviceWiphyCapabilities;
-import android.net.wifi.wificond.NativeScanResult;
-import android.net.wifi.wificond.RadioChainInfo;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.DeviceWiphyCapabilities;
+import android.net.wifi.nl80211.NativeScanResult;
+import android.net.wifi.nl80211.RadioChainInfo;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.text.TextUtils;
@@ -2667,9 +2667,9 @@ public class WifiNative {
             return Objects.hash(ssid, flags, auth_bit_field, frequencies);
         }
 
-        android.net.wifi.wificond.PnoNetwork toNativePnoNetwork() {
-            android.net.wifi.wificond.PnoNetwork nativePnoNetwork =
-                    new android.net.wifi.wificond.PnoNetwork();
+        android.net.wifi.nl80211.PnoNetwork toNativePnoNetwork() {
+            android.net.wifi.nl80211.PnoNetwork nativePnoNetwork =
+                    new android.net.wifi.nl80211.PnoNetwork();
             nativePnoNetwork.setHidden(
                     (flags & WifiScanner.PnoSettings.PnoNetwork.FLAG_DIRECTED_SCAN) != 0);
             try {
@@ -2696,18 +2696,18 @@ public class WifiNative {
         public boolean isConnected;
         public PnoNetwork[] networkList;
 
-        android.net.wifi.wificond.PnoSettings toNativePnoSettings() {
-            android.net.wifi.wificond.PnoSettings nativePnoSettings =
-                    new android.net.wifi.wificond.PnoSettings();
+        android.net.wifi.nl80211.PnoSettings toNativePnoSettings() {
+            android.net.wifi.nl80211.PnoSettings nativePnoSettings =
+                    new android.net.wifi.nl80211.PnoSettings();
             nativePnoSettings.setIntervalMillis(periodInMs);
             nativePnoSettings.setMin2gRssiDbm(min24GHzRssi);
             nativePnoSettings.setMin5gRssiDbm(min5GHzRssi);
             nativePnoSettings.setMin6gRssiDbm(min6GHzRssi);
 
-            List<android.net.wifi.wificond.PnoNetwork> pnoNetworks = new ArrayList<>();
+            List<android.net.wifi.nl80211.PnoNetwork> pnoNetworks = new ArrayList<>();
             if (networkList != null) {
                 for (PnoNetwork network : networkList) {
-                    android.net.wifi.wificond.PnoNetwork nativeNetwork =
+                    android.net.wifi.nl80211.PnoNetwork nativeNetwork =
                             network.toNativePnoNetwork();
                     if (nativeNetwork != null) {
                         pnoNetworks.add(nativeNetwork);

@@ -33,7 +33,7 @@ import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiAnnotations;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
-import android.net.wifi.wificond.NativeWifiClient;
+import android.net.wifi.nl80211.NativeWifiClient;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;

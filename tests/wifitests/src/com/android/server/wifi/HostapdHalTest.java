@@ -34,7 +34,7 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApConfiguration.Builder;
-import android.net.wifi.wificond.WifiNl80211Manager;
+import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.os.Handler;
 import android.os.IHwBinder;
 import android.os.RemoteException;

@@ -1368,4 +1368,10 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         assertEquals("Expect null configuration", null, candidate);
         assertTrue(mWifiNetworkSelector.getConnectableScanDetails().isEmpty());
     }
+
+    @Test
+    public void resetOnDisableCallsClearLastSelectedNetwork() {
+        mWifiNetworkSelector.resetOnDisable();
+        verify(mWifiConfigManager).clearLastSelectedNetwork();
+    }
 }
