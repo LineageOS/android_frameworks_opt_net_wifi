@@ -44,12 +44,25 @@ import java.util.stream.Collectors;
  * This allows more fine operations on channels than if band channels are not known.
  */
 public class KnownBandsChannelHelper extends ChannelHelper {
-    private static final int BAND_24_GHZ_START_FREQ = 2400;
-    private static final int BAND_24_GHZ_END_FREQ = 2500;
-    private static final int BAND_5_GHZ_START_FREQ = 5100;
-    private static final int BAND_5_GHZ_END_FREQ = 6000;
-    private static final int BAND_6_GHZ_START_FREQ = 5925;
-    private static final int BAND_6_GHZ_END_FREQ = 7125;
+    public static final int BAND_24_GHZ_START_FREQ = 2400;
+    public static final int BAND_24_GHZ_END_FREQ = 2500;
+    public static final int BAND_5_GHZ_START_FREQ = 4900;
+    public static final int BAND_5_GHZ_END_FREQ = 5875;
+    public static final int BAND_6_GHZ_START_FREQ = 5925;
+    public static final int BAND_6_GHZ_END_FREQ = 7125;
+
+    // 5G low includes U-NII-1 and Japan 4.9G band
+    public static final int BAND_5_GHZ_LOW_END_FREQ = 5240;
+    // 5G middle includes U-NII-2A and U-NII-2C
+    public static final int BAND_5_GHZ_MID_END_FREQ = 5710;
+    // 5G high includes U-NII-3
+    public static final int BAND_5_GHZ_HIGH_END_FREQ = BAND_5_GHZ_END_FREQ;
+    // 6G low includes UNII-5
+    public static final int BAND_6_GHZ_LOW_END_FREQ = 6425;
+    // 6G middle includes UNII-6 and UNII-7
+    public static final int BAND_6_GHZ_MID_END_FREQ = 6875;
+    // 6G high includes UNII-8
+    public static final int BAND_6_GHZ_HIGH_END_FREQ = BAND_6_GHZ_END_FREQ;
 
     private WifiScanner.ChannelSpec[][] mBandsToChannels;
 
