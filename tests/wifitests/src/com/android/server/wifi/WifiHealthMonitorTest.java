@@ -619,8 +619,11 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
         assertEquals(4, mWifiHealthMonitor.getWifiSystemInfoStats().getScanFailure());
     }
 
+    /**
+     * Test when remove a saved network will remove network from the WifiScoreCard.
+     */
     @Test
-    public void testRemoveNetwork() throws Exception {
+    public void testRemoveSavedNetwork() {
         makeNetworkConnectionExample();
         PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
         assertNotNull(perNetwork);
@@ -629,6 +632,22 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
         mWifiConfigManager.removeNetwork(1, 1, "some package");
         perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
         assertNull(perNetwork);
+    }
+
+    /**
+     * Test when remove a suggestion network will not remove network from the WifiScoreCard.
+     */
+    @Test
+    public void testRemoveSuggestionNetwork() throws Exception {
+        mWifiConfig.fromWifiNetworkSuggestion = true;
+        makeNetworkConnectionExample();
+        PerNetwork perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        assertNotNull(perNetwork);
+
+        // Now remove the network
+        mWifiConfigManager.removeNetwork(1, 1, "some package");
+        perNetwork = mWifiScoreCard.fetchByNetwork(mWifiInfo.getSSID());
+        assertNotNull(perNetwork);
     }
 
     @Test
