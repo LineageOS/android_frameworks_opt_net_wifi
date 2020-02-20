@@ -445,7 +445,7 @@ public class ApConfigUtilTest extends WifiBaseTest {
 
     @Test
     public void testSoftApCapabilityInitWithResourceValue() throws Exception {
-        int testFeatures = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT;
+        long testFeatures = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT;
         SoftApCapability capability = new SoftApCapability(testFeatures);
         int test_max_client = 10;
         capability.setMaxSupportedClients(test_max_client);

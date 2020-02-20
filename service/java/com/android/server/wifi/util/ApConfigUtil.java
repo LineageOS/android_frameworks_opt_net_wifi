@@ -464,7 +464,7 @@ public class ApConfigUtil {
      */
     @NonNull
     public static SoftApCapability updateCapabilityFromResource(@NonNull Context context) {
-        int features = 0;
+        long features = 0;
         if (isAcsSupported(context)) {
             Log.d(TAG, "Update Softap capability, add acs feature support");
             features |= SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
