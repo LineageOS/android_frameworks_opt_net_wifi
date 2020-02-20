@@ -21,6 +21,7 @@ import static com.android.server.wifi.WifiConfigurationTestUtil.generateWifiConf
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.argThat;
 
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.app.test.TestAlarmManager;
@@ -55,6 +56,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
@@ -190,6 +192,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     private static final String CANDIDATE_SSID = "\"AnSsid\"";
     private static final String CANDIDATE_BSSID = "6c:f3:7f:ae:8c:f3";
     private static final String INVALID_SCAN_RESULT_BSSID = "6c:f3:7f:ae:8c:f4";
+    private static final int TEST_FREQUENCY = 2420;
     private static final long CURRENT_SYSTEM_TIME_MS = 1000;
     private static final int MAX_BSSID_BLACKLIST_SIZE = 16;
     private static final int[] VALID_CONNECTED_SINGLE_SCAN_SCHEDULE = {10, 30, 50};
@@ -315,6 +318,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         WifiCandidates.Key key = mock(WifiCandidates.Key.class);
         when(mCandidate1.getKey()).thenReturn(key);
         when(mCandidate1.getScanRssi()).thenReturn(-40);
+        when(mCandidate1.getFrequency()).thenReturn(TEST_FREQUENCY);
         when(mCandidate2.getKey()).thenReturn(key);
         when(mCandidate2.getScanRssi()).thenReturn(-60);
         mCandidateList = new ArrayList<WifiCandidates.Candidate>();
@@ -720,6 +724,44 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         // Verify a candidate if found this time.
         verify(mClientModeImpl).startConnectToNetwork(
                 CANDIDATE_NETWORK_ID, Process.WIFI_UID, CANDIDATE_BSSID);
+    }
+
+    /**
+     * Verify that the device is initiating partial scans to verify AP stability in the high
+     * movement mobility state.
+     */
+    @Test
+    public void testHighMovementTriggerPartialScan() {
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
+        // Enable high movement optimization
+        mResources.setBoolean(R.bool.config_wifiHighMovementNetworkSelectionOptimizationEnabled,
+                true);
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+
+        // Set WiFi to disconnected state to trigger scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+        mLooper.dispatchAll();
+        // Verify there is no connection due to currently having no cached candidates.
+        verify(mClientModeImpl, never()).startConnectToNetwork(
+                CANDIDATE_NETWORK_ID, Process.WIFI_UID, CANDIDATE_BSSID);
+
+        // Move time forward and verify that a delayed partial scan is scheduled.
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(HIGH_MVMT_SCAN_DELAY_MS + 1L);
+        mAlarmManager.dispatch(WifiConnectivityManager.DELAYED_PARTIAL_SCAN_TIMER_TAG);
+        mLooper.dispatchAll();
+
+        verify(mWifiScanner).startScan((ScanSettings) argThat(new WifiPartialScanSettingMatcher()),
+                any(), any(), any());
+    }
+
+    private class WifiPartialScanSettingMatcher implements ArgumentMatcher<ScanSettings> {
+        @Override
+        public boolean matches(ScanSettings scanSettings) {
+            return scanSettings.band == WifiScanner.WIFI_BAND_UNSPECIFIED
+                    && scanSettings.channels[0].frequency == TEST_FREQUENCY;
+        }
     }
 
     /**

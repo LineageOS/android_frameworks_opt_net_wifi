@@ -370,7 +370,7 @@
     <bool translatable="false" name="config_wifiSuspendOptimizationsEnabled">true</bool>
 
     <!-- Network selection optimization at DEVICE_MOBILITY_STATE_HIGH_MVMT -->
-    <bool translatable="false" name="config_wifiHighMovementNetworkSelectionOptimizationEnabled">false</bool>
+    <bool translatable="false" name="config_wifiHighMovementNetworkSelectionOptimizationEnabled">true</bool>
 
     <!-- Duration for the delayed scan used to verify access points are staying relatively stationary
     to the device at high mobility state. (default = 10 seconds) -->
