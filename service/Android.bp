@@ -136,8 +136,6 @@ java_library {
         app_image: false,
     },
 
-    init_rc: [":wifi-init-rc"],
-
     visibility: [
         "//frameworks/opt/net/wifi/service/apex",
         "//frameworks/opt/net/wifi/tests/wifitests/apex",
@@ -173,7 +171,9 @@ android_app {
     manifest: "AndroidManifest_Resources.xml",
 }
 
-filegroup {
-    name: "wifi-init-rc",
-    srcs: ["wifi.rc"],
+// Prebuilt for the wifi.rc file.
+prebuilt_etc {
+    name: "wifi.rc",
+    src: "wifi.rc",
+    sub_dir: "init"
 }
