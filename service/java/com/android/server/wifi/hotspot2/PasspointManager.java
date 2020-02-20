@@ -137,6 +137,10 @@ public class PasspointManager {
         @Override
         public void onANQPResponse(long bssid,
                 Map<Constants.ANQPElementType, ANQPElement> anqpElements) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "ANQP response received from BSSID "
+                        + Utils.macToString(bssid));
+            }
             // Notify request manager for the completion of a request.
             ANQPNetworkKey anqpKey =
                     mAnqpRequestManager.onRequestCompleted(bssid, anqpElements != null);
