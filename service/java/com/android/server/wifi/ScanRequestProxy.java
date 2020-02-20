@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.WifiSettingsConfigStore.WIFI_SCAN_THROTTLE_ENABLED;
+
 import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
@@ -31,7 +33,6 @@ import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.WorkSource;
-import android.provider.Settings;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Pair;
@@ -88,7 +89,7 @@ public class ScanRequestProxy {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiMetrics mWifiMetrics;
     private final Clock mClock;
-    private final FrameworkFacade mFrameworkFacade;
+    private final WifiSettingsConfigStore mSettingsConfigStore;
     private WifiScanner mWifiScanner;
 
     // Verbose logging flag.
@@ -193,7 +194,7 @@ public class ScanRequestProxy {
     ScanRequestProxy(Context context, AppOpsManager appOpsManager, ActivityManager activityManager,
                      WifiInjector wifiInjector, WifiConfigManager configManager,
                      WifiPermissionsUtil wifiPermissionUtil, WifiMetrics wifiMetrics, Clock clock,
-                     FrameworkFacade frameworkFacade, Handler handler) {
+                     Handler handler, WifiSettingsConfigStore settingsConfigStore) {
         mContext = context;
         mHandler = handler;
         mAppOps = appOpsManager;
@@ -203,7 +204,7 @@ public class ScanRequestProxy {
         mWifiPermissionsUtil = wifiPermissionUtil;
         mWifiMetrics = wifiMetrics;
         mClock = clock;
-        mFrameworkFacade = frameworkFacade;
+        mSettingsConfigStore = settingsConfigStore;
         mRegisteredScanResultsCallbacks = new RemoteCallbackList<>();
     }
 
@@ -222,8 +223,7 @@ public class ScanRequestProxy {
         if (mWifiScanner == null) {
             mWifiScanner = mWifiInjector.getWifiScanner();
             // Start listening for throttle settings change after we retrieve scanner instance.
-            mThrottleEnabled = mFrameworkFacade.getIntegerSetting(
-                    mContext, Settings.Global.WIFI_SCAN_THROTTLE_ENABLED, 1) == 1;
+            mThrottleEnabled = mSettingsConfigStore.getBoolean(WIFI_SCAN_THROTTLE_ENABLED, true);
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Scan throttle enabled " + mThrottleEnabled);
             }
@@ -524,8 +524,7 @@ public class ScanRequestProxy {
      */
     public void setScanThrottleEnabled(boolean enable) {
         mThrottleEnabled = enable;
-        mFrameworkFacade.setIntegerSetting(
-                mContext, Settings.Global.WIFI_SCAN_THROTTLE_ENABLED, enable ? 1 : 0);
+        mSettingsConfigStore.putBoolean(WIFI_SCAN_THROTTLE_ENABLED, enable);
         Log.i(TAG, "Scan throttle enabled " + mThrottleEnabled);
     }
 

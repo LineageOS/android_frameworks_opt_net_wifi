@@ -94,6 +94,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.IPowerManager;
+import android.os.IThermalService;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
@@ -236,7 +237,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(context.getContentResolver()).thenReturn(mockContentResolver);
 
         when(context.getSystemService(Context.POWER_SERVICE)).thenReturn(
-                new PowerManager(context, mock(IPowerManager.class), new Handler()));
+                new PowerManager(context, mock(IPowerManager.class), mock(IThermalService.class),
+                    new Handler()));
 
         mAlarmManager = new TestAlarmManager();
         when(context.getSystemService(Context.ALARM_SERVICE)).thenReturn(
@@ -4028,15 +4030,17 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that MboOce initialization/Deinitialization methods are called in ClientMode.
+     * Verify that MboOce/WifiDataStall enable/disable methods are called in ClientMode.
      */
     @Test
-    public void verifyMboOceInitAndDeinitInClientMode() throws Exception {
+    public void verifyMboOceWifiDataStallSetupInClientMode() throws Exception {
         startSupplicantAndDispatchMessages();
         verify(mMboOceController).enable();
+        verify(mWifiDataStall).enablePhoneStateListener();
         mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
         verify(mMboOceController).disable();
+        verify(mWifiDataStall).disablePhoneStateListener();
     }
 
     /**

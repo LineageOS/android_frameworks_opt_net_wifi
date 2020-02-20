@@ -3449,6 +3449,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiDiagnostics.startLogging(mInterfaceName);
 
         mMboOceController.enable();
+        mWifiDataStall.enablePhoneStateListener();
 
         /**
          * Enable bluetooth coexistence scan mode when bluetooth connection is active.
@@ -3486,6 +3487,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiDiagnostics.stopLogging(mInterfaceName);
 
         mMboOceController.disable();
+        mWifiDataStall.disablePhoneStateListener();
         if (mIpClient != null && mIpClient.shutdown()) {
             // Block to make sure IpClient has really shut down, lest cleanup
             // race with, say, bringup code over in tethering.

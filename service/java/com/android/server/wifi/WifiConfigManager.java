@@ -1568,6 +1568,12 @@ public class WifiConfigManager {
      */
     private void setNetworkSelectionEnabled(WifiConfiguration config) {
         NetworkSelectionStatus status = config.getNetworkSelectionStatus();
+        if (status.getNetworkSelectionStatus()
+                != NetworkSelectionStatus.NETWORK_SELECTION_ENABLED) {
+            localLog("setNetworkSelectionEnabled: configKey=" + config.getKey()
+                    + " old networkStatus=" + status.getNetworkStatusString()
+                    + " disableReason=" + status.getNetworkDisableReasonString());
+        }
         status.setNetworkSelectionStatus(
                 NetworkSelectionStatus.NETWORK_SELECTION_ENABLED);
         status.setDisableTime(

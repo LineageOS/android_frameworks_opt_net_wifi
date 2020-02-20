@@ -134,7 +134,7 @@ public class PasspointProvisionerTest extends WifiBaseTest {
     private static final String TEST_BSSID_STRING2 = "11:22:33:44:55:77";
     private static final String TEST_SSID3 = "TestSSID3";
     private static final String TEST_BSSID_STRING3 = "11:22:33:44:55:88";
-    private static final String OSU_APP_PACKAGE = "com.android.hotspot2";
+    private static final String OSU_APP_PACKAGE = "com.android.hotspot2.osulogin";
     private static final String OSU_APP_NAME = "OsuLogin";
 
     private static final byte[] TEST_OSU_SSID_BYTES = "OSU_SSID".getBytes(StandardCharsets.UTF_8);

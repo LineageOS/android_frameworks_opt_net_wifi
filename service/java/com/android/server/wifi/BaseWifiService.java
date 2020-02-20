@@ -279,6 +279,11 @@ public class BaseWifiService extends IWifiManager.Stub {
     }
 
     @Override
+    public void setScanAlwaysAvailable(boolean isAvailable) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public boolean isScanAlwaysAvailable() {
         throw new UnsupportedOperationException();
     }

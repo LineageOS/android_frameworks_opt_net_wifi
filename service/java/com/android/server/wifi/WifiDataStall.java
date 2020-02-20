@@ -18,12 +18,18 @@ package com.android.server.wifi;
 
 import static com.android.server.wifi.util.InformationElementUtil.BssLoad.CHANNEL_UTILIZATION_SCALE;
 
+import android.content.Context;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager.DeviceMobilityState;
+import android.os.Handler;
+import android.os.HandlerExecutor;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.util.InformationElementUtil.BssLoad;
+import com.android.wifi.resources.R;
 
 /**
  * Looks for Wifi data stalls
@@ -32,7 +38,7 @@ public class WifiDataStall {
     private static final String TAG = "WifiDataStall";
     private boolean mVerboseLoggingEnabled = false;
     // Maximum time gap between two WifiLinkLayerStats to trigger a data stall
-    public static final long MAX_MS_DELTA_FOR_DATA_STALL = 60 * 1000; // 1 minute
+    public static final int MAX_MS_DELTA_FOR_DATA_STALL = 60 * 1000; // 1 minute
     // Maximum time that a data stall start time stays valid.
     public static final long VALIDITY_PERIOD_OF_DATA_STALL_START_MS = 30 * 1000; // 0.5 minutes
     // Default Tx packet error rate when there is no Tx attempt
@@ -42,11 +48,15 @@ public class WifiDataStall {
     public static final int DEFAULT_CCA_LEVEL_ABOVE_2G = CHANNEL_UTILIZATION_SCALE * 6 / 100;
     // Minimum time interval in ms between two link layer stats cache updates
     private static final int LLSTATS_CACHE_UPDATE_INTERVAL_MIN_MS = 6 * 1000;
+    // Maximum time margin between two link layer stats for connection duration update
+    public static final int MAX_TIME_MARGIN_LAST_TWO_POLLS_MS = 200;
 
-    FrameworkFacade mFacade;
+    private final FrameworkFacade mFacade;
     private final DeviceConfigFacade mDeviceConfigFacade;
     private final WifiMetrics mWifiMetrics;
+    private final Context mContext;
     private final WifiChannelUtilization mWifiChannelUtilization;
+    private TelephonyManager mTelephonyManager;
 
     private int mLastFrequency = -1;
     private String mLastBssid;
@@ -57,17 +67,60 @@ public class WifiDataStall {
     private long mLastTxBytes;
     private long mLastRxBytes;
     private boolean mIsThroughputSufficient = true;
+    private boolean mIsCellularDataAvailable = false;
+    private final PhoneStateListener mPhoneStateListener;
+    private boolean mPhoneStateListenerEnabled = false;
 
-    public WifiDataStall(FrameworkFacade facade, WifiMetrics wifiMetrics,
-            DeviceConfigFacade deviceConfigFacade,
-            WifiChannelUtilization wifiChannelUtilization, Clock clock) {
+    public WifiDataStall(FrameworkFacade facade, WifiMetrics wifiMetrics, Context context,
+            DeviceConfigFacade deviceConfigFacade, WifiChannelUtilization wifiChannelUtilization,
+            Clock clock, Handler handler) {
         mFacade = facade;
         mDeviceConfigFacade = deviceConfigFacade;
         mWifiMetrics = wifiMetrics;
+        mContext = context;
         mClock = clock;
         mWifiChannelUtilization = wifiChannelUtilization;
         mWifiChannelUtilization.init(null);
         mWifiChannelUtilization.setCacheUpdateIntervalMs(LLSTATS_CACHE_UPDATE_INTERVAL_MIN_MS);
+        mPhoneStateListener = new PhoneStateListener(new HandlerExecutor(handler)) {
+            @Override
+            public void onDataConnectionStateChanged(int state, int networkType) {
+                if (state == TelephonyManager.DATA_CONNECTED) {
+                    mIsCellularDataAvailable = true;
+                } else if (state == TelephonyManager.DATA_DISCONNECTED) {
+                    mIsCellularDataAvailable = false;
+                } else {
+                    Log.e(TAG, "onDataConnectionStateChanged unexpected State: " + state);
+                    return;
+                }
+                logd("Cellular Data: " + mIsCellularDataAvailable);
+            }
+        };
+    }
+
+    /**
+     * Enable phone state listener
+     */
+    public void enablePhoneStateListener() {
+        if (mTelephonyManager == null) {
+            mTelephonyManager = (TelephonyManager) mContext
+                    .getSystemService(Context.TELEPHONY_SERVICE);
+        }
+        if (mTelephonyManager != null && !mPhoneStateListenerEnabled) {
+            mPhoneStateListenerEnabled = true;
+            mTelephonyManager.listen(mPhoneStateListener,
+                    PhoneStateListener.LISTEN_DATA_CONNECTION_STATE);
+        }
+    }
+
+    /**
+     * Disable phone state listener
+     */
+    public void disablePhoneStateListener() {
+        if (mTelephonyManager != null && mPhoneStateListenerEnabled) {
+            mPhoneStateListenerEnabled = false;
+            mTelephonyManager.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);
+        }
     }
 
     /**
@@ -96,8 +149,16 @@ public class WifiDataStall {
     }
 
     /**
-     * Checks for data stall and throughput sufficiency by looking at link layer stats and L3
-     * byte counts
+     * Check if cellular data is available
+     * @return true if it is available and false otherwise
+     */
+    public boolean isCellularDataAvailable() {
+        return mIsCellularDataAvailable;
+    }
+
+    /**
+     * Update data stall detection, check throughput sufficiency and report wifi health stat
+     * with the latest link layer stats
      * @param oldStats second most recent WifiLinkLayerStats
      * @param newStats most recent WifiLinkLayerStats
      * @param wifiInfo WifiInfo for current connection
@@ -130,14 +191,14 @@ public class WifiDataStall {
                 + newStats.rxmpdu_vi + newStats.rxmpdu_vo)
                 - (oldStats.rxmpdu_be + oldStats.rxmpdu_bk
                 + oldStats.rxmpdu_vi + oldStats.rxmpdu_vo);
-        long timeMsDelta = newStats.timeStampInMs - oldStats.timeStampInMs;
+        int timeDeltaLastTwoPollsMs = (int) (newStats.timeStampInMs - oldStats.timeStampInMs);
 
         long totalTxDelta = txSuccessDelta + txRetriesDelta;
         boolean isTxTrafficHigh = (totalTxDelta * 1000)
-                > (mDeviceConfigFacade.getTxPktPerSecondThr() * timeMsDelta);
+                > (mDeviceConfigFacade.getTxPktPerSecondThr() * timeDeltaLastTwoPollsMs);
         boolean isRxTrafficHigh = (rxSuccessDelta * 1000)
-                > (mDeviceConfigFacade.getTxPktPerSecondThr() * timeMsDelta);
-        if (timeMsDelta < 0
+                > (mDeviceConfigFacade.getTxPktPerSecondThr() * timeDeltaLastTwoPollsMs);
+        if (timeDeltaLastTwoPollsMs < 0
                 || txSuccessDelta < 0
                 || txRetriesDelta < 0
                 || txBadDelta < 0
@@ -149,7 +210,7 @@ public class WifiDataStall {
         }
 
         mWifiMetrics.updateWifiIsUnusableLinkLayerStats(txSuccessDelta, txRetriesDelta,
-                txBadDelta, rxSuccessDelta, timeMsDelta);
+                txBadDelta, rxSuccessDelta, timeDeltaLastTwoPollsMs);
 
         int txLinkSpeedMbps = wifiInfo.getLinkSpeed();
         int rxLinkSpeedMbps = wifiInfo.getRxLinkSpeedMbps();
@@ -187,7 +248,15 @@ public class WifiDataStall {
         }
 
         mIsThroughputSufficient = isThroughputSufficientInternal(txTputKbps, rxTputKbps,
-                isTxTrafficHigh, isRxTrafficHigh, timeMsDelta);
+                isTxTrafficHigh, isRxTrafficHigh, timeDeltaLastTwoPollsMs);
+
+        int maxTimeDeltaMs = mContext.getResources().getInteger(
+                R.integer.config_wifiPollRssiIntervalMilliseconds)
+                + MAX_TIME_MARGIN_LAST_TWO_POLLS_MS;
+        if (timeDeltaLastTwoPollsMs > 0 && timeDeltaLastTwoPollsMs <= maxTimeDeltaMs) {
+            mWifiMetrics.incrementConnectionDuration(timeDeltaLastTwoPollsMs,
+                    mIsThroughputSufficient, mIsCellularDataAvailable);
+        }
 
         boolean possibleDataStallTx = isTxTputLow
                 || ccaLevel >= mDeviceConfigFacade.getDataStallCcaLevelThr()
@@ -198,15 +267,15 @@ public class WifiDataStall {
         boolean dataStallTx = isTxTrafficHigh ? possibleDataStallTx : mDataStallTx;
         boolean dataStallRx = isRxTrafficHigh ? possibleDataStallRx : mDataStallRx;
 
-        return detectConsecutiveTwoDataStalls(timeMsDelta, dataStallTx, dataStallRx);
+        return detectConsecutiveTwoDataStalls(timeDeltaLastTwoPollsMs, dataStallTx, dataStallRx);
     }
 
     // Data stall event is triggered if there are consecutive Tx and/or Rx data stalls
     // 1st data stall should be preceded by no data stall
     // Reset mDataStallStartTimeMs to -1 if currently there is no Tx or Rx data stall
-    private int detectConsecutiveTwoDataStalls(long timeMsDelta,
+    private int detectConsecutiveTwoDataStalls(int timeDeltaLastTwoPollsMs,
             boolean dataStallTx, boolean dataStallRx) {
-        if (timeMsDelta >= MAX_MS_DELTA_FOR_DATA_STALL) {
+        if (timeDeltaLastTwoPollsMs >= MAX_MS_DELTA_FOR_DATA_STALL) {
             return WifiIsUnusableEvent.TYPE_UNKNOWN;
         }
 
@@ -271,18 +340,18 @@ public class WifiDataStall {
     }
 
     private boolean isThroughputSufficientInternal(int l2TxTputKbps, int l2RxTputKbps,
-            boolean isTxTrafficHigh, boolean isRxTrafficHigh, long timeMsDelta) {
+            boolean isTxTrafficHigh, boolean isRxTrafficHigh, int timeDeltaLastTwoPollsMs) {
         long txBytes = mFacade.getTotalTxBytes() - mFacade.getMobileTxBytes();
         long rxBytes = mFacade.getTotalRxBytes() - mFacade.getMobileRxBytes();
-        if (timeMsDelta > MAX_MS_DELTA_FOR_DATA_STALL
+        if (timeDeltaLastTwoPollsMs > MAX_MS_DELTA_FOR_DATA_STALL
                 || mLastTxBytes == 0 || mLastRxBytes == 0) {
             mLastTxBytes = txBytes;
             mLastRxBytes = rxBytes;
             return true;
         }
 
-        int l3TxTputKbps = (int) ((txBytes - mLastTxBytes) * 8 / timeMsDelta);
-        int l3RxTputKbps = (int) ((rxBytes - mLastRxBytes) * 8 / timeMsDelta);
+        int l3TxTputKbps = (int) ((txBytes - mLastTxBytes) * 8 / timeDeltaLastTwoPollsMs);
+        int l3RxTputKbps = (int) ((rxBytes - mLastRxBytes) * 8 / timeDeltaLastTwoPollsMs);
 
         mLastTxBytes = txBytes;
         mLastRxBytes = rxBytes;
