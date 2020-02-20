@@ -137,6 +137,10 @@ public class PasspointManager {
         @Override
         public void onANQPResponse(long bssid,
                 Map<Constants.ANQPElementType, ANQPElement> anqpElements) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "ANQP response received from BSSID "
+                        + Utils.macToString(bssid));
+            }
             // Notify request manager for the completion of a request.
             ANQPNetworkKey anqpKey =
                     mAnqpRequestManager.onRequestCompleted(bssid, anqpElements != null);
@@ -1214,5 +1218,13 @@ public class PasspointManager {
      */
     public boolean isProvidersListEmpty() {
         return mProviders.isEmpty();
+    }
+
+    /**
+     * Clear ANQP requests and flush ANQP Cache (for factory reset)
+     */
+    public void clearAnqpRequestsAndFlushCache() {
+        mAnqpRequestManager.clear();
+        mAnqpCache.flush();
     }
 }

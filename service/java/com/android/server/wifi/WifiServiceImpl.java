@@ -3345,6 +3345,7 @@ public class WifiServiceImpl extends BaseWifiService {
             removePasspointConfigurationInternal(null, config.getUniqueId());
         }
         mWifiThreadRunner.post(() -> {
+            mPasspointManager.clearAnqpRequestsAndFlushCache();
             mWifiConfigManager.clearDeletedEphemeralNetworks();
             mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
             mWifiNetworkSuggestionsManager.clear();
