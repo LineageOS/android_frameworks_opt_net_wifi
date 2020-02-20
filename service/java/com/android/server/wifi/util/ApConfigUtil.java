@@ -534,7 +534,7 @@ public class ApConfigUtil {
     public static boolean checkConfigurationChangeNeedToRestart(
             SoftApConfiguration currentConfig, SoftApConfiguration newConfig) {
         return !Objects.equals(currentConfig.getSsid(), newConfig.getSsid())
-                || currentConfig.getBssid() != newConfig.getBssid()
+                || !Objects.equals(currentConfig.getBssid(), newConfig.getBssid())
                 || currentConfig.getSecurityType() != newConfig.getSecurityType()
                 || !Objects.equals(currentConfig.getPassphrase(), newConfig.getPassphrase())
                 || currentConfig.isHiddenSsid() != newConfig.isHiddenSsid()
