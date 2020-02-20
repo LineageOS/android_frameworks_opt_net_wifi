@@ -128,5 +128,5 @@
 
     <!-- A notification is shown when eap-sim/aka/aka' wifi network is disconnected due to sim removal -->
     <string name="wifi_sim_required_title">Wi\u2011Fi disconnected</string>
-    <string name="wifi_sim_required_message">To connect to <xliff:g id="ssid">%1$s</xliff:g> insert a <xliff:g id="carrier_name">%2$s</xliff:g> SIM.</string>
+    <string name="wifi_sim_required_message">To connect to <xliff:g id="ssid">%1$s</xliff:g>, insert a <xliff:g id="carrier_name">%2$s</xliff:g> SIM</string>
 </resources>
