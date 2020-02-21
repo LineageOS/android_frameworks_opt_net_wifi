@@ -165,7 +165,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         mTestSoftApInfo.setFrequency(TEST_AP_FREQUENCY);
         mTestSoftApInfo.setBandwidth(TEST_AP_BANDWIDTH_IN_SOFTAPINFO);
         // Default set up all features support.
-        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT
+        long testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT
                 | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD
                 | SoftApCapability.SOFTAP_FEATURE_WPA3_SAE;
         mTestSoftApCapability = new SoftApCapability(testSoftApFeature);
@@ -1794,7 +1794,7 @@ public class SoftApManagerTest extends WifiBaseTest {
 
     @Test
     public void testForceClientDisconnectNotInvokeWhenNotSupport() throws Exception {
-        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_WPA3_SAE
+        long testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_WPA3_SAE
                 | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
         SoftApCapability noClientControlCapability = new SoftApCapability(testSoftApFeature);
         noClientControlCapability.setMaxSupportedClients(1);
@@ -1833,7 +1833,7 @@ public class SoftApManagerTest extends WifiBaseTest {
 
     @Test
     public void testSoftApEnableFailureBecauseSetMaxClientWhenNotSupport() throws Exception {
-        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_WPA3_SAE
+        long testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_WPA3_SAE
                 | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
         when(mWifiNative.setupInterfaceForSoftApMode(any())).thenReturn(TEST_INTERFACE_NAME);
         SoftApCapability noClientControlCapability = new SoftApCapability(testSoftApFeature);
@@ -1868,7 +1868,7 @@ public class SoftApManagerTest extends WifiBaseTest {
     @Test
     public void testSoftApEnableFailureBecauseSecurityTypeSaeSetupButSaeNotSupport()
             throws Exception {
-        int testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT
+        long testSoftApFeature = SoftApCapability.SOFTAP_FEATURE_CLIENT_FORCE_DISCONNECT
                 | SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
         when(mWifiNative.setupInterfaceForSoftApMode(any())).thenReturn(TEST_INTERFACE_NAME);
         SoftApCapability noSaeCapability = new SoftApCapability(testSoftApFeature);
