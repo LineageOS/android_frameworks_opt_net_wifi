@@ -127,6 +127,22 @@ public class ScanResultUtil {
     }
 
     /**
+     * Helper method to check if the provided |scanResult| corresponds to FILS SHA256 network.
+     * This checks if the provided capabilities string contains FILS-SHA256 or not.
+     */
+    public static boolean isScanResultForFilsSha256Network(ScanResult scanResult) {
+        return scanResult.capabilities.contains("FILS-SHA256");
+    }
+
+    /**
+     * Helper method to check if the provided |scanResult| corresponds to FILS SHA384 network.
+     * This checks if the provided capabilities string contains FILS-SHA384 or not.
+     */
+    public static boolean isScanResultForFilsSha384Network(ScanResult scanResult) {
+        return scanResult.capabilities.contains("FILS-SHA384");
+    }
+
+    /**
      * Helper method to check if the provided |scanResult| corresponds to an open network or not.
      * This checks if the provided capabilities string does not contain either of WEP, PSK, SAE
      * or EAP encryption types or not.
