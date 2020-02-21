@@ -597,7 +597,7 @@ public class WifiNetworkSuggestionsManager {
         extNetworkSuggestionsForScanResultMatchInfo.add(extNetworkSuggestion);
     }
 
-    private void removeFromScanResultMatchInfoMap(
+    private void removeFromScanResultMatchInfoMapAndRemoveRelatedScoreCard(
             @NonNull ExtendedWifiNetworkSuggestion extNetworkSuggestion) {
         ScanResultMatchInfo scanResultMatchInfo =
                 ScanResultMatchInfo.fromWifiConfiguration(
@@ -620,6 +620,9 @@ public class WifiNetworkSuggestionsManager {
             // Remove the set from map if empty.
             if (extNetworkSuggestionsForScanResultMatchInfo.isEmpty()) {
                 mActiveScanResultMatchInfoWithBssid.remove(lookupPair);
+                if (!mActiveScanResultMatchInfoWithNoBssid.containsKey(scanResultMatchInfo)) {
+                    removeNetworkFromScoreCard(extNetworkSuggestion.wns.wifiConfiguration);
+                }
             }
         } else {
             extNetworkSuggestionsForScanResultMatchInfo =
@@ -634,8 +637,19 @@ public class WifiNetworkSuggestionsManager {
             // Remove the set from map if empty.
             if (extNetworkSuggestionsForScanResultMatchInfo.isEmpty()) {
                 mActiveScanResultMatchInfoWithNoBssid.remove(scanResultMatchInfo);
+                removeNetworkFromScoreCard(extNetworkSuggestion.wns.wifiConfiguration);
             }
         }
+    }
+
+    private void removeNetworkFromScoreCard(WifiConfiguration wifiConfiguration) {
+        WifiConfiguration existing =
+                mWifiConfigManager.getConfiguredNetwork(wifiConfiguration.getKey());
+        // If there is a saved network, do not remove from the score card.
+        if (existing != null && !existing.fromWifiNetworkSuggestion) {
+            return;
+        }
+        mWifiInjector.getWifiScoreCard().removeNetwork(wifiConfiguration.SSID);
     }
 
     private void addToPasspointInfoMap(ExtendedWifiNetworkSuggestion ewns) {
@@ -932,7 +946,7 @@ public class WifiNetworkSuggestionsManager {
                         ewns.wns.wifiConfiguration.getKey(), null);
                 removeFromPassPointInfoMap(ewns);
             } else {
-                removeFromScanResultMatchInfoMap(ewns);
+                removeFromScanResultMatchInfoMapAndRemoveRelatedScoreCard(ewns);
             }
         }
         // Disconnect suggested network if connected

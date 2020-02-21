@@ -234,4 +234,12 @@ public class ANQPRequestManager {
         }
         pw.println("ANQPRequestManager - End ---");
     }
+
+    /**
+     * Clear all pending ANQP requests
+     */
+    public void clear() {
+        mPendingQueries.clear();
+        mHoldOffInfo.clear();
+    }
 }

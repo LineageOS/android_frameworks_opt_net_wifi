@@ -935,7 +935,11 @@ public class WifiHealthMonitor {
 
         @Override
         public void onNetworkRemoved(WifiConfiguration config) {
-            if (config == null) return;
+            if (config == null || (config.fromWifiNetworkSuggestion && !config.isPasspoint())) {
+                // If a suggestion non-passpoint network is removed from wifiConfigManager do not
+                // remove the ScoreCard. That will be removed when suggestion is removed.
+                return;
+            }
             mWifiScoreCard.removeNetwork(config.SSID);
         }
 

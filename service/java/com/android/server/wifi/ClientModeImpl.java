@@ -82,7 +82,6 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.os.BatteryStatsManager;
 import android.os.Bundle;
 import android.os.ConditionVariable;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -782,7 +781,8 @@ public class ClientModeImpl extends StateMachine {
         mCountryCode = countryCode;
 
         mWifiScoreReport = new WifiScoreReport(mWifiInjector.getScoringParams(), mClock,
-                new Handler(looper));
+                mWifiMetrics, mWifiInfo, mWifiNative, mBssidBlocklistMonitor,
+                mWifiInjector.getWifiThreadRunner());
 
         mNetworkCapabilitiesFilter.addTransportType(NetworkCapabilities.TRANSPORT_WIFI);
         mNetworkCapabilitiesFilter.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
@@ -1524,6 +1524,7 @@ public class ClientModeImpl extends StateMachine {
                 mInterfaceName = ifaceName;
                 updateInterfaceCapabilities(ifaceName);
                 transitionTo(mDisconnectedState);
+                mWifiScoreReport.setInterfaceName(ifaceName);
             } else {
                 Log.e(TAG, "supposed to enter connect mode, but iface is null -> DefaultState");
                 transitionTo(mDefaultState);
@@ -2639,6 +2640,7 @@ public class ClientModeImpl extends StateMachine {
 
         stopIpClient();
 
+        mWifiScoreReport.stopConnectedNetworkScorer();
         /* Reset data structures */
         mWifiScoreReport.reset();
         mWifiInfo.reset();
@@ -3495,6 +3497,7 @@ public class ClientModeImpl extends StateMachine {
         }
         mCountryCode.setReadyForChange(false);
         mInterfaceName = null;
+        mWifiScoreReport.setInterfaceName(null);
         // TODO: b/79504296 This broadcast has been deprecated and should be removed
         sendSupplicantConnectionChangedBroadcast(false);
 
@@ -4457,6 +4460,7 @@ public class ClientModeImpl extends StateMachine {
                         "WifiNetworkAgent", nc, mLinkProperties, ns, naConfig,
                         mNetworkFactory.getProvider());
             }
+            mWifiScoreReport.setNetworkAgent(mNetworkAgent);
 
             // We must clear the config BSSID, as the wifi chipset may decide to roam
             // from this point on and having the BSSID specified in the network block would
@@ -4782,7 +4786,7 @@ public class ClientModeImpl extends StateMachine {
             // Get Info and continue polling
             fetchRssiLinkSpeedAndFrequencyNative();
             // Send the update score to network agent.
-            mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
+            mWifiScoreReport.calculateAndReportScore();
             return stats;
         }
     }
@@ -5140,6 +5144,7 @@ public class ClientModeImpl extends StateMachine {
             //Inform WifiLockManager
             WifiLockManager wifiLockManager = mWifiInjector.getWifiLockManager();
             wifiLockManager.updateWifiClientConnected(true);
+            mWifiScoreReport.startConnectedNetworkScorer(mNetworkAgent.getNetwork().netId);
         }
         @Override
         public boolean processMessage(Message message) {

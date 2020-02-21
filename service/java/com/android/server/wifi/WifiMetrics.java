@@ -82,6 +82,7 @@ import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
+import com.android.server.wifi.scanner.KnownBandsChannelHelper;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.IntCounter;
@@ -178,11 +179,6 @@ public class WifiMetrics {
     public static final int MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS = 60 * 1000; // 1 minute
     // Maximum time that a score breaching low event stays valid.
     public static final int VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS = 90 * 1000; // 1.5 minutes
-
-    public static final int BAND_2G_MAX_FREQ_MHZ = 2484;
-    public static final int BAND_5G_LOW_MAX_FREQ_MHZ = 5240;
-    public static final int BAND_5G_MID_MAX_FREQ_MHZ = 5720;
-    public static final int BAND_5G_HIGH_MAX_FREQ_MHZ = 5865;
 
     private Clock mClock;
     private boolean mScreenOn;
@@ -1700,11 +1696,11 @@ public class WifiMetrics {
             return;
         }
         synchronized (mLock) {
-            if (frequency <= BAND_2G_MAX_FREQ_MHZ) {
+            if (frequency <= KnownBandsChannelHelper.BAND_24_GHZ_END_FREQ) {
                 mTxLinkSpeedCount2g.increment(txLinkSpeed);
-            } else if (frequency <= BAND_5G_LOW_MAX_FREQ_MHZ) {
+            } else if (frequency <= KnownBandsChannelHelper.BAND_5_GHZ_LOW_END_FREQ) {
                 mTxLinkSpeedCount5gLow.increment(txLinkSpeed);
-            } else if (frequency <= BAND_5G_MID_MAX_FREQ_MHZ) {
+            } else if (frequency <= KnownBandsChannelHelper.BAND_5_GHZ_MID_END_FREQ) {
                 mTxLinkSpeedCount5gMid.increment(txLinkSpeed);
             } else {
                 mTxLinkSpeedCount5gHigh.increment(txLinkSpeed);
@@ -1725,11 +1721,11 @@ public class WifiMetrics {
             return;
         }
         synchronized (mLock) {
-            if (frequency <= BAND_2G_MAX_FREQ_MHZ) {
+            if (frequency <= KnownBandsChannelHelper.BAND_24_GHZ_END_FREQ) {
                 mRxLinkSpeedCount2g.increment(rxLinkSpeed);
-            } else if (frequency <= BAND_5G_LOW_MAX_FREQ_MHZ) {
+            } else if (frequency <= KnownBandsChannelHelper.BAND_5_GHZ_LOW_END_FREQ) {
                 mRxLinkSpeedCount5gLow.increment(rxLinkSpeed);
-            } else if (frequency <= BAND_5G_MID_MAX_FREQ_MHZ) {
+            } else if (frequency <= KnownBandsChannelHelper.BAND_5_GHZ_MID_END_FREQ) {
                 mRxLinkSpeedCount5gMid.increment(rxLinkSpeed);
             } else {
                 mRxLinkSpeedCount5gHigh.increment(rxLinkSpeed);
