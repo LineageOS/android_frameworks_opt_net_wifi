@@ -31,7 +31,6 @@ import android.net.Uri;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientUtil;
 import android.provider.Settings;
-import android.sysprop.WifiProperties;
 import android.telephony.CarrierConfigManager;
 import android.widget.Toast;
 
@@ -210,14 +209,14 @@ public class FrameworkFacade {
      * Starts supplicant
      */
     public void startSupplicant() {
-        WifiProperties.start_supplicant(true);
+        SupplicantManager.start();
     }
 
     /**
      * Stops supplicant
      */
     public void stopSupplicant() {
-        WifiProperties.stop_supplicant(true);
+        SupplicantManager.stop();
     }
 
     /**
