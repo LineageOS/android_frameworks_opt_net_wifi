@@ -119,11 +119,6 @@ java_library {
     // @CorePlatformApi's
     sdk_version: "core_platform",
 
-    required: [
-        "services",
-        "wifi-service-resources",
-    ],
-
     jarjar_rules: ":wifi-jarjar-rules",
     optimize: {
         enabled: true,
