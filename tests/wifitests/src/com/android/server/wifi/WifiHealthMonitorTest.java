@@ -54,6 +54,7 @@ import com.android.server.wifi.proto.WifiScoreCardProto.SystemInfoStats;
 import com.android.server.wifi.proto.WifiStatsLog;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.HealthMonitorMetrics;
 
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -63,6 +64,7 @@ import org.mockito.quality.Strictness;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 /**
@@ -74,6 +76,7 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
     static final WifiSsid TEST_SSID_1 = WifiSsid.createFromAsciiEncoded("Joe's Place");
     static final WifiSsid TEST_SSID_2 = WifiSsid.createFromAsciiEncoded("Poe's Place");
     static final MacAddress TEST_BSSID_1 = MacAddress.fromString("aa:bb:cc:dd:ee:ff");
+    private static final long CURRENT_ELAPSED_TIME_MS = 1000;
 
     private WifiScoreCard mWifiScoreCard;
     private WifiHealthMonitor mWifiHealthMonitor;
@@ -394,7 +397,70 @@ public class WifiHealthMonitorTest extends WifiBaseTest {
     }
 
     /**
-     * Check stats after two daily detections.
+     * Check alarm timing of a multi-day run.
+     */
+    @Test
+    public void testTimerMultiDayRun() throws Exception {
+        long currentWallClockTimeMs = 23 * 3600_000;
+        long currentElapsedTimeMs = CURRENT_ELAPSED_TIME_MS;
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(currentWallClockTimeMs);
+        int expectedWaitHours = WifiHealthMonitor.DAILY_DETECTION_HOUR
+                - calendar.get(Calendar.HOUR_OF_DAY);
+        if (expectedWaitHours <= 0) expectedWaitHours += 24;
+
+        // day 1
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentElapsedTimeMs);
+        when(mClock.getWallClockMillis()).thenReturn(currentWallClockTimeMs);
+        mWifiHealthMonitor.installMemoryStoreSetUpDetectionAlarm(mMemoryStore);
+        long waitTimeMs = mAlarmManager
+                .getTriggerTimeMillis(WifiHealthMonitor.DAILY_DETECTION_TIMER_TAG)
+                - currentElapsedTimeMs;
+        assertEquals(expectedWaitHours * 3600_000, waitTimeMs);
+        currentElapsedTimeMs += 24 * 3600_000 + 1;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentElapsedTimeMs);
+        mAlarmManager.dispatch(WifiHealthMonitor.DAILY_DETECTION_TIMER_TAG);
+        mLooper.dispatchAll();
+        waitTimeMs = mAlarmManager
+                .getTriggerTimeMillis(WifiHealthMonitor.DAILY_DETECTION_TIMER_TAG)
+                - currentElapsedTimeMs;
+        assertEquals(24 * 3600_000, waitTimeMs);
+        // day 2
+        currentElapsedTimeMs += 24 * 3600_000 - 1;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentElapsedTimeMs);
+        mAlarmManager.dispatch(WifiHealthMonitor.DAILY_DETECTION_TIMER_TAG);
+        mLooper.dispatchAll();
+        waitTimeMs = mAlarmManager
+                .getTriggerTimeMillis(WifiHealthMonitor.DAILY_DETECTION_TIMER_TAG)
+                - currentElapsedTimeMs;
+        assertEquals(24 * 3600_000, waitTimeMs);
+    }
+
+    /**
+     * Check the alarm timing with a different wall clock time
+     */
+    @Test
+    public void testTimerWith() throws Exception {
+        long currentWallClockTimeMs = 7 * 3600_000;
+        long currentElapsedTimeMs = CURRENT_ELAPSED_TIME_MS;
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(currentWallClockTimeMs);
+        int expectedWaitHours = WifiHealthMonitor.DAILY_DETECTION_HOUR
+                - calendar.get(Calendar.HOUR_OF_DAY);
+        if (expectedWaitHours <= 0) expectedWaitHours += 24;
+
+        // day 1
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(currentElapsedTimeMs);
+        when(mClock.getWallClockMillis()).thenReturn(currentWallClockTimeMs);
+        mWifiHealthMonitor.installMemoryStoreSetUpDetectionAlarm(mMemoryStore);
+        long waitTimeMs = mAlarmManager
+                .getTriggerTimeMillis(WifiHealthMonitor.DAILY_DETECTION_TIMER_TAG)
+                - currentElapsedTimeMs;
+        assertEquals(expectedWaitHours * 3600_000, waitTimeMs);
+    }
+
+    /**
+     * Check stats with two daily detections.
      */
     @Test
     public void testTwoDailyDetections() throws Exception {

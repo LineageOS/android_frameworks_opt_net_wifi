@@ -496,8 +496,8 @@ public class WifiConfigurationUtil {
 
     private static boolean validateKeyMgmt(BitSet keyMgmnt) {
         if (keyMgmnt.cardinality() > 1) {
-            if (keyMgmnt.cardinality() > 3) {
-                Log.e(TAG, "validateKeyMgmt failed: cardinality > 3");
+            if (keyMgmnt.cardinality() > 4) {
+                Log.e(TAG, "validateKeyMgmt failed: cardinality > 4");
                 return false;
             }
             if (!keyMgmnt.get(WifiConfiguration.KeyMgmt.WPA_EAP)) {
@@ -509,9 +509,11 @@ public class WifiConfigurationUtil {
                 Log.e(TAG, "validateKeyMgmt failed: not PSK or 8021X");
                 return false;
             }
-            if (keyMgmnt.cardinality() == 3
-                    && !keyMgmnt.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
-                Log.e(TAG, "validateKeyMgmt failed: not SUITE_B_192");
+            if (keyMgmnt.cardinality() == 4
+                    && (!keyMgmnt.get(WifiConfiguration.KeyMgmt.SUITE_B_192)
+                    && !keyMgmnt.get(WifiConfiguration.KeyMgmt.FILS_SHA256)
+                    && !keyMgmnt.get(WifiConfiguration.KeyMgmt.FILS_SHA384))) {
+                Log.e(TAG, "validateKeyMgmt failed: neither SUITE_B_192 nor FILS");
                 return false;
             }
         }

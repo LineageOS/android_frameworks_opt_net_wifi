@@ -61,6 +61,7 @@
           <item type="integer" name="config_wifi_framework_associated_partial_scan_max_num_active_channels" />
           <item type="integer" name="config_wifi_framework_recovery_timeout_delay" />
           <item type="bool" name="config_wifi_framework_enable_associated_network_selection" />
+          <item type="integer" name="config_wifiSufficientDurationAfterUserSelectionMilliseconds" />
           <item type="bool" name="config_wifiEnablePartialInitialScan" />
           <item type="integer" name="config_wifiInitialPartialScanChannelMaxCount" />
           <item type="integer" name="config_wifiInitialPartialScanChannelCacheAgeMins" />

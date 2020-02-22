@@ -627,6 +627,88 @@ public class InformationElementUtilTest extends WifiBaseTest {
     }
 
     /**
+     * Test Capabilities.generateCapabilitiesString() with RSN IE,
+     * CCMP and FILS SHA256. Expect the function to return a string
+     * with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_rsnFilsSha256Element() {
+        InformationElement ieRsn = new InformationElement();
+        ieRsn.id = InformationElement.EID_RSN;
+        ieRsn.bytes = new byte[] {
+                // RSNE Version (0x0001)
+                (byte) 0x01, (byte) 0x00,
+                // Group cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of cipher suites (1)
+                (byte) 0x01, (byte) 0x00,
+                // Cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of AKMs (3)
+                (byte) 0x03, (byte) 0x00,
+                // WPA AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x01,
+                // WPA SHA256 AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x05,
+                // FILS SHA256 AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x0E,
+                // RSN capabilities
+                (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieRsn };
+        int beaconCap = 0x1 << 4;
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, true);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[WPA2-EAP+EAP-SHA256+FILS-SHA256-CCMP][RSN-EAP+EAP-SHA256+FILS-SHA256-CCMP]",
+                result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with RSN IE,
+     * CCMP and FILS SHA384. Expect the function to return a string
+     * with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_rsnFilsSha384Element() {
+        InformationElement ieRsn = new InformationElement();
+        ieRsn.id = InformationElement.EID_RSN;
+        ieRsn.bytes = new byte[] {
+                // RSNE Version (0x0001)
+                (byte) 0x01, (byte) 0x00,
+                // Group cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of cipher suites (1)
+                (byte) 0x01, (byte) 0x00,
+                // Cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of AKMs (3)
+                (byte) 0x03, (byte) 0x00,
+                // WPA AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x01,
+                // WPA SHA256 AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x05,
+                // FILS SHA384 AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x0F,
+                // RSN capabilities
+                (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieRsn };
+        int beaconCap = 0x1 << 4;
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, true);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[WPA2-EAP+EAP-SHA256+FILS-SHA384-CCMP][RSN-EAP+EAP-SHA256+FILS-SHA384-CCMP]",
+                result);
+    }
+
+    /**
      * Test Capabilities.generateCapabilitiesString() with both RSN and WPA1 IE which are malformed.
      * Expect the function to return a string with empty key management & pairswise cipher security
      * information.

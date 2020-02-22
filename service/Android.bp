@@ -96,8 +96,7 @@ java_library {
         "netd_aidl_interface-V2-java",
         "services.net",
         "wifi-lite-protos",
-        "wifi-nano-protos",
-        "PlatformProperties",
+        "wifi-nano-protos"
     ],
 }
 
@@ -119,11 +118,6 @@ java_library {
     // TODO(b/140299412) should be "core_current" since Wifi module is not allowed to use
     // @CorePlatformApi's
     sdk_version: "core_platform",
-
-    required: [
-        "services",
-        "wifi-service-resources",
-    ],
 
     jarjar_rules: ":wifi-jarjar-rules",
     optimize: {

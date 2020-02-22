@@ -464,7 +464,7 @@ public class ApConfigUtil {
      */
     @NonNull
     public static SoftApCapability updateCapabilityFromResource(@NonNull Context context) {
-        int features = 0;
+        long features = 0;
         if (isAcsSupported(context)) {
             Log.d(TAG, "Update Softap capability, add acs feature support");
             features |= SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD;
@@ -534,7 +534,7 @@ public class ApConfigUtil {
     public static boolean checkConfigurationChangeNeedToRestart(
             SoftApConfiguration currentConfig, SoftApConfiguration newConfig) {
         return !Objects.equals(currentConfig.getSsid(), newConfig.getSsid())
-                || currentConfig.getBssid() != newConfig.getBssid()
+                || !Objects.equals(currentConfig.getBssid(), newConfig.getBssid())
                 || currentConfig.getSecurityType() != newConfig.getSecurityType()
                 || !Objects.equals(currentConfig.getPassphrase(), newConfig.getPassphrase())
                 || currentConfig.isHiddenSsid() != newConfig.isHiddenSsid()
