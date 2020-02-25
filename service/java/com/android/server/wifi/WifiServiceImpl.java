@@ -3288,8 +3288,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("enableVerboseLogging uid=% verbose=%")
                 .c(Binder.getCallingUid())
                 .c(verbose).flush();
-        mWifiInjector.getSettingsConfigStore().putBoolean(
-                WIFI_VERBOSE_LOGGING_ENABLED, verbose > 0);
+        mWifiInjector.getSettingsConfigStore().put(WIFI_VERBOSE_LOGGING_ENABLED, verbose > 0);
         enableVerboseLoggingInternal(verbose);
     }
 
@@ -3306,8 +3305,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getVerboseLoggingLevel uid=%").c(Binder.getCallingUid()).flush();
         }
-        return mWifiInjector.getSettingsConfigStore().getBoolean(
-                WIFI_VERBOSE_LOGGING_ENABLED, false) ? 1 : 0;
+        return mWifiInjector.getSettingsConfigStore().get(WIFI_VERBOSE_LOGGING_ENABLED) ? 1 : 0;
     }
 
     @Override
