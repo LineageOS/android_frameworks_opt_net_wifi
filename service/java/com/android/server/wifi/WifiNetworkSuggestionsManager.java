@@ -268,6 +268,18 @@ public class WifiNetworkSuggestionsManager {
                 @NonNull PerAppInfo perAppInfo, boolean isAutoJoinEnabled) {
             return new ExtendedWifiNetworkSuggestion(wns, perAppInfo, isAutoJoinEnabled);
         }
+
+        /**
+         * Create a {@link WifiConfiguration} from suggestion for framework internal use.
+         */
+        public WifiConfiguration createInternalWifiConfiguration() {
+            WifiConfiguration config = new WifiConfiguration(wns.getWifiConfiguration());
+            config.ephemeral = true;
+            config.fromWifiNetworkSuggestion = true;
+            config.allowAutojoin = isAutojoinEnabled;
+            config.trusted = !wns.isNetworkUntrusted;
+            return config;
+        }
     }
 
     /**
@@ -1112,6 +1124,34 @@ public class WifiNetworkSuggestionsManager {
                 .flatMap(e -> convertToWnsSet(e.extNetworkSuggestions)
                         .stream())
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Get all user approved, non-passpoint networks from suggestion.
+     */
+    public List<WifiConfiguration> getAllPnoAvailableSuggestionNetworks() {
+        List<WifiConfiguration> networks = new ArrayList<>();
+        for (PerAppInfo info : mActiveNetworkSuggestionsPerApp.values()) {
+            if (!info.hasUserApproved && info.carrierId == TelephonyManager.UNKNOWN_CARRIER_ID) {
+                continue;
+            }
+            for (ExtendedWifiNetworkSuggestion ewns : info.extNetworkSuggestions) {
+                if (ewns.wns.getPasspointConfiguration() != null) {
+                    continue;
+                }
+                WifiConfiguration network = mWifiConfigManager
+                        .getConfiguredNetwork(ewns.wns.getWifiConfiguration().getKey());
+                if (network == null) {
+                    network = new WifiConfiguration(ewns.wns.getWifiConfiguration());
+                    network.ephemeral = true;
+                    network.fromWifiNetworkSuggestion = true;
+                    network.allowAutojoin = ewns.isAutojoinEnabled;
+                    network.trusted = !ewns.wns.isNetworkUntrusted;
+                }
+                networks.add(network);
+            }
+        }
+        return networks;
     }
 
     private List<Integer> getAllMaxSizes() {
