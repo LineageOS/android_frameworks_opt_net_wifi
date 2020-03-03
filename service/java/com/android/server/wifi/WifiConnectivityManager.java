@@ -189,6 +189,7 @@ public class WifiConnectivityManager {
     private int[] mDisconnectedSingleScanSchedule;
     private int[] mConnectedSingleSavedNetworkSingleScanSchedule;
     private List<WifiCandidates.Candidate> mLatestCandidates = null;
+    private long mLatestCandidatesTimestampMs = 0;
 
     private final Object mLock = new Object();
 
@@ -310,6 +311,7 @@ public class WifiConnectivityManager {
                 scanDetails, bssidBlocklist, mWifiInfo, mStateMachine.isConnected(),
                 mStateMachine.isDisconnected(), mUntrustedConnectionAllowed);
         mLatestCandidates = candidates;
+        mLatestCandidatesTimestampMs = mClock.getElapsedSinceBootMillis();
 
         if (mDeviceMobilityState == WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT
                 && mContext.getResources().getBoolean(
@@ -1585,7 +1587,10 @@ public class WifiConnectivityManager {
 
     private void retryConnectionOnLatestCandidates(String bssid, String ssid) {
         try {
-            if (mLatestCandidates == null || mLatestCandidates.size() == 0) {
+            if (mLatestCandidates == null || mLatestCandidates.size() == 0
+                    || mClock.getElapsedSinceBootMillis() - mLatestCandidatesTimestampMs
+                    > TEMP_BSSID_BLOCK_DURATION) {
+                mLatestCandidates = null;
                 return;
             }
             MacAddress macAddress = MacAddress.fromString(bssid);
@@ -1723,6 +1728,7 @@ public class WifiConnectivityManager {
 
         mRunning = true;
         mLatestCandidates = null;
+        mLatestCandidatesTimestampMs = 0;
     }
 
     /**
@@ -1737,6 +1743,7 @@ public class WifiConnectivityManager {
         mLastConnectionAttemptBssid = null;
         mWaitForFullBandScanResults = false;
         mLatestCandidates = null;
+        mLatestCandidatesTimestampMs = 0;
     }
 
     /**

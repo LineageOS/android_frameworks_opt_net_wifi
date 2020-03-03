@@ -219,6 +219,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     private static final int HIGH_MVMT_RSSI_DELTA = 10;
     private static final String TEST_FQDN = "FQDN";
     private static final String TEST_SSID = "SSID";
+    private static final int TEMP_BSSID_BLOCK_DURATION = 10 * 1000; // 10 seconds
 
     Context mockContext() {
         Context context = mock(Context.class);
@@ -837,6 +838,42 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         public boolean matches(List<WifiCandidates.Candidate> candidateList) {
             return candidateList.size() == mSize;
         }
+    }
+
+    /**
+     * Verify that the cached candidates become cleared after a period of time.
+     */
+    @Test
+    public void testRetryConnectionOnFailureCacheTimeout() {
+        // Setup WifiNetworkSelector to return 2 valid candidates from scan results
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
+        MacAddress macAddress = MacAddress.fromString(CANDIDATE_BSSID_2);
+        WifiCandidates.Key key = new WifiCandidates.Key(mock(ScanResultMatchInfo.class),
+                macAddress, 0);
+        WifiCandidates.Candidate otherCandidate = mock(WifiCandidates.Candidate.class);
+        when(otherCandidate.getKey()).thenReturn(key);
+        List<WifiCandidates.Candidate> candidateList = new ArrayList<>();
+        candidateList.add(mCandidate1);
+        candidateList.add(otherCandidate);
+        when(mWifiNS.getCandidatesFromScan(any(), any(), any(), anyBoolean(), anyBoolean(),
+                anyBoolean())).thenReturn(candidateList);
+
+        // Set WiFi to disconnected state to trigger scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+        mLooper.dispatchAll();
+        // Verify a connection starting
+        verify(mWifiNS).selectNetwork((List<WifiCandidates.Candidate>)
+                argThat(new WifiCandidatesListSizeMatcher(2)));
+        verify(mClientModeImpl).startConnectToNetwork(anyInt(), anyInt(), any());
+
+        // Simulate the connection failing after the cache timeout period.
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(TEMP_BSSID_BLOCK_DURATION + 1L);
+        mWifiConnectivityManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION, CANDIDATE_BSSID,
+                CANDIDATE_SSID);
+        // verify there are no additional connections.
+        verify(mClientModeImpl).startConnectToNetwork(anyInt(), anyInt(), any());
     }
 
     /**
