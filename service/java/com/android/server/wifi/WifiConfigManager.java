@@ -1042,6 +1042,9 @@ public class WifiConfigManager {
         internalConfig.meteredHint = externalConfig.meteredHint;
         internalConfig.meteredOverride = externalConfig.meteredOverride;
 
+        // Copy trusted bit
+        internalConfig.trusted = externalConfig.trusted;
+
         // Copy over macRandomizationSetting
         internalConfig.macRandomizationSetting = externalConfig.macRandomizationSetting;
         internalConfig.carrierId = externalConfig.carrierId;
