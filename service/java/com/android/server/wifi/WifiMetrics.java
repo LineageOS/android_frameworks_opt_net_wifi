@@ -3103,6 +3103,8 @@ public class WifiMetrics {
                         + mWifiLogProto.numIpRenewalFailure);
                 pw.println("mWifiLogProto.connectionDurationStats="
                         + mConnectionDurationStats.toString());
+                pw.println("mWifiLogProto.isExternalWifiScorerOn="
+                        + mWifiLogProto.isExternalWifiScorerOn);
             }
         }
     }
@@ -3868,6 +3870,7 @@ public class WifiMetrics {
             mNumProvisionSuccess = 0;
             mBssidBlocklistStats = new BssidBlocklistStats();
             mConnectionDurationStats.clear();
+            mWifiLogProto.isExternalWifiScorerOn = false;
 
         }
     }
@@ -5450,6 +5453,15 @@ public class WifiMetrics {
         synchronized (mLock) {
             mConnectionDurationStats.incrementDurationCount(timeDeltaLastTwoPollsMs,
                     isThroughputSufficient, isCellularDataAvailable);
+        }
+    }
+
+    /**
+     * Sets the status to indicate whether external WiFi connected network scorer is present or not.
+     */
+    public void setIsExternalWifiScorerOn(boolean value) {
+        synchronized (mLock) {
+            mWifiLogProto.isExternalWifiScorerOn = value;
         }
     }
 }
