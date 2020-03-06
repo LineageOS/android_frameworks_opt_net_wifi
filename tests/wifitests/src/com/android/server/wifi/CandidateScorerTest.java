@@ -222,4 +222,59 @@ public class CandidateScorerTest extends WifiBaseTest {
                             .setPredictedThroughputMbps(50))));
         }
     }
+
+    /**
+     * Prefer saved over suggestion.
+     */
+    @Test
+    public void testPreferSavedOverSuggestion() throws Exception {
+        if (mExpectedExpId != ThroughputScorer.THROUGHPUT_SCORER_DEFAULT_EXPID) return;
+        assertThat(evaluate(mCandidate1.setScanRssi(-77).setEphemeral(false)),
+                greaterThan(evaluate(mCandidate2.setScanRssi(-40)
+                                                .setEphemeral(true)
+                                                .setPredictedThroughputMbps(1000))));
+    }
+
+    /**
+     * Prefer metered saved over unmetered suggestion.
+     */
+    @Test
+    public void testPreferMeteredSavedOverUnmeteredSuggestion() throws Exception {
+        if (mExpectedExpId != ThroughputScorer.THROUGHPUT_SCORER_DEFAULT_EXPID) return;
+        assertThat(evaluate(mCandidate1.setScanRssi(-77).setEphemeral(false).setMetered(false)),
+                greaterThan(evaluate(mCandidate2.setScanRssi(-40)
+                                                .setEphemeral(true)
+                                                .setMetered(true)
+                                                .setPredictedThroughputMbps(1000))));
+    }
+
+    /**
+     * Prefer trusted metered suggestion over privileged untrusted.
+     */
+    @Test
+    public void testPreferTrustedOverUntrusted() throws Exception {
+        if (mExpectedExpId != ThroughputScorer.THROUGHPUT_SCORER_DEFAULT_EXPID) return;
+        assertThat(evaluate(mCandidate1.setScanRssi(-77).setEphemeral(true).setMetered(true)),
+                greaterThan(evaluate(mCandidate2.setScanRssi(-40)
+                                                .setEphemeral(true)
+                                                .setPredictedThroughputMbps(1000)
+                                                .setTrusted(false)
+                                                .setCarrierOrPrivileged(true))));
+    }
+
+    /**
+     * Prefer carrier untrusted over other untrusted.
+     */
+    @Test
+    public void testPreferCarrierUntrustedOverOtherUntrusted() throws Exception {
+        if (mExpectedExpId != ThroughputScorer.THROUGHPUT_SCORER_DEFAULT_EXPID) return;
+        assertThat(evaluate(mCandidate1.setScanRssi(-77)
+                                       .setEphemeral(true)
+                                       .setMetered(true)
+                                       .setCarrierOrPrivileged(true)),
+                greaterThan(evaluate(mCandidate2.setScanRssi(-40)
+                                                .setPredictedThroughputMbps(1000)
+                                                .setTrusted(false))));
+    }
+
 }

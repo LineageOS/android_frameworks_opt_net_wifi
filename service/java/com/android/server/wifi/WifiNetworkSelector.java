@@ -27,6 +27,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -757,7 +758,7 @@ public class WifiNetworkSelector {
         WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard, mContext);
         if (currentNetwork != null) {
             wifiCandidates.setCurrent(currentNetwork.networkId, currentBssid);
-            // We always want the current network to be a candidate so that it can particpate.
+            // We always want the current network to be a candidate so that it can participate.
             // It may also get re-added by a nominator, in which case this fallback
             // will be replaced.
             MacAddress bssid = MacAddress.fromString(currentBssid);
@@ -770,6 +771,7 @@ public class WifiNetworkSelector {
                     wifiInfo.getFrequency(),
                     calculateLastSelectionWeight(currentNetwork.networkId),
                     WifiConfiguration.isMetered(currentNetwork, wifiInfo),
+                    isFromCarrierOrPrivilegedApp(currentNetwork),
                     0 /* Mbps */);
         }
         for (NetworkNominator registeredNominator : mNominators) {
@@ -782,12 +784,14 @@ public class WifiNetworkSelector {
                                 scanDetail, config);
                         if (key != null) {
                             boolean metered = isEverMetered(config, wifiInfo);
+                            // TODO(b/151981920) Saved passpoint candidates are marked ephemeral
                             boolean added = wifiCandidates.add(key, config,
                                     registeredNominator.getId(),
                                     scanDetail.getScanResult().level,
                                     scanDetail.getScanResult().frequency,
                                     calculateLastSelectionWeight(config.networkId),
                                     metered,
+                                    isFromCarrierOrPrivilegedApp(config),
                                     predictThroughput(scanDetail));
                             if (added) {
                                 mConnectableNetworks.add(Pair.create(scanDetail, config));
@@ -1028,6 +1032,21 @@ public class WifiNetworkSelector {
         if (name != null) {
             mCandidateScorers.remove(name);
         }
+    }
+
+    private static boolean isFromCarrierOrPrivilegedApp(WifiConfiguration config) {
+        if (config.fromWifiNetworkSuggestion
+                && config.carrierId == TelephonyManager.UNKNOWN_CARRIER_ID) {
+            // Privileged carrier suggestion
+            return true;
+        }
+        if (config.isEphemeral()
+                && !config.fromWifiNetworkSpecifier
+                && !config.fromWifiNetworkSuggestion) {
+            // From ScoredNetworkNominator
+            return true;
+        }
+        return false;
     }
 
     /**

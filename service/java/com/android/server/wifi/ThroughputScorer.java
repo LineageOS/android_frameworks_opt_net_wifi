@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.WifiNetworkSelector.NetworkNominator.NOMINATOR_ID_SCORED;
+
 import android.annotation.NonNull;
 import android.util.Log;
 
@@ -49,6 +51,9 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
 
     // config_wifi_framework_RSSI_SCORE_SLOPE
     public static final int RSSI_SCORE_SLOPE_IS_4 = 4;
+
+    public static final int TRUSTED_AWARD = 1000;
+    public static final int HALF_TRUSTED_AWARD = 1000 / 2;
 
     private static final boolean USE_USER_CONNECT_CHOICE = true;
 
@@ -85,8 +90,24 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
 
         int savedNetworkAward = candidate.isEphemeral() ? 0 : mScoringParams.getSavedNetworkBonus();
 
+        int trustedAward = TRUSTED_AWARD;
+
+        if (!candidate.isTrusted()) {
+            savedNetworkAward = 0; // Saved networks are not untrusted, but clear anyway
+            unmeteredAward = 0; // Ignore metered for untrusted networks
+            if (candidate.isCarrierOrPrivileged()) {
+                trustedAward = HALF_TRUSTED_AWARD;
+            } else if (candidate.getNominatorId() == NOMINATOR_ID_SCORED) {
+                Log.e(TAG, "ScoredNetworkNominator is not carrier or privileged!");
+                trustedAward = 0;
+            } else {
+                trustedAward = 0;
+            }
+        }
+
         int score = rssiBaseScore + throughputBonusScore
-                + currentNetworkBoost + securityAward + unmeteredAward + savedNetworkAward;
+                + currentNetworkBoost + securityAward + unmeteredAward + savedNetworkAward
+                + trustedAward;
 
         if (candidate.getLastSelectionWeight() > 0.0) {
             // Put a recently-selected network in a tier above everything else,
@@ -101,6 +122,7 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
                     + " securityAward: " + securityAward
                     + " unmeteredAward: " + unmeteredAward
                     + " savedNetworkAward: " + savedNetworkAward
+                    + " trustedAward: " + trustedAward
                     + " final score: " + score);
         }
 
