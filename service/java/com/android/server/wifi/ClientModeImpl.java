@@ -4878,9 +4878,10 @@ public class ClientModeImpl extends StateMachine {
                             // check if the removed sim card is associated with current config
                             mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
                                     StaEvent.DISCONNECT_RESET_SIM_NETWORKS);
-
-                            mWifiNative.disconnect(mInterfaceName);
+                            // remove local PMKSA cache in framework
                             mWifiNative.removeNetworkCachedData(mLastNetworkId);
+                            // remove network so that supplicant's PMKSA cache is cleared
+                            mWifiNative.removeAllNetworks(mInterfaceName);
                             mSimRequiredNotifier.showSimRequiredNotification(
                                     config, mLastSimBasedConnectionCarrierName);
                             transitionTo(mDisconnectingState);
