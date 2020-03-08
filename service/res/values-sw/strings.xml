@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Imeshindwa kuunganisha kwenye <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Gusa ili ubadilishe mipangilio ya faragha na ujaribu tena"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Ungependa kubadilisha mipangilio ya faragha?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Huenda <xliff:g id="SSID_0">%1$s</xliff:g> ikataka kuunganisha ikitumia anwani ya MAC ya kifaa chako, kitambulishi cha kipekee. Hatua hii inaweza kuruhusu vifaa vilivyo karibu nawe vifuatilie mahali kifaa chako kilipo. \n\nUkiendelea, <xliff:g id="SSID_1">%1$s</xliff:g> itabadilisha mipangilio yako ya faragha na ijaribu kuunganisha tena."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Ili kuunganisha, <xliff:g id="SSID">%1$s</xliff:g> inahitaji kutumia anwani ya MAC ya kifaa chako, kitambulishi cha kipekee. Kwa sasa, mipangilio yako ya faragha ya mtandao huu inatumia kitambulishi kwa nasibu \n\nMabadiliko haya yanaweza kuruhusu vifaa vilivyo karibu nawe vifuatilie mahali kifaa chako kilipo."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Badilisha mipangilio"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Imesasisha mipangilio. Jaribu Kuunganisha tena."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Imesasisha mipangilio. Jaribu kuunganisha tena."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Imeshindwa kubadilisha mipangilio ya faragha"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Mtandao haupatikani"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : Hitilafu ya 32760 ya uthibitishaji wa EAP"</string>

@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Не вдалося підключитися до мережі \"<xliff:g id="SSID">%1$s</xliff:g>\""</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Натисніть, щоб змінити налаштування конфіденційності й повторити спробу"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Змінити налаштування конфіденційності?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> може підключитися за допомогою унікального ідентифікатора вашого пристрою – його MAC-адреси. Через це пристрої поруч зможуть відстежувати місцеположення вашого пристрою. \n\nЯкщо продовжити, <xliff:g id="SSID_1">%1$s</xliff:g> змінить ваші налаштування конфіденційності й повторить спробу підключення."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Щоб підключитись, <xliff:g id="SSID">%1$s</xliff:g> має використовувати унікальний ідентифікатор пристрою – його MAC-адресу. Згідно з налаштуваннями конфіденційності, ваша мережа зараз використовує випадкові ідентифікатори. \n\nПісля цієї зміни пристрої поруч зможуть відстежувати місцезнаходження вашого пристрою."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Змінити налаштування"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Налаштування оновлено. Спробуйте підключитися знову."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Налаштування оновлено. Спробуйте підключитися знову."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Не вдалося змінити налаштування конфіденційності"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Мережу не знайдено"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: помилка автентифікації за протоколом EAP 32760"</string>

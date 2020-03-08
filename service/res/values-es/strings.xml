@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"No se puede conectar a <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Toca para cambiar los ajustes de privacidad y vuelve a intentarlo"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"¿Quieres cambiar el ajuste de privacidad?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Es posible que <xliff:g id="SSID_0">%1$s</xliff:g> quiera conectarse mediante la dirección MAC de tu dispositivo, que es un identificador único, lo que quizá permita que los dispositivos cercanos rastreen la ubicación de tu dispositivo. \n\nSi continúas, <xliff:g id="SSID_1">%1$s</xliff:g> cambiará tu ajuste de privacidad e intentará conectarse de nuevo."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Para conectarse, <xliff:g id="SSID">%1$s</xliff:g> necesita la dirección MAC de tu dispositivo, que es un identificador único; no obstante, ahora el ajuste de privacidad que has configurado para usar en esta red utiliza un identificador aleatorio. \n\nEs posible que este cambio permita que los dispositivos cercanos registren la ubicación de tu dispositivo."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Cambiar ajuste"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Se ha actualizado el ajuste. Prueba a conectarte de nuevo."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Se ha cambiado el ajuste. Prueba a conectarte de nuevo."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"No se ha podido cambiar el ajuste de privacidad"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"No se ha encontrado la red"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: error de autenticación de EAP 32760"</string>

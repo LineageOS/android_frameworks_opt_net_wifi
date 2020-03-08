@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"اتصال به <xliff:g id="SSID">%1$s</xliff:g> امکان‌پذیر نیست"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"برای تغییر تنظیم حریم‌خصوصی ضربه بزنید و دوباره امتحان کنید"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"تنظیم حریم‌خصوصی تغییر کند؟"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"‏<xliff:g id="SSID_0">%1$s</xliff:g> ممکن است بخواهد بااستفاده از نشانی MAC دستگاه شما که شناسه منحصربه‌فردی است متصل شود. این کار ممکن است به دستگاه‌های اطراف امکان دهد مکان دستگاهتان را ردیابی کنند. \n\nاگر ادامه دهید، <xliff:g id="SSID_1">%1$s</xliff:g> تنظیم حریم‌خصوصی شما را تغییر می‌دهد و دوباره سعی می‌کند متصل شود."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"‏برای اتصال، <xliff:g id="SSID">%1$s</xliff:g> باید از نشانی MAC دستگاهتان که شناسه‌ای منحصربه‌فرد است استفاده کند. درحال‌حاضر، تنظیم حریم‌خصوصی شما برای این شبکه از شناسه تصادفی استفاده می‌کند. \n\nاین تغییر ممکن است به دستگاه‌های اطراف امکان دهد مکان دستگاهتان را ردیابی کنند."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"تغییر تنظیم"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"تنظیمات به‌روزرسانی شد. سعی کنید دوباره متصل شوید."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"تنظیم به‌روزرسانی شد. دوباره متصل شوید."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"تنظیم حریم‌خصوصی تغییر نکرد"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"شبکه‌ای پیدا نشد"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"‏<xliff:g id="SSID">%1$s</xliff:g> : خطای ۳۲۷۶۰ احراز هویت EAP"</string>

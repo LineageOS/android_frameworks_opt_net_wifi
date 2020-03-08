@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Не може да се установи връзка с(ъс) <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Докоснете, за да промените настройките за поверителност, и опитайте отново"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Да се промени ли настройката за поверителност?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> може да иска да се свърже посредством MAC адреса на устройството – уникален идентификатор. По този начин може да се разреши на устройствата в близост да проследяват местоположението на устройството ви. \n\nАко продължите, <xliff:g id="SSID_1">%1$s</xliff:g> ще промени настройката ви за поверителност и ще опита да се свърже отново."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"За да установи връзка, <xliff:g id="SSID">%1$s</xliff:g> трябва да използва MAC адреса (уникален идентификатор) на устройството ви. Понастоящем в настройката ви за поверителност за тази мрежа се използва рандомизиран идентификатор. \n\nТази промяна може да даде възможност на устройствата в близост да проследяват местоположението на устройството ви."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Промяна на настройката"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Настройката е актуализирана. Опитайте да се свържете отново."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Настройката е актуализирана. Опитайте отново да установите връзка."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Настройката за поверителност не може да се промени"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Мрежата не е намерена"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> – Грешка при удостоверяването на EAP: 32760"</string>

@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Tidak dapat terhubung ke <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Ketuk untuk mengubah setelan privasi dan coba lagi"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Ubah setelan privasi?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> mungkin ingin terhubung menggunakan alamat MAC perangkat Anda, yaitu ID unik. Alamat ini memungkinkan lokasi perangkat dilacak oleh perangkat di sekitar. \n\nJika Anda melanjutkan, <xliff:g id="SSID_1">%1$s</xliff:g> akan mengubah setelan privasi dan mencoba terhubung lagi."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Untuk terhubung, <xliff:g id="SSID">%1$s</xliff:g> perlu menggunakan alamat MAC perangkat, yaitu ID unik. Saat ini, setelan privasi untuk jaringan ini menggunakan ID yang diacak. \n\nPerubahan ini memungkinkan lokasi perangkat dilacak oleh perangkat di sekitar."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Ganti setelan"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Setelan diperbarui. Coba hubungkan lagi."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Setelan diperbarui. Coba hubungkan lagi."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Tidak dapat mengubah setelan privasi"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Jaringan tidak ditemukan"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : Error autentikasi EAP 32760"</string>

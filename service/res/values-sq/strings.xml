@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Nuk mund të lidhet me <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Trokit për të ndryshuar cilësimet e privatësisë dhe provo përsëri"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Do ta ndryshosh cilësimin e privatësisë?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> mund të dëshirojë të lidhet duke përdorur adresën MAC të pajisjes sate, një identifikues unik. Kjo mund të lejojë monitorimin e vendndodhjes së pajisjes sate nga pajisjet në afërsi. \n\nNëse vazhdon, <xliff:g id="SSID_1">%1$s</xliff:g> do të ndryshojë cilësimin tënd të privatësisë dhe do të provojë të lidhet përsëri."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Për t\'u lidhur, <xliff:g id="SSID">%1$s</xliff:g> ka nevojë të përdorë adresën MAC të pajisjes sate, një identifikues unik. Aktualisht, cilësimi yt i privatësisë për këtë rrjet përdor një identifikues të rastësishëm. \n\nKy ndryshim mund të lejojë monitorimin e vendndodhjes së pajisjes sate nga pajisjet në afërsi."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Ndrysho cilësimin"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Cilësimi u përditësua. Provo ta lidhësh përsëri."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Cilësimi u përditësua. Provo të lidhesh përsëri."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Cilësimi i privatësisë nuk mund të ndryshohet"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Rrjeti nuk u gjet"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : Gabimi i vërtetimit të EAP 32760"</string>

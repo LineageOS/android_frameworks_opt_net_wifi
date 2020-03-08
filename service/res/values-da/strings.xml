@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Der kan ikke oprettes forbindelse til <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Tryk for at ændre privatlivsindstillingerne, og prøv igen"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Vil du ændre privatlivsindstillingen?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> vil muligvis gerne oprette forbindelse via din enheds MAC-adresse, som er et unikt id. Dette kan give enheder i nærheden tilladelse til at spore din enheds placering. \n\nHvis du fortsætter, ændrer <xliff:g id="SSID_1">%1$s</xliff:g> din privatlivsindstilling, og den prøver at oprette forbindelse igen."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"<xliff:g id="SSID">%1$s</xliff:g> skal bruge din enheds MAC-adresse (som er et unikt id), for at oprette forbindelse. I øjeblikket bruges et tilfældigt id i henhold til dine privatlivsindstillinger for dette netværk. \n\nDenne ændring kan gøre det muligt for enheder i nærheden spore din enheds placering."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Skift indstilling"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Indstillingen er opdateret. Prøv at oprette forbindelse igen."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Indstillingen blev opdateret. Prøv at oprette forbindelse igen."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Privatlivsindstillingen kan ikke ændres"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Netværket blev ikke fundet"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: EAP-godkendelsesfejl 32760"</string>

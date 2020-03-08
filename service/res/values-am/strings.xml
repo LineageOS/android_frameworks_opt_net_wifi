@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"ከ<xliff:g id="SSID">%1$s</xliff:g> ጋር መገናኘት አልተቻለም"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"የግላዊነት ቅንብሮችን ለመቀየር መታ ያድርጉ እና ዳግም ይሞክሩ"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"የግላዊነት ቅንብር ይቀየር?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> ልዩ ለዪ ከሆነው የመሣሪያዎ ማክ አድራሻ ጋር መገናኘት ሊፈልግ ይችላል። ይህ የመሣሪያዎ አካባቢ አቅራቢያ ባሉ መሣሪያዎች ክትትል እንዲደረግበት ሊያደርገው ይችላል። \n\nከቀጠሉ <xliff:g id="SSID_1">%1$s</xliff:g> የግላዊነት ቅንብርዎን ይቀይረውና እንደገና ለመገናኘት ሊሞክር ይችላል።"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"ለማገናኘት፣ <xliff:g id="SSID">%1$s</xliff:g> የእርስዎን መሣሪያ MAC አድራሻ፣ ልዩ ለይቶ ማወቂያ ለመጠቀም ይፈልጋል። አሁን ላይ፣ ለዚህ አውታረ መረብ የእርስዎ የግላዊነት ቅንብር በዘፈቀደ የተደረገ ለይቶ ማወቂያን ይጠቀማል። \n\nይህ የመሣሪያዎ አካባቢ አቅራቢያ ባሉ መሣሪያዎች ክትትል እንዲደረግበት ሊያደርገው ይችላል።"</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"ቅንብሮችን ለውጥ"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"ቅንብር ተዘምኗል። እንደገና ለማገናኘት ይሞክሩ።"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"ቅንብር ተዘምኗል። እንደገና ለማገናኘት ይሞክሩ።"</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"የግላዊነት ቅንብርን መቀየር አይቻልም"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"አውታረ መረብ አልተገኘም"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>፦ የEAP ማረጋገጥ ስህተት 32760"</string>

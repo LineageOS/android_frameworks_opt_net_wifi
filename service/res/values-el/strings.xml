@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Δεν είναι δυνατή η σύνδεση με <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Πατήστε για αλλαγή των ρυθμίσεων απορρήτου και δοκιμάστε ξανά"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Αλλαγή της ρύθμισης απορρήτου;"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Το <xliff:g id="SSID_0">%1$s</xliff:g> μπορεί να θέλει να συνδεθεί χρησιμοποιώντας τη διεύθυνση MAC της συσκευής σας, η οποία είναι ένα μοναδικό αναγνωριστικό. Αυτό μπορεί να επιτρέψει την παρακολούθηση της τοποθεσίας της συσκευής σας από συσκευές σε κοντινή απόσταση. \n\nΕάν συνεχίσετε, το <xliff:g id="SSID_1">%1$s</xliff:g> θα αλλάξει τη ρύθμιση απορρήτου σας και θα δοκιμάσει να συνδεθεί ξανά."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Για να συνδεθεί, το <xliff:g id="SSID">%1$s</xliff:g> θα πρέπει να χρησιμοποιήσει τη διεύθυνση MAC σας, η οποία είναι ένα μοναδικό αναγνωριστικό. Αυτήν τη στιγμή, η ρύθμιση απορρήτου σας για αυτό το δίκτυο χρησιμοποιεί ένα τυχαίο αναγνωριστικό. \n\nΑυτή η αλλαγή μπορεί να επιτρέψει την παρακολούθηση της τοποθεσίας της συσκευής σας από συσκευές σε κοντινή απόσταση."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Αλλαγή ρύθμισης"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Η ρύθμιση ενημερώθηκε. Δοκιμάστε να συνδεθείτε ξανά."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Η ρύθμιση ενημερώθηκε. Δοκιμάστε να συνδεθείτε ξανά."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Δεν είναι δυνατή η αλλαγή της ρύθμισης απορρήτου"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Δεν βρέθηκε δίκτυο"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : Σφάλμα ελέγχου ταυτότητας EAP 32760"</string>

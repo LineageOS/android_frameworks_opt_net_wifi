@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"無法連線至「<xliff:g id="SSID">%1$s</xliff:g>」"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"輕觸即可變更隱私權設定並重試"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"要變更隱私權設定嗎？"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"「<xliff:g id="SSID_0">%1$s</xliff:g>」可能會要求使用裝置 MAC 位址 (即專屬 ID) 進行連線。如果你允許，附近的裝置或許將可追蹤你的裝置所在位置。\n\n如要繼續，「<xliff:g id="SSID_1">%1$s</xliff:g>」將變更你的隱私權設定並嘗試重新連線。"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"「<xliff:g id="SSID">%1$s</xliff:g>」要求使用裝置 MAC 位址 (即專屬 ID) 進行連線。你目前的網路隱私權設定使用的是隨機 ID，\n\n如果進行這項變更，附近的裝置或許可以追蹤你的裝置所在位置。"</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"變更設定"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"設定已更新，請再次嘗試連線。"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"設定已更新，請再次嘗試連線。"</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"無法變更隱私權設定"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"找不到網路"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>：EAP 驗證錯誤 32760"</string>

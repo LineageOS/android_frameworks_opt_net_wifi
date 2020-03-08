@@ -61,9 +61,11 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g>-ലേക്ക് കണക്‌റ്റ് ചെയ്യാനാവുന്നില്ല"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"സ്വകാര്യതാ ക്രമീകരണം മാറ്റാൻ ടാപ്പ് ചെയ്യുക, വീണ്ടും ശ്രമിക്കുക"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"സ്വകാര്യതാ ക്രമീകരണം മാറ്റണോ?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"ഒരു തനത് ഐഡന്റിഫയറായ നിങ്ങളുടെ ഉപകരണ MAC വിലാസം ഉപയോഗിച്ച് കണക്റ്റ് ചെയ്യാൻ <xliff:g id="SSID_0">%1$s</xliff:g> താൽപ്പര്യപ്പെട്ടേക്കാം. നിങ്ങളുടെ ഉപകരണത്തിന്റെ സ്ഥാനം ട്രാക്ക് ചെയ്യാൻ സമീപത്തുള്ള ഉപകരണങ്ങളെ ഇത് അനുവദിച്ചേക്കാം. \n\nനിങ്ങൾ തുടരുന്നെങ്കിൽ, <xliff:g id="SSID_1">%1$s</xliff:g> നിങ്ങളുടെ സ്വകാര്യത ക്രമീകരണം മാറ്റി വീണ്ടും ബന്ധിപ്പിക്കാൻ ശ്രമിക്കും."</string>
+    <!-- no translation found for wifi_disable_mac_randomization_dialog_message (6780528750693169829) -->
+    <skip />
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"ക്രമീകരണം മാറ്റുക"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"ക്രമീകരണം അപ്‌ഡേറ്റ് ചെയ്തു. വീണ്ടും കണക്‌റ്റ് ചെയ്യാൻ ശ്രമിക്കുക."</string>
+    <!-- no translation found for wifi_disable_mac_randomization_dialog_success (7288972191769783828) -->
+    <skip />
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"സ്വകാര്യതാ ക്രമീകരണം മാറ്റാനാവില്ല"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"നെറ്റ്‌വർക്ക് കണ്ടെത്തിയില്ല"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP പരിശോധിച്ചുറപ്പിക്കുന്നതിലെ പ്രശ്നം 32760"</string>

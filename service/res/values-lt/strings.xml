@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Nepavyksta prisijungti prie „<xliff:g id="SSID">%1$s</xliff:g>“"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Palieskite, kad pakeistumėte privatumo nustatymus, ir bandykite dar kartą"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Keisti privatumo nustatymą?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"„<xliff:g id="SSID_0">%1$s</xliff:g>“ gali norėti prisijungti naudodama jūsų įrenginio MAC adresą – unikalų identifikatorių. Gali būti, kad tokiu atveju įrenginio vietovę galės stebėti netoliese esantys įrenginiai. \n\nJei tęsite, „<xliff:g id="SSID_1">%1$s</xliff:g>“ pakeis jūsų privatumo nustatymus ir bandys prisijungti iš naujo."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Kad galėtų prisijungti, <xliff:g id="SSID">%1$s</xliff:g> reikia jūsų įrenginio MAC adreso, unikaliojo identifikatoriaus. Šiuo metu šio tinklo privatumo nustatymas naudoja atsitiktinio parinkimo identifikatorių. \n\nGali būti, kad atlikus šį pakeitimą įrenginio vietovę galės stebėti netoliese esantys įrenginiai."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Keisti nustatymą"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Nustatymas atnaujintas. Pabandykite prisijungti dar kartą."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Nustatymas atnaujintas. Bandykite prisijungti dar kartą."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Nepavyko pakeisti privatumo nustatymo"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Tinklas nerastas"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> – EAP autentifikavimo klaida: 32760"</string>

@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g> менен туташпай жатат"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Купуялык жөндөөлөрүн өзгөртүү үчүн таптап, кайталап көрүңүз"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Купуялык жөндөөлөрүн өзгөртөсүзбү?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> түзмөгүңүздүн MAC дарегин, уникалдуу идентификаторуңузду колдонуп туташканы жатат. Ушуну менен түзмөгүңүздүн жайгашкан жерине жакын жердеги түзмөктөр көз сала алышат. \n\nЭгер улантсаңыз, <xliff:g id="SSID_1">%1$s</xliff:g> купуялык жөндөөлөрүңүздү өзгөртүп, кайра туташууга аракет кылат."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Туташуу үчүн <xliff:g id="SSID">%1$s</xliff:g> MAC дарегиңизди – уникалдуу идентификаторду колдонушу керек. Учурда бул тармактын купуялык жөндөөсү башаламан иретте түзүлгөн идентификаторду колдонууда. \n\nУшуну менен түзмөгүңүздүн жайгашкан жерине жакын жердеги түзмөктөр көз сала алышат."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Жөндөөнү өзгөртүү"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Жөндөө жаңырды. Кайра туташып көрүңүз."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Жөндөө жаңырды. Кайра туташып көрүңүз."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Купуялык жөндөөлөрүн өзгөртүүгө болбойт"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Тармак табылган жок"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP аутентификация катасы 32760"</string>

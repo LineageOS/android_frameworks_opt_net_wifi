@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"K síti <xliff:g id="SSID">%1$s</xliff:g> se nelze připojit"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Klepnutím změníte nastavení ochrany soukromí a budete opakovat pokus"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Změnit nastavení ochrany soukromí?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Síť <xliff:g id="SSID_0">%1$s</xliff:g> se může chtít připojit za pomoci adresy MAC vašeho zařízení, což je unikátní identifikátor. Zařízení v okolí díky tomu mohou sledovat polohu vašeho zařízení. \n\nBudete-li pokračovat, síť <xliff:g id="SSID_1">%1$s</xliff:g> změní nastavení ochrany soukromí a pokusí se znovu připojit."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"K připojení potřebuje síť <xliff:g id="SSID">%1$s</xliff:g> použít adresu MAC vašeho zařízení – jedinečný identifikátor. V současné době vaše nastavení ochrany soukromí pro tuto síť používá náhodný identifikátor. \n\nTato změna může zařízením v okolí umožnit sledovat polohu vašeho zařízení."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Změnit nastavení"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Nastavení bylo aktualizováno. Zkuste se připojit znovu."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Nastavení bylo aktualizováno. Zkuste se připojit znovu."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Nastavení ochrany soukromí se nepodařilo změnit"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Síť nebyla nalezena"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: Chyba ověření EAP 32760"</string>

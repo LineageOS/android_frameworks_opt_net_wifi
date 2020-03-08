@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Nu se poate conecta la <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Atingeți pentru a modifica setările de confidențialitate și a încerca din nou"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Modificați setările de confidențialitate?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> poate dori să se conecteze folosind adresa MAC a dispozitivului, un identificator unic. Astfel, locația dispozitivului poate fi urmărită de dispozitivele din apropiere. \n\nDacă alegeți să continuați, <xliff:g id="SSID_1">%1$s</xliff:g> vă va modifica setarea de confidențialitate și va încerca din nou să se conecteze."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Pentru a se conecta, <xliff:g id="SSID">%1$s</xliff:g> trebuie să folosească adresa MAC a dispozitivului, un identificator unic. Momentan, setarea de confidențialitate pentru această rețea folosește un identificator aleatoriu. \n\nAceastă modificare poate permite ca locația dispozitivului să fie urmărită de dispozitivele din apropiere."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Modificați setarea"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Setarea a fost actualizată. Încercați din nou să vă conectați."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Setarea a fost actualizată. Încercați să vă conectați din nou."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Nu puteți modifica setarea de confidențialitate"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Rețeaua nu a fost găsită"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : eroare de autentificare EAP 32760"</string>

@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"يتعذّر الاتصال بـ <xliff:g id="SSID">%1$s</xliff:g>."</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"انقر لتغيير إعدادات الخصوصية وإعادة المحاولة."</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"هل تريد تغيير إعداد الخصوصية؟"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"‏قد يحتاج <xliff:g id="SSID_0">%1$s</xliff:g> إلى الاتصال باستخدام عنوان MAC الخاص بجهازك ومعرّف فريد. وقد يسمح هذا الإجراء للأجهزة القريبة بتتبع الموقع الجغرافي لجهازك. \n\nفي حال مواصلة تنفيذ هذا الإجراء، سيغيّر <xliff:g id="SSID_1">%1$s</xliff:g> إعداد الخصوصية ويحاول إعادة الاتصال."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"‏للاتصال، تحتاج خدمة <xliff:g id="SSID">%1$s</xliff:g> إلى استخدام عنوان MAC الخاص بجهازك ومعرّف فريد. يستخدم إعداد الخصوصية لهذه الشبكة حاليًا معرّفًا عشوائيًا. \n\nقد يسمح هذا التغيير للأجهزة القريبة بتتبع الموقع الجغرافي لجهازك."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"تغيير الإعداد"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"تم تعديل الإعداد. حاوِل إعادة الاتصال."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"تم تعديل الإعداد. حاوِل إعادة الاتصال."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"لا يمكن تغيير إعداد الخصوصية."</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"لم يتم العثور على الشبكة."</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"‏<xliff:g id="SSID">%1$s</xliff:g> : خطأ في مصادقة EAP رقم 32760"</string>

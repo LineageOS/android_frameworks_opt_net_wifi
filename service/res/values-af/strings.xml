@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Kan nie aan <xliff:g id="SSID">%1$s</xliff:g> koppel nie"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Tik om privaatheidinstellings te verander en herprobeer"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Verander privaatheidinstelling?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> salk dalk wil koppel met jou toestel se MAC-adres, \'n unieke identifiseerder. Dit kan dit vir toestelle in die omtrek moontlik maak om jou toestel se ligging na te spoor. \n\nAs jy voortgaan, sal <xliff:g id="SSID_1">%1$s</xliff:g> jou privaatheidinstelling verander en weer probeer koppel."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"<xliff:g id="SSID">%1$s</xliff:g> moet jou toestel se MAC-adres, \'n unieke identifiseerder, gebruik om te koppel. Jou privaatheidinstelling vir hierdie netwerk gebruik tans \'n verewekansigde identifiseerder. \n\nHierdie verandering kan dit vir toestelle in die omtrek moontlik maak om jou toestel se ligging na te spoor."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Verander instelling"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Instelling is opgedateer. Probeer weer koppel."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Instelling is opgedateer. Probeer weer koppel"</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Kan nie privaatheidinstelling verander nie"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Kon nie netwerk kry nie"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP-stawingsfout 32760"</string>

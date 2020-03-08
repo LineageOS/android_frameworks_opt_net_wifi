@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Nije se moguće povezati s mrežom <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Dodirnite da promijenite postavke privatnosti i pokušajte ponovo"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Promijeniti postavku privatnosti?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Moguće je da će se mreža <xliff:g id="SSID_0">%1$s</xliff:g> htjeti povezati pomoću MAC adrese vašeg uređaja, koja je jedinstveni identifikator. Na taj način se uređajima u blizini može dozvoliti da prate lokaciju vašeg uređaja. \n\nAko nastavite, mreža <xliff:g id="SSID_1">%1$s</xliff:g> će promijeniti vašu postavku privatnosti i pokušat će se ponovo povezati."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Za povezivanje <xliff:g id="SSID">%1$s</xliff:g> treba koristiti vašu MAC adresu, koja je jedinstveni identifikator. Vaša postavka privatnosti za ovu mrežu trenutno koristi nasumično odabrani identifikator. \n\nNa taj način se uređajima u blizini može dozvoliti da prate lokaciju vašeg uređaja."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Promijeni postavku"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Postavka je ažurirana. Pokušajte se ponovo povezati."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Postavka je ažurirana. Pokušajte se ponovo povezati."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Nije moguće promijeniti postavku privatnosti"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Mreža nije pronađena"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: EAP greška autentifikacije 32760"</string>
