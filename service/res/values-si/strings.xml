@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g> වෙත සම්බන්ධ විය නොහැකිය"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"රහස්‍යතා සැකසීම් වෙනස් කිරීමට තට්ටු කර යළි උත්සාහ කරන්න"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"රහස්‍යතා සැකසීම වෙනස් කරන්නද?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"අනුපම අනන්‍යකාරකයක් වන ඔබේ උපාංග MAC ලිපිනය භාවිතයෙන් <xliff:g id="SSID_0">%1$s</xliff:g> හට සම්බන්ධ වීමට අවශ්‍ය විය හැකිය. මෙය ඔබේ උපාංගයේ ස්ථානය අවට උපාංග මගින් නිරීක්ෂණය කිරීමට ඉඩ දිය හැකිය. \n\nඔබ ඉදිරියට යන්නේ නම්, <xliff:g id="SSID_1">%1$s</xliff:g> මගින් ඔබේ රහස්‍යතා සැකසීම වෙනස් කර නැවත සම්බන්ධ වීමට උත්සාහ කරනු ඇත."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"සම්බන්ධ වීමට, <xliff:g id="SSID">%1$s</xliff:g> හට ඔබේ උපාංග MAC ලිපිනය, අනන්‍ය අනන්‍යකාරකයක් භාවිත කිරීමට අවශ්‍යය. දැනට, මෙම ජාලය සඳහා ඔබේ රහස්‍යතා සැකසීම සසම්භාවීකරණය කළ අනන්‍යකාරකයක් භාවිත කරයි. \n\nමෙය ඔබේ උපාංගයේ ස්ථානය අවට උපාංග මගින් නිරීක්ෂණය කිරීමට ඉඩ දිය හැකිය."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"සැකසීම වෙනස් කරන්න"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"සැකසීම යාවත්කාලීනයි. නැවත සබැඳීමට උත්සාහ කරන්න."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"සැකසීම යාවත්කාලීනයි. නැවත සබැඳීමට උත්සාහ කරන්න."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"රහස්‍යතා සැකසීම වෙනස් කළ නොහැකිය"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"ජාලය හමු වූයේ නැත"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP සත්‍යාපනය කිරීමේ දෝෂය 32760"</string>

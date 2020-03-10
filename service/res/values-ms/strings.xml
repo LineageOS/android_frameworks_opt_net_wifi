@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Tidak dapat menyambung ke <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Ketik untuk menukar tetapan privasi, kemudian cuba semula"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Tukar tetapan privasi?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> mungkin mahu menyambung menggunakan alamat MAC peranti anda, iaitu pengecam unik. Tindakan ini mungkin membenarkan lokasi peranti anda dijejaki oleh peranti yang berdekatan. \n\nJika anda meneruskan, <xliff:g id="SSID_1">%1$s</xliff:g> akan menukar tetapan privasi anda dan cuba menyambung lagi."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Untuk menyambung, <xliff:g id="SSID">%1$s</xliff:g> perlu menggunakan alamat MAC peranti anda, iaitu pengecam unik. Pada masa ini, tetapan privasi anda untuk rangkaian ini menggunakan pengecam terawak. \n\nPerubahan ini mungkin membenarkan lokasi peranti anda dijejaki oleh peranti yang berdekatan."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Tukar tetapan"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Tetapan dikemas kini. Cuba Sambung lagi."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Tetapan dikemas kini. Cuba sambung lagi."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Tidak boleh menukar tetapan privasi"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Rangkaian tidak ditemukan"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : Ralat pengesahan EAP 32760"</string>

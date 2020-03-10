@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Impossible de se connecter à <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Touchez pour modifier les paramètres de confidentialité et réessayer"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Modifier le paramètre de confidentialité?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> pourrait vouloir se connecter à l\'aide de l\'adresse MAC de votre appareil, un identifiant unique. Il se peut que cela permette à des appareils à proximité de suivre la position de votre appareil. \n\nSi vous continuez, <xliff:g id="SSID_1">%1$s</xliff:g> modifiera votre paramètre de confidentialité et tentera de se connecter à nouveau."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Pour autoriser la connexion, le réseau <xliff:g id="SSID">%1$s</xliff:g> a besoin d\'utiliser l\'adresse MAC de votre appareil, un identifiant unique. En ce moment, votre paramètre de confidentialité pour ce réseau utilise un identifiant aléatoire. \n\nIl se peut que ce changement permette à des appareils à proximité de suivre la position de votre appareil."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Modifier le paramètre"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Paramètre mis à jour. Essayez d\'effectuer la connexion de nouveau."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Paramètre mis à jour. Réessayez de vous connecter."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Impossible de modifier les paramètres de confidentialité"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Réseau introuvable"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : erreur d\'authentification EAP 32760"</string>

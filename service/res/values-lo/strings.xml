@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"ບໍ່ສາມາດເຊື່ອມຕໍ່ຫາ <xliff:g id="SSID">%1$s</xliff:g> ໄດ້"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"ແຕະເພື່ອປ່ຽນການຕັ້ງຄ່າຄວາມເປັນສ່ວນຕົວແລ້ວລອງໃໝ່"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"ປ່ຽນການຕັ້ງຄ່າຄວາມເປັນສ່ວນຕົວບໍ?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> ອາດຕ້ອງການເຊື່ອມຕໍ່ໂດຍໃຊ້ທີ່ຢູ່ MAC ອຸປະກອນຂອງທ່ານ, ເຊິ່ງເປັນຕົວລະບຸທີ່ບໍ່ຊ້ຳກັນ. ນີ້ອາດອະນຸຍາດໃຫ້ອຸປະກອນໃກ້ຄຽງສາມາດຕິດຕາມສະຖານທີ່ຂອງອຸປະກອນທ່ານໄດ້. \n\nຫາກທ່ານສືບຕໍ່, <xliff:g id="SSID_1">%1$s</xliff:g> ຈະປ່ຽນການຕັ້ງຄ່າຄວາມເປັນສ່ວນຕົວຂອງທ່ານ ແລະ ລອງເຊື່ອມຕໍ່ອີກເທື່ອໜຶ່ງ."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"ເພື່ອເຊື່ອມຕໍ່, <xliff:g id="SSID">%1$s</xliff:g> ຈຳເປັນຕ້ອງໃຊ້ທີ່ຢູ່ MAC ອຸປະກອນຂອງທ່ານ, ເຊິ່ງເປັນຕົວລະບຸແບບບໍ່ຊ້ຳກັນ. ຕອນນີ້, ການຕັ້ງຄ່າຄວາມເປັນສ່ວນຕົວຂອງທ່ານສຳລັບເຄືອຂ່າຍນີ້ໃຊ້ຕົວລະບຸແບບສຸ່ມຢູ່. \n\nການປ່ຽນແປງນີ້ອາດຈະເຮັດໃຫ້ອຸປະກອນໃກ້ຄຽງສາມາດຕິດຕາມສະຖານທີ່ຂອງອຸປະກອນທ່ານໄດ້."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"ປ່ຽນການຕັ້ງຄ່າ"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"ອັບເດດການຕັ້ງຄ່າແລ້ວ. ລອງເຊື່ອມຕໍ່ໃໝ່ອີກເທື່ອໜຶ່ງ."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"ອັບເດດການຕັ້ງຄ່າແລ້ວ ກະລຸນາລອງເຊື່ອມຕໍ່ໃໝ່."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"ບໍ່ສາມາດປ່ຽນການຕັ້ງຄ່າຄວາມເປັນສ່ວນຕົວໄດ້"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"ບໍ່ພົບເຄືອຂ່າຍ"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : ການພິສູດຢືນຢັນ EAP ຜິດພາດ 32760"</string>

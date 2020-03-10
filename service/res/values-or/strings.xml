@@ -61,9 +61,11 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g> ସହିତ ସଂଯୋଗ କରାଯାଇପାରିବ ନାହିଁ"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"ଗୋପନୀୟତା ସେଟିଂସ୍ ବଦଳେଇବାକୁ ଟାପ୍ କରନ୍ତୁ ଏବଂ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"ଗୋପନୀୟତା ସେଟିଂ ବଦଳେଇବେ?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> ଆପଣଙ୍କ ଡିଭାଇସ୍‌ର ଏକ ସ୍ୱତନ୍ତ୍ର ଚିହ୍ନଟକାରୀ MAC ଠିକଣା ବ୍ୟବହାର କରି ସଂଯୋଗ କରିବାକୁ ଚାହିଁପାରେ। ଏହା ଆପଣଙ୍କର ଡିଭାଇସ୍‌ର ଲୋକେସନ୍‌କୁ ଟ୍ରାକ୍ କରିବାକୁ ଆଖପାଖର ଡିଭାଇସ୍‌ଗୁଡ଼ିକୁ ଅନୁମତି ଦେଇପାରେ। \n\nଯଦି ଆପଣ ଜାରି ରଖନ୍ତି, ତେବେ <xliff:g id="SSID_1">%1$s</xliff:g> ଆପଣଙ୍କର ଗୋପନୀୟତା ସେଟିଂକୁ ବଦଳାଇ ପୁଣି ସଂଯୋଗ କରିବାକୁ ଚେଷ୍ଟା କରିବ।"</string>
+    <!-- no translation found for wifi_disable_mac_randomization_dialog_message (6780528750693169829) -->
+    <skip />
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"ସେଟିଂକୁ ବଦଳାନ୍ତୁ"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"ସେଟିଂକୁ ଅପ୍‌ଡେଟ୍ କରାଯାଇଛି। ପୁଣି ସଂଯୋଗ କରିବାକୁ ଚେଷ୍ଟା କରନ୍ତୁ।"</string>
+    <!-- no translation found for wifi_disable_mac_randomization_dialog_success (7288972191769783828) -->
+    <skip />
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"ଗୋପନୀୟତା ସେଟିଂ ବଦଳିପାରିବ ନାହିଁ"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"ନେଟ୍‌ୱାର୍କ ମିଳିଲା ନାହିଁ"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ପ୍ରମାଣିକତାରେ ତ୍ରୁଟି 32760"</string>

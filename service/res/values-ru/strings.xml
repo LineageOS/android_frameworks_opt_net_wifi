@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Не удалось подключиться к устройству \"<xliff:g id="SSID">%1$s</xliff:g>\""</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Нажмите, чтобы изменить настройки конфиденциальности и повторить попытку."</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Изменить настройки конфиденциальности?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Устройство \"<xliff:g id="SSID_0">%1$s</xliff:g>\" может подключиться, используя MAC-адрес вашего устройства (уникальный идентификатор). При этом устройства поблизости смогут отслеживать ваше местоположение. \n\nЕсли вы продолжите, устройство \"<xliff:g id="SSID_1">%1$s</xliff:g>\" изменит настройки конфиденциальности и попробует подключиться ещё раз."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Для подключения сети <xliff:g id="SSID">%1$s</xliff:g> необходим MAC-адрес вашего устройства (уникальный идентификатор). Сейчас ваша настройка конфиденциальности для этой сети использует случайный идентификатор. \n\nЭто изменение может привести к тому, что устройства поблизости смогут отслеживать ваше местоположение."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Изменить настройки"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Настройки сохранены. Попробуйте подключиться ещё раз."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Настройки сохранены. Попробуйте подключиться ещё раз."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Не удается изменить настройки конфиденциальности."</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Сеть не найдена."</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : Ошибка аутентификации EAP 32760"</string>

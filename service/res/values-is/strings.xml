@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Ekki hægt að tengjast <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Ýttu til að breyta persónuverndarstillingum og reyna aftur"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Viltu breyta persónuverndarstillingunni?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> gæti viljað tengjast með því að nota MAC-vistfang tækisins, sem er einkvæmt auðkenni þess. Þetta getur gert nálægum tækjum kleift að rekja staðsetningu tækisins. \n\nEf þú heldur áfram mun <xliff:g id="SSID_1">%1$s</xliff:g> breyta persónuverndarstillingu þinni og reyna aftur að tengjast."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Til að tengjast þarf <xliff:g id="SSID">%1$s</xliff:g> að nota MAC-vistfang tækisins, sem er einkvæmt auðkenni þess. Núverandi persónuverndarstillingar þínar fyrir þetta net nota auðkenni sem valið er af handahófi. \n\nÞessi breyting getur gert nálægum tækjum kleift að rekja staðsetningu tækisins."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Breyta stillingu"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Stilling uppfærð. Reyndu aftur að tengja."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Stilling uppfærð. Reyndu aftur að tengja."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Ekki er hægt að breyta persónuverndarstillingu"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Netið fannst ekki"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP-auðkenningarvilla 32760"</string>

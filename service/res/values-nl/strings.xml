@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Kan niet verbinden met <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Tik om de privacyinstellingen aan te passen en probeer het opnieuw"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Privacyinstelling wijzigen?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> wil mogelijk verbinding maken via het MAC-adres van je apparaat (een uniek identificatienummer). Hierdoor kan de locatie van je apparaat worden bijgehouden door apparaten in de buurt. \n\nAls je doorgaat, wijzigt <xliff:g id="SSID_1">%1$s</xliff:g> je privacyinstelling en probeert opnieuw verbinding te maken."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"<xliff:g id="SSID">%1$s</xliff:g> moet het MAC-adres van je apparaat gebruiken om verbinding te maken. Dat is een unieke ID. Vanwege je privacyinstelling voor dit netwerk wordt op dit moment een willekeurige ID gebruikt. \n\nDoor deze wijziging kan de locatie van je apparaat worden bijgehouden door apparaten in de buurt."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Instelling wijzigen"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Instelling geüpdatet. Probeer opnieuw verbinding te maken."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Instelling geüpdatet. Probeer opnieuw verbinding te maken."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Wijzigen van privacyinstelling is mislukt"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Netwerk niet gevonden"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: EAP-verificatiefout 32760"</string>

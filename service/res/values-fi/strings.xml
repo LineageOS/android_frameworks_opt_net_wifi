@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Verkkoon <xliff:g id="SSID">%1$s</xliff:g> ei saada yhteyttä"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Napauta muuttaaksesi yksityisyysasetusta ja yritä uudelleen"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Muutetaanko yksityisyysasetus?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> saattaa haluta yhdistää laitteesi MAC-osoitteen, eli yksilöllisen tunnisteen, kautta. Tämä voi antaa lähellä oleville laitteille mahdollisuuden seurata laitteesi sijaintia. \n\nJos jatkat, <xliff:g id="SSID_1">%1$s</xliff:g> muuttaa yksityisyysasetuksesi ja yrittää yhdistää uudelleen."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Yhteyden muodostaminen edellyttää, että <xliff:g id="SSID">%1$s</xliff:g> voi käyttää MAC-osoitetta eli yksilöllistä tunnistetta. Tällä hetkellä verkon yksityisyysasetuksesi käyttää satunnaistettua tunnistetta. \n\nTämä muutos voi sallia lähellä olevien laitteiden seurata laitteesi sijaintia."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Muuta asetusta"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Asetus päivitetty. Yritä yhdistää uudelleen."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Asetus päivitetty. Yritä muodostaa yhteys uudelleen."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Yksityisyysasetusta ei voi muuttaa"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Verkkoa ei löydy"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP-todennusvirhe 32760"</string>

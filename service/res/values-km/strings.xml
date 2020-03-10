@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"មិនអាចភ្ជាប់ជាមួយ <xliff:g id="SSID">%1$s</xliff:g> បានទេ"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"ចុច ដើម្បី​ប្ដូរ​ការកំណត់​ឯកជនភាព រួច​ព្យាយាម​ម្ដងទៀត"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"ប្ដូរ​ការកំណត់​ឯកជនភាព​ឬ?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> ប្រហែលជា​ចង់ភ្ជាប់​ ដោយប្រើ​អាសយដ្ឋាន​ឧបករណ៍ MAC របស់អ្នក ដែលជាព័ត៌មាន​សម្គាល់​ពិសេស។ សកម្មភាពនេះ​អាចអនុញ្ញាតឱ្យ​ឧបករណ៍​នៅជិតតាមដានទីតាំង​​ឧបករណ៍​របស់អ្នក​​។ \n\nប្រសិនបើអ្នកបន្ត <xliff:g id="SSID_1">%1$s</xliff:g> នឹងប្ដូរការកំណត់​ឯកជនភាព​របស់អ្នក រួចព្យាយាមភ្ជាប់ម្ដងទៀត។"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"ដើម្បីភ្ជាប់ <xliff:g id="SSID">%1$s</xliff:g> ត្រូវការប្រើ​អាសយដ្ឋាន MAC របស់​ឧបករណ៍អ្នក ដែលជា​ព័ត៌មាន​សម្គាល់​ពិសេស។ បច្ចុប្បន្ន ការកំណត់​ឯកជនភាពរបស់អ្នកសម្រាប់បណ្ដាញនេះប្រើព័ត៌មានសម្គាល់ចៃដន្យ។ \n\nការផ្លាស់ប្ដូរនេះ​អាចអនុញ្ញាតឱ្យ​ឧបករណ៍​នៅជិតតាមដានទីតាំង​​ឧបករណ៍​របស់អ្នក​​។"</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"ប្ដូរការ​កំណត់"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"បាន​ធ្វើ​បច្ចុប្បន្នភាព​ការ​កំណត់។ សូម​សាកល្បង​ភ្ជាប់ម្ដងទៀត។"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"បាន​ធ្វើ​បច្ចុប្បន្នភាព​ការ​កំណត់។ សូម​សាកល្បង​ភ្ជាប់ម្ដងទៀត។"</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"មិនអាច​ប្ដូរ​ការកំណត់​ឯកជនភាព​បានទេ"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"រក​មិនឃើញ​បណ្ដាញ​ទេ"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : បញ្ហាក្នុង​ការផ្ទៀងផ្ទាត់ EAP 32760"</string>

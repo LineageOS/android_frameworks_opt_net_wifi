@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"เชื่อมต่อกับ <xliff:g id="SSID">%1$s</xliff:g> ไม่ได้"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"แตะเพื่อเปลี่ยนการตั้งค่าความเป็นส่วนตัวแล้วลองใหม่"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"เปลี่ยนการตั้งค่าความเป็นส่วนตัวใช่ไหม"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> อาจต้องการเชื่อมต่อโดยใช้ที่อยู่ MAC ของอุปกรณ์ ซึ่งเป็นตัวระบุที่ไม่ซ้ำกัน วิธีนี้อาจทำให้อุปกรณ์ใกล้เคียงติดตามตำแหน่งของอุปกรณ์ของคุณได้ \n\nหากดำเนินการต่อ <xliff:g id="SSID_1">%1$s</xliff:g> จะเปลี่ยนการตั้งค่าความเป็นส่วนตัวของคุณแล้วลองเชื่อมต่ออีกครั้ง"</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"<xliff:g id="SSID">%1$s</xliff:g> ต้องเชื่อมต่อโดยใช้ที่อยู่ MAC ของอุปกรณ์ ซึ่งเป็นตัวระบุที่ไม่ซ้ำกัน การตั้งค่าความเป็นส่วนตัวในปัจจุบันของคุณสำหรับเครือข่ายนี้ใช้ตัวระบุแบบสุ่มอยู่ \n\nวิธีนี้อาจทำให้อุปกรณ์ใกล้เคียงติดตามตำแหน่งอุปกรณ์ของคุณได้"</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"เปลี่ยนการตั้งค่า"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"อัปเดตการตั้งค่าแล้ว ลองเชื่อมต่ออีกครั้ง"</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"อัปเดตการตั้งค่าแล้ว ลองเชื่อมต่ออีกครั้ง"</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"เปลี่ยนการตั้งค่าความเป็นส่วนตัวไม่ได้"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"ไม่พบเครือข่าย"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : ข้อผิดพลาดในการตรวจสอบสิทธิ์ EAP 32760"</string>

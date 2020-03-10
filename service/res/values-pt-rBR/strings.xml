@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Não foi possível se conectar à rede <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Toque para mudar as configurações de privacidade e tentar novamente"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Mudar configuração de privacidade?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> pode querer se conectar usando o endereço MAC do seu dispositivo, um identificador único. Isso pode permitir que o local do dispositivo seja monitorado por dispositivos próximos. \n\nSe você continuar, <xliff:g id="SSID_1">%1$s</xliff:g> mudará sua configuração de privacidade e tentará se conectar novamente."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Para se conectar, <xliff:g id="SSID">%1$s</xliff:g> precisa usar o endereço MAC do seu dispositivo, um identificador exclusivo. Atualmente, sua configuração de privacidade para esta rede usa um identificador aleatório. \n\nEssa mudança pode permitir que o local do dispositivo seja monitorado por dispositivos próximos."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Mudar configuração"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Configuração atualizada. Tente se conectar novamente."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Configuração atualizada. Tente conectar novamente."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Não foi possível mudar as configurações de privacidade"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Rede não encontrada"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: erro de autenticação EAP nº 32760"</string>

@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Nevar izveidot savienojumu ar: <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"Pieskarieties, lai mainītu konfidencialitātes iestatījumus un mēģinātu vēlreiz"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Vai mainīt konfidencialitātes iestatījumu?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> vēlas izveidot savienojumu, izmantojot jūsu ierīces MAC adresi, unikālu identifikatoru. Tādējādi tuvumā esošās ierīces var izsekot jūsu ierīces atrašanās vietu. \n\nJa turpināsiet, <xliff:g id="SSID_1">%1$s</xliff:g> mainīs jūsu konfidencialitātes iestatījumu un vēlreiz mēģinās izveidot savienojumu."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Lai varētu izveidot savienojumu, <xliff:g id="SSID">%1$s</xliff:g> vēlas izmantot jūsu ierīces MAC adresi, unikālu identifikatoru. Šobrīd šī tīkla konfidencialitātes iestatījumam tiek izmantots nejauši atlasīts identifikators. \n\nTādējādi tuvumā esošās ierīces var izsekot jūsu ierīces atrašanās vietu."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Mainīt iestatījumu"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Iestatījums atjaunināts. Mēģiniet atkārtoti izveidot savienojumu."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Iestatījums atjaunināts. Mēģiniet izveidot savienojumu vēlreiz."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Nevar mainīt konfidencialitātes iestatījumu"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Tīkls nav atrasts"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g>: EAP autentificēšanas kļūda 32760"</string>

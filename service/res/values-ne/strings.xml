@@ -61,9 +61,11 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g> मा जडान गर्न सकिएन"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"गोपनीयता सेटिङ परिवर्तन गर्न ट्याप गरेर फेरि प्रयास गर्नुहोस्"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"गोपनीयतासम्बन्धी सेटिङ परिवर्तन गर्ने हो?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"<xliff:g id="SSID_0">%1$s</xliff:g> ले तपाईंका यन्त्रको MAC ठेगाना अर्थात् अद्वितीय पहिचानकर्ता प्रयोग गरेर सम्पर्क गर्न सक्ने सम्भावना छ। यसो गर्नाले तपाईंका यन्त्रको स्थान वरपरका यन्त्रहरूले ट्र्याक गर्न सक्ने सम्भावना छ। \n\nतपाईंले यो कार्य जारी राख्नुभएमा, <xliff:g id="SSID_1">%1$s</xliff:g> ले तपाईंको गोपनीयता सेटिङ परिवर्तन गरेर फेरि जोडिन प्रयास गर्ने छ।"</string>
+    <!-- no translation found for wifi_disable_mac_randomization_dialog_message (6780528750693169829) -->
+    <skip />
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"सेटिङ परिवर्तन गर्नुहोस्"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"सेटिङ अद्यावधिक गरियो। फेरि जोडी हेर्नुहोस्।"</string>
+    <!-- no translation found for wifi_disable_mac_randomization_dialog_success (7288972191769783828) -->
+    <skip />
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"गोपनीयता सेटिङ परिवर्तन गर्न सकिँदैन"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"नेटवर्क फेला परेन"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP प्रमाणीकरणसम्बन्धी त्रुटि ३२७६०"</string>

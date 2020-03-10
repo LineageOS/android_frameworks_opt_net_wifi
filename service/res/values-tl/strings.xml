@@ -61,9 +61,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"Hindi makakonekta sa <xliff:g id="SSID">%1$s</xliff:g>"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"I-tap para baguhin ang mga setting ng privacy at subukan ulit"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"Baguhin ang setting ng privacy?"</string>
-    <string name="wifi_disable_mac_randomization_dialog_message" msgid="4240415044701814187">"Baka gusto ng <xliff:g id="SSID_0">%1$s</xliff:g> na kumonekta gamit ang MAC address, na isang natatanging pagkakakilanlan, ng iyong device. Dahil dito, baka masubaybayan ng mga kalapit na device ang lokasyon ng iyong device. \n\nKung magpapatuloy ka, babaguhin ng <xliff:g id="SSID_1">%1$s</xliff:g> ang setting ng iyong privacy at susubukan nitong kumonekta ulit."</string>
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"Para kumonekta, kailangan ng <xliff:g id="SSID">%1$s</xliff:g> ang MAC address ng iyong device, na isang natatanging identifier. Sa kasalukuyan, gumagamit ng naka-randomize na identifier ang mga setting mo sa privacy para sa network na ito. \n\nDahil sa pagbabagong ito, baka mapahintulutan ang mga kalapit na device na subaybayan ang lokasyon ng iyong device."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"Baguhin ang setting"</string>
-    <string name="wifi_disable_mac_randomization_dialog_success" msgid="8233753657756785734">"Na-update ang setting. Subukang Kumonekta ulit."</string>
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"Na-update ang setting. Subukang kumonekta ulit."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"Hindi puwedeng baguhin ang setting ng privacy"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"Hindi nakita ang network"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : Error sa pag-authenticate ng EAP 32760"</string>
