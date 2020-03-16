@@ -36,6 +36,12 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
      */
     public static final int THROUGHPUT_SCORER_DEFAULT_EXPID = 42330058;
 
+    /**
+     * Base score that is large enough to override all of the other categories.
+     * This is applied to the last-select network for a limited duration.
+     */
+    public static final int TOP_TIER_BASE_SCORE = 1_000_000;
+
     private final ScoringParams mScoringParams;
 
     // config_wifi_framework_RSSI_SCORE_OFFSET
@@ -65,9 +71,6 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
 
         int throughputBonusScore = calculateThroughputBonusScore(candidate);
 
-        int lastSelectionBonusScore = (int)
-                (candidate.getLastSelectionWeight() * mScoringParams.getLastSelectionBonus());
-
         int currentNetworkBoost = candidate.isCurrentNetwork()
                 ? mScoringParams.getCurrentNetworkBonus()
                 : 0;
@@ -82,13 +85,18 @@ final class ThroughputScorer implements WifiCandidates.CandidateScorer {
 
         int savedNetworkAward = candidate.isEphemeral() ? 0 : mScoringParams.getSavedNetworkBonus();
 
-        int score = rssiBaseScore + throughputBonusScore + lastSelectionBonusScore
+        int score = rssiBaseScore + throughputBonusScore
                 + currentNetworkBoost + securityAward + unmeteredAward + savedNetworkAward;
+
+        if (candidate.getLastSelectionWeight() > 0.0) {
+            // Put a recently-selected network in a tier above everything else,
+            // but include rssi and throughput contributions for BSSID selection.
+            score = TOP_TIER_BASE_SCORE + rssiBaseScore + throughputBonusScore;
+        }
 
         if (DBG) {
             Log.d(TAG, " rssiScore: " + rssiBaseScore
                     + " throughputScore: " + throughputBonusScore
-                    + " lastSelectionBonus: " + lastSelectionBonusScore
                     + " currentNetworkBoost: " + currentNetworkBoost
                     + " securityAward: " + securityAward
                     + " unmeteredAward: " + unmeteredAward

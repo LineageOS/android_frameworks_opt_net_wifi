@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -178,6 +179,27 @@ public class CandidateScorerTest extends WifiBaseTest {
     }
 
     /**
+     * Prefer to switch with a larger rssi difference.
+     */
+    @Test
+    public void testSwitchWithLargerDifference() throws Exception {
+        assertThat(evaluate(mCandidate1.setScanRssi(-80)
+                                       .setCurrentNetwork(true)),
+                lessThan(evaluate(mCandidate2.setScanRssi(-60))));
+    }
+
+    /**
+     * Stay on recently selected network.
+     */
+    @Test
+    public void testStayOnRecentlySelected() throws Exception {
+        assertThat(evaluate(mCandidate1.setScanRssi(-80)
+                                       .setCurrentNetwork(true)
+                                       .setLastSelectionWeight(0.25)),
+                greaterThan(evaluate(mCandidate2.setScanRssi(-60))));
+    }
+
+    /**
      * Above saturation, don't switch from current even with a large rssi difference.
      */
     @Test
@@ -189,7 +211,7 @@ public class CandidateScorerTest extends WifiBaseTest {
     }
 
     /**
-     * Prefer high throughput network
+     * Prefer high throughput network.
      */
     @Test
     public void testPreferHighThroughputNetwork() throws Exception {

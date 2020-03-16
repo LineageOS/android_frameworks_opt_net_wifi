@@ -49,6 +49,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -67,15 +68,6 @@ public class WifiNetworkSelector {
      */
     @VisibleForTesting
     public static final int MINIMUM_NETWORK_SELECTION_INTERVAL_MS = 10 * 1000;
-
-    /**
-     * Time that it takes for the boost given to the most recently user-selected
-     * network to decay to zero.
-     *
-     * In milliseconds.
-     */
-    @VisibleForTesting
-    public static final int LAST_USER_SELECTION_DECAY_TO_ZERO_MS = 8 * 60 * 60 * 1000;
 
     /**
      * Connected score value used to decide whether a still-connected wifi should be treated
@@ -762,10 +754,6 @@ public class WifiNetworkSelector {
             return null;
         }
 
-        // Determine the weight for the last user selection
-        final int lastUserSelectedNetworkId = mWifiConfigManager.getLastSelectedNetwork();
-        final double lastSelectionWeight = calculateLastSelectionWeight();
-
         WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard, mContext);
         if (currentNetwork != null) {
             wifiCandidates.setCurrent(currentNetwork.networkId, currentBssid);
@@ -780,7 +768,7 @@ public class WifiNetworkSelector {
                     NetworkNominator.NOMINATOR_ID_CURRENT,
                     wifiInfo.getRssi(),
                     wifiInfo.getFrequency(),
-                    lastSelectionWeight,
+                    calculateLastSelectionWeight(currentNetwork.networkId),
                     WifiConfiguration.isMetered(currentNetwork, wifiInfo),
                     0 /* Mbps */);
         }
@@ -798,8 +786,7 @@ public class WifiNetworkSelector {
                                     registeredNominator.getId(),
                                     scanDetail.getScanResult().level,
                                     scanDetail.getScanResult().frequency,
-                                    (config.networkId == lastUserSelectedNetworkId)
-                                            ? lastSelectionWeight : 0.0,
+                                    calculateLastSelectionWeight(config.networkId),
                                     metered,
                                     predictThroughput(scanDetail));
                             if (added) {
@@ -959,16 +946,14 @@ public class WifiNetworkSelector {
         }
     }
 
-    private double calculateLastSelectionWeight() {
-        final int lastUserSelectedNetworkId = mWifiConfigManager.getLastSelectedNetwork();
-        double lastSelectionWeight = 0.0;
-        if (lastUserSelectedNetworkId != WifiConfiguration.INVALID_NETWORK_ID) {
-            double timeDifference = mClock.getElapsedSinceBootMillis()
-                    - mWifiConfigManager.getLastSelectedTimeStamp();
-            double unclipped = 1.0 - (timeDifference / LAST_USER_SELECTION_DECAY_TO_ZERO_MS);
-            lastSelectionWeight = Math.min(Math.max(unclipped, 0.0), 1.0);
-        }
-        return lastSelectionWeight;
+    private double calculateLastSelectionWeight(int networkId) {
+        if (networkId != mWifiConfigManager.getLastSelectedNetwork()) return 0.0;
+        double timeDifference = mClock.getElapsedSinceBootMillis()
+                - mWifiConfigManager.getLastSelectedTimeStamp();
+        long millis = TimeUnit.MINUTES.toMillis(mScoringParams.getLastSelectionMinutes());
+        if (timeDifference >= millis) return 0.0;
+        double unclipped = 1.0 - (timeDifference / millis);
+        return Math.min(Math.max(unclipped, 0.0), 1.0);
     }
 
     private WifiCandidates.CandidateScorer getActiveCandidateScorer() {
