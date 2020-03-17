@@ -6330,6 +6330,15 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
+    private void setConfigurationsPriorToIpClientProvisioning(WifiConfiguration config) {
+        mIpClient.setHttpProxy(config.getHttpProxy());
+        if (!TextUtils.isEmpty(mContext.getResources().getString(
+                R.string.config_wifi_tcp_buffers))) {
+            mIpClient.setTcpBufferSizes(mContext.getResources().getString(
+                    R.string.config_wifi_tcp_buffers));
+        }
+    }
+
     private boolean startIpClient(WifiConfiguration config, boolean isFilsConnection) {
         if (mIpClient == null) {
             return false;
@@ -6352,6 +6361,7 @@ public class ClientModeImpl extends StateMachine {
                 mWifiNative.flushAllHlp(mInterfaceName);
                 return false;
             }
+            setConfigurationsPriorToIpClientProvisioning(config);
             final ProvisioningConfiguration prov =
                     new ProvisioningConfiguration.Builder()
                     .withPreDhcpAction()
@@ -6376,14 +6386,7 @@ public class ClientModeImpl extends StateMachine {
             // connectivity APIs such as getActiveNetworkInfo should not return
             // CONNECTED.
             stopDhcpSetup();
-
-            mIpClient.setHttpProxy(config.getHttpProxy());
-            if (!TextUtils.isEmpty(mContext.getResources().getString(
-                    R.string.config_wifi_tcp_buffers))) {
-                mIpClient.setTcpBufferSizes(mContext.getResources().getString(
-                        R.string.config_wifi_tcp_buffers));
-            }
-
+            setConfigurationsPriorToIpClientProvisioning(config);
             ScanDetailCache scanDetailCache =
                     mWifiConfigManager.getScanDetailCacheForNetwork(config.networkId);
             ScanResult scanResult = null;
