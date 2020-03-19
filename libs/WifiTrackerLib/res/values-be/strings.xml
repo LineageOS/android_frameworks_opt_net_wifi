@@ -19,7 +19,7 @@
     <string name="summary_separator" msgid="6533720408587140819">" / "</string>
     <string name="auto_connect_disable" msgid="1078319396240632542">"Аўтападключэнне выключана"</string>
     <string name="saved_network" msgid="6241977554502802914">"Захавана праз: <xliff:g id="NAME">%1$s</xliff:g>"</string>
-    <string name="wifi_no_internet_no_reconnect" msgid="4378129479815195671">"Не будзе аўтаматычна падключацца"</string>
+    <string name="wifi_no_internet_no_reconnect" msgid="3089980800841926268">"Не будзе аўтаматычна падключацца"</string>
     <string name="wifi_no_internet" msgid="4461212237521310895">"Няма доступу да інтэрнэту"</string>
     <string name="wifi_disabled_password_failure" msgid="3015007143699702403">"Памылка аўтэнтыфікацыі"</string>
     <string name="wifi_check_password_try_again" msgid="2643230209986217827">"Праверце пароль і паўтарыце спробу"</string>
@@ -31,7 +31,7 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"Сетка з улікам трафіка"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"Сетка без уліку трафіка"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"Падключана праз праграму \"<xliff:g id="NAME">%1$s</xliff:g>\""</string>
-    <string name="connected_via_network_scorer" msgid="8081366798449871179">"Аўтаматычна падключана праз %1$s"</string>
+    <string name="connected_via_network_scorer" msgid="209764314005159012">"Аўтаматычна падключана праз: <xliff:g id="NAME">%1$s</xliff:g>"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Аўтаматычна падключана праз пастаўшчыка паслугі ацэнкі сеткі"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Абмежаваныя магчымасці падключэння"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"Не ўдалося атрымаць доступ да прыватнага DNS-сервера"</string>
