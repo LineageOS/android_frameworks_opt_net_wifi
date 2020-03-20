@@ -31,10 +31,22 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g> सुचवलेली नेटवर्क. डिव्हाइस आपोआप कनेक्ट होऊ शकते."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"अनुमती द्या"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"नाही, नको"</string>
-    <string name="wifi_suggestion_imsi_privacy_title" msgid="5072368033308094465">"IMSI सुरक्षेसंबंधित गोपनीयता चेतावणी"</string>
-    <string name="wifi_suggestion_imsi_privacy_content" msgid="5050532382656368119">"<xliff:g id="CARRIERNAME">%s</xliff:g> ने गोपनीयता सुरक्षेशिवाय तुमच्या सिम कार्डाची माहिती वापरून नेटवर्क सुचवले आहे, नेटवर्क आपोआप कनेक्ट करण्याची अनुमती द्यायची का?"</string>
-    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="5500037364868978935">"अनुमती द्या"</string>
-    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="7020127735591720299">"अनुमती देऊ नका"</string>
+    <!-- no translation found for wifi_suggestion_imsi_privacy_title (2915915091404141470) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_content (2964867545127220548) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (4510014692570591616) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (1466870675651864648) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_exemption_confirmation_title (3252889810011175876) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_imsi_privacy_exemption_confirmation_content (1665277613133133730) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_confirmation (3102046304611708608) -->
+    <skip />
+    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_confirmation (8467281276632253246) -->
+    <skip />
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"वाय-फाय आपोआप चालू होईल"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"तुम्ही जेव्हा सेव्ह केलेल्या उच्च दर्जाच्या नेटवर्कजवळ असाल तेव्हा"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"पुन्हा चालू करू नका"</string>
@@ -61,11 +73,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g> शी कनेक्ट करता आले नाही"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"गोपनीयता सेटिंग्ज बदलण्यासाठी टॅप करा आणि पुन्हा प्रयत्न करा"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"गोपनीयता सेटिंग्ज बदलायची आहे का?"</string>
-    <!-- no translation found for wifi_disable_mac_randomization_dialog_message (6780528750693169829) -->
-    <skip />
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"कनेक्ट करण्यासाठी, <xliff:g id="SSID">%1$s</xliff:g> ला तुमच्या डिव्हाइसचा MAC अ‍ॅड्रेस, एक युनिक आयडेंटिफायर वापरणे आवश्यक आहे. सध्या, या नेटवर्कसाठी तुमचे गोपनीयता सेटिंग रँडम आयडेंटिफायर वापरते. \n\nया बदलामुळे जवळपासच्या डिव्हाइसद्वारे तुमच्या डिव्हाइसचे स्थान ट्रॅक करता येऊ शकते."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"सेटिंग बदला"</string>
-    <!-- no translation found for wifi_disable_mac_randomization_dialog_success (7288972191769783828) -->
-    <skip />
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"सेटिंग अपडेट केले. पुन्हा कनेक्ट करण्याचा प्रयत्न करा."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"गोपनीयता सेटिंग्ज बदलू शकत नाही"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"नेटवर्क मिळाला नाही आहे"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ऑथेंटिकेशन एरर ३२७६०"</string>
@@ -75,9 +85,10 @@
     <string name="wifi_eap_error_message_code_32764" msgid="6883041845648321423">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ऑथेंटिकेशन एरर ३२७६४"</string>
     <string name="wifi_eap_error_message_code_32765" msgid="3134805513440435314">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ऑथेंटिकेशन एरर ३२७६५"</string>
     <string name="wifi_eap_error_message_code_32766" msgid="6907401733158262194">"<xliff:g id="SSID">%1$s</xliff:g> : EAP ऑथेंटिकेशन एरर ३२७६६"</string>
-    <string name="wifi_softap_auto_shutdown_timeout_expired_title" msgid="6772994319428197481">"मोबाईल हॉटस्पॉट बंद केला"</string>
-    <string name="wifi_softap_auto_shutdown_timeout_expired_summary" msgid="2784340491027490290">"मोबाईल हॉटस्पॉट बंद केला गेला आहे"</string>
-    <string name="wifi_softap_auto_shutdown_timeout_expired_detail" msgid="7203939001058203709">"निष्क्रियता टाइमआउट एक्स्पायर झाल्यामुळे मोबाइल हॉटस्पॉट बंद केला गेला आहे."</string>
+    <!-- no translation found for wifi_softap_auto_shutdown_timeout_expired_title (3145323037688670043) -->
+    <skip />
+    <!-- no translation found for wifi_softap_auto_shutdown_timeout_expired_summary (5136282560556465701) -->
+    <skip />
     <string name="wifi_sim_required_title" msgid="8362843050699015640">"वाय-फाय डिस्कनेक्ट झाले"</string>
     <string name="wifi_sim_required_message" msgid="6085636103482409595">"<xliff:g id="SSID">%1$s</xliff:g> शी कनेक्ट करण्यासाठी, एक <xliff:g id="CARRIER_NAME">%2$s</xliff:g> सिम घाला"</string>
 </resources>
