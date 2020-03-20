@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"സൈൻ അപ്പ് പൂർത്തിയാക്കുന്നു…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"സൈൻ അപ്പ് പൂർത്തിയാക്കാനായില്ല. വീണ്ടും ശ്രമിക്കാൻ ടാപ്പ് ചെയ്യുക."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"സൈൻ അപ്പ് പൂർത്തിയായി. കണക്റ്റ് ചെയ്യുന്നു…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

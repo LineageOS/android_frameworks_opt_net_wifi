@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"ලියාපදිංචිය සම්පූර්ණ කරමින්…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"ලියාපදිංචිය සම්පූර්ණ කළ නොහැකි විය. නැවත උත්සාහ කිරීමට තට්ටු කරන්න."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"ලියාපදිංචිය සම්පූර්ණයි. සබැඳෙමින්…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

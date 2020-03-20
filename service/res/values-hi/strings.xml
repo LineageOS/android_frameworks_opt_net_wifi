@@ -73,11 +73,9 @@
     <string name="wifi_cannot_connect_with_randomized_mac_title" msgid="3161171832972320854">"<xliff:g id="SSID">%1$s</xliff:g> से कनेक्ट नहीं किया जा सकता"</string>
     <string name="wifi_cannot_connect_with_randomized_mac_message" msgid="3084495849409387375">"निजता सेटिंग बदलने के लिए टैप करें और फिर से कोशिश करें"</string>
     <string name="wifi_disable_mac_randomization_dialog_title" msgid="7200723795776228456">"निजता सेटिंग बदलना चाहते हैं?"</string>
-    <!-- no translation found for wifi_disable_mac_randomization_dialog_message (6780528750693169829) -->
-    <skip />
+    <string name="wifi_disable_mac_randomization_dialog_message" msgid="6780528750693169829">"कनेक्ट करने के लिए, <xliff:g id="SSID">%1$s</xliff:g> को आपके डिवाइस के एमएसी (मैक) पते का इस्तेमाल करने की ज़रूरत पड़ेगी. यह एक खास पहचानकर्ता होता है. फ़िलहाल, इस नेटवर्क के लिए आपकी निजता सेटिंग, किसी भी क्रम में लगाए गए पहचानकर्ता का इस्तेमाल करती है. \n\nइस बदलाव से, आपके डिवाइस की जगह की जानकारी को आस-पास के डिवाइस ट्रैक कर सकते हैं."</string>
     <string name="wifi_disable_mac_randomization_dialog_confirm_text" msgid="6592972299988727403">"सेटिंग बदलें"</string>
-    <!-- no translation found for wifi_disable_mac_randomization_dialog_success (7288972191769783828) -->
-    <skip />
+    <string name="wifi_disable_mac_randomization_dialog_success" msgid="7288972191769783828">"सेटिंग अपडेट की गई. फिर से कनेक्ट करने की कोशिश करें."</string>
     <string name="wifi_disable_mac_randomization_dialog_failure" msgid="1823128152758990275">"निजता सेटिंग नहीं बदली जा सकती"</string>
     <string name="wifi_disable_mac_randomization_dialog_network_not_found" msgid="2352188098110676023">"नेटवर्क नहीं मिला"</string>
     <string name="wifi_eap_error_message_code_32760" msgid="2272296327034079386">"<xliff:g id="SSID">%1$s</xliff:g> : EAP authentication error 32760"</string>
