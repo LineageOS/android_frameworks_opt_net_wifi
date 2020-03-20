@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"가입 완료 중…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"가입을 완료할 수 없습니다. 다시 시도하려면 탭하세요."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"가입이 완료되었습니다. 연결 중…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

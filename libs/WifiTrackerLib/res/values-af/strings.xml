@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Voltooi tans aanmelding …"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Kon nie aanmelding voltooi nie. Tik om weer te probeer."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Aanmelding is voltooi. Koppel tans …"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

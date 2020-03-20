@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Notiek reģistrācijas pabeigšana…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Nevarēja pabeigt reģistrāciju. Pieskarieties, lai mēģinātu vēlreiz."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Reģistrācija ir pabeigta. Notiek savienojuma izveide…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

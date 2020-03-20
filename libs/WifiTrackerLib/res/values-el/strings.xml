@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Ολοκλήρωση εγγραφής…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Δεν ήταν δυνατή η ολοκλήρωση της εγγραφής. Πατήστε για να δοκιμάσετε ξανά."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Η εγγραφή ολοκληρώθηκε. Σύνδεση…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>
