@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"กำลังลงชื่อสมัครใช้ให้เสร็จสิ้น…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"ลงชื่อสมัครใช้ไม่สำเร็จ แตะเพื่อลองอีกครั้ง"</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"การลงชื่อสมัครใช้เสร็จสมบูรณ์ กำลังเชื่อมต่อ…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

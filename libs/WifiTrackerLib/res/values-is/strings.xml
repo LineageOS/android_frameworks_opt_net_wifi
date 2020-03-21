@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Gengur frá skráningu…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Ekki tókst að ljúka við skráningu. Ýttu til að reyna aftur."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Skráningu lokið. Tengist…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

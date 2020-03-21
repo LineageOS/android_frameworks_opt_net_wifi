@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"سائن اپ مکمل ہو رہا ہے…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"سائن اپ مکمل نہیں ہو سکا۔ دوبارہ کوشش کرنے کے لیے تھپتھپائیں۔"</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"سائن اپ مکمل ہو گیا۔ منسلک ہو رہا ہے…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

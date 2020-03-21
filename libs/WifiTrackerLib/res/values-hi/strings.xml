@@ -17,7 +17,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="summary_separator" msgid="6533720408587140819">" / "</string>
-    <string name="auto_connect_disable" msgid="1078319396240632542">"अपने-आप कनेक्ट करने की सुविधा बंद है"</string>
+    <string name="auto_connect_disable" msgid="1078319396240632542">"अपने-आप कनेक्ट होने की सुविधा बंद है"</string>
     <string name="saved_network" msgid="6241977554502802914">"<xliff:g id="NAME">%1$s</xliff:g> के द्वारा सहेजा गया"</string>
     <!-- no translation found for wifi_no_internet_no_reconnect (3089980800841926268) -->
     <skip />
@@ -46,4 +46,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"साइन अप किया जा रहा है…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"साइन अप नहीं हो सका. फिर से कोशिश करने के लिए टैप करें."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"साइन अप की प्रक्रिया पूरी हो गई. कनेक्ट हो रहा है…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>

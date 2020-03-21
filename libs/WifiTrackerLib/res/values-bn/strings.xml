@@ -44,4 +44,6 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"সাইন-আপ করা হচ্ছে…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"সাইন-আপ করা যায়নি। আবার চেষ্টা করতে ট্যাপ করুন।"</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"সাইন-আপ করা হয়ে গেছে। কানেক্ট করা হচ্ছে…"</string>
+    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <skip />
 </resources>
