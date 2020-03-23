@@ -1091,6 +1091,9 @@ message SoftApReturnCodeCount {
 
     // SoftAp failed to start due to NO_CHANNEL error
     SOFT_AP_FAILED_NO_CHANNEL = 3;
+
+    // SoftAp failed to start due to unsupported configuration error
+    SOFT_AP_FAILED_UNSUPPORTED_CONFIGURATION = 4;
   }
 
   // Historical, no longer used for writing as of 01/2017.
@@ -1711,6 +1714,21 @@ message SoftApConnectedClientsEvent {
 
   // Channel bandwidth used for Soft AP
   optional ChannelBandwidth channel_bandwidth = 5;
+
+  // Maximum number of client setting in SoftApConfiguration
+  optional int32 max_num_clients_setting_in_softap_configuration = 6;
+
+  // Maximum number of client setting in SoftApCapability
+  optional int32 max_num_clients_setting_in_softap_capability = 7;
+
+  // Auto shutdown timeout setting in SoftApConfiguration
+  optional int64 shutdown_timeout_setting_in_softap_configuration = 8;
+
+  // Framework default auto shutdown timeout setting
+  optional int64 default_shutdown_timeout_setting = 9;
+
+  // Indicates if user enabled the client_control
+  optional bool client_control_is_enabled = 10;
 }
 
 // Wps connection metrics

@@ -23,6 +23,8 @@ import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.wifi.EAPConstants;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
+import android.net.wifi.SoftApCapability;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
@@ -2195,6 +2197,14 @@ public class WifiMetrics {
                 mSoftApManagerReturnCodeCounts.put(
                         WifiMetricsProto.SoftApReturnCodeCount.SOFT_AP_FAILED_NO_CHANNEL,
                         count + 1);
+            } else if (failureCode == WifiManager.SAP_START_FAILURE_UNSUPPORTED_CONFIGURATION) {
+                int count = mSoftApManagerReturnCodeCounts.get(
+                        WifiMetricsProto.SoftApReturnCodeCount
+                        .SOFT_AP_FAILED_UNSUPPORTED_CONFIGURATION);
+                mSoftApManagerReturnCodeCounts.put(
+                        WifiMetricsProto.SoftApReturnCodeCount
+                        .SOFT_AP_FAILED_UNSUPPORTED_CONFIGURATION,
+                        count + 1);
             } else {
                 // failure mode not tracked at this time...  count as a general error for now.
                 int count = mSoftApManagerReturnCodeCounts.get(
@@ -2209,11 +2219,12 @@ public class WifiMetrics {
     /**
      * Adds a record indicating the current up state of soft AP
      */
-    public void addSoftApUpChangedEvent(boolean isUp, int mode) {
+    public void addSoftApUpChangedEvent(boolean isUp, int mode, long defaultShutdownTimeoutMillis) {
         SoftApConnectedClientsEvent event = new SoftApConnectedClientsEvent();
         event.eventType = isUp ? SoftApConnectedClientsEvent.SOFT_AP_UP :
                 SoftApConnectedClientsEvent.SOFT_AP_DOWN;
         event.numConnectedClients = 0;
+        event.defaultShutdownTimeoutSetting = defaultShutdownTimeoutMillis;
         addSoftApConnectedClientsEvent(event, mode);
     }
 
@@ -2276,6 +2287,66 @@ public class WifiMetrics {
                 if (event != null && event.eventType == SoftApConnectedClientsEvent.SOFT_AP_UP) {
                     event.channelFrequency = frequency;
                     event.channelBandwidth = bandwidth;
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates current soft AP events with softap configuration
+     */
+    public void updateSoftApConfiguration(SoftApConfiguration config, int mode) {
+        synchronized (mLock) {
+            List<SoftApConnectedClientsEvent> softApEventList;
+            switch (mode) {
+                case WifiManager.IFACE_IP_MODE_TETHERED:
+                    softApEventList = mSoftApEventListTethered;
+                    break;
+                case WifiManager.IFACE_IP_MODE_LOCAL_ONLY:
+                    softApEventList = mSoftApEventListLocalOnly;
+                    break;
+                default:
+                    return;
+            }
+
+            for (int index = softApEventList.size() - 1; index >= 0; index--) {
+                SoftApConnectedClientsEvent event = softApEventList.get(index);
+
+                if (event != null && event.eventType == SoftApConnectedClientsEvent.SOFT_AP_UP) {
+                    event.maxNumClientsSettingInSoftapConfiguration =
+                            config.getMaxNumberOfClients();
+                    event.shutdownTimeoutSettingInSoftapConfiguration =
+                            config.getShutdownTimeoutMillis();
+                    event.clientControlIsEnabled = config.isClientControlByUserEnabled();
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates current soft AP events with softap capability
+     */
+    public void updateSoftApCapability(SoftApCapability capability, int mode) {
+        synchronized (mLock) {
+            List<SoftApConnectedClientsEvent> softApEventList;
+            switch (mode) {
+                case WifiManager.IFACE_IP_MODE_TETHERED:
+                    softApEventList = mSoftApEventListTethered;
+                    break;
+                case WifiManager.IFACE_IP_MODE_LOCAL_ONLY:
+                    softApEventList = mSoftApEventListLocalOnly;
+                    break;
+                default:
+                    return;
+            }
+
+            for (int index = softApEventList.size() - 1; index >= 0; index--) {
+                SoftApConnectedClientsEvent event = softApEventList.get(index);
+                if (event != null && event.eventType == SoftApConnectedClientsEvent.SOFT_AP_UP) {
+                    event.maxNumClientsSettingInSoftapCapability =
+                            capability.getMaxSupportedClients();
                     break;
                 }
             }
@@ -2947,6 +3018,10 @@ public class WifiMetrics {
                         WifiMetricsProto.SoftApReturnCodeCount.SOFT_AP_FAILED_GENERAL_ERROR));
                 pw.println("  FAILED_NO_CHANNEL: " + mSoftApManagerReturnCodeCounts.get(
                         WifiMetricsProto.SoftApReturnCodeCount.SOFT_AP_FAILED_NO_CHANNEL));
+                pw.println("  FAILED_UNSUPPORTED_CONFIGURATION: "
+                        + mSoftApManagerReturnCodeCounts.get(
+                        WifiMetricsProto.SoftApReturnCodeCount
+                        .SOFT_AP_FAILED_UNSUPPORTED_CONFIGURATION));
                 pw.print("\n");
                 pw.println("mWifiLogProto.numHalCrashes="
                         + mWifiLogProto.numHalCrashes);
@@ -3106,6 +3181,15 @@ public class WifiMetrics {
                     eventLine.append(",num_connected_clients=" + event.numConnectedClients);
                     eventLine.append(",channel_frequency=" + event.channelFrequency);
                     eventLine.append(",channel_bandwidth=" + event.channelBandwidth);
+                    eventLine.append(",max_num_clients_setting_in_softap_configuration="
+                            + event.maxNumClientsSettingInSoftapConfiguration);
+                    eventLine.append(",max_num_clients_setting_in_softap_capability="
+                            + event.maxNumClientsSettingInSoftapCapability);
+                    eventLine.append(",shutdown_timeout_setting_in_softap_configuration="
+                            + event.shutdownTimeoutSettingInSoftapConfiguration);
+                    eventLine.append(",default_shutdown_timeout_setting="
+                            + event.defaultShutdownTimeoutSetting);
+                    eventLine.append(",client_control_is_enabled=" + event.clientControlIsEnabled);
                     pw.println(eventLine.toString());
                 }
                 pw.println("mSoftApLocalOnlyEvents:");
@@ -3116,6 +3200,15 @@ public class WifiMetrics {
                     eventLine.append(",num_connected_clients=" + event.numConnectedClients);
                     eventLine.append(",channel_frequency=" + event.channelFrequency);
                     eventLine.append(",channel_bandwidth=" + event.channelBandwidth);
+                    eventLine.append(",max_num_clients_setting_in_softap_configuration="
+                            + event.maxNumClientsSettingInSoftapConfiguration);
+                    eventLine.append(",max_num_clients_setting_in_softap_capability="
+                            + event.maxNumClientsSettingInSoftapCapability);
+                    eventLine.append(",shutdown_timeout_setting_in_softap_configuration="
+                            + event.shutdownTimeoutSettingInSoftapConfiguration);
+                    eventLine.append(",default_shutdown_timeout_setting="
+                            + event.defaultShutdownTimeoutSetting);
+                    eventLine.append(",client_control_is_enabled=" + event.clientControlIsEnabled);
                     pw.println(eventLine.toString());
                 }
 
