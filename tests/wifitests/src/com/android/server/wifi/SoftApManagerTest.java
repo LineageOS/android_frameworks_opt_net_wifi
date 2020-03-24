@@ -1623,6 +1623,12 @@ public class SoftApManagerTest extends WifiBaseTest {
                         WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS);
         verify(mWifiMetrics, never()).addSoftApNumAssociatedStationsChangedEvent(
                 2, apConfig.getTargetMode());
+        // Trigger connection again
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT_2, true);
+        mLooper.dispatchAll();
+        // Verify just update metrics one time
+        verify(mWifiMetrics).noteSoftApClientBlocked(1);
     }
 
     @Test
@@ -1992,7 +1998,7 @@ public class SoftApManagerTest extends WifiBaseTest {
         // Verify timer is canceled at this point
         verify(mAlarmManager.getAlarmManager()).cancel(any(WakeupMessage.class));
 
-        // Second client connect and max client set is 1.
+        // Second client connect and max client set is 2.
         mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
                 TEST_NATIVE_CLIENT_2, true);
         mLooper.dispatchAll();
@@ -2011,5 +2017,74 @@ public class SoftApManagerTest extends WifiBaseTest {
         // Verify Disconnect will trigger
         verify(mWifiNative).forceClientDisconnect(
                         any(), any(), anyInt());
+    }
+
+    @Test
+    public void testConfigChangeWillTriggerUpdateMetricsAgain() throws Exception {
+        Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+        configBuilder.setSsid(TEST_SSID);
+        configBuilder.setMaxNumberOfClients(1);
+        SoftApModeConfiguration apConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED,
+                configBuilder.build(), mTestSoftApCapability);
+        startSoftApAndVerifyEnabled(apConfig);
+
+        verify(mCallback).onConnectedClientsChanged(new ArrayList<>());
+
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT, true);
+        mLooper.dispatchAll();
+
+        verify(mCallback, times(2)).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
+
+        verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(
+                1, apConfig.getTargetMode());
+        // Verify timer is canceled at this point
+        verify(mAlarmManager.getAlarmManager()).cancel(any(WakeupMessage.class));
+
+        // Second client connect and max client set is 1.
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT_2, true);
+        mLooper.dispatchAll();
+        verify(mWifiNative).forceClientDisconnect(
+                        TEST_INTERFACE_NAME, TEST_MAC_ADDRESS_2,
+                        WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS);
+
+        // Verify update metrics
+        verify(mWifiMetrics).noteSoftApClientBlocked(1);
+
+        // Trigger Configuration Change
+        configBuilder.setMaxNumberOfClients(2);
+        mSoftApManager.updateConfiguration(configBuilder.build());
+        mLooper.dispatchAll();
+
+        // Second client connect and max client set is 2.
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT_2, true);
+        mLooper.dispatchAll();
+        verify(mCallback, times(3)).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT_2))
+        );
+
+        // Trigger Configuration Change
+        configBuilder.setMaxNumberOfClients(1);
+        mSoftApManager.updateConfiguration(configBuilder.build());
+        mLooper.dispatchAll();
+        // Let client disconnect due to maximum number change to small.
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT, false);
+        mLooper.dispatchAll();
+
+        // Trigger connection again
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_NATIVE_CLIENT, true);
+        mLooper.dispatchAll();
+        // Verify just update metrics one time
+        verify(mWifiMetrics, times(2)).noteSoftApClientBlocked(1);
     }
 }

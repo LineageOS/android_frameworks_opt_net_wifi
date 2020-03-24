@@ -122,6 +122,8 @@ public class SoftApManager implements ActiveModeManager {
 
     private @Role int mRole = ROLE_UNSPECIFIED;
 
+    private boolean mEverReportMetricsForMaxClient = false;
+
     @NonNull
     private Set<MacAddress> mBlockedClientList = new HashSet<>();
 
@@ -470,6 +472,11 @@ public class SoftApManager implements ActiveModeManager {
                     WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS);
             mSoftApCallback.onBlockedClientConnecting(newClient,
                     WifiManager.SAP_CLIENT_BLOCK_REASON_CODE_NO_MORE_STAS);
+            // Avoid report the max client blocked in the same settings.
+            if (!mEverReportMetricsForMaxClient) {
+                mWifiMetrics.noteSoftApClientBlocked(maxConfig);
+                mEverReportMetricsForMaxClient = true;
+            }
             return false;
         }
         return true;
@@ -784,6 +791,7 @@ public class SoftApManager implements ActiveModeManager {
 
                 Log.d(TAG, "Resetting connected clients on start");
                 mConnectedClients.clear();
+                mEverReportMetricsForMaxClient = false;
                 scheduleTimeoutMessage();
             }
 
@@ -932,6 +940,11 @@ public class SoftApManager implements ActiveModeManager {
                         if (!ApConfigUtil.checkConfigurationChangeNeedToRestart(
                                 currentConfig, newConfig)) {
                             Log.d(TAG, "Configuration changed to " + newConfig);
+                            if (mApConfig.getSoftApConfiguration().getMaxNumberOfClients()
+                                    != newConfig.getMaxNumberOfClients()) {
+                                Log.d(TAG, "Max Client changed, reset to record the metrics");
+                                mEverReportMetricsForMaxClient = false;
+                            }
                             boolean needRescheduleTimer =
                                     mApConfig.getSoftApConfiguration().getShutdownTimeoutMillis()
                                     != newConfig.getShutdownTimeoutMillis()

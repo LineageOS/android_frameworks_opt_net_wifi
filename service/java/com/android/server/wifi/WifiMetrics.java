@@ -445,6 +445,9 @@ public class WifiMetrics {
     // Wi-Fi off metrics
     private final WifiOffMetrics mWifiOffMetrics = new WifiOffMetrics();
 
+    private final SoftApConfigLimitationMetrics mSoftApConfigLimitationMetrics =
+            new SoftApConfigLimitationMetrics();
+
     @VisibleForTesting
     static class NetworkSelectionExperimentResults {
         public static final int MAX_CHOICES = 10;
@@ -998,6 +1001,49 @@ public class WifiMetrics {
             return sb.toString();
         }
     }
+
+    class SoftApConfigLimitationMetrics {
+        // Collect the number of softap security setting reset to default during the restore
+        public int numSecurityTypeResetToDefault = 0;
+        // Collect the number of softap max client setting reset to default during the restore
+        public int numMaxClientSettingResetToDefault = 0;
+        // Collect the number of softap client control setting reset to default during the restore
+        public int numClientControlByUserResetToDefault = 0;
+        // Collect the max client setting when reach it cause client is blocked
+        public final IntCounter maxClientSettingWhenReachHistogram = new IntCounter();
+
+        public WifiMetricsProto.SoftApConfigLimitationMetrics toProto() {
+            WifiMetricsProto.SoftApConfigLimitationMetrics proto =
+                    new WifiMetricsProto.SoftApConfigLimitationMetrics();
+            proto.numSecurityTypeResetToDefault = numSecurityTypeResetToDefault;
+            proto.numMaxClientSettingResetToDefault = numMaxClientSettingResetToDefault;
+            proto.numClientControlByUserResetToDefault = numClientControlByUserResetToDefault;
+            proto.maxClientSettingWhenReachHistogram = maxClientSettingWhenReachHistogram.toProto();
+            return proto;
+        }
+
+        public void clear() {
+            numSecurityTypeResetToDefault = 0;
+            numMaxClientSettingResetToDefault = 0;
+            numClientControlByUserResetToDefault = 0;
+            maxClientSettingWhenReachHistogram.clear();
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("numSecurityTypeResetToDefault=")
+                    .append(numSecurityTypeResetToDefault)
+                    .append(", numMaxClientSettingResetToDefault=")
+                    .append(numMaxClientSettingResetToDefault)
+                    .append(", numClientControlByUserResetToDefault=")
+                    .append(numClientControlByUserResetToDefault)
+                    .append(", maxClientSettingWhenReachHistogram=")
+                    .append(maxClientSettingWhenReachHistogram);
+            return sb.toString();
+        }
+    }
+
 
     public WifiMetrics(Context context, FrameworkFacade facade, Clock clock, Looper looper,
             WifiAwareMetrics awareMetrics, RttMetrics rttMetrics,
@@ -3355,6 +3401,8 @@ public class WifiMetrics {
                         + mWifiLogProto.isExternalWifiScorerOn);
                 pw.println("mWifiLogProto.wifiOffMetrics="
                         + mWifiOffMetrics.toString());
+                pw.println("mWifiLogProto.softApConfigLimitationMetrics="
+                        + mSoftApConfigLimitationMetrics.toString());
             }
         }
     }
@@ -3925,6 +3973,7 @@ public class WifiMetrics {
             mWifiLogProto.bssidBlocklistStats = mBssidBlocklistStats.toProto();
             mWifiLogProto.connectionDurationStats = mConnectionDurationStats.toProto();
             mWifiLogProto.wifiOffMetrics = mWifiOffMetrics.toProto();
+            mWifiLogProto.softApConfigLimitationMetrics = mSoftApConfigLimitationMetrics.toProto();
         }
     }
 
@@ -4123,6 +4172,7 @@ public class WifiMetrics {
             mConnectionDurationStats.clear();
             mWifiLogProto.isExternalWifiScorerOn = false;
             mWifiOffMetrics.clear();
+            mSoftApConfigLimitationMetrics.clear();
 
         }
     }
@@ -5780,5 +5830,31 @@ public class WifiMetrics {
         synchronized (mLock) {
             mWifiLogProto.numL2ConnectionThroughFilsAuthentication++;
         }
+    }
+
+    /**
+     * Note SoftapConfig Reset Metrics
+     */
+    public void noteSoftApConfigReset(SoftApConfiguration originalConfig,
+            SoftApConfiguration newConfig) {
+        synchronized (mLock) {
+            if (originalConfig.getSecurityType() != newConfig.getSecurityType()) {
+                mSoftApConfigLimitationMetrics.numSecurityTypeResetToDefault++;
+            }
+            if (originalConfig.getMaxNumberOfClients() != newConfig.getMaxNumberOfClients()) {
+                mSoftApConfigLimitationMetrics.numMaxClientSettingResetToDefault++;
+            }
+            if (originalConfig.isClientControlByUserEnabled()
+                    != newConfig.isClientControlByUserEnabled()) {
+                mSoftApConfigLimitationMetrics.numClientControlByUserResetToDefault++;
+            }
+        }
+    }
+
+    /**
+     * Note Softap client blocked due to max client limitation
+     */
+    public void noteSoftApClientBlocked(int maxClient) {
+        mSoftApConfigLimitationMetrics.maxClientSettingWhenReachHistogram.increment(maxClient);
     }
 }

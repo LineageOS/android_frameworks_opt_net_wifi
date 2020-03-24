@@ -4527,4 +4527,41 @@ public class WifiMetricsTest extends WifiBaseTest {
         assertKeyCountsEqual(expectedHistogram,
                 mDecodedProto.wifiOffMetrics.wifiOffDeferringTimeHistogram);
     }
+
+    /*
+     * Test the logging of Wi-Fi off
+     */
+    @Test
+    public void testSoftApConfigLimitationMetrics() throws Exception {
+        SoftApConfiguration originalConfig = new SoftApConfiguration.Builder()
+                .setSsid("TestSSID").build();
+        SoftApConfiguration needToResetCongig = new SoftApConfiguration.Builder(originalConfig)
+                .setPassphrase("TestPassphreas", SoftApConfiguration.SECURITY_TYPE_WPA3_SAE)
+                .setClientControlByUserEnabled(true)
+                .setMaxNumberOfClients(10)
+                .build();
+        mWifiMetrics.noteSoftApConfigReset(originalConfig, needToResetCongig);
+
+        mWifiMetrics.noteSoftApClientBlocked(5);
+        mWifiMetrics.noteSoftApClientBlocked(5);
+        mWifiMetrics.noteSoftApClientBlocked(5);
+        mWifiMetrics.noteSoftApClientBlocked(8);
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(1,
+                mDecodedProto.softApConfigLimitationMetrics.numSecurityTypeResetToDefault);
+        assertEquals(1,
+                mDecodedProto.softApConfigLimitationMetrics.numMaxClientSettingResetToDefault);
+        assertEquals(1,
+                mDecodedProto.softApConfigLimitationMetrics.numClientControlByUserResetToDefault);
+
+        Int32Count[] expectedHistogram = {
+                buildInt32Count(5, 3),
+                buildInt32Count(8, 1),
+        };
+        assertKeyCountsEqual(expectedHistogram,
+                mDecodedProto.softApConfigLimitationMetrics.maxClientSettingWhenReachHistogram);
+    }
+
 }
