@@ -31,6 +31,8 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"Me matje"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"Pa matje"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"Lidhur përmes <xliff:g id="NAME">%1$s</xliff:g>"</string>
+    <!-- no translation found for available_via_app (9110324040292242769) -->
+    <skip />
     <string name="connected_via_network_scorer" msgid="209764314005159012">"Është lidhur automatikisht nëpërmjet <xliff:g id="NAME">%1$s</xliff:g>"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Lidhur automatikisht nëpërmjet ofruesit të vlerësimit të rrjetit"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Lidhje e kufizuar"</string>
@@ -39,11 +41,13 @@
     <string name="wifi_security_none" msgid="6680263031386719053">"Asnjë"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Skaduar"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"Trokit për t\'u regjistruar"</string>
+    <!-- no translation found for tap_to_renew_subscription_and_connect (375976298920840105) -->
+    <skip />
     <string name="osu_opening_provider" msgid="5633521771769175139">"Po hapet <xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g>"</string>
     <string name="osu_connect_failed" msgid="8503501619299851793">"Nuk mund të lidhej"</string>
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Po përfundon regjistrimin…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Regjistrimi nuk mund të përfundonte. Trokit për të provuar përsëri."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Regjistrimi përfundoi. Po lidhet…"</string>
-    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <!-- no translation found for imsi_protection_warning (3771878632537231149) -->
     <skip />
 </resources>
