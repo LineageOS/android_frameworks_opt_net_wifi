@@ -31,6 +31,8 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"Sayaçlı"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"Sayaçsız"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"<xliff:g id="NAME">%1$s</xliff:g> ile bağlandı"</string>
+    <!-- no translation found for available_via_app (9110324040292242769) -->
+    <skip />
     <string name="connected_via_network_scorer" msgid="209764314005159012">"<xliff:g id="NAME">%1$s</xliff:g> ile otomatik olarak bağlandı"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Ağ derecelendirme sağlayıcı aracılığıyla otomatik olarak bağlandı"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Sınırlı bağlantı"</string>
@@ -39,11 +41,13 @@
     <string name="wifi_security_none" msgid="6680263031386719053">"Yok"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Süresi sona erdi"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"Kaydolmak için dokunun"</string>
+    <!-- no translation found for tap_to_renew_subscription_and_connect (375976298920840105) -->
+    <skip />
     <string name="osu_opening_provider" msgid="5633521771769175139">"<xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g> açılıyor"</string>
     <string name="osu_connect_failed" msgid="8503501619299851793">"Bağlanılamadı"</string>
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Kayıt işlemi tamamlanıyor…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Kayıt işlemi tamamlanamadı. Tekrar denemek için dokunun."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Kayıt tamamlandı. Bağlanıyor…"</string>
-    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <!-- no translation found for imsi_protection_warning (3771878632537231149) -->
     <skip />
 </resources>

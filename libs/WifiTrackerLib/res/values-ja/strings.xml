@@ -31,6 +31,8 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"従量制"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"定額制"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"<xliff:g id="NAME">%1$s</xliff:g> で接続しました"</string>
+    <!-- no translation found for available_via_app (9110324040292242769) -->
+    <skip />
     <string name="connected_via_network_scorer" msgid="209764314005159012">"<xliff:g id="NAME">%1$s</xliff:g> で自動的に接続しました"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"ネットワーク評価プロバイダ経由で自動的に接続しています"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"接続が制限されています"</string>
@@ -39,11 +41,13 @@
     <string name="wifi_security_none" msgid="6680263031386719053">"なし"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"期限切れ"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"タップして登録してください"</string>
+    <!-- no translation found for tap_to_renew_subscription_and_connect (375976298920840105) -->
+    <skip />
     <string name="osu_opening_provider" msgid="5633521771769175139">"<xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g> を開いています"</string>
     <string name="osu_connect_failed" msgid="8503501619299851793">"接続できませんでした"</string>
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"登録を完了しています…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"登録を完了できませんでした。タップしてもう一度お試しください。"</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"登録が完了しました。接続しています…"</string>
-    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <!-- no translation found for imsi_protection_warning (3771878632537231149) -->
     <skip />
 </resources>
