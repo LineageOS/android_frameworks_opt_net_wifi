@@ -31,6 +31,8 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"အခမဲ့ မဟုတ်ပါ"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"အခမဲ့"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"<xliff:g id="NAME">%1$s</xliff:g> မှတစ်ဆင့် ချိတ်ဆက်ထားသည်"</string>
+    <!-- no translation found for available_via_app (9110324040292242769) -->
+    <skip />
     <string name="connected_via_network_scorer" msgid="209764314005159012">"<xliff:g id="NAME">%1$s</xliff:g> မှတစ်ဆင့် အလိုအလျောက် ချိတ်ဆက်ထားသည်"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"ကွန်ရက်အဆင့်သတ်မှတ်ပေးသူ မှတစ်ဆင့် အလိုအလျောက် ချိတ်ဆက်ထားပါသည်"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"ချိတ်ဆက်မှု ကန့်သတ်ထားသည်"</string>
@@ -39,11 +41,13 @@
     <string name="wifi_security_none" msgid="6680263031386719053">"မရှိ"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"သက်တမ်းကုန်သွားပါပြီ"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"အကောင့်ဖွင့်ရန် တို့ပါ"</string>
+    <!-- no translation found for tap_to_renew_subscription_and_connect (375976298920840105) -->
+    <skip />
     <string name="osu_opening_provider" msgid="5633521771769175139">"<xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g> ကို ဖွင့်နေသည်"</string>
     <string name="osu_connect_failed" msgid="8503501619299851793">"ချိတ်ဆက်၍ မရပါ"</string>
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"အကောင့်ဖွင့်ခြင်း အပြီးသတ်နေသည်…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"အကောင့်ဖွင့်ခြင်း အပြီးသတ်၍ မရပါ။ ထပ်စမ်းကြည့်ရန် တို့ပါ။"</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"အကောင့်ဖွင့်ပြီးပါပြီ။ ချိတ်ဆက်နေသည်…"</string>
-    <!-- no translation found for imsi_protection_warning (4569634881517055220) -->
+    <!-- no translation found for imsi_protection_warning (3771878632537231149) -->
     <skip />
 </resources>
