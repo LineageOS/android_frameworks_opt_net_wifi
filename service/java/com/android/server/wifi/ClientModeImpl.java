@@ -3581,6 +3581,7 @@ public class ClientModeImpl extends StateMachine {
 
         // Let's remove any ephemeral or passpoint networks.
         mWifiConfigManager.removeAllEphemeralOrPasspointConfiguredNetworks();
+        mWifiConfigManager.clearUserTemporarilyDisabledList();
     }
 
     void registerConnected() {
