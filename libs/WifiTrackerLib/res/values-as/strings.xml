@@ -31,8 +31,7 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"নিৰিখ-নিৰ্দিষ্ট"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"নিৰিখ অনিৰ্দিষ্ট"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"<xliff:g id="NAME">%1$s</xliff:g>ৰ জৰিয়তে সংযুক্ত"</string>
-    <!-- no translation found for available_via_app (9110324040292242769) -->
-    <skip />
+    <string name="available_via_app" msgid="9110324040292242769">"<xliff:g id="NAME">%1$s</xliff:g>ৰ জৰিয়তে উপলব্ধ"</string>
     <string name="connected_via_network_scorer" msgid="209764314005159012">"<xliff:g id="NAME">%1$s</xliff:g>ৰ জৰিয়তে স্বয়ংক্ৰিয়ভাৱে সংযুক্ত"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"নেটৱৰ্ক ৰেটিং প্ৰদানকাৰীৰ জৰিয়তে স্বয়ং সংয়োগ কৰা হ’ল"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"ইণ্টাৰনেট সংযোগ সীমিত"</string>
@@ -41,13 +40,11 @@
     <string name="wifi_security_none" msgid="6680263031386719053">"নাই"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"ম্যাদ উকলিছে"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"ছাইন আপ কৰিবলৈ টিপক"</string>
-    <!-- no translation found for tap_to_renew_subscription_and_connect (375976298920840105) -->
-    <skip />
+    <string name="tap_to_renew_subscription_and_connect" msgid="375976298920840105">"ছাবস্ক্ৰিপশ্বন নৱীকৰণ আৰু সংযোগ কৰিবলৈ টিপক"</string>
     <string name="osu_opening_provider" msgid="5633521771769175139">"<xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g> খুলি থকা হৈছে"</string>
     <string name="osu_connect_failed" msgid="8503501619299851793">"সংযোগ কৰিব পৰা নগ’ল"</string>
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"ছাইন আপ সম্পূৰ্ণ কৰি থকা হৈছে…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"ছাইন আপ সম্পূৰ্ণ কৰিব পৰা নগ’ল। পুনৰ চেষ্টা কৰিবলৈ টিপক।"</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"ছাইন আপ সম্পূৰ্ণ হৈছে। সংযোগ কৰি থকা হৈছে…"</string>
-    <!-- no translation found for imsi_protection_warning (3771878632537231149) -->
-    <skip />
+    <string name="imsi_protection_warning" msgid="3771878632537231149">"এই নেটৱৰ্কটোৱে এটা অদ্বৈত আইডি পায়, যিটো ডিভাইচৰ অৱস্থান ট্ৰেক কৰিবলৈ ব্যৱহাৰ কৰিব পৰা যায়।\n"<annotation id="url">"অধিক জানক"</annotation></string>
 </resources>
