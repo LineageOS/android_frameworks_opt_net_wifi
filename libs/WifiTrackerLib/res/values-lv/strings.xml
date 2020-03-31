@@ -31,8 +31,7 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"Maksas"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"Bezmaksas"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"Savienojums ar <xliff:g id="NAME">%1$s</xliff:g>"</string>
-    <!-- no translation found for available_via_app (9110324040292242769) -->
-    <skip />
+    <string name="available_via_app" msgid="9110324040292242769">"Pieejams, izmantojot <xliff:g id="NAME">%1$s</xliff:g>"</string>
     <string name="connected_via_network_scorer" msgid="209764314005159012">"Automātiski izveidots savienojums, izmantojot <xliff:g id="NAME">%1$s</xliff:g>"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Automātiski izveidots savienojums, izmantojot tīkla vērtējuma sniedzēju"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Ierobežots savienojums"</string>
@@ -41,13 +40,11 @@
     <string name="wifi_security_none" msgid="6680263031386719053">"Nav"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Beidzies derīguma termiņš"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"Pieskarieties, lai reģistrētos."</string>
-    <!-- no translation found for tap_to_renew_subscription_and_connect (375976298920840105) -->
-    <skip />
+    <string name="tap_to_renew_subscription_and_connect" msgid="375976298920840105">"Pieskarieties, lai atjaunotu abonementu un izveidotu savienojumu"</string>
     <string name="osu_opening_provider" msgid="5633521771769175139">"Notiek nodrošinātāja <xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g> atvēršana."</string>
     <string name="osu_connect_failed" msgid="8503501619299851793">"Nevarēja izveidot savienojumu."</string>
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Notiek reģistrācijas pabeigšana…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Nevarēja pabeigt reģistrāciju. Pieskarieties, lai mēģinātu vēlreiz."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Reģistrācija ir pabeigta. Notiek savienojuma izveide…"</string>
-    <!-- no translation found for imsi_protection_warning (3771878632537231149) -->
-    <skip />
+    <string name="imsi_protection_warning" msgid="3771878632537231149">"Šis tīkls saņem unikālo ID, ko var izmantot, lai izsekotu ierīces atrašanās vietu.\n"<annotation id="url">"Uzzināt vairāk"</annotation></string>
 </resources>

@@ -31,8 +31,7 @@
     <string name="wifi_metered_label" msgid="1362621600006544014">"Forbrugsafregnet"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"Ikke forbrugsafregnet"</string>
     <string name="connected_via_app" msgid="1818040967936972127">"Forbundet via <xliff:g id="NAME">%1$s</xliff:g>"</string>
-    <!-- no translation found for available_via_app (9110324040292242769) -->
-    <skip />
+    <string name="available_via_app" msgid="9110324040292242769">"Tilgængeligt via <xliff:g id="NAME">%1$s</xliff:g>"</string>
     <string name="connected_via_network_scorer" msgid="209764314005159012">"Der er oprettet automatisk forbindelse via <xliff:g id="NAME">%1$s</xliff:g>"</string>
     <string name="connected_via_network_scorer_default" msgid="3084818437004202462">"Automatisk forbundet via udbyder af netværksvurdering"</string>
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Begrænset forbindelse"</string>
@@ -41,13 +40,11 @@
     <string name="wifi_security_none" msgid="6680263031386719053">"Ingen"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Udløbet"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"Tryk for at registrere"</string>
-    <!-- no translation found for tap_to_renew_subscription_and_connect (375976298920840105) -->
-    <skip />
+    <string name="tap_to_renew_subscription_and_connect" msgid="375976298920840105">"Tryk for at forny abonnementet, og opret forbindelse"</string>
     <string name="osu_opening_provider" msgid="5633521771769175139">"Åbner <xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g>"</string>
     <string name="osu_connect_failed" msgid="8503501619299851793">"Der kunne ikke oprettes forbindelse"</string>
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Fuldfører registrering…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Registreringen kunne ikke fuldføres. Tryk for at prøve igen."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Registreringen er fuldført. Opretter forbindelse…"</string>
-    <!-- no translation found for imsi_protection_warning (3771878632537231149) -->
-    <skip />
+    <string name="imsi_protection_warning" msgid="3771878632537231149">"Dette netværk kræver et unikt id, der kan bruges til at spore enhedens placering.\n"<annotation id="url">"Få flere oplysninger"</annotation></string>
 </resources>
