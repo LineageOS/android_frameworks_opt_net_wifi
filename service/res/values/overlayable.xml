@@ -126,7 +126,6 @@
           <item type="integer" name="config_wifiPollRssiIntervalMilliseconds" />
           <item type="bool" name="config_wifiSaeUpgradeEnabled" />
           <item type="bool" name="config_wifiSaeUpgradeOffloadEnabled" />
-          <item type="string" name="config_wifiOsuLoginPackage" />
           <!-- Params from config.xml that can be overlayed -->
 
           <!-- Params from strings.xml that can be overlayed -->
@@ -190,7 +189,6 @@
           <item type="string" name="wifi_eap_error_message_code_32766" />
           <item type="string" name="wifi_softap_auto_shutdown_timeout_expired_title" />
           <item type="string" name="wifi_softap_auto_shutdown_timeout_expired_summary" />
-          <item type="string" name="wifi_softap_auto_shutdown_timeout_expired_detail" />
           <item type="string" name="wifi_sim_required_title" />
           <item type="string" name="wifi_sim_required_message" />
           <!-- Params from strings.xml that can be overlayed -->
