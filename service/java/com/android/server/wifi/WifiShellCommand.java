@@ -23,6 +23,7 @@ import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import android.content.Context;
 import android.content.pm.ParceledListSlice;
 import android.net.ConnectivityManager;
+import android.net.MacAddress;
 import android.net.NetworkRequest;
 import android.net.wifi.IActionListener;
 import android.net.wifi.ScanResult;
@@ -49,6 +50,7 @@ import com.android.server.wifi.util.ScanResultUtil;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -64,11 +66,9 @@ import java.util.concurrent.TimeUnit;
  *   if command executed successfully.
  * - onHelp: add a description string.
  *
- * If additional state objects are necessary add them to the
- * constructor.
- *
- * Permissions: currently root permission is required for most
- * commands, which is checked using {@link #checkRootPermission()}.
+ * Permissions: currently root permission is required for some commands. Others will
+ * enforce the corresponding API permissions.
+ * TODO (b/152875610): Add unit tests.
  */
 public class WifiShellCommand extends BasicShellCommandHandler {
     private static String SHELL_PACKAGE_NAME = "com.android.shell";
@@ -140,18 +140,7 @@ public class WifiShellCommand extends BasicShellCommandHandler {
         try {
             switch (cmd) {
                 case "set-ipreach-disconnect": {
-                    boolean enabled;
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg)) {
-                        enabled = true;
-                    } else if ("disabled".equals(nextArg)) {
-                        enabled = false;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'set-ipreach-disconnect' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
-                    }
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
                     mClientModeImpl.setIpReachabilityDisconnectEnabled(enabled);
                     return 0;
                 }
@@ -184,36 +173,14 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                             + mClientModeImpl.getPollRssiIntervalMsecs());
                     return 0;
                 case "force-hi-perf-mode": {
-                    boolean enabled;
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg)) {
-                        enabled = true;
-                    } else if ("disabled".equals(nextArg)) {
-                        enabled = false;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'force-hi-perf-mode' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
-                    }
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
                     if (!mWifiLockManager.forceHiPerfMode(enabled)) {
                         pw.println("Command execution failed");
                     }
                     return 0;
                 }
                 case "force-low-latency-mode": {
-                    boolean enabled;
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg)) {
-                        enabled = true;
-                    } else if ("disabled".equals(nextArg)) {
-                        enabled = false;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'force-low-latency-mode' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
-                    }
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
                     if (!mWifiLockManager.forceLowLatencyMode(enabled)) {
                         pw.println("Command execution failed");
                     }
@@ -221,18 +188,7 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                 }
                 case "network-suggestions-set-user-approved": {
                     String packageName = getNextArgRequired();
-                    boolean approved;
-                    String nextArg = getNextArgRequired();
-                    if ("yes".equals(nextArg)) {
-                        approved = true;
-                    } else if ("no".equals(nextArg)) {
-                        approved = false;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'network-suggestions-set-user-approved' "
-                                        + "- must be 'yes' or 'no'");
-                        return -1;
-                    }
+                    boolean approved = getNextArgRequiredTrueOrFalse("yes", "no");
                     mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(approved, packageName);
                     return 0;
                 }
@@ -247,7 +203,6 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                     String arg1 = getNextArgRequired();
                     String arg2 = getNextArgRequired();
                     int carrierId = -1;
-                    boolean approved;
                     try {
                         carrierId = Integer.parseInt(arg1);
                     } catch (NumberFormatException e) {
@@ -256,16 +211,7 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                                 + "- carrierId must be an Integer");
                         return -1;
                     }
-                    if ("yes".equals(arg2)) {
-                        approved = true;
-                    } else if ("no".equals(arg2)) {
-                        approved = false;
-                    } else {
-                        pw.println("Invalid argument to "
-                                + "'imsi-protection-exemption-set-user-approved-for-carrier' "
-                                + "- must be 'yes' or 'no'");
-                        return -1;
-                    }
+                    boolean approved = getNextArgRequiredTrueOrFalse("yes", "no");
                     mWifiNetworkSuggestionsManager
                             .setHasUserApprovedImsiPrivacyExemptionForCarrier(approved, carrierId);
                     return 0;
@@ -313,8 +259,8 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                     return sendLinkProbe(pw);
                 }
                 case "force-softap-channel": {
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg))  {
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
+                    if (enabled) {
                         int apChannelMHz;
                         try {
                             apChannelMHz = Integer.parseInt(getNextArgRequired());
@@ -342,19 +288,14 @@ public class WifiShellCommand extends BasicShellCommandHandler {
 
                         mHostapdHal.enableForceSoftApChannel(apChannel, band);
                         return 0;
-                    } else if ("disabled".equals(nextArg)) {
+                    } else {
                         mHostapdHal.disableForceSoftApChannel();
                         return 0;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'force-softap-channel' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
                     }
                 }
                 case "force-country-code": {
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg))  {
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
+                    if (enabled) {
                         String countryCode = getNextArgRequired();
                         if (!(countryCode.length() == 2
                                 && countryCode.chars().allMatch(Character::isLetter))) {
@@ -364,14 +305,9 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                         }
                         mWifiCountryCode.enableForceCountryCode(countryCode);
                         return 0;
-                    } else if ("disabled".equals(nextArg)) {
+                    } else {
                         mWifiCountryCode.disableForceCountryCode();
                         return 0;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'force-country-code' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
                     }
                 }
                 case "get-country-code": {
@@ -380,18 +316,7 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                     return 0;
                 }
                 case "set-wifi-watchdog": {
-                    boolean enabled;
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg)) {
-                        enabled = true;
-                    } else if ("disabled".equals(nextArg)) {
-                        enabled = false;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'set-wifi-watchdog' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
-                    }
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
                     mWifiLastResortWatchdog.setWifiWatchdogFeature(enabled);
                     return 0;
                 }
@@ -401,18 +326,7 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                     return 0;
                 }
                 case "set-wifi-enabled": {
-                    boolean enabled;
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg)) {
-                        enabled = true;
-                    } else if ("disabled".equals(nextArg)) {
-                        enabled = false;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'set-wifi-enabled' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
-                    }
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
                     mWifiService.setWifiEnabled(SHELL_PACKAGE_NAME, enabled);
                     return 0;
                 }
@@ -544,21 +458,11 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                         }
                     }
                     break;
-                case "set-verbose-logging":
-                    boolean enabled;
-                    String nextArg = getNextArgRequired();
-                    if ("enabled".equals(nextArg)) {
-                        enabled = true;
-                    } else if ("disabled".equals(nextArg)) {
-                        enabled = false;
-                    } else {
-                        pw.println(
-                                "Invalid argument to 'set-verbose-logging' - must be 'enabled'"
-                                        + " or 'disabled'");
-                        return -1;
-                    }
+                case "set-verbose-logging": {
+                    boolean enabled = getNextArgRequiredTrueOrFalse("enabled", "disabled");
                     mWifiService.enableVerboseLogging(enabled ? 1 : 0);
                     break;
+                }
                 case "add-suggestion":
                     mWifiService.addNetworkSuggestions(
                             Arrays.asList(buildSuggestion(pw)), SHELL_PACKAGE_NAME, null);
@@ -649,14 +553,42 @@ public class WifiShellCommand extends BasicShellCommandHandler {
                         }
                     }
                     break;
+                case "network-requests-set-user-approved": {
+                    String packageName = getNextArgRequired();
+                    boolean approved = getNextArgRequiredTrueOrFalse("yes", "no");
+                    mClientModeImpl.setNetworkRequestUserApprovedApp(packageName, approved);
+                    return 0;
+                }
+                case "network-requests-has-user-approved": {
+                    String packageName = getNextArgRequired();
+                    boolean hasUserApproved =
+                            mClientModeImpl.hasNetworkRequestUserApprovedApp(packageName);
+                    pw.println(hasUserApproved ? "yes" : "no");
+                    return 0;
+                }
                 default:
                     return handleDefaultCommands(cmd);
             }
+        } catch (IllegalArgumentException e) {
+            pw.println("Invalid args for " + cmd + ": " + e);
         } catch (Exception e) {
             pw.println("Exception while executing WifiShellCommand: ");
             e.printStackTrace(pw);
         }
         return -1;
+    }
+
+    private boolean getNextArgRequiredTrueOrFalse(String trueString, String falseString)
+            throws IllegalArgumentException {
+        String nextArg = getNextArgRequired();
+        if (trueString.equals(nextArg)) {
+            return true;
+        } else if (falseString.equals(nextArg)) {
+            return false;
+        } else {
+            throw new IllegalArgumentException("Expected '" + trueString + "' or '" + falseString
+                    + "' as next arg but got '" + nextArg + "'");
+        }
     }
 
     private WifiNetworkSuggestion buildSuggestion(PrintWriter pw) {
@@ -697,6 +629,19 @@ public class WifiShellCommand extends BasicShellCommandHandler {
         } else {
             pw.println("Unknown network type " + type);
             return null;
+        }
+        // Permission approval bypass is only available to requests with both ssid & bssid set.
+        // So, find scan result with the best rssi level to set in the request.
+        ScanResult matchingScanResult =
+                mWifiService.getScanResults(SHELL_PACKAGE_NAME, null)
+                .stream()
+                .filter(s -> s.SSID.equals(ssid))
+                .max(Comparator.comparingInt(s -> s.level))
+                .orElse(null);
+        if (matchingScanResult != null) {
+            specifierBuilder.setBssid(MacAddress.fromString(matchingScanResult.BSSID));
+        } else {
+            pw.println("No matching bssid found, request will need UI approval");
         }
         return new NetworkRequest.Builder()
                 .addTransportType(TRANSPORT_WIFI)
@@ -858,6 +803,8 @@ public class WifiShellCommand extends BasicShellCommandHandler {
         pw.println("    Initiates wifi settings reset");
         pw.println("  add-request <ssid> open|owe|wpa2|wpa3 [<passphrase>]");
         pw.println("    Add a network request with provided params");
+        pw.println("    Use 'network-requests-set-user-approved android yes'"
+                +  " to pre-approve requests added via rooted shell (Not persisted)");
         pw.println("    <ssid> - SSID of the network");
         pw.println("    open|owe|wpa2|wpa3 - Security type of the network.");
         pw.println("        - Use 'open' or 'owe' for networks with no passphrase");
@@ -872,6 +819,13 @@ public class WifiShellCommand extends BasicShellCommandHandler {
         pw.println("    Removes all active requests added via shell");
         pw.println("  list-requests");
         pw.println("    Lists the requested networks added via shell");
+        pw.println("  network-requests-set-user-approved <package name> yes|no");
+        pw.println("    Sets whether network requests from the app is approved or not.");
+        pw.println("    Note: Only 1 such app can be approved from the shell at a time");
+        pw.println("  network-requests-has-user-approved <package name>");
+        pw.println("    Queries whether network requests from the app is approved or not.");
+        pw.println("    Note: This only returns whether the app was set via the " +
+                "'network-requests-set-user-approved' shell command");
     }
 
     @Override
