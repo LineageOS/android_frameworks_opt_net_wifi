@@ -31,22 +31,14 @@
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"<xliff:g id="NAME">%s</xliff:g>এ পৰামর্শ হিচাপে দিয়া নেটৱর্কবোৰ। ডিভাইচটো স্বয়ংক্ৰিয়ভাৱে সংযোগ হ\'ব পাৰে।"</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"অনুমতি দিয়ক"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"নালাগে, ধন্যবাদ"</string>
-    <!-- no translation found for wifi_suggestion_imsi_privacy_title (2915915091404141470) -->
-    <skip />
-    <!-- no translation found for wifi_suggestion_imsi_privacy_content (2964867545127220548) -->
-    <skip />
-    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_carrier (4510014692570591616) -->
-    <skip />
-    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier (1466870675651864648) -->
-    <skip />
-    <!-- no translation found for wifi_suggestion_imsi_privacy_exemption_confirmation_title (3252889810011175876) -->
-    <skip />
-    <!-- no translation found for wifi_suggestion_imsi_privacy_exemption_confirmation_content (1665277613133133730) -->
-    <skip />
-    <!-- no translation found for wifi_suggestion_action_allow_imsi_privacy_exemption_confirmation (3102046304611708608) -->
-    <skip />
-    <!-- no translation found for wifi_suggestion_action_disallow_imsi_privacy_exemption_confirmation (8467281276632253246) -->
-    <skip />
+    <string name="wifi_suggestion_imsi_privacy_title" msgid="2915915091404141470">"<xliff:g id="CARRIERNAME">%s</xliff:g>এ স্বয়ংক্ৰিয়ভাৱে সংযোগ কৰিবলৈ বিচাৰিছে"</string>
+    <string name="wifi_suggestion_imsi_privacy_content" msgid="2964867545127220548">"এই নেটৱৰ্কসমূহে এটা সুকীয়া আইডি পায়, যিটো ডিভাইচৰ অৱস্থান ট্ৰেক কৰিবলৈ ব্যৱহাৰ কৰিব পৰা যায়"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_carrier" msgid="4510014692570591616">"যিহ’লেও সংযোগ কৰক"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_carrier" msgid="1466870675651864648">"সংযোগ নকৰিব"</string>
+    <string name="wifi_suggestion_imsi_privacy_exemption_confirmation_title" msgid="3252889810011175876">"সংযোগ নিশ্চিত কৰিবনে?"</string>
+    <string name="wifi_suggestion_imsi_privacy_exemption_confirmation_content" msgid="1665277613133133730">"আপুনি যদি সংযোগ কৰে, <xliff:g id="CARRIERNAME">%s</xliff:g>ৰ ৱাই-ফাই নেটৱৰ্কসমূহে আপোনাৰ ছিমৰ সৈতে জড়িত এটা সুকীয়া আইডি এক্সেছ কৰিব অথবা সেইটো শ্বেয়াৰ কৰিব পাৰে। এইটোৱে আপোনাৰ ডিভাইচটোৰ অৱস্থান ট্ৰেক কৰাৰ অনুমতি দিব পাৰে।"</string>
+    <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_confirmation" msgid="3102046304611708608">"সংযোগ কৰক"</string>
+    <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_confirmation" msgid="8467281276632253246">"সংযোগ নকৰিব"</string>
     <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"ৱাই-ফাই স্বয়ংক্ৰিয়ভাৱে অন হ\'ব"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"যেতিয়া আপুনি ছেভ কৰি থোৱা উচ্চ মানৰ নেটৱৰ্কৰ কাষত থাকে"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"পুনৰাই অন নকৰিব"</string>
@@ -85,10 +77,8 @@
     <string name="wifi_eap_error_message_code_32764" msgid="6883041845648321423">"<xliff:g id="SSID">%1$s</xliff:g> : ইএপি বিশ্বাসযোগ্যতা প্ৰমাণীকৰণ সম্পর্কীয় আসোঁৱাহ 32764"</string>
     <string name="wifi_eap_error_message_code_32765" msgid="3134805513440435314">"<xliff:g id="SSID">%1$s</xliff:g> : ইএপি বিশ্বাসযোগ্যতা প্ৰমাণীকৰণ সম্পর্কীয় আসোঁৱাহ 32765"</string>
     <string name="wifi_eap_error_message_code_32766" msgid="6907401733158262194">"<xliff:g id="SSID">%1$s</xliff:g> : ইএপি বিশ্বাসযোগ্যতা প্ৰমাণীকৰণ সম্পর্কীয় আসোঁৱাহ 32766"</string>
-    <!-- no translation found for wifi_softap_auto_shutdown_timeout_expired_title (3145323037688670043) -->
-    <skip />
-    <!-- no translation found for wifi_softap_auto_shutdown_timeout_expired_summary (5136282560556465701) -->
-    <skip />
+    <string name="wifi_softap_auto_shutdown_timeout_expired_title" msgid="3145323037688670043">"হটস্পট অফ কৰা হ’ল"</string>
+    <string name="wifi_softap_auto_shutdown_timeout_expired_summary" msgid="5136282560556465701">"কোনো ডিভাইচ সংযোগ কৰা হোৱা নাই। সংশোধন কৰিবলৈ টিপক।"</string>
     <string name="wifi_sim_required_title" msgid="8362843050699015640">"ৱাই-ফাই সংযোগ বিচ্ছিন্ন হৈছে"</string>
     <string name="wifi_sim_required_message" msgid="6085636103482409595">"<xliff:g id="SSID">%1$s</xliff:g>ৰ সৈতে সংযোগ কৰিবলৈ এখন <xliff:g id="CARRIER_NAME">%2$s</xliff:g> ছিম ভৰাওক"</string>
 </resources>
