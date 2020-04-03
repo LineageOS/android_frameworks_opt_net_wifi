@@ -107,6 +107,8 @@ public class WifiConfigManager {
     /**
      * Interface for other modules to listen to the network updated
      * events.
+     * Note: Credentials are masked to avoid accidentally sending credentials outside the stack.
+     * Use WifiConfigManager#getConfiguredNetworkWithPassword() to retrieve credentials.
      */
     public interface OnNetworkUpdateListener {
         /**
@@ -131,8 +133,12 @@ public class WifiConfigManager {
         void onNetworkTemporarilyDisabled(@NonNull WifiConfiguration config, int disableReason);
         /**
          * Invoked on network being updated.
+         *
+         * @param newConfig Updated WifiConfiguration object.
+         * @param oldConfig Prev WifiConfiguration object.
          */
-        void onNetworkUpdated(@NonNull WifiConfiguration config);
+        void onNetworkUpdated(
+                @NonNull WifiConfiguration newConfig, @NonNull WifiConfiguration oldConfig);
     }
     /**
      * Max size of scan details to cache in {@link #mScanDetailCaches}.
@@ -1323,9 +1329,9 @@ public class WifiConfigManager {
             Log.e(TAG, "Cannot add/update network before store is read!");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
+        WifiConfiguration existingConfig = getInternalConfiguredNetwork(config);
         if (!config.isEphemeral()) {
             // Removes the existing ephemeral network if it exists to add this configuration.
-            WifiConfiguration existingConfig = getConfiguredNetwork(config.getKey());
             if (existingConfig != null && existingConfig.isEphemeral()) {
                 // In this case, new connection for this config won't happen because same
                 // network is already registered as an ephemeral network.
@@ -1352,11 +1358,13 @@ public class WifiConfigManager {
         }
 
         for (OnNetworkUpdateListener listener : mListeners) {
-            WifiConfiguration configForListener = new WifiConfiguration(newConfig);
             if (result.isNewNetwork()) {
-                listener.onNetworkAdded(configForListener);
+                listener.onNetworkAdded(
+                        createExternalWifiConfiguration(newConfig, true, Process.WIFI_UID));
             } else {
-                listener.onNetworkUpdated(configForListener);
+                listener.onNetworkUpdated(
+                        createExternalWifiConfiguration(newConfig, true, Process.WIFI_UID),
+                        createExternalWifiConfiguration(existingConfig, true, Process.WIFI_UID));
             }
         }
         return result;
@@ -1445,8 +1453,8 @@ public class WifiConfigManager {
             saveToStore(true);
         }
         for (OnNetworkUpdateListener listener : mListeners) {
-            WifiConfiguration configForListener = new WifiConfiguration(config);
-            listener.onNetworkRemoved(configForListener);
+            listener.onNetworkRemoved(
+                    createExternalWifiConfiguration(config, true, Process.WIFI_UID));
         }
         return true;
     }
@@ -1606,8 +1614,8 @@ public class WifiConfigManager {
         // Clear out all the disable reason counters.
         status.clearDisableReasonCounter();
         for (OnNetworkUpdateListener listener : mListeners) {
-            WifiConfiguration configForListener = new WifiConfiguration(config);
-            listener.onNetworkEnabled(configForListener);
+            listener.onNetworkEnabled(
+                    createExternalWifiConfiguration(config, true, Process.WIFI_UID));
         }
     }
 
@@ -1623,8 +1631,8 @@ public class WifiConfigManager {
         status.setDisableTime(mClock.getElapsedSinceBootMillis());
         status.setNetworkSelectionDisableReason(disableReason);
         for (OnNetworkUpdateListener listener : mListeners) {
-            WifiConfiguration configForListener = new WifiConfiguration(config);
-            listener.onNetworkTemporarilyDisabled(configForListener, disableReason);
+            listener.onNetworkTemporarilyDisabled(
+                    createExternalWifiConfiguration(config, true, Process.WIFI_UID), disableReason);
         }
     }
 
@@ -1641,7 +1649,8 @@ public class WifiConfigManager {
         status.setNetworkSelectionDisableReason(disableReason);
         for (OnNetworkUpdateListener listener : mListeners) {
             WifiConfiguration configForListener = new WifiConfiguration(config);
-            listener.onNetworkPermanentlyDisabled(configForListener, disableReason);
+            listener.onNetworkPermanentlyDisabled(
+                    createExternalWifiConfiguration(config, true, Process.WIFI_UID), disableReason);
         }
     }
 
