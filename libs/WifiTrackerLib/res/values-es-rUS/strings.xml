@@ -46,5 +46,5 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Completando registro…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"No se pudo completar el registro. Presiona para volver a intentarlo."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Se completó el registro. Conectando…"</string>
-    <string name="imsi_protection_warning" msgid="3771878632537231149">"Esta red recibe un ID único que puede utilizarse para realizar el seguimiento de la ubicación del dispositivo.\n"<annotation id="url">"Más información"</annotation></string>
+    <string name="imsi_protection_warning" msgid="3771878632537231149">"Esta red recibe un ID único con el que se puede realizar el seguimiento de la ubicación del dispositivo.\n"<annotation id="url">"Más información"</annotation></string>
 </resources>
