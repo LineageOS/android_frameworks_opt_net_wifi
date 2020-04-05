@@ -45,7 +45,7 @@
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"Wi‑Fi diaktifkan otomatis"</string>
     <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"Anda berada di dekat jaringan yang tersimpan: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Tidak dapat tersambung ke Wi-Fi"</string>
-    <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" memiliki sambungan internet yang buruk."</string>
+    <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" memiliki koneksi internet yang buruk."</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Izinkan hubungan?"</string>
     <string name="wifi_connect_alert_message" msgid="3123801378559831220">"Aplikasi %1$s ingin tersambung ke Jaringan Wifi %2$s"</string>
     <string name="wifi_connect_default_application" msgid="6164721692891325243">"Aplikasi"</string>
