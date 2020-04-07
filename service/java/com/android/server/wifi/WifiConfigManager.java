@@ -2703,6 +2703,7 @@ public class WifiConfigManager {
             network = configuration.SSID;
         }
         mUserTemporarilyDisabledList.remove(network);
+        mWifiInjector.getBssidBlocklistMonitor().clearBssidBlocklistForSsid(configuration.SSID);
         Log.d(TAG, "Enable disabled network: " + network + " num="
                 + mUserTemporarilyDisabledList.size());
     }
