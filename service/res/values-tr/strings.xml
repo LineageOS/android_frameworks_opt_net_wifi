@@ -39,7 +39,7 @@
     <string name="wifi_suggestion_imsi_privacy_exemption_confirmation_content" msgid="1665277613133133730">"Bağlanırsanız <xliff:g id="CARRIERNAME">%s</xliff:g> kablosuz ağları SIM\'inizle ilişkilendirilmiş benzersiz kimliğe erişebilir veya bunları paylaşabilir. Bu, cihazınızın konumunun izlenmesine olanak sağlayabilir."</string>
     <string name="wifi_suggestion_action_allow_imsi_privacy_exemption_confirmation" msgid="3102046304611708608">"Bağlan"</string>
     <string name="wifi_suggestion_action_disallow_imsi_privacy_exemption_confirmation" msgid="8467281276632253246">"Bağlanma"</string>
-    <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Kablosuz özelliği otomatik olarak açılacak"</string>
+    <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Kablosuz ağ otomatik olarak açılacak"</string>
     <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Daha önce kaydedilmiş yüksek kaliteli bir ağın yakınında olduğunuzda"</string>
     <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Tekrar açılmasın"</string>
     <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"Kablosuz ağ otomatik olarak açıldı"</string>
