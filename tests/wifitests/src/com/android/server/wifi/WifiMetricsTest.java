@@ -2271,6 +2271,7 @@ public class WifiMetricsTest extends WifiBaseTest {
                     handler.obtainMessage(mia[0], mia[1], mia[2], mTestStaMessageObjs[i]));
         }
         mTestLooper.dispatchAll();
+        wifiMetrics.setScreenState(true);
         for (int i = 0; i < mTestStaLogInts.length; i++) {
             int[] lia = mTestStaLogInts[i];
             wifiMetrics.logStaEvent(lia[0], lia[1], lia[2] == 1 ? mTestWifiConfig : null);
@@ -2309,6 +2310,7 @@ public class WifiMetricsTest extends WifiBaseTest {
             assertEquals(evs[6], event.supplicantStateChangesBitmask);
             assertConfigInfoEqualsWifiConfig(
                     evs[7] == 1 ? mTestWifiConfig : null, event.configInfo);
+            assertEquals(true, event.screenOn);
             j++;
         }
         assertEquals(mExpectedValues.length, j);
