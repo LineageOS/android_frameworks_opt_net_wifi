@@ -27,7 +27,7 @@
     <string name="notification_channel_network_status" msgid="7808526906954286713">"Estado da rede"</string>
     <string name="notification_channel_network_alerts" msgid="3638265846217667221">"Alertas da rede"</string>
     <string name="notification_channel_network_available" msgid="7791052175212297403">"Rede disponível"</string>
-    <string name="wifi_suggestion_title" msgid="8724552631151189767">"Pretende permitir redes Wi-Fi sugeridas?"</string>
+    <string name="wifi_suggestion_title" msgid="8724552631151189767">"Permitir redes Wi-Fi sugeridas?"</string>
     <string name="wifi_suggestion_content" msgid="7796523101671166285">"Redes sugeridas por <xliff:g id="NAME">%s</xliff:g>. O dispositivo pode estabelecer ligação automaticamente."</string>
     <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Permitir"</string>
     <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Não, obrigado"</string>
