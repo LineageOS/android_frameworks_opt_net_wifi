@@ -26,7 +26,7 @@
     <string name="wifi_disabled_network_failure" msgid="6506742207778007439">"Error de configuración de IP"</string>
     <string name="wifi_disabled_generic" msgid="8307050327779256414">"Inhabilitada"</string>
     <string name="wifi_ap_unable_to_handle_new_sta" msgid="6552198761671428871">"El punto de acceso está completo temporalmente"</string>
-    <string name="wifi_disconnected" msgid="3720926757662831062">"Desconectada"</string>
+    <string name="wifi_disconnected" msgid="3720926757662831062">"Desconectado"</string>
     <string name="wifi_remembered" msgid="5126903736498678708">"Guardada"</string>
     <string name="wifi_metered_label" msgid="1362621600006544014">"Con uso medido"</string>
     <string name="wifi_unmetered_label" msgid="499466875639448350">"Sin tarifa plana"</string>
