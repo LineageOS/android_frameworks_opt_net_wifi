@@ -152,7 +152,7 @@ import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.WifiServiceImpl.LocalOnlyRequestorCallback;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
-import com.android.server.wifi.proto.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.UserActionEvent;
 import com.android.server.wifi.util.ApConfigUtil;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -3573,7 +3573,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         InOrder inOrder = inOrder(mClientModeImpl, mWifiMetrics);
         inOrder.verify(mWifiMetrics).logUserActionEvent(
-                WifiMetricsProto.UserActionEvent.EVENT_FORGET_WIFI, TEST_NETWORK_ID);
+                UserActionEvent.EVENT_FORGET_WIFI, TEST_NETWORK_ID);
         inOrder.verify(mClientModeImpl).forget(anyInt(), any(Binder.class),
                 any(IActionListener.class), anyInt(), anyInt());
     }
@@ -5047,6 +5047,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testAllowAutojoinOnSuggestionNetwork() {
         WifiConfiguration config = new WifiConfiguration();
+        config.allowAutojoin = false;
         config.fromWifiNetworkSuggestion = true;
         when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
         when(mWifiNetworkSuggestionsManager.allowNetworkSuggestionAutojoin(any(), anyBoolean()))
@@ -5056,11 +5057,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mWifiConfigManager).getConfiguredNetwork(0);
         verify(mWifiNetworkSuggestionsManager).allowNetworkSuggestionAutojoin(any(), anyBoolean());
         verify(mWifiConfigManager).allowAutojoin(anyInt(), anyBoolean());
+        verify(mWifiMetrics).logUserActionEvent(eq(UserActionEvent.EVENT_CONFIGURE_AUTO_CONNECT_ON),
+                anyInt());
     }
 
     @Test
     public void testAllowAutojoinOnSavedNetwork() {
         WifiConfiguration config = new WifiConfiguration();
+        config.allowAutojoin = false;
         config.fromWifiNetworkSuggestion = false;
         config.fromWifiNetworkSpecifier = false;
         when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
