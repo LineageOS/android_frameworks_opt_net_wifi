@@ -4519,7 +4519,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         mWifiServiceImpl.disableEphemeralNetwork(new String(), TEST_PACKAGE_NAME);
         mLooper.dispatchAll();
-        verify(mWifiConfigManager).userTemporarilyDisabledNetwork(anyString());
+        verify(mWifiConfigManager).userTemporarilyDisabledNetwork(anyString(), anyInt());
     }
 
     /**
@@ -4532,7 +4532,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         mWifiServiceImpl.disableEphemeralNetwork(new String(), TEST_PACKAGE_NAME);
         mLooper.dispatchAll();
-        verify(mWifiConfigManager, never()).userTemporarilyDisabledNetwork(anyString());
+        verify(mWifiConfigManager, never()).userTemporarilyDisabledNetwork(anyString(), anyInt());
     }
 
     /**

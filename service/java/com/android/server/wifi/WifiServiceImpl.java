@@ -3060,7 +3060,8 @@ public class WifiServiceImpl extends BaseWifiService {
             return;
         }
         mLog.info("disableEphemeralNetwork uid=%").c(Binder.getCallingUid()).flush();
-        mWifiThreadRunner.post(() -> mWifiConfigManager.userTemporarilyDisabledNetwork(network));
+        mWifiThreadRunner.post(() -> mWifiConfigManager.userTemporarilyDisabledNetwork(network,
+                Binder.getCallingUid()));
     }
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
