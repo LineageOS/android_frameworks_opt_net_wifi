@@ -4071,12 +4071,15 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void connect(WifiConfiguration config, int netId, IBinder binder,
             @Nullable IActionListener callback, int callbackIdentifier) {
-        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
+        int uid = Binder.getCallingUid();
+        if (!isPrivileged(Binder.getCallingPid(), uid)) {
             throw new SecurityException(TAG + ": Permission denied");
         }
-        mLog.info("connect uid=%").c(Binder.getCallingUid()).flush();
-        mClientModeImpl.connect(
-                config, netId, binder, callback, callbackIdentifier, Binder.getCallingUid());
+        mLog.info("connect uid=%").c(uid).flush();
+        mClientModeImpl.connect(config, netId, binder, callback, callbackIdentifier, uid);
+        if (mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
+            mWifiMetrics.logUserActionEvent(UserActionEvent.EVENT_MANUAL_CONNECT, netId);
+        }
     }
 
     /**
