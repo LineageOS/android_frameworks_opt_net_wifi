@@ -2978,6 +2978,31 @@ public class ClientModeImpl extends StateMachine {
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
 
+    /* If this connection attempt fails after 802.1x stage, clear intermediate cached data. */
+    void clearNetworkCachedDataIfNeeded(WifiConfiguration config, int reason) {
+        if (config == null) return;
+
+        switch(reason) {
+            case 14: // MICHAEL_MIC_FAILURE
+            case 15: // 4WAY_HANDSHAKE_TIMEOUT
+            case 16: // GROUP_KEY_UPDATE_TIMEOUT
+            case 17: // IE_IN_4WAY_DIFFERS
+            case 18: // GROUP_CIPHER_NOT_VALID
+            case 19: // PAIRWISE_CIPHER_NOT_VALID
+            case 20: // AKMP_NOT_VALID
+            case 23: // IEEE_802_1X_AUTH_FAILED
+            case 24: // CIPHER_SUITE_REJECTED
+            case 29: // BAD_CIPHER_OR_AKM
+            case 45: // PEERKEY_MISMATCH
+            case 49: // INVALID_PMKID
+                mWifiNative.removeNetworkCachedData(config.networkId);
+                break;
+            default:
+                logi("Keep PMK cache for network disconnection reason " + reason);
+                break;
+        }
+    }
+
     /**
      * Returns the sufficient RSSI for the frequency that this network is last seen on.
      */
@@ -4211,6 +4236,7 @@ public class ClientModeImpl extends StateMachine {
                     // idempotent commands are executed twice (stopping Dhcp, enabling the SPS mode
                     // at the chip etc...
                     if (mVerboseLoggingEnabled) log("ConnectModeState: Network connection lost ");
+                    clearNetworkCachedDataIfNeeded(getTargetWifiConfiguration(), message.arg2);
                     handleNetworkDisconnect();
                     transitionTo(mDisconnectedState);
                     break;
@@ -5240,6 +5266,7 @@ public class ClientModeImpl extends StateMachine {
                                 + " BSSID=" + bssid
                                 + " target=" + target);
                     }
+                    clearNetworkCachedDataIfNeeded(getTargetWifiConfiguration(), message.arg2);
                     if (bssid != null && bssid.equals(mTargetBssid)) {
                         handleNetworkDisconnect();
                         transitionTo(mDisconnectedState);
@@ -5395,6 +5422,7 @@ public class ClientModeImpl extends StateMachine {
                         mWifiDiagnostics.captureBugReportData(
                                 WifiDiagnostics.REPORT_REASON_UNEXPECTED_DISCONNECT);
                     }
+
                     boolean localGen = message.arg1 == 1;
                     if (!localGen) { // ignore disconnects initiated by wpa_supplicant.
                         mWifiScoreCard.noteNonlocalDisconnect(message.arg2);
@@ -5598,6 +5626,7 @@ public class ClientModeImpl extends StateMachine {
                                         getTargetSsid(), bssid,
                                         WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
                     }
+                    clearNetworkCachedDataIfNeeded(getTargetWifiConfiguration(), message.arg2);
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     StateChangeResult stateChangeResult = (StateChangeResult) message.obj;
