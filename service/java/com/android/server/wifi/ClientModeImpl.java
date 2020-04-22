@@ -3265,6 +3265,9 @@ public class ClientModeImpl extends StateMachine {
             mWifiMetrics.logStaEvent(StaEvent.TYPE_MAC_CHANGE, config);
             boolean setMacSuccess =
                     mWifiNative.setMacAddress(mInterfaceName, newMac);
+            if (setMacSuccess) {
+                mWifiNative.removeNetworkCachedDataIfNeeded(config.networkId, newMac);
+            }
             Log.d(TAG, "ConnectedMacRandomization SSID(" + config.getPrintableSsid()
                     + "). setMacAddress(" + newMac.toString() + ") from "
                     + currentMacString + " = " + setMacSuccess);
@@ -3283,6 +3286,7 @@ public class ClientModeImpl extends StateMachine {
         String currentMacStr = mWifiNative.getMacAddress(mInterfaceName);
         if (!TextUtils.equals(currentMacStr, factoryMac.toString())) {
             if (mWifiNative.setMacAddress(mInterfaceName, factoryMac)) {
+                mWifiNative.removeNetworkCachedDataIfNeeded(config.networkId, factoryMac);
                 mWifiMetrics.logStaEvent(StaEvent.TYPE_MAC_CHANGE, config);
             } else {
                 Log.e(TAG, "Failed to set MAC address to " + "'" + factoryMac.toString() + "'");
