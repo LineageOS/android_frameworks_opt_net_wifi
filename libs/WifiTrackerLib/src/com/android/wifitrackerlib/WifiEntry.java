@@ -429,6 +429,15 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     abstract String getScanResultDescription();
 
     /**
+     * In Wi-Fi picker, when users click a saved network, it will connect to the Wi-Fi network.
+     * However, for some special cases, Wi-Fi picker should show Wi-Fi editor UI for users to edit
+     * security or password before connecting. Or users will always get connection fail results.
+     */
+    public boolean shouldEditBeforeConnect() {
+        return false;
+    }
+
+    /**
      * Sets the callback listener for WifiEntryCallback methods.
      * Subsequent calls will overwrite the previous listener.
      */
