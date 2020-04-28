@@ -47,8 +47,8 @@
     <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"वाइ-फाइसँग जडान गर्न सकेन"</string>
     <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" खराब इन्टरनेट जडान रहेको छ।"</string>
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"जडान अनुमति दिने हो?"</string>
-    <string name="wifi_connect_alert_message" msgid="3123801378559831220">"अनुप्रयोग %1$s Wifi सञ्जाल %2$s मा जडान गर्न चाहन्छ"</string>
-    <string name="wifi_connect_default_application" msgid="6164721692891325243">"एउटा अनुप्रयोग"</string>
+    <string name="wifi_connect_alert_message" msgid="3123801378559831220">"एप %1$s Wifi सञ्जाल %2$s मा जडान गर्न चाहन्छ"</string>
+    <string name="wifi_connect_default_application" msgid="6164721692891325243">"एउटा एप"</string>
     <string name="accept" msgid="5931271886782610829">"स्वीकार्नुहोस्"</string>
     <string name="decline" msgid="6874256900873707640">"अस्वीकार गर्नुहोस्"</string>
     <string name="ok" msgid="4215387532539340948">"ठिक छ"</string>
