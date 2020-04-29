@@ -2028,6 +2028,10 @@ public class WifiNetworkSuggestionsManager {
      */
     public boolean shouldBeIgnoredBySecureSuggestionFromSameCarrier(
             @NonNull WifiConfiguration configuration, List<ScanDetail> scanDetails) {
+        if (!mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable)) {
+            return false;
+        }
         if (configuration == null || scanDetails == null || !configuration.isOpenNetwork()) {
             return false;
         }

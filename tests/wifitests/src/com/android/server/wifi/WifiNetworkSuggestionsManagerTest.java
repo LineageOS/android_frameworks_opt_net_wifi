@@ -3721,6 +3721,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     @Test
     public void testShouldNotBeIgnoredBySecureSuggestionFromSameCarrierWithoutSameOpenSuggestion() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
                 .thenReturn(true);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3746,6 +3749,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     @Test
     public void testShouldNotBeIgnoredBySecureSuggestionFromSameCarrierWithoutSecureSuggestion() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
                 .thenReturn(true);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3771,6 +3777,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     @Test
     public void testShouldNotBeIgnoredWithoutCarrierProvisioningPermission() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiCarrierInfoManager.getCarrierIdForPackageWithCarrierPrivileges(anyString()))
                 .thenReturn(TEST_CARRIER_ID);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3796,6 +3805,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     @Test
     public void testShouldNotBeIgnoredBySecureSuggestionFromDifferentCarrierId() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
                 .thenReturn(true);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3821,6 +3833,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     @Test
     public void testShouldNotBeIgnoredBySecureSuggestionFromSameCarrierWithAutojoinDisabled() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
                 .thenReturn(true);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3846,6 +3861,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     @Test
     public void testShouldNotBeIgnoredBySecureSuggestionFromSameCarrierWithDifferentMeterness() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
                 .thenReturn(true);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3872,6 +3890,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
     @Test
     public void testShouldNotBeIgnoredBySecureSuggestionFromSameCarrierWithNetworkDisabled() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
                 .thenReturn(true);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3903,7 +3924,38 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     }
 
     @Test
+    public void testShouldNotBeIgnoredBySecureSuggestionFromSameCarrierWithOverlayFalse() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
+                .thenReturn(true);
+        WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail1 = createScanDetailForNetwork(network1);
+        network1.carrierId = TEST_CARRIER_ID;
+        WifiNetworkSuggestion suggestion1 = new WifiNetworkSuggestion(
+                network1, null, false, false, true, true);
+        WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
+        ScanDetail scanDetail2 = createScanDetailForNetwork(network2);
+        network2.carrierId = TEST_CARRIER_ID;
+        WifiNetworkSuggestion suggestion2 = new WifiNetworkSuggestion(
+                network2, null, false, false, true, true);
+
+        List<ScanDetail> scanDetails = Arrays.asList(scanDetail1, scanDetail2);
+        // Both open and secure suggestions with same carrierId,
+        List<WifiNetworkSuggestion> suggestionList = Arrays.asList(suggestion1, suggestion2);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(suggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1, TEST_FEATURE));
+        assertFalse(mWifiNetworkSuggestionsManager
+                .shouldBeIgnoredBySecureSuggestionFromSameCarrier(network1, scanDetails));
+    }
+
+    @Test
     public void testShouldBeIgnoredBySecureSuggestionFromSameCarrier() {
+        when(mResources.getBoolean(
+                R.bool.config_wifiIgnoreOpenSavedNetworkWhenSecureSuggestionAvailable))
+                .thenReturn(true);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt()))
                 .thenReturn(true);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createOpenNetwork();
