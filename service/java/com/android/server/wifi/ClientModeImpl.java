@@ -2983,6 +2983,10 @@ public class ClientModeImpl extends StateMachine {
             mNetworkFactory.handleConnectionAttemptEnded(level2FailureCode, configuration);
             mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                     level2FailureCode, configuration, getCurrentBSSID());
+            ScanResult candidate = configuration.getNetworkSelectionStatus().getCandidate();
+            if (candidate != null && !TextUtils.equals(candidate.BSSID, getCurrentBSSID())) {
+                mWifiMetrics.incrementNumBssidDifferentSelectionBetweenFrameworkAndFirmware();
+            }
         }
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
@@ -4146,7 +4150,13 @@ public class ClientModeImpl extends StateMachine {
                                 // We switched from DHCP to static or from static to DHCP, or the
                                 // static IP address has changed.
                                 log("Reconfiguring IP on connection");
-                                transitionTo(mObtainingIpState);
+                                WifiConfiguration currentConfig = getCurrentWifiConfiguration();
+                                if (currentConfig != null) {
+                                    transitionTo(mObtainingIpState);
+                                } else {
+                                    Log.w(TAG, "CMD_SAVE_NETWORK Ip change - but no current "
+                                            + "Wi-Fi config");
+                                }
                             }
                         }
                     } else if (mWifiInfo.getNetworkId() == WifiConfiguration.INVALID_NETWORK_ID
