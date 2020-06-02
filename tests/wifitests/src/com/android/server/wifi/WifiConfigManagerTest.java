@@ -683,13 +683,14 @@ public class WifiConfigManagerTest {
      */
     @Test
     public void testAddSingleSuggestionNetwork() throws Exception {
-        WifiConfiguration suggestionNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiConfiguration suggestionNetwork = WifiConfigurationTestUtil.createEapNetwork();
         suggestionNetwork.ephemeral = true;
         suggestionNetwork.fromWifiNetworkSuggestion = true;
         List<WifiConfiguration> networks = new ArrayList<>();
         networks.add(suggestionNetwork);
 
         verifyAddSuggestionOrRequestNetworkToWifiConfigManager(suggestionNetwork);
+        verify(mWifiKeyStore, never()).updateNetworkKeys(any(), any());
 
         List<WifiConfiguration> retrievedNetworks =
                 mWifiConfigManager.getConfiguredNetworksWithPasswords();
@@ -699,6 +700,9 @@ public class WifiConfigManagerTest {
         // Ensure that this is not returned in the saved network list.
         assertTrue(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID).isEmpty());
         verify(mWcmListener, never()).onSavedNetworkAdded(suggestionNetwork.networkId);
+        assertTrue(mWifiConfigManager
+                .removeNetwork(suggestionNetwork.networkId, TEST_CREATOR_UID));
+        verify(mWifiKeyStore, never()).removeKeys(any());
     }
 
     /**
