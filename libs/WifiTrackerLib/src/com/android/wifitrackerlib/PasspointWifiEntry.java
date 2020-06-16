@@ -277,14 +277,22 @@ public class PasspointWifiEntry extends WifiEntry implements WifiEntry.WifiEntry
 
     @Override
     public String getMacAddress() {
-        // TODO(b/70983952): Fill this method in
-        return null;
+        if (mWifiConfig == null || getPrivacy() != PRIVACY_RANDOMIZED_MAC) {
+            final String[] factoryMacs = mWifiManager.getFactoryMacAddresses();
+            if (factoryMacs.length > 0) {
+                return factoryMacs[0];
+            } else {
+                return null;
+            }
+        } else {
+            return mWifiConfig.getRandomizedMacAddress().toString();
+        }
     }
 
     @Override
     public boolean isMetered() {
-        // TODO(b/70983952): Fill this method in
-        return false;
+        return getMeteredChoice() == METERED_CHOICE_METERED
+                || (mWifiConfig != null && mWifiConfig.meteredHint);
     }
 
     @Override
@@ -358,7 +366,7 @@ public class PasspointWifiEntry extends WifiEntry implements WifiEntry.WifiEntry
 
     @Override
     public boolean canForget() {
-        return mPasspointConfig != null;
+        return !isSuggestion() && mPasspointConfig != null;
     }
 
     @Override
@@ -405,7 +413,7 @@ public class PasspointWifiEntry extends WifiEntry implements WifiEntry.WifiEntry
 
     @Override
     public boolean canSetMeteredChoice() {
-        return mPasspointConfig != null;
+        return !isSuggestion() && mPasspointConfig != null;
     }
 
     @Override
@@ -434,7 +442,7 @@ public class PasspointWifiEntry extends WifiEntry implements WifiEntry.WifiEntry
 
     @Override
     public boolean canSetPrivacy() {
-        return mPasspointConfig != null;
+        return !isSuggestion() && mPasspointConfig != null;
     }
 
     @Override
