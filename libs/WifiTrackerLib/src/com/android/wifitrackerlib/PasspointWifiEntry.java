@@ -393,21 +393,6 @@ public class PasspointWifiEntry extends WifiEntry implements WifiEntry.WifiEntry
     }
 
     @Override
-    public String getQrCodeString() {
-        return null;
-    }
-
-    @Override
-    public boolean canSetPassword() {
-        return false;
-    }
-
-    @Override
-    public void setPassword(@NonNull String password) {
-        // Do nothing.
-    }
-
-    @Override
     @MeteredChoice
     public int getMeteredChoice() {
         if (mMeteredOverride == WifiConfiguration.METERED_OVERRIDE_METERED) {
