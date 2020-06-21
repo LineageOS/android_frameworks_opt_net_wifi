@@ -27,6 +27,7 @@ import android.net.wifi.IOnWifiActivityEnergyInfoListener;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ISoftApCallback;
+import android.net.wifi.IStaStateCallback;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
@@ -675,6 +676,17 @@ public class BaseWifiService extends IWifiManager.Stub {
 
     @Override
     public boolean isAutoWakeupEnabled() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void registerStaStateCallback(
+            IBinder binder, IStaStateCallback callback, int callbackIdentifier) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void unregisterStaStateCallback(int callbackIdentifier) {
         throw new UnsupportedOperationException();
     }
 }
