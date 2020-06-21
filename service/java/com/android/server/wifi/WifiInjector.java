@@ -102,6 +102,7 @@ public class WifiInjector {
     private final ScoringParams mScoringParams;
     private final ClientModeImpl mClientModeImpl;
     private final ActiveModeWarden mActiveModeWarden;
+    private final WifiStaStateNotifier mWifiStaStateNotifier;
     private final WifiSettingsStore mSettingsStore;
     private OpenNetworkNotifier mOpenNetworkNotifier;
     private CarrierNetworkNotifier mCarrierNetworkNotifier;
@@ -346,6 +347,8 @@ public class WifiInjector {
                 mWifiConfigManager, mContext, mDppMetrics);
         mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
 
+        mWifiStaStateNotifier = new WifiStaStateNotifier(clientModeImplLooper, this);
+
         // Register the various network evaluators with the network selector.
         mWifiNetworkSelector.registerNetworkEvaluator(mSavedNetworkEvaluator);
         mWifiNetworkSelector.registerNetworkEvaluator(mNetworkSuggestionEvaluator);
@@ -450,6 +453,10 @@ public class WifiInjector {
 
     public ActiveModeWarden getActiveModeWarden() {
         return mActiveModeWarden;
+    }
+
+    public WifiStaStateNotifier getWifiStaStateNotifier() {
+        return mWifiStaStateNotifier;
     }
 
     public WifiSettingsStore getWifiSettingsStore() {
