@@ -723,14 +723,19 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         // Test client control setting when force client disconnect doesn't support
         mResources.setBoolean(R.bool.config_wifiSofapClientForceDisconnectSupported, false);
         ArrayList<MacAddress> blockedClientList = new ArrayList<>();
+        ArrayList<MacAddress> allowedClientList = new ArrayList<>();
         blockedClientList.add(MacAddress.fromString("11:22:33:44:55:66"));
+        allowedClientList.add(MacAddress.fromString("aa:bb:cc:dd:ee:ff"));
         configBuilder.setBlockedClientList(blockedClientList);
+        configBuilder.setAllowedClientList(allowedClientList);
 
         configBuilder.setClientControlByUserEnabled(true);
         resetedConfig = store.resetToDefaultForUnsupportedConfig(configBuilder.build());
         assertFalse(resetedConfig.isClientControlByUserEnabled());
-        // The blocked list still keep
-        assertEquals(resetedConfig.getBlockedClientList(), blockedClientList);
+        // The blocked list will be clean
+        assertEquals(resetedConfig.getBlockedClientList().size(), 0);
+        // The allowed list will be keep
+        assertEquals(resetedConfig.getAllowedClientList(), allowedClientList);
 
         // Test max client setting when reset enabled but force client disconnect supported
         mResources.setBoolean(R.bool.config_wifiSofapClientForceDisconnectSupported, true);
@@ -744,7 +749,17 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                 R.bool.config_wifiSoftapResetUserControlConfig, true);
         resetedConfig = store.resetToDefaultForUnsupportedConfig(configBuilder.build());
         assertFalse(resetedConfig.isClientControlByUserEnabled());
-        assertEquals(resetedConfig.getBlockedClientList(), blockedClientList);
+        assertEquals(resetedConfig.getBlockedClientList().size(), 0);
+        assertEquals(resetedConfig.getAllowedClientList(), allowedClientList);
+
+        // Test blocked list setting will be reset even if client control disabled
+        mResources.setBoolean(
+                R.bool.config_wifiSoftapResetUserControlConfig, true);
+        configBuilder.setClientControlByUserEnabled(false);
+        resetedConfig = store.resetToDefaultForUnsupportedConfig(configBuilder.build());
+        assertFalse(resetedConfig.isClientControlByUserEnabled());
+        assertEquals(resetedConfig.getBlockedClientList().size(), 0);
+        assertEquals(resetedConfig.getAllowedClientList(), allowedClientList);
     }
 
     /**

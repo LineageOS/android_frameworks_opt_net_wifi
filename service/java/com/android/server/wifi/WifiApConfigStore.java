@@ -33,6 +33,7 @@ import com.android.wifi.resources.R;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Random;
 
 import javax.annotation.Nullable;
@@ -170,8 +171,10 @@ public class WifiApConfigStore {
         if ((!ApConfigUtil.isClientForceDisconnectSupported(mContext)
                 || mContext.getResources().getBoolean(
                 R.bool.config_wifiSoftapResetUserControlConfig))
-                && config.isClientControlByUserEnabled()) {
+                && (config.isClientControlByUserEnabled()
+                || config.getBlockedClientList().size() != 0)) {
             configBuilder.setClientControlByUserEnabled(false);
+            configBuilder.setBlockedClientList(new ArrayList<>());
             Log.i(TAG, "Reset ClientControlByUser to false due to device doesn't support");
         }
 
