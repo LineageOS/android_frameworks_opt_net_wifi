@@ -19,8 +19,6 @@ package com.android.server.wifi;
 import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_STATIONARY;
 import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN;
 
-import android.content.Context;
-import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.util.Log;
 import android.util.SparseArray;
@@ -29,7 +27,6 @@ import android.util.SparseIntArray;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiLinkLayerStats.ChannelStats;
 import com.android.server.wifi.util.InformationElementUtil.BssLoad;
-import com.android.wifi.resources.R;
 
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -63,7 +60,6 @@ public class WifiChannelUtilization {
     @VisibleForTesting
     static final int CHANNEL_STATS_CACHE_SIZE = 5;
     private final Clock mClock;
-    private final Context mContext;
     private @DeviceMobilityState int mDeviceMobilityState = DEVICE_MOBILITY_STATE_UNKNOWN;
     private int mCacheUpdateIntervalMinMs = DEFAULT_CACHE_UPDATE_INTERVAL_MIN_MS;
 
@@ -76,8 +72,7 @@ public class WifiChannelUtilization {
     private long mLastChannelStatsMapTimeStamp;
     private int mLastChannelStatsMapMobilityState;
 
-    WifiChannelUtilization(Clock clock, Context context) {
-        mContext = context;
+    WifiChannelUtilization(Clock clock) {
         mClock = clock;
     }
 
@@ -90,7 +85,7 @@ public class WifiChannelUtilization {
     }
 
     /**
-     * (Re)initialize internal variables and status
+     * Initialize internal variables and status after wifi is enabled
      * @param wifiLinkLayerStats The latest wifi link layer stats
      */
     public void init(WifiLinkLayerStats wifiLinkLayerStats) {
@@ -125,19 +120,6 @@ public class WifiChannelUtilization {
      * @return Utilization ratio value if it is available; BssLoad.INVALID otherwise
      */
     public int getUtilizationRatio(int frequency) {
-        if (mContext.getResources().getBoolean(
-                R.bool.config_wifiChannelUtilizationOverrideEnabled)) {
-            if (ScanResult.is24GHz(frequency)) {
-                return mContext.getResources().getInteger(
-                        R.integer.config_wifiChannelUtilizationOverride2g);
-            }
-            if (ScanResult.is5GHz(frequency)) {
-                return mContext.getResources().getInteger(
-                        R.integer.config_wifiChannelUtilizationOverride5g);
-            }
-            return mContext.getResources().getInteger(
-                        R.integer.config_wifiChannelUtilizationOverride6g);
-        }
         return mChannelUtilizationMap.get(frequency, BssLoad.INVALID);
     }
 
@@ -171,11 +153,6 @@ public class WifiChannelUtilization {
      */
     public void refreshChannelStatsAndChannelUtilization(WifiLinkLayerStats wifiLinkLayerStats,
             int frequency) {
-        if (mContext.getResources().getBoolean(
-                R.bool.config_wifiChannelUtilizationOverrideEnabled)) {
-            return;
-        }
-
         if (wifiLinkLayerStats == null) {
             return;
         }

@@ -212,7 +212,7 @@ public class WifiDataStallTest extends WifiBaseTest {
     }
 
     /**
-     * Verify throughput when Rx link speed is unavailable.
+     * Verify throughtput when Rx link speed is unavailable.
      * Also verify the logging of channel utilization and throughput.
      */
     @Test

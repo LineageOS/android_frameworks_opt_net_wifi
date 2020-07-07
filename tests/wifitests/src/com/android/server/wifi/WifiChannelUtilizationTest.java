@@ -30,13 +30,10 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.validateMockitoUsage;
 
-import android.content.Context;
-
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiLinkLayerStats.ChannelStats;
 import com.android.server.wifi.util.InformationElementUtil.BssLoad;
-import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -51,19 +48,13 @@ import org.mockito.MockitoAnnotations;
 public class WifiChannelUtilizationTest extends WifiBaseTest {
     private WifiChannelUtilization mWifiChannelUtilization;
     @Mock private Clock mClock;
-    @Mock Context mContext;
-    MockResources mMockResources = new MockResources();
     /**
      * Called before each test
      */
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        when(mContext.getResources()).thenReturn(mMockResources);
-        mMockResources.setBoolean(
-                R.bool.config_wifiChannelUtilizationOverrideEnabled,
-                false);
-        mWifiChannelUtilization = new WifiChannelUtilization(mClock, mContext);
+        mWifiChannelUtilization = new WifiChannelUtilization(mClock);
         mWifiChannelUtilization.init(null);
     }
 
@@ -436,24 +427,5 @@ public class WifiChannelUtilizationTest extends WifiBaseTest {
         int utilizationRatio = 24;
         mWifiChannelUtilization.setUtilizationRatio(freq, utilizationRatio);
         assertEquals(utilizationRatio, mWifiChannelUtilization.getUtilizationRatio(freq));
-    }
-
-    @Test
-    public void verifyOverridingUtilizationRatio() throws Exception {
-        mMockResources.setBoolean(
-                R.bool.config_wifiChannelUtilizationOverrideEnabled,
-                true);
-        mMockResources.setInteger(
-                R.integer.config_wifiChannelUtilizationOverride2g,
-                60);
-        mMockResources.setInteger(
-                R.integer.config_wifiChannelUtilizationOverride5g,
-                20);
-        mMockResources.setInteger(
-                R.integer.config_wifiChannelUtilizationOverride6g,
-                10);
-        assertEquals(60, mWifiChannelUtilization.getUtilizationRatio(2412));
-        assertEquals(20, mWifiChannelUtilization.getUtilizationRatio(5810));
-        assertEquals(10, mWifiChannelUtilization.getUtilizationRatio(6710));
     }
 }
