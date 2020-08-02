@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "dd5178f4_d03d1f52",
+        "filename": "service/java/com/android/server/wifi/ActiveModeWarden.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 659,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2020-08-02T16:35:33Z",
+      "side": 1,
+      "message": "so it\u0027s just stubs?",
+      "range": {
+        "startLine": 658,
+        "startChar": 0,
+        "endLine": 659,
+        "endChar": 47
+      },
+      "revId": "55040e5955c211817bc9dfbba3cc59d297b47e76",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
