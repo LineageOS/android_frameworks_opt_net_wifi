@@ -22,6 +22,30 @@
       "revId": "55040e5955c211817bc9dfbba3cc59d297b47e76",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "8e380e08_cbce4b0f",
+        "filename": "service/java/com/android/server/wifi/ActiveModeWarden.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 659,
+      "author": {
+        "id": 14437
+      },
+      "writtenOn": "2020-08-05T19:39:33Z",
+      "side": 1,
+      "message": "Well yes, but actually no. MTK does not use this class for ActiveModeWarden, they extend it into another class and that is another rabbit hole of classes and changes to other repos. This simply allows ImsService to register a callback that doesn\u0027t otherwise exist. I\u0027m not sure what issues an empty callback in place of the real ones would cause here, but in the last 1-2 months of use, it hasn\u0027t caused any trouble on my builds; it fixes crash of ImsService on StaState change (WiFi connect, disconnect, etc). Without the callback, the crash breaks ImsService until next reboot (constant FC dialogs and no IMS).",
+      "parentUuid": "dd5178f4_d03d1f52",
+      "range": {
+        "startLine": 658,
+        "startChar": 0,
+        "endLine": 659,
+        "endChar": 47
+      },
+      "revId": "55040e5955c211817bc9dfbba3cc59d297b47e76",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
     }
   ]
 }
