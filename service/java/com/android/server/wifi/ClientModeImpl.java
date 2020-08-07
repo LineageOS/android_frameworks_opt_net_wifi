@@ -4907,9 +4907,7 @@ public class ClientModeImpl extends StateMachine {
                     mLastNetworkId = message.arg1;
                     mWifiInfo.setNetworkId(mLastNetworkId);
                     mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
-                    if (!mLastBssid.equals(message.obj)) {
-                        mLastBssid = (String) message.obj;
-                    }
+                    mLastBssid = (String) message.obj;
                     break;
                 case CMD_ONESHOT_RSSI_POLL:
                     if (!mEnableRssiPolling) {
@@ -5416,11 +5414,11 @@ public class ClientModeImpl extends StateMachine {
                                     mWifiConfigManager.updateNetworkSelectionStatus(
                                             config.networkId,
                                             DISABLED_NO_INTERNET_TEMPORARY);
+                                    mBssidBlocklistMonitor.handleBssidConnectionFailure(
+                                            mLastBssid, config.SSID,
+                                            BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE,
+                                            mWifiInfo.getRssi());
                                 }
-                                mBssidBlocklistMonitor.handleBssidConnectionFailure(
-                                        mLastBssid, config.SSID,
-                                        BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE,
-                                        mWifiInfo.getRssi());
                                 mWifiScoreCard.noteValidationFailure(mWifiInfo);
                             }
                         }
