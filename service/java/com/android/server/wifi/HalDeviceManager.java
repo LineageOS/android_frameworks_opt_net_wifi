@@ -1455,8 +1455,10 @@ public class HalDeviceManager {
                     cacheEntry.isLowPriority = lowPriority;
 
                     if (mDbg) Log.d(TAG, "createIfaceIfPossible: added cacheEntry=" + cacheEntry);
-                    mInterfaceInfoCache.put(
-                            Pair.create(cacheEntry.name, cacheEntry.type), cacheEntry);
+                    synchronized (mLock) {
+                        mInterfaceInfoCache.put(
+                                Pair.create(cacheEntry.name, cacheEntry.type), cacheEntry);
+                    }
                     return iface;
                 }
             }
@@ -2311,6 +2313,8 @@ public class HalDeviceManager {
         pw.println("  mManagerStatusListeners: " + mManagerStatusListeners);
         pw.println("  mInterfaceAvailableForRequestListeners: "
                 + mInterfaceAvailableForRequestListeners);
-        pw.println("  mInterfaceInfoCache: " + mInterfaceInfoCache);
+        synchronized (mLock) {
+            pw.println("  mInterfaceInfoCache: " + mInterfaceInfoCache);
+        }
     }
 }
