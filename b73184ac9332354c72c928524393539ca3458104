@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "d968bee9_7516c859",
+        "filename": "service/java/com/android/server/wifi/HalDeviceManager.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 1465,
+      "author": {
+        "id": 18205
+      },
+      "writtenOn": "2020-08-14T16:35:43Z",
+      "side": 1,
+      "message": "the whole block is synchronized already",
+      "range": {
+        "startLine": 1415,
+        "startChar": 0,
+        "endLine": 1465,
+        "endChar": 9
+      },
+      "revId": "b73184ac9332354c72c928524393539ca3458104",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "b7ae3f4c_0a164262",
+        "filename": "service/java/com/android/server/wifi/HalDeviceManager.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 2319,
+      "author": {
+        "id": 18205
+      },
+      "writtenOn": "2020-08-14T16:35:43Z",
+      "side": 1,
+      "message": "synchronize the whole method?\nglancing through the class, mLock guards all other variables too",
+      "range": {
+        "startLine": 2310,
+        "startChar": 0,
+        "endLine": 2319,
+        "endChar": 5
+      },
+      "revId": "b73184ac9332354c72c928524393539ca3458104",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
