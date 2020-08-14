@@ -80,6 +80,24 @@
       "revId": "b73184ac9332354c72c928524393539ca3458104",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "f3aa63eb_63fdcbc3",
+        "filename": "service/java/com/android/server/wifi/HalDeviceManager.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 2319,
+      "author": {
+        "id": 18205
+      },
+      "writtenOn": "2020-08-14T16:48:48Z",
+      "side": 1,
+      "message": "AbstractMap\u003c\u003e implements toString() with iterator, which throws ConcurrentModificationException when removing while iterating\n\nBut is the exception actually thrown while dumping?",
+      "parentUuid": "5e2e4207_a4234cbe",
+      "revId": "b73184ac9332354c72c928524393539ca3458104",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
     }
   ]
 }
