@@ -2305,12 +2305,14 @@ public class HalDeviceManager {
      * Dump the internal state of the class.
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
-        pw.println("HalDeviceManager:");
-        pw.println("  mServiceManager: " + mServiceManager);
-        pw.println("  mWifi: " + mWifi);
-        pw.println("  mManagerStatusListeners: " + mManagerStatusListeners);
-        pw.println("  mInterfaceAvailableForRequestListeners: "
-                + mInterfaceAvailableForRequestListeners);
-        pw.println("  mInterfaceInfoCache: " + mInterfaceInfoCache);
+        synchronized (mLock) {
+            pw.println("HalDeviceManager:");
+            pw.println("  mServiceManager: " + mServiceManager);
+            pw.println("  mWifi: " + mWifi);
+            pw.println("  mManagerStatusListeners: " + mManagerStatusListeners);
+            pw.println("  mInterfaceAvailableForRequestListeners: "
+                    + mInterfaceAvailableForRequestListeners);
+            pw.println("  mInterfaceInfoCache: " + mInterfaceInfoCache);
+        }
     }
 }
