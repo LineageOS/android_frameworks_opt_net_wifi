@@ -4899,8 +4899,8 @@ public class WifiConfigManagerTest {
     private int verifyNetworkInBroadcastAndReturnReason(WifiConfiguration configuration) {
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
         ArgumentCaptor<UserHandle> userHandleCaptor = ArgumentCaptor.forClass(UserHandle.class);
-        mContextConfigStoreMockOrder.verify(mContext)
-                .sendBroadcastAsUser(intentCaptor.capture(), userHandleCaptor.capture());
+        mContextConfigStoreMockOrder.verify(mContext).sendBroadcastAsUserMultiplePermissions(
+                intentCaptor.capture(), userHandleCaptor.capture(), any());
 
         assertEquals(userHandleCaptor.getValue(), UserHandle.ALL);
         Intent intent = intentCaptor.getValue();
