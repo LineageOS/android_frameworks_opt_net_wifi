@@ -830,7 +830,13 @@ public class WifiConfigManager {
         maskPasswordsInWifiConfiguration(broadcastNetwork);
         intent.putExtra(WifiManager.EXTRA_WIFI_CONFIGURATION, broadcastNetwork);
         intent.putExtra(WifiManager.EXTRA_CHANGE_REASON, reason);
-        mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+        mContext.sendBroadcastAsUserMultiplePermissions(
+                intent,
+                UserHandle.ALL,
+                new String[]{
+                        android.Manifest.permission.ACCESS_WIFI_STATE,
+                        android.Manifest.permission.ACCESS_FINE_LOCATION,
+                });
     }
 
     /**
