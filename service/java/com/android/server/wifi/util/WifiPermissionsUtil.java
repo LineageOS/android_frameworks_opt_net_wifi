@@ -32,6 +32,7 @@ import android.os.RemoteException;
 import android.os.UserManager;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.EventLog;
 
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
@@ -391,5 +392,33 @@ public class WifiPermissionsUtil {
         return mWifiPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_SETTINGS, uid)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Check if the given UID belongs to the current foreground user. This is
+     * used to prevent apps running in background users from modifying network
+     * configurations.
+     * <p>
+     * UIDs belonging to system internals (such as SystemUI) are always allowed,
+     * since they always run as {@link UserHandle#USER_SYSTEM}.
+     *
+     * @param uid uid of the app.
+     * @return true if the given UID belongs to the current foreground user,
+     *         otherwise false.
+     */
+    public boolean doesUidBelongToCurrentUser(int uid) {
+        if (uid == android.os.Process.SYSTEM_UID
+                // UIDs with the NETWORK_SETTINGS permission are always allowed since they are
+                // acting on behalf of the user.
+                || checkNetworkSettingsPermission(uid)) {
+            return true;
+        }
+        boolean isCurrentProfile = isCurrentProfile(uid);
+        if (!isCurrentProfile) {
+            // Fix for b/174749461
+            EventLog.writeEvent(0x534e4554, "174749461", -1,
+                    "Non foreground user trying to modify wifi configuration");
+        }
+        return isCurrentProfile;
     }
 }
