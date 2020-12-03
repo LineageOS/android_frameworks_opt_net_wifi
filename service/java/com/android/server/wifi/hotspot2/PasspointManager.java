@@ -41,6 +41,7 @@ import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
 import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -88,6 +89,7 @@ public class PasspointManager {
     private final CertificateVerifier mCertVerifier;
     private final WifiMetrics mWifiMetrics;
     private final PasspointProvisioner mPasspointProvisioner;
+    private final WifiPermissionsUtil mWifiPermissionsUtil;
 
     // Counter used for assigning unique identifier to each provider.
     private long mProviderIndex;
@@ -160,7 +162,7 @@ public class PasspointManager {
     public PasspointManager(Context context, WifiNative wifiNative, WifiKeyStore keyStore,
             Clock clock, SIMAccessor simAccessor, PasspointObjectFactory objectFactory,
             WifiConfigManager wifiConfigManager, WifiConfigStore wifiConfigStore,
-            WifiMetrics wifiMetrics) {
+            WifiMetrics wifiMetrics, WifiPermissionsUtil wifiPermissionsUtil) {
         mHandler = objectFactory.makePasspointEventHandler(wifiNative,
                 new CallbackHandler(context));
         mKeyStore = keyStore;
@@ -177,6 +179,7 @@ public class PasspointManager {
                 mKeyStore, mSimAccessor, new DataSourceHandler()));
         mPasspointProvisioner = objectFactory.makePasspointProvisioner(context);
         sPasspointManager = this;
+        mWifiPermissionsUtil = wifiPermissionsUtil;
     }
 
     /**
@@ -212,6 +215,10 @@ public class PasspointManager {
         }
         if (!config.validate()) {
             Log.e(TAG, "Invalid configuration");
+            return false;
+        }
+        if (!mWifiPermissionsUtil.doesUidBelongToCurrentUser(uid)) {
+            Log.e(TAG, "UID " + uid + " not visible to the current user");
             return false;
         }
 
@@ -257,16 +264,20 @@ public class PasspointManager {
     /**
      * Remove a Passpoint provider identified by the given FQDN.
      *
+     * @param callingUid Calling UID.
      * @param fqdn The FQDN of the provider to remove
      * @return true if a provider is removed, false otherwise
      */
-    public boolean removeProvider(String fqdn) {
+    public boolean removeProvider(int callingUid, String fqdn) {
         mWifiMetrics.incrementNumPasspointProviderUninstallation();
         if (!mProviders.containsKey(fqdn)) {
             Log.e(TAG, "Config doesn't exist");
             return false;
         }
-
+        if (!mWifiPermissionsUtil.doesUidBelongToCurrentUser(callingUid)) {
+            Log.e(TAG, "UID " + callingUid + " not visible to the current user");
+            return false;
+        }
         mProviders.get(fqdn).uninstallCertsAndKeys();
         mProviders.remove(fqdn);
         mWifiConfigManager.saveToStore(true /* forceWrite */);
