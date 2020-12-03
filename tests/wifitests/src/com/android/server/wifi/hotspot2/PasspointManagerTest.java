@@ -78,6 +78,7 @@ import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
 import com.android.server.wifi.hotspot2.anqp.I18Name;
 import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -130,6 +131,7 @@ public class PasspointManagerTest {
     @Mock WifiConfigStore mWifiConfigStore;
     @Mock PasspointConfigStoreData.DataSource mDataSource;
     @Mock WifiMetrics mWifiMetrics;
+    @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     PasspointManager mManager;
 
     /** Sets up test. */
@@ -141,7 +143,8 @@ public class PasspointManagerTest {
                 .thenReturn(mAnqpRequestManager);
         when(mObjectFactory.makeCertificateVerifier()).thenReturn(mCertVerifier);
         mManager = new PasspointManager(mContext, mWifiNative, mWifiKeyStore, mClock,
-                mSimAccessor, mObjectFactory, mWifiConfigManager, mWifiConfigStore, mWifiMetrics);
+                mSimAccessor, mObjectFactory, mWifiConfigManager, mWifiConfigStore, mWifiMetrics,
+                mWifiPermissionsUtil);
         ArgumentCaptor<PasspointEventHandler.Callbacks> callbacks =
                 ArgumentCaptor.forClass(PasspointEventHandler.Callbacks.class);
         verify(mObjectFactory).makePasspointEventHandler(any(WifiNative.class),
@@ -472,7 +475,7 @@ public class PasspointManagerTest {
         assertEquals(1, mDataSource.getProviderIndex());
 
         // Remove the provider.
-        assertTrue(mManager.removeProvider(TEST_FQDN));
+        assertTrue(mManager.removeProvider(TEST_CREATOR_UID, TEST_FQDN));
         verify(provider).uninstallCertsAndKeys();
         verify(mWifiConfigManager).saveToStore(true);
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
@@ -512,7 +515,7 @@ public class PasspointManagerTest {
         assertEquals(1, mDataSource.getProviderIndex());
 
         // Remove the provider.
-        assertTrue(mManager.removeProvider(TEST_FQDN));
+        assertTrue(mManager.removeProvider(TEST_CREATOR_UID, TEST_FQDN));
         verify(provider).uninstallCertsAndKeys();
         verify(mWifiConfigManager).saveToStore(true);
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
@@ -632,7 +635,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void removeNonExistingProvider() throws Exception {
-        assertFalse(mManager.removeProvider(TEST_FQDN));
+        assertFalse(mManager.removeProvider(TEST_CREATOR_UID, TEST_FQDN));
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
         verify(mWifiMetrics, never()).incrementNumPasspointProviderUninstallSuccess();
     }
