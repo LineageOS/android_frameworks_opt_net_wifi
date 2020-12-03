@@ -59,6 +59,7 @@ import com.android.server.wifi.hotspot2.anqp.NAIRealmElement;
 import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.TelephonyUtil;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.PrintWriter;
 import java.security.cert.X509Certificate;
@@ -117,6 +118,8 @@ public class PasspointManager {
     private final TelephonyManager mTelephonyManager;
     private final AppOpsManager mAppOps;
     private final SubscriptionManager mSubscriptionManager;
+    private final WifiPermissionsUtil mWifiPermissionsUtil;
+
 
     /**
      * Map of package name of an app to the app ops changed listener for the app.
@@ -298,7 +301,8 @@ public class PasspointManager {
             PasspointObjectFactory objectFactory, WifiConfigManager wifiConfigManager,
             WifiConfigStore wifiConfigStore,
             WifiMetrics wifiMetrics,
-            TelephonyManager telephonyManager, SubscriptionManager subscriptionManager) {
+            TelephonyManager telephonyManager, SubscriptionManager subscriptionManager,
+            WifiPermissionsUtil wifiPermissionsUtil) {
         mPasspointEventHandler = objectFactory.makePasspointEventHandler(wifiNative,
                 new CallbackHandler(context));
         mWifiInjector = wifiInjector;
@@ -323,6 +327,7 @@ public class PasspointManager {
                 this, wifiMetrics);
         mAppOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         sPasspointManager = this;
+        mWifiPermissionsUtil = wifiPermissionsUtil;
     }
 
     /**
@@ -363,6 +368,10 @@ public class PasspointManager {
         }
         if (!config.validate()) {
             Log.e(TAG, "Invalid configuration");
+            return false;
+        }
+        if (!mWifiPermissionsUtil.doesUidBelongToCurrentUser(uid)) {
+            Log.e(TAG, "UID " + uid + " not visible to the current user");
             return false;
         }
 
@@ -640,6 +649,10 @@ public class PasspointManager {
         if (!privileged && callingUid != provider.getCreatorUid()) {
             Log.e(TAG, "UID " + callingUid + " cannot remove profile created by "
                     + provider.getCreatorUid());
+            return false;
+        }
+        if (!mWifiPermissionsUtil.doesUidBelongToCurrentUser(callingUid)) {
+            Log.e(TAG, "UID " + callingUid + " not visible to the current user");
             return false;
         }
         provider.uninstallCertsAndKeys();

@@ -290,7 +290,7 @@ public class WifiInjector {
         mPasspointManager = new PasspointManager(mContext, this,
                 new Handler(mWifiCoreHandlerThread.getLooper()), mWifiNative, mWifiKeyStore, mClock,
                 mSimAccessor, new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
-                mWifiMetrics, makeTelephonyManager(), subscriptionManager);
+                mWifiMetrics, makeTelephonyManager(), subscriptionManager, mWifiPermissionsUtil);
         mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
                 mCarrierNetworkConfig, this, subscriptionManager);
