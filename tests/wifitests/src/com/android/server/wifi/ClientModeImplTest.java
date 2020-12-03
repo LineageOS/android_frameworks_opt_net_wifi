@@ -1811,13 +1811,13 @@ public class ClientModeImplTest {
     @Test
     public void syncRemovePasspointConfig() throws Exception {
         String fqdn = "test.com";
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(true);
+        when(mPasspointManager.removeProvider(anyInt(), eq(fqdn))).thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, fqdn));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(false);
+        when(mPasspointManager.removeProvider(anyInt(), eq(fqdn))).thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, fqdn));
         mLooper.stopAutoDispatch();
@@ -3484,7 +3484,7 @@ public class ClientModeImplTest {
     @Test
     public void testRemovePasspointConfig() throws Exception {
         String fqdn = "test.com";
-        when(mPasspointManager.removeProvider(anyString())).thenReturn(true);
+        when(mPasspointManager.removeProvider(anyInt(), anyString())).thenReturn(true);
 
         // switch to connect mode and verify wifi is reported as enabled
         startSupplicantAndDispatchMessages();
