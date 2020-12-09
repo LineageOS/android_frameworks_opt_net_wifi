@@ -37,6 +37,7 @@
     <string name="wifi_limited_connection" msgid="3646701342701276239">"Takmörkuð tenging"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"Ekki næst í DNS-einkaþjón"</string>
     <string name="wifi_connected_no_internet" msgid="7273909077465731259">"Engin nettenging"</string>
+    <string name="wifi_connected_low_quality" msgid="4478331645458058445">"Lítil gæði"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"Ekkert"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"Útrunnin"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"Ýttu til að skrá þig"</string>
@@ -46,7 +47,7 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"Gengur frá skráningu…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"Ekki tókst að ljúka við skráningu. Ýttu til að reyna aftur."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"Skráningu lokið. Tengist…"</string>
-    <string name="imsi_protection_warning" msgid="3207104049473134195">"Þetta net fær einkvæmt auðkenni sem hægt er að nota til að rekja staðsetningu tækis. "<annotation id="url">"Frekari upplýsingar"</annotation></string>
+    <string name="imsi_protection_warning" msgid="5231726821588271569">"Þetta net fær SIM-auðkenni sem hægt er að nota til að rekja staðsetningu tækisins. "<annotation id="url">"Frekari upplýsingar"</annotation></string>
     <string name="speed_label_very_slow" msgid="2401582671941367179">"Mjög hægt"</string>
     <string name="speed_label_slow" msgid="8410385703344502127">"Hægt"</string>
     <string name="speed_label_okay" msgid="3741857805086997968">"Í lagi"</string>

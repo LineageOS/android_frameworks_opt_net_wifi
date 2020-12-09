@@ -23,7 +23,7 @@
     <string name="wifi_no_internet" msgid="4461212237521310895">"لا يتوفّر اتصال بالإنترنت"</string>
     <string name="wifi_disabled_password_failure" msgid="3015007143699702403">"مشكلة في المصادقة"</string>
     <string name="wifi_check_password_try_again" msgid="2643230209986217827">"يُرجى التحقق من كلمة المرور وإعادة المحاولة"</string>
-    <string name="wifi_disabled_network_failure" msgid="6506742207778007439">"‏تعذّرت تهيئة عنوان IP"</string>
+    <string name="wifi_disabled_network_failure" msgid="6506742207778007439">"‏تعذّر إعداد عنوان IP"</string>
     <string name="wifi_disabled_generic" msgid="8307050327779256414">"غير مفعّلة"</string>
     <string name="wifi_ap_unable_to_handle_new_sta" msgid="6552198761671428871">"نقطة الوصول ممتلئة مؤقتًا"</string>
     <string name="wifi_disconnected" msgid="3720926757662831062">"غير متصلة"</string>
@@ -37,6 +37,7 @@
     <string name="wifi_limited_connection" msgid="3646701342701276239">"اتصال محدود"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"لا يمكن الوصول إلى خادم أسماء نظام نطاقات خاص"</string>
     <string name="wifi_connected_no_internet" msgid="7273909077465731259">"لا يتوفر اتصال إنترنت."</string>
+    <string name="wifi_connected_low_quality" msgid="4478331645458058445">"جودة منخفضة"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"بلا أمان"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"منتهية الصلاحية"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"انقر للاشتراك."</string>
@@ -46,7 +47,7 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"جارٍ إكمال الاشتراك…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"تعذّر إكمال الاشتراك. انقر لإعادة المحاولة."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"اكتمل الاشتراك. جارٍ الاتصال…"</string>
-    <string name="imsi_protection_warning" msgid="3207104049473134195">"تتلقّى هذه الشبكة معرّفًا فريدًا يمكن استخدامه لتتبُّع الموقع الجغرافي للجهاز. "<annotation id="url">"مزيد من المعلومات"</annotation></string>
+    <string name="imsi_protection_warning" msgid="5231726821588271569">"‏تتلقّى هذه الشبكة رقم تعريف لشريحة SIM يمكن استخدامه لتتبُّع الموقع الجغرافي للجهاز. "<annotation id="url">"مزيد من المعلومات"</annotation></string>
     <string name="speed_label_very_slow" msgid="2401582671941367179">"بطيئة جدًا"</string>
     <string name="speed_label_slow" msgid="8410385703344502127">"بطيئة"</string>
     <string name="speed_label_okay" msgid="3741857805086997968">"حسنًا"</string>

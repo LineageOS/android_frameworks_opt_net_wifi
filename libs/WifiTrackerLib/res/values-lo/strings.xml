@@ -37,6 +37,7 @@
     <string name="wifi_limited_connection" msgid="3646701342701276239">"ການເຊື່ອມຕໍ່ຈຳກັດ"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"ບໍ່ສາມາດເຂົ້າເຖິງເຊີບເວີ DNS ສ່ວນຕົວໄດ້"</string>
     <string name="wifi_connected_no_internet" msgid="7273909077465731259">"ບໍ່ມີອິນເຕີເນັດ"</string>
+    <string name="wifi_connected_low_quality" msgid="4478331645458058445">"ຄຸນນະພາບຕໍ່າ"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"ບໍ່ໃຊ້"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"ໝົດອາຍຸແລ້ວ"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"ແຕະເພື່ອສະໝັກ"</string>
@@ -46,7 +47,7 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"ກຳລັງສຳເລັດການສະໝັກ…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"ບໍ່ສາມາດສຳເລັດການສະໝັກໄດ້. ແຕະເພື່ອລອງໃໝ່."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"ສະໝັກສຳເລັດແລ້ວ. ກຳລັງເຊື່ອມຕໍ່…"</string>
-    <string name="imsi_protection_warning" msgid="3207104049473134195">"ເຄືອຂ່າຍນີ້ຈະຮັບ unique ID ທີ່ສາມາດໃຊ້ເພື່ອຕິດຕາມສະຖານທີ່ອຸປະກອນ "<annotation id="url">"ສຶກສາເພີ່ມເຕີມ"</annotation></string>
+    <string name="imsi_protection_warning" msgid="5231726821588271569">"ເຄືອຂ່າຍນີ້ຈະຮັບ ID ຊິມທີ່ສາມາດໃຊ້ເພື່ອຕິດຕາມສະຖານທີ່ອຸປະກອນ "<annotation id="url">"ສຶກສາເພີ່ມເຕີມ"</annotation></string>
     <string name="speed_label_very_slow" msgid="2401582671941367179">"ຊ້າຫຼາຍ"</string>
     <string name="speed_label_slow" msgid="8410385703344502127">"ຊ້າ"</string>
     <string name="speed_label_okay" msgid="3741857805086997968">"ຕົກລົງ"</string>

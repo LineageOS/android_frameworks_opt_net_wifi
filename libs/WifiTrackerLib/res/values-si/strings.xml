@@ -37,6 +37,7 @@
     <string name="wifi_limited_connection" msgid="3646701342701276239">"සීමිත සම්බන්ධතාව"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"පුද්ගලික DNS සේවාදායකයට ප්‍රවේශ වීමට නොහැකිය"</string>
     <string name="wifi_connected_no_internet" msgid="7273909077465731259">"අන්තර්ජාලය නැත"</string>
+    <string name="wifi_connected_low_quality" msgid="4478331645458058445">"අඩු ගුණත්වය"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"කිසිවක් නැත"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"කල් ඉකුත් විය"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"ලියාපදිංචි වීමට තට්ටු කරන්න"</string>
@@ -46,7 +47,7 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"ලියාපදිංචිය සම්පූර්ණ කරමින්…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"ලියාපදිංචිය සම්පූර්ණ කළ නොහැකි විය. නැවත උත්සාහ කිරීමට තට්ටු කරන්න."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"ලියාපදිංචිය සම්පූර්ණයි. සබැඳෙමින්…"</string>
-    <string name="imsi_protection_warning" msgid="3207104049473134195">"උපාංග ස්ථානය නිරීක්ෂණය කිරීමට භාවිත කළ හැකි අනන්‍ය ID එකක් මෙම ජාලයට ලැබේ "<annotation id="url">"තව දැන ගන්න"</annotation></string>
+    <string name="imsi_protection_warning" msgid="5231726821588271569">"උපාංග ස්ථානය නිරීක්ෂණය කිරීමට භාවිත කළ හැකි SIM ID එකක් මෙම ජාලයට ලැබේ. "<annotation id="url">"තව දැන ගන්න"</annotation></string>
     <string name="speed_label_very_slow" msgid="2401582671941367179">"ඉතා මන්දගාමී"</string>
     <string name="speed_label_slow" msgid="8410385703344502127">"මන්දගාමී"</string>
     <string name="speed_label_okay" msgid="3741857805086997968">"හරි"</string>

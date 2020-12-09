@@ -85,6 +85,9 @@
     <!-- Summary for Connected wifi network without internet [CHAR LIMIT=NONE] -->
     <string name="wifi_connected_no_internet">No internet</string>
 
+    <!-- Summary for Connected wifi network with a low quality connection [CHAR LIMIT=NONE] -->
+    <string name="wifi_connected_low_quality">Low quality</string>
+
     <!-- Do not translate.  Concise terminology for wifi with 802.1x EAP security -->
     <string name="wifi_security_short_eap" translatable="false">802.1x</string>
 
@@ -170,7 +173,7 @@
     <string name="osu_sign_up_complete">Sign-up complete. Connecting\u2026</string>
 
     <!-- IMSI protection warning for non-protection network [CHAR LIMIT=NONE] -->
-    <string name="imsi_protection_warning">This network receives a unique ID that can be used to track device location. <annotation id="url">Learn more</annotation></string>
+    <string name="imsi_protection_warning">This network receives a SIM ID that can be used to track device location. <annotation id="url">Learn more</annotation></string>
 
     <!-- Help URL, IMSI protection [DO NOT TRANSLATE] -->
     <string name="help_url_imsi_protection" translatable="false"></string>

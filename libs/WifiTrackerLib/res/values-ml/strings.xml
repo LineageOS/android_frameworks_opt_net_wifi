@@ -37,6 +37,7 @@
     <string name="wifi_limited_connection" msgid="3646701342701276239">"പരിമിത കണക്‌ഷൻ"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"സ്വകാര്യ DNS സെർവർ ആക്‌സസ് ചെയ്യാനാവില്ല"</string>
     <string name="wifi_connected_no_internet" msgid="7273909077465731259">"ഇന്റർനെറ്റ് ഇല്ല"</string>
+    <string name="wifi_connected_low_quality" msgid="4478331645458058445">"കുറഞ്ഞ നിലവാരം"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"ഒന്നുമില്ല"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"കാലഹരണപ്പെട്ടത്"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"സൈൻ അപ്പ് ചെയ്യാൻ ടാപ്പ് ചെയ്യുക"</string>
@@ -46,7 +47,7 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"സൈൻ അപ്പ് പൂർത്തിയാക്കുന്നു…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"സൈൻ അപ്പ് പൂർത്തിയാക്കാനായില്ല. വീണ്ടും ശ്രമിക്കാൻ ടാപ്പ് ചെയ്യുക."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"സൈൻ അപ്പ് പൂർത്തിയായി. കണക്റ്റ് ചെയ്യുന്നു…"</string>
-    <string name="imsi_protection_warning" msgid="3207104049473134195">"ഉപകരണ ലൊക്കേഷൻ ട്രാക്ക് ചെയ്യാൻ ഉപയോഗിക്കാവുന്ന തനത് ഐഡി ഈ നെറ്റ്‌വർക്ക് സ്വീകരിക്കുന്നു. "<annotation id="url">"കൂടുതലറിയുക"</annotation></string>
+    <string name="imsi_protection_warning" msgid="5231726821588271569">"ഉപകരണ ലൊക്കേഷൻ ട്രാക്ക് ചെയ്യാൻ ഉപയോഗിക്കാവുന്ന സിം ഐഡി ഈ നെറ്റ്‌വർക്കിന് ലഭിക്കും. "<annotation id="url">"കൂടുതലറിയുക"</annotation></string>
     <string name="speed_label_very_slow" msgid="2401582671941367179">"വളരെ കുറഞ്ഞ വേഗത്തിൽ"</string>
     <string name="speed_label_slow" msgid="8410385703344502127">"കുറഞ്ഞ വേഗത്തിൽ"</string>
     <string name="speed_label_okay" msgid="3741857805086997968">"ശരി"</string>

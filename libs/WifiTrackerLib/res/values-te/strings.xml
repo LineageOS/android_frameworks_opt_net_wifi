@@ -37,6 +37,7 @@
     <string name="wifi_limited_connection" msgid="3646701342701276239">"పరిమిత కనెక్షన్"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"ప్రైవేట్ DNS సర్వర్‌ను యాక్సెస్ చేయడం సాధ్యపడదు"</string>
     <string name="wifi_connected_no_internet" msgid="7273909077465731259">"ఇంటర్నెట్ లేదు"</string>
+    <string name="wifi_connected_low_quality" msgid="4478331645458058445">"తక్కువ క్వాలిటీ"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"ఏదీ లేదు"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"గడువు ముగిసింది"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"సైన్ అప్ చేయడానికి ట్యాప్ చేయండి"</string>
@@ -46,7 +47,7 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"సైన్ అప్ పూర్తవుతోంది…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"సైన్ అప్‌ను పూర్తి చేయడం సాధ్యపడలేదు. మళ్ళీ ప్రయత్నించడానికి ట్యాప్ చేయండి."</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"సైన్ అప్ పూర్తయింది. కనెక్ట్ చేయబడుతోంది…"</string>
-    <string name="imsi_protection_warning" msgid="3207104049473134195">"పరికర లొకేషన్‌ను ట్రాక్ చేయడానికి ఉపయోగపడే యూనిక్ IDని ఈ నెట్‌వర్క్ అందుకుంటుంది. "<annotation id="url">"మరింత తెలుసుకోండి"</annotation></string>
+    <string name="imsi_protection_warning" msgid="5231726821588271569">"పరికరం లొకేషన్‌ను ట్రాక్ చేయడానికి ఉపయోగపడే SIM IDని ఈ నెట్‌వర్క్ అందుకుంటుంది. "<annotation id="url">"మరింత తెలుసుకోండి"</annotation></string>
     <string name="speed_label_very_slow" msgid="2401582671941367179">"చాలా నెమ్మది"</string>
     <string name="speed_label_slow" msgid="8410385703344502127">"నెమ్మది"</string>
     <string name="speed_label_okay" msgid="3741857805086997968">"సరే"</string>

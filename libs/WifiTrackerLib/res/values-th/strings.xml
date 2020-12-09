@@ -37,6 +37,7 @@
     <string name="wifi_limited_connection" msgid="3646701342701276239">"การเชื่อมต่อที่จำกัด"</string>
     <string name="private_dns_broken" msgid="2212227512243587416">"เข้าถึงเซิร์ฟเวอร์ DNS ไม่ได้"</string>
     <string name="wifi_connected_no_internet" msgid="7273909077465731259">"ไม่มีอินเทอร์เน็ต"</string>
+    <string name="wifi_connected_low_quality" msgid="4478331645458058445">"คุณภาพต่ำ"</string>
     <string name="wifi_security_none" msgid="6680263031386719053">"ไม่มี"</string>
     <string name="wifi_passpoint_expired" msgid="3257021415099577815">"หมดอายุแล้ว"</string>
     <string name="tap_to_sign_up" msgid="2409214576606918295">"แตะเพื่อลงชื่อสมัครใช้"</string>
@@ -46,7 +47,7 @@
     <string name="osu_completing_sign_up" msgid="7188493241442946231">"กำลังลงชื่อสมัครใช้ให้เสร็จสิ้น…"</string>
     <string name="osu_sign_up_failed" msgid="2725057866968590279">"ลงชื่อสมัครใช้ไม่สำเร็จ แตะเพื่อลองอีกครั้ง"</string>
     <string name="osu_sign_up_complete" msgid="7013805426618985953">"การลงชื่อสมัครใช้เสร็จสมบูรณ์ กำลังเชื่อมต่อ…"</string>
-    <string name="imsi_protection_warning" msgid="3207104049473134195">"เครือข่ายนี้ได้รับรหัสที่ไม่ซ้ำกันซึ่งใช้ติดตามตำแหน่งอุปกรณ์ได้ "<annotation id="url">"ดูข้อมูลเพิ่มเติม"</annotation></string>
+    <string name="imsi_protection_warning" msgid="5231726821588271569">"เครือข่ายนี้จะได้รับรหัส SIM ซึ่งใช้ติดตามตำแหน่งอุปกรณ์ได้ "<annotation id="url">"ดูข้อมูลเพิ่มเติม"</annotation></string>
     <string name="speed_label_very_slow" msgid="2401582671941367179">"ช้ามาก"</string>
     <string name="speed_label_slow" msgid="8410385703344502127">"ช้า"</string>
     <string name="speed_label_okay" msgid="3741857805086997968">"ตกลง"</string>
