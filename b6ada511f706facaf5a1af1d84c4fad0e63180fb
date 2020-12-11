@@ -46,6 +46,30 @@
       "revId": "b6ada511f706facaf5a1af1d84c4fad0e63180fb",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "c5f0c142_1b70ae8e",
+        "filename": "service/java/com/android/server/wifi/ClientModeImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 1315,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2020-12-11T21:51:09Z",
+      "side": 0,
+      "message": "It was fixed in lineage-17.1: https://github.com/LineageOS/android_frameworks_opt_net_wifi/commit/b1d191b36fcb58970f0a13327518d52543c81218",
+      "parentUuid": "6a1275b0_64791549",
+      "range": {
+        "startLine": 1315,
+        "startChar": 12,
+        "endLine": 1315,
+        "endChar": 85
+      },
+      "revId": "b6ada511f706facaf5a1af1d84c4fad0e63180fb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
     }
   ]
 }
