@@ -22,6 +22,30 @@
       "revId": "b6ada511f706facaf5a1af1d84c4fad0e63180fb",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "6a1275b0_64791549",
+        "filename": "service/java/com/android/server/wifi/ClientModeImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 1315,
+      "author": {
+        "id": 24387
+      },
+      "writtenOn": "2020-12-11T21:40:50Z",
+      "side": 0,
+      "message": "To be fair, I saw the error messages mentioned in the commit message on msm8226 and I just picked the original change were this was removed, which applied cleanly, so I did not actually checked the code.\nBut now that you let me think about it maybe could be a wrong pick in the 17.0 branch, since this was left in in 16.0 patchset.",
+      "parentUuid": "2cb3ede6_2e5abda1",
+      "range": {
+        "startLine": 1315,
+        "startChar": 12,
+        "endLine": 1315,
+        "endChar": 85
+      },
+      "revId": "b6ada511f706facaf5a1af1d84c4fad0e63180fb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
     }
   ]
 }
