@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5d661e03_8d88873d",
+        "filename": "service/java/com/android/server/wifi/ClientModeImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 1321,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2020-12-11T21:21:03Z",
+      "side": 1,
+      "message": "Wrong indentation",
+      "range": {
+        "startLine": 1320,
+        "startChar": 0,
+        "endLine": 1321,
+        "endChar": 68
+      },
+      "revId": "29e9169de4a0b660e5782ccc5ffb8500f1f1d592",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
