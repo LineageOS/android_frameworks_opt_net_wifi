@@ -3736,4 +3736,8 @@ public class WifiServiceImpl extends BaseWifiService {
     public int setAppProperty(String key, String value) {
         return mNvWifi.setAppProperty(key, value, mWifiStateMachineChannel);
     }
+
+    public void restartSupplicant() {
+        mWifiStateMachine.restartSupplicant();
+    }
 }
