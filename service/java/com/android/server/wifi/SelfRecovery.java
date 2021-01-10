@@ -46,6 +46,7 @@ public class SelfRecovery {
     public static final int REASON_LAST_RESORT_WATCHDOG = 0;
     public static final int REASON_WIFINATIVE_FAILURE = 1;
     public static final int REASON_STA_IFACE_DOWN = 2;
+    public static final int REASON_NV_RESTART_SUPPLICANT = 3;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = {"REASON_"}, value = {
@@ -57,7 +58,8 @@ public class SelfRecovery {
     protected static final String[] REASON_STRINGS = {
             "Last Resort Watchdog",  // REASON_LAST_RESORT_WATCHDOG
             "WifiNative Failure",    // REASON_WIFINATIVE_FAILURE
-            "Sta Interface Down"     // REASON_STA_IFACE_DOWN
+            "Sta Interface Down",    // REASON_STA_IFACE_DOWN
+            "Nv restart Supplicant"  // REASON_NV_RESTART_SUPPLICANT
     };
 
     private final Context mContext;
@@ -86,7 +88,7 @@ public class SelfRecovery {
      */
     public void trigger(@RecoveryReason int reason) {
         if (!(reason == REASON_LAST_RESORT_WATCHDOG || reason == REASON_WIFINATIVE_FAILURE
-                  || reason == REASON_STA_IFACE_DOWN)) {
+                  || reason == REASON_STA_IFACE_DOWN || reason == REASON_NV_RESTART_SUPPLICANT)) {
             Log.e(TAG, "Invalid trigger reason. Ignoring...");
             return;
         }

@@ -6635,4 +6635,9 @@ public class ClientModeImpl extends StateMachine {
     public NvWifi getNvWifi() {
         return mNvWifi;
     }
+
+    public void restartSupplicant() {
+        Log.e(TAG, "restartSupplicant: Triggering recovery");
+        mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_NV_RESTART_SUPPLICANT);
+    }
 }
