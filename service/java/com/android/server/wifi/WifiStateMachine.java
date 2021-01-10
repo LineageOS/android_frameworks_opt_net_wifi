@@ -5939,4 +5939,9 @@ public class WifiStateMachine extends StateMachine {
     public static NvWifi getNvWifi() {
         return mNvWifi;
     }
+
+    public void restartSupplicant() {
+        Log.e(TAG, "restartSupplicant: Triggering recovery");
+        mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_NV_RESTART_SUPPLICANT);
+    }
 }
