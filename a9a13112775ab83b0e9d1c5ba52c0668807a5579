@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f05a980c_4ff1165e",
+        "filename": "service/java/com/android/server/wifi/p2p/WifiP2pServiceImpl.java",
+        "patchSetId": 3
+      },
+      "lineNbr": 675,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2021-01-10T16:25:43Z",
+      "side": 1,
+      "message": "No tabs",
+      "range": {
+        "startLine": 675,
+        "startChar": 0,
+        "endLine": 675,
+        "endChar": 1
+      },
+      "revId": "a9a13112775ab83b0e9d1c5ba52c0668807a5579",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d84edb6f_21286beb",
+        "filename": "service/java/com/android/server/wifi/p2p/WifiP2pServiceImpl.java",
+        "patchSetId": 3
+      },
+      "lineNbr": 715,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2021-01-10T16:25:43Z",
+      "side": 1,
+      "message": "Add { }",
+      "range": {
+        "startLine": 714,
+        "startChar": 0,
+        "endLine": 715,
+        "endChar": 35
+      },
+      "revId": "a9a13112775ab83b0e9d1c5ba52c0668807a5579",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
