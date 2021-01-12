@@ -26,11 +26,11 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.android.server.wifi.ClientModeImpl;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
-import com.android.server.wifi.WifiStateMachine;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.ScanResultUtil;
@@ -84,7 +84,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     // Settings for the currently running pno scan, null if no scan active
     private LastPnoScanSettings mLastPnoScanSettings = null;
 
-    private NvWifi mNvWifi = WifiStateMachine.getNvWifi();
+    private NvWifi mNvWifi = ClientModeImpl.getNvWifi();
 
     /**
      * Duration to wait before timing out a scan.

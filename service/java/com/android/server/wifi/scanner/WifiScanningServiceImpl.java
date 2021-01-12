@@ -108,7 +108,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         mLocalLog.log(message);
     }
 
-    private NvWifi mNvWifi = WifiStateMachine.getNvWifi();
+    private NvWifi mNvWifi = ClientModeImpl.getNvWifi();
 
     @Override
     public Messenger getMessenger() {

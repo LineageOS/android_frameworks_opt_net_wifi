@@ -45,8 +45,8 @@ import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.ClientModeImpl;
 import com.android.server.wifi.util.ScanResultUtil;
-import com.android.server.wifi.WifiStateMachine;
 import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
@@ -605,7 +605,7 @@ public class WifiConnectivityManager {
             localLog("SingleScanListener onFailure:"
                     + " reason: " + reason + " description: " + description);
 
-            WifiStateMachine.mNvWifi.resetScanBlocked();
+            ClientModeImpl.mNvWifi.resetScanBlocked();
 
             // reschedule the scan
             if (mSingleScanRestartCount++ < MAX_SCAN_RESTART_ALLOWED) {
@@ -706,7 +706,7 @@ public class WifiConnectivityManager {
             clearScanDetails();
             mScanRestartCount = 0;
 
-            if (!wasConnectAttempted && !WifiStateMachine.mNvWifi.isBlakeConnected()) {
+            if (!wasConnectAttempted && !ClientModeImpl.mNvWifi.isBlakeConnected()) {
                 // The scan results were rejected by WifiNetworkSelector due to low RSSI values
                 if (mLowRssiNetworkRetryDelay > LOW_RSSI_NETWORK_RETRY_MAX_DELAY_MS) {
                     mLowRssiNetworkRetryDelay = LOW_RSSI_NETWORK_RETRY_MAX_DELAY_MS;
@@ -1580,7 +1580,7 @@ public class WifiConnectivityManager {
             startPeriodicScan(scanImmediately);
         } else {
             if (mWifiState == WIFI_STATE_DISCONNECTED && !mPnoScanStarted
-                    && !WifiStateMachine.mNvWifi.isEtherConnected()) {
+                    && !ClientModeImpl.mNvWifi.isEtherConnected()) {
                 startDisconnectedPnoScan();
             }
         }

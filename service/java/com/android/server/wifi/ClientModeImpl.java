@@ -3409,7 +3409,7 @@ public class ClientModeImpl extends StateMachine {
                         if (message.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
                             p2pSendMessage(AsyncChannel.CMD_CHANNEL_FULL_CONNECTION);
 
-                            mWifiP2pChannel.sendMessage(NvWifi.CMD_NV_SET_NV_WIFI, WifiStateMachine.mNvWifi);
+                            mWifiP2pChannel.sendMessage(NvWifi.CMD_NV_SET_NV_WIFI, mNvWifi);
                         } else {
                             // TODO: We should probably do some cleanup or attempt a retry
                             // b/34283611
