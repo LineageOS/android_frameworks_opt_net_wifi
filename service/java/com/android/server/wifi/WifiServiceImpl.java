@@ -495,7 +495,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
         mWifiStaStateNotifier = mWifiInjector.getWifiStaStateNotifier();
-        mNvWifi = mWifiStateMachine.getNvWifi();
+        mNvWifi = mClientModeImpl.getNvWifi();
     }
 
     /**
@@ -3691,7 +3691,7 @@ public class WifiServiceImpl extends BaseWifiService {
             synchronized(mAppPropOnDeathList) {
                 mAppPropOnDeathList.remove(this);
                 for(HashMap.Entry<String, String> entry : mProperties.entrySet()) {
-                    mNvWifi.setAppProperty(entry.getKey(), entry.getValue(), mWifiStateMachineChannel);
+                    mNvWifi.setAppProperty(entry.getKey(), entry.getValue(), mClientModeImplChannel);
 
                 }
                 mProperties = null;
@@ -3730,14 +3730,14 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     public String getAppProperty(String key) {
-        return mNvWifi.getAppProperty(key, mWifiStateMachineChannel);
+        return mNvWifi.getAppProperty(key, mClientModeImplChannel);
     }
 
     public int setAppProperty(String key, String value) {
-        return mNvWifi.setAppProperty(key, value, mWifiStateMachineChannel);
+        return mNvWifi.setAppProperty(key, value, mClientModeImplChannel);
     }
 
     public void restartSupplicant() {
-        mWifiStateMachine.restartSupplicant();
+        mClientModeImpl.restartSupplicant();
     }
 }

@@ -99,7 +99,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
     private WifiScannerImpl mScannerImpl;
 
-    private NvWifi mNvWifi = WifiStateMachine.getNvWifi();
+    private NvWifi mNvWifi = ClientModeImpl.getNvWifi();
 
     @Override
     public Messenger getMessenger() {
