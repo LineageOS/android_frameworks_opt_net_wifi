@@ -51,6 +51,7 @@ import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 
@@ -103,6 +104,7 @@ public class WifiNetworkSuggestionsManagerTest {
     private @Mock ClientModeImpl mClientModeImpl;
     private @Mock WifiMetrics mWifiMetrics;
     private @Mock WifiKeyStore mWifiKeyStore;
+    private @Mock UserManager mUserManager;
     private TestLooper mLooper;
     private ArgumentCaptor<AppOpsManager.OnOpChangedListener> mAppOpChangedListenerCaptor =
             ArgumentCaptor.forClass(AppOpsManager.OnOpChangedListener.class);
@@ -135,6 +137,7 @@ public class WifiNetworkSuggestionsManagerTest {
         when(mContext.getSystemService(Context.NOTIFICATION_SERVICE))
                 .thenReturn(mNotificationManger);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
+        when(mWifiPermissionsUtil.doesUidBelongToCurrentUser(anyInt())).thenReturn(true);
 
         // setup resource strings for notification.
         when(mResources.getString(eq(R.string.wifi_suggestion_title), anyString()))
@@ -860,6 +863,7 @@ public class WifiNetworkSuggestionsManagerTest {
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
         mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        mInorder.verify(mWifiPermissionsUtil).doesUidBelongToCurrentUser(eq(TEST_UID_1));
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
