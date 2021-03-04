@@ -1541,13 +1541,13 @@ public class WifiStateMachineTest {
     @Test
     public void syncRemovePasspointConfig() throws Exception {
         String fqdn = "test.com";
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(true);
+        when(mPasspointManager.removeProvider(anyInt(), eq(fqdn))).thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWsm.syncRemovePasspointConfig(mWsmAsyncChannel, fqdn));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(false);
+        when(mPasspointManager.removeProvider(anyInt(), eq(fqdn))).thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mWsm.syncRemovePasspointConfig(mWsmAsyncChannel, fqdn));
         mLooper.stopAutoDispatch();
