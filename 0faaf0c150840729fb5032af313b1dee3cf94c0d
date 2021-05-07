@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "2e72c1ed_10da7423",
+        "filename": "service/java/com/android/server/wifi/WifiServiceImpl.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 192,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2021-05-07T16:13:03Z",
+      "side": 1,
+      "message": "final",
+      "revId": "0faaf0c150840729fb5032af313b1dee3cf94c0d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
