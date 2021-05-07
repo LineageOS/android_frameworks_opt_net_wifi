@@ -16,6 +16,24 @@
       "revId": "0faaf0c150840729fb5032af313b1dee3cf94c0d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "115672b9_0f87b18f",
+        "filename": "service/java/com/android/server/wifi/WifiServiceImpl.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 192,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2021-05-07T16:19:47Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "2e72c1ed_10da7423",
+      "revId": "0faaf0c150840729fb5032af313b1dee3cf94c0d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
