@@ -374,6 +374,12 @@ public class PasspointManager {
             Log.e(TAG, "UID " + uid + " not visible to the current user");
             return false;
         }
+        if (getPasspointProviderWithPackage(packageName).size()
+                >= WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
+            Log.e(TAG, "packageName " + packageName + " has too many passpoint with exceed the "
+                    + "limitation");
+            return false;
+        }
 
         // For Hotspot 2.0 Release 1, the CA Certificate must be trusted by one of the pre-loaded
         // public CAs in the system key store on the device.  Since the provisioning method
