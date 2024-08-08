@@ -82,6 +82,12 @@ public class WifiConfigurationUtil {
     private static final int SAE_ASCII_MIN_LEN = 1 + ENCLOSING_QUOTES_LEN;
     private static final int PSK_SAE_ASCII_MAX_LEN = 63 + ENCLOSING_QUOTES_LEN;
     private static final int PSK_SAE_HEX_LEN = 64;
+    private static final int MAX_STRING_LENGTH = 512;
+
+    // BACKPORT
+    private static final int MAX_NUMBER_OF_OI = 36;
+    private static final long MAX_OI_VALUE = ((long) 1 << 40)  - 1;
+
     @VisibleForTesting
     public static final String PASSWORD_MASK = "*";
     private static final String MATCH_EMPTY_SSID_PATTERN_PATH = "";
@@ -688,13 +694,20 @@ public class WifiConfigurationUtil {
         if (!validateSsid(config.SSID, isAdd)) {
             return false;
         }
-        if (!validateBssid(config.BSSID)) {
+        if (!validateBssid(config.BSSID) || !validateBssid(config.dhcpServer)
+                || !validateBssid(config.defaultGwMacAddress)) {
             return false;
         }
         if (!validateBitSets(config)) {
             return false;
         }
         if (!validateKeyMgmt(config.allowedKeyManagement)) {
+            return false;
+        }
+        if (!validatePasspoint(config)) {
+            return false;
+        }
+        if (!validateNetworkSelectionStatus(config.getNetworkSelectionStatus())) {
             return false;
         }
         if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK)
@@ -729,6 +742,64 @@ public class WifiConfigurationUtil {
             return false;
         }
         // TBD: Validate some enterprise params as well in the future here.
+        return true;
+    }
+
+    private static boolean validateStringField(String field, int maxLength) {
+        return field == null || field.length() <= maxLength;
+    }
+
+    private static boolean validatePasspoint(WifiConfiguration config) {
+        if (!validateStringField(config.FQDN, 255)) {
+            return false;
+        }
+        if (!validateStringField(config.providerFriendlyName, 255)) {
+            return false;
+        }
+        if (!validateRoamingConsortiumIds(config.roamingConsortiumIds)) {
+            return false;
+        }
+        if (!validateUpdateIdentifier(config.updateIdentifier)) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateUpdateIdentifier(String updateIdentifier) {
+        if (TextUtils.isEmpty(updateIdentifier)) {
+            return true;
+        }
+        try {
+            Integer.valueOf(updateIdentifier);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateNetworkSelectionStatus(
+            WifiConfiguration.NetworkSelectionStatus status) {
+        if (status == null) {
+            return false;
+        }
+        return validateStringField(status.getConnectChoice(), MAX_STRING_LENGTH)
+                    && validateBssid(status.getNetworkSelectionBSSID());
+    }
+
+    private static boolean validateRoamingConsortiumIds(long[] roamingConsortiumIds) {
+        if (roamingConsortiumIds != null) {
+            if (roamingConsortiumIds.length > MAX_NUMBER_OF_OI) {
+                Log.d(TAG, "too many Roaming Consortium Organization Identifiers in the "
+                        + "profile");
+                return false;
+            }
+            for (long oi : roamingConsortiumIds) {
+                if (oi < 0 || oi > MAX_OI_VALUE) {
+                    Log.d(TAG, "Organization Identifiers is out of range");
+                    return false;
+                }
+            }
+        }
         return true;
     }
 
