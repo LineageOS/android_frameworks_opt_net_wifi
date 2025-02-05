@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 import android.content.pm.UserInfo;
 import android.net.IpConfiguration;
 import android.net.MacAddress;
+import android.net.ProxyInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiManager;
@@ -1102,5 +1103,28 @@ public class WifiConfigurationUtilTest extends WifiBaseTest {
 
         assertTrue(WifiConfigurationUtil.hasEnterpriseConfigChanged(eapConfig1.enterpriseConfig,
                 eapConfig2.enterpriseConfig));
+    }
+
+    @Test
+    public void testInvalidStaticIpConfig() {
+        WifiConfiguration pskConfig = WifiConfigurationTestUtil.createPskNetwork();
+        IpConfiguration ipConfig =
+                WifiConfigurationTestUtil.createStaticIpConfigurationWithPacProxy();
+        ipConfig.getStaticIpConfiguration().domains = "a".repeat(513);
+        pskConfig.setIpConfiguration(ipConfig);
+        assertFalse(WifiConfigurationUtil.validate(pskConfig, SUPPORTED_FEATURES_ALL,
+                WifiConfigurationUtil.VALIDATE_FOR_ADD));
+    }
+    @Test
+    public void testInvalidProxyInfo() {
+        WifiConfiguration pskConfig = WifiConfigurationTestUtil.createPskNetwork();
+        IpConfiguration ipConfig =
+                WifiConfigurationTestUtil.createStaticIpConfigurationWithStaticProxy();
+        ProxyInfo proxyInfo = ProxyInfo.buildDirectProxy(ipConfig.getHttpProxy().getHost(),
+                ipConfig.getHttpProxy().getPort(), List.of("a".repeat(513)));
+        ipConfig.setHttpProxy(proxyInfo);
+        pskConfig.setIpConfiguration(ipConfig);
+        assertFalse(WifiConfigurationUtil.validate(pskConfig, SUPPORTED_FEATURES_ALL,
+                WifiConfigurationUtil.VALIDATE_FOR_ADD));
     }
 }
